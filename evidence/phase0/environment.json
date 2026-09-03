@@ -1,0 +1,45 @@
+{
+  "applications" : [
+    {
+      "name" : "Karabiner-Elements",
+      "status" : "absent"
+    },
+    {
+      "name" : "VIA",
+      "status" : "absent"
+    },
+    {
+      "name" : "Vial",
+      "status" : "absent"
+    }
+  ],
+  "architecture" : "arm64",
+  "generatedAt" : "2026-09-03T18:24:02Z",
+  "guiSession" : {
+    "status" : "available",
+    "tapCreate" : "denied"
+  },
+  "hidAccess" : "unknown",
+  "hidSummary" : {
+    "deviceCount" : 1,
+    "devices" : [
+      {
+        "manufacturer" : "Apple",
+        "product" : "Apple Internal Keyboard / Trackpad",
+        "transport" : "FIFO"
+      }
+    ]
+  },
+  "listenEventAccess" : "denied",
+  "macOS" : {
+    "build" : "25G76",
+    "version" : "26.6.1"
+  },
+  "sourceReachability" : {
+    "httpStatus" : 200,
+    "status" : "available"
+  },
+  "sudoNonInteractive" : false,
+  "swift" : "Apple Swift version 6.3.3 (swiftlang-6.3.3.1.3 clang-2100.1.1.101)\nTarget: arm64-apple-macosx26.0",
+  "xcode" : "Xcode 26.6 Build version 17F113"
+}

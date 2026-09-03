@@ -1,0 +1,18 @@
+{
+  "macOS": {"version": "14.0", "build": "23A344"},
+  "architecture": "arm64",
+  "swift": "Apple Swift version 6.0",
+  "xcode": "Xcode 16.0 (16A242d)",
+  "generatedAt": "2026-01-01T00:00:00Z",
+  "guiSession": {"status": "unavailable", "tapCreate": "unavailable"},
+  "listenEventAccess": "denied",
+  "hidAccess": "unknown",
+  "sudoNonInteractive": false,
+  "applications": [
+    {"name": "Karabiner-Elements", "status": "absent", "version": null},
+    {"name": "VIA", "status": "absent", "version": null},
+    {"name": "Vial", "status": "absent", "version": null}
+  ],
+  "hidSummary": {"deviceCount": 0, "devices": []},
+  "sourceReachability": {"status": "unavailable", "httpStatus": null}
+}

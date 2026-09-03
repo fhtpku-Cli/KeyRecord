@@ -1,0 +1,27 @@
+{
+  "name": "vial-gui",
+  "url": "https://github.com/vial-kb/vial-gui.git",
+  "retrieved_at": "2026-09-03T18:18:40Z",
+  "upstream_ref": "aef8222a2d0429a183b2ed692d5f9efcfd383f08",
+  "tree": "22a59cd7c2f7c4ef746378e259f6de0f1faa3633",
+  "files": [
+    {
+      "path": "src/main/python/protocol/keyboard_comm.py",
+      "copied_path": "files/src/main/python/protocol/keyboard_comm.py",
+      "git_blob": "12b785f6adf2b23239288d3bfd4f43e4e2ada2a9",
+      "sha256": "d71b73a6217c5d12a05ff0cd3c85ea06b8f9df798cfb5f1a783207af4623ecdb"
+    },
+    {
+      "path": "src/main/python/editor/keymap_editor.py",
+      "copied_path": "files/src/main/python/editor/keymap_editor.py",
+      "git_blob": "7e89fcca49c273d378d6854b68e33969f1f99b78",
+      "sha256": "5266420876959c83bf4f2d7c5db177170a67a368e028f6b0813b3d1e9e6e03e1"
+    }
+  ],
+  "license": {
+    "path": "COPYING",
+    "copied_path": "license/COPYING",
+    "git_blob": "d159169d1050894d3ea3b98e1c965c4058208fe1",
+    "sha256": "8177f97513213526df2cf6184d8ff986c675afb514d4e68a404010521b880643"
+  }
+}

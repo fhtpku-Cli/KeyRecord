@@ -1,0 +1,42 @@
+<!--
+{
+  "availability" : [
+    "iOS: 4.0.0 -",
+    "iPadOS: 4.0.0 -",
+    "macCatalyst: 13.1.0 -",
+    "macOS: 10.9.0 -",
+    "tvOS: 9.0.0 -",
+    "visionOS: 1.0.0 -",
+    "watchOS: 2.0.0 -"
+  ],
+  "documentType" : "symbol",
+  "framework" : "Security",
+  "identifier" : "/documentation/Security/kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly",
+  "metadataVersion" : "0.1.0",
+  "role" : "Global Variable",
+  "symbol" : {
+    "kind" : "Global Variable",
+    "modules" : [
+      "Security"
+    ],
+    "preciseIdentifier" : "c:@kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly"
+  },
+  "title" : "kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly"
+}
+-->
+
+# kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
+
+The data in the keychain item cannot be accessed after a restart until the device has been unlocked once by the user.
+
+```
+let kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly: CFString
+```
+
+## Discussion
+
+After the first unlock, the data remains accessible until the next restart. This is recommended for items that need to be accessed by background applications. Items with this attribute *do not* migrate to a new device. Thus, after restoring from a backup of a different device, these items will not be present.
+
+---
+
+Copyright &copy; 2026 Apple Inc. All rights reserved. | [Terms of Use](https://www.apple.com/legal/internet-services/terms/site.html) | [Privacy Policy](https://www.apple.com/privacy/privacy-policy)

@@ -1,0 +1,45 @@
+{
+  "name": "vial-qmk",
+  "url": "https://github.com/vial-kb/vial-qmk.git",
+  "retrieved_at": "2026-09-03T18:18:31Z",
+  "upstream_ref": "dd43959ae5c08d8a28d38a1acf7b04e86b14a344",
+  "tree": "b9a0d7b574d78f3e0622c5cfe1f9ff9901d63f64",
+  "files": [
+    {
+      "path": "quantum/vial.c",
+      "copied_path": "files/quantum/vial.c",
+      "git_blob": "42eb4c5e2ab87ea17b761ef95c311bc470ca94a7",
+      "sha256": "713c5a9ba680a3bd39f25fea00cbff66d9506ef8951be33b36aed50b0cc4b52b"
+    },
+    {
+      "path": "quantum/vial.h",
+      "copied_path": "files/quantum/vial.h",
+      "git_blob": "9c66275d4be60fe81a331b401eb22562d5a90233",
+      "sha256": "db5ea5a835ba98883302930d1035a9496e6bcbd73373f60fa793cee104c97284"
+    },
+    {
+      "path": "util/vial_generate_definition.py",
+      "copied_path": "files/util/vial_generate_definition.py",
+      "git_blob": "0981f096a33cc054044c4ba478c20468d691676f",
+      "sha256": "ecd4b1ffeae61a1918ef704eff47f67e2f55ec48944a34a357af6a48abd4caae"
+    },
+    {
+      "path": "util/ci_vial_verify_uid.py",
+      "copied_path": "files/util/ci_vial_verify_uid.py",
+      "git_blob": "5f98be7c2db04b37f4f26776a0688e4ade97f876",
+      "sha256": "f93bf26a7d332ab8789141f27c10e69b98159d14aba4f3d7a890d32ec90fa225"
+    },
+    {
+      "path": "keyboards/vial_example/vial_rp2040/keymaps/vial/vial.json",
+      "copied_path": "files/keyboards/vial_example/vial_rp2040/keymaps/vial/vial.json",
+      "git_blob": "7525baeac5beee45d8c9baf774c77469c6a48b85",
+      "sha256": "09bdbe2ced2496af1ac7f0e7bf20956acc76b861670afe890b62f53bf512f711"
+    }
+  ],
+  "license": {
+    "path": "LICENSE",
+    "copied_path": "license/LICENSE",
+    "git_blob": "d159169d1050894d3ea3b98e1c965c4058208fe1",
+    "sha256": "8177f97513213526df2cf6184d8ff986c675afb514d4e68a404010521b880643"
+  }
+}

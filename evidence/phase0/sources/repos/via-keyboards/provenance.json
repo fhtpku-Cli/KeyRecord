@@ -1,0 +1,21 @@
+{
+  "name": "via-keyboards",
+  "url": "https://github.com/the-via/keyboards.git",
+  "retrieved_at": "2026-09-03T18:16:27Z",
+  "upstream_ref": "e44d80f991664a9676a9a53fbb41892d88ef9069",
+  "tree": "fc8161d0a33e7a46c60953afa484ed2ce919bd1e",
+  "files": [
+    {
+      "path": "v3/0_sixty/0_sixty.json",
+      "copied_path": "files/v3/0_sixty/0_sixty.json",
+      "git_blob": "7ec91dd24b29c68e5fa975469b304a03c6bc136a",
+      "sha256": "914df98445330205bddaa1dbec142865ef1e3d6063eb93b02c6c72545c923f19"
+    }
+  ],
+  "license": {
+    "path": "LICENSE",
+    "copied_path": "license/LICENSE",
+    "git_blob": "f288702d2fa16d3cdf0035b15a9fcbc552cd88e7",
+    "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986"
+  }
+}

@@ -1,21 +1,185 @@
 import Foundation
 
 public struct EnvironmentEvidence: Codable, Equatable, Sendable {
-    public let macOS: String
+    public let macOS: OperatingSystemEvidence
     public let architecture: String
     public let swift: String
     public let xcode: String
     public let generatedAt: String
+    public let guiSession: GUISessionEvidence
+    public let listenEventAccess: DetectionState
+    public let hidAccess: DetectionState
+    public let sudoNonInteractive: Bool
+    public let applications: [ApplicationEvidence]
+    public let hidSummary: HIDSummaryEvidence
+    public let sourceReachability: SourceReachabilityEvidence
 
-    enum CodingKeys: String, CodingKey, CaseIterable, StrictCodingKeys { case macOS, architecture, swift, xcode, generatedAt }
+    enum CodingKeys: String, CodingKey, CaseIterable, StrictCodingKeys {
+        case macOS, architecture, swift, xcode, generatedAt, guiSession, listenEventAccess, hidAccess
+        case sudoNonInteractive, applications, hidSummary, sourceReachability
+    }
+
+    public init(
+        macOS: OperatingSystemEvidence,
+        architecture: String,
+        swift: String,
+        xcode: String,
+        generatedAt: String,
+        guiSession: GUISessionEvidence,
+        listenEventAccess: DetectionState,
+        hidAccess: DetectionState,
+        sudoNonInteractive: Bool,
+        applications: [ApplicationEvidence],
+        hidSummary: HIDSummaryEvidence,
+        sourceReachability: SourceReachabilityEvidence
+    ) {
+        self.macOS = macOS
+        self.architecture = architecture
+        self.swift = swift
+        self.xcode = xcode
+        self.generatedAt = generatedAt
+        self.guiSession = guiSession
+        self.listenEventAccess = listenEventAccess
+        self.hidAccess = hidAccess
+        self.sudoNonInteractive = sudoNonInteractive
+        self.applications = applications
+        self.hidSummary = hidSummary
+        self.sourceReachability = sourceReachability
+    }
+
     public init(from decoder: Decoder) throws {
         try decoder.rejectUnknownKeys(CodingKeys.self, typeName: "EnvironmentEvidence")
         let values = try decoder.container(keyedBy: CodingKeys.self)
-        macOS = try values.decode(String.self, forKey: .macOS)
+        macOS = try values.decode(OperatingSystemEvidence.self, forKey: .macOS)
         architecture = try values.decode(String.self, forKey: .architecture)
         swift = try values.decode(String.self, forKey: .swift)
         xcode = try values.decode(String.self, forKey: .xcode)
         generatedAt = try values.decode(String.self, forKey: .generatedAt)
+        guiSession = try values.decode(GUISessionEvidence.self, forKey: .guiSession)
+        listenEventAccess = try values.decode(DetectionState.self, forKey: .listenEventAccess)
+        hidAccess = try values.decode(DetectionState.self, forKey: .hidAccess)
+        sudoNonInteractive = try values.decode(Bool.self, forKey: .sudoNonInteractive)
+        applications = try values.decode([ApplicationEvidence].self, forKey: .applications)
+        hidSummary = try values.decode(HIDSummaryEvidence.self, forKey: .hidSummary)
+        sourceReachability = try values.decode(SourceReachabilityEvidence.self, forKey: .sourceReachability)
+    }
+}
+
+public enum DetectionState: String, Codable, Equatable, Sendable {
+    case available, denied, unavailable, unknown
+}
+
+public enum ApplicationStatus: String, Codable, Equatable, Sendable { case installed, absent, unknown }
+
+public struct OperatingSystemEvidence: Codable, Equatable, Sendable {
+    public let version: String
+    public let build: String
+    enum CodingKeys: String, CodingKey, CaseIterable, StrictCodingKeys { case version, build }
+    public init(version: String, build: String) { self.version = version; self.build = build }
+    public init(from decoder: Decoder) throws {
+        try decoder.rejectUnknownKeys(CodingKeys.self, typeName: "OperatingSystemEvidence")
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        version = try values.decode(String.self, forKey: .version)
+        build = try values.decode(String.self, forKey: .build)
+    }
+}
+
+public struct GUISessionEvidence: Codable, Equatable, Sendable {
+    public let status: DetectionState
+    public let tapCreate: DetectionState
+    enum CodingKeys: String, CodingKey, CaseIterable, StrictCodingKeys { case status, tapCreate }
+    public init(status: DetectionState, tapCreate: DetectionState) { self.status = status; self.tapCreate = tapCreate }
+    public init(from decoder: Decoder) throws {
+        try decoder.rejectUnknownKeys(CodingKeys.self, typeName: "GUISessionEvidence")
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        status = try values.decode(DetectionState.self, forKey: .status)
+        tapCreate = try values.decode(DetectionState.self, forKey: .tapCreate)
+    }
+}
+
+public struct ApplicationEvidence: Codable, Equatable, Sendable {
+    public let name: String
+    public let status: ApplicationStatus
+    public let version: String?
+    enum CodingKeys: String, CodingKey, CaseIterable, StrictCodingKeys { case name, status, version }
+    public init(name: String, status: ApplicationStatus, version: String?) { self.name = name; self.status = status; self.version = version }
+    public init(from decoder: Decoder) throws {
+        try decoder.rejectUnknownKeys(CodingKeys.self, typeName: "ApplicationEvidence")
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        name = try values.decode(String.self, forKey: .name)
+        status = try values.decode(ApplicationStatus.self, forKey: .status)
+        version = try values.decodeIfPresent(String.self, forKey: .version)
+    }
+}
+
+public struct HIDDeviceEvidence: Codable, Equatable, Sendable {
+    public let vendorID: Int?
+    public let productID: Int?
+    public let manufacturer: String?
+    public let product: String?
+    public let transport: String?
+    enum CodingKeys: String, CodingKey, CaseIterable, StrictCodingKeys { case vendorID, productID, manufacturer, product, transport }
+    public init(vendorID: Int?, productID: Int?, manufacturer: String?, product: String?, transport: String?) {
+        self.vendorID = vendorID; self.productID = productID; self.manufacturer = manufacturer; self.product = product; self.transport = transport
+    }
+    public init(from decoder: Decoder) throws {
+        try decoder.rejectUnknownKeys(CodingKeys.self, typeName: "HIDDeviceEvidence")
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        vendorID = try values.decodeIfPresent(Int.self, forKey: .vendorID)
+        productID = try values.decodeIfPresent(Int.self, forKey: .productID)
+        manufacturer = try values.decodeIfPresent(String.self, forKey: .manufacturer)
+        product = try values.decodeIfPresent(String.self, forKey: .product)
+        transport = try values.decodeIfPresent(String.self, forKey: .transport)
+    }
+}
+
+public struct HIDSummaryEvidence: Codable, Equatable, Sendable {
+    public let deviceCount: Int
+    public let devices: [HIDDeviceEvidence]
+    enum CodingKeys: String, CodingKey, CaseIterable, StrictCodingKeys { case deviceCount, devices }
+    public init(deviceCount: Int, devices: [HIDDeviceEvidence]) { self.deviceCount = deviceCount; self.devices = devices }
+    public init(from decoder: Decoder) throws {
+        try decoder.rejectUnknownKeys(CodingKeys.self, typeName: "HIDSummaryEvidence")
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        deviceCount = try values.decode(Int.self, forKey: .deviceCount)
+        devices = try values.decode([HIDDeviceEvidence].self, forKey: .devices)
+    }
+}
+
+public struct SourceReachabilityEvidence: Codable, Equatable, Sendable {
+    public let status: DetectionState
+    public let httpStatus: Int?
+    enum CodingKeys: String, CodingKey, CaseIterable, StrictCodingKeys { case status, httpStatus }
+    public init(status: DetectionState, httpStatus: Int?) { self.status = status; self.httpStatus = httpStatus }
+    public init(from decoder: Decoder) throws {
+        try decoder.rejectUnknownKeys(CodingKeys.self, typeName: "SourceReachabilityEvidence")
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        status = try values.decode(DetectionState.self, forKey: .status)
+        httpStatus = try values.decodeIfPresent(Int.self, forKey: .httpStatus)
+    }
+}
+
+public enum PrivacySafeEnvironmentValidator {
+    private static let forbiddenKeys = Set(["serial", "serialnumber", "keystream", "events", "credentials", "username", "userid"])
+
+    public static func validateJSON(_ data: Data) throws {
+        let value = try JSONSerialization.jsonObject(with: data)
+        try validate(value)
+        _ = try JSONDecoder().decode(EnvironmentEvidence.self, from: data)
+    }
+
+    private static func validate(_ value: Any) throws {
+        if let dictionary = value as? [String: Any] {
+            for (key, child) in dictionary {
+                let normalized = key.lowercased().filter(\.isLetter)
+                guard !forbiddenKeys.contains(normalized) else {
+                    throw EvidenceModelError.invalidBlocker(field: "privacy_forbidden_field:\(key)")
+                }
+                try validate(child)
+            }
+        } else if let array = value as? [Any] {
+            try array.forEach(validate)
+        }
     }
 }
 

@@ -1,0 +1,123 @@
+{
+  "name": "phc-argon2",
+  "url": "https://github.com/P-H-C/phc-winner-argon2.git",
+  "retrieved_at": "2026-09-03T18:18:50Z",
+  "upstream_ref": "f57e61e19229e23c4445b85494dbf7c07de721cb",
+  "tree": "ac3dc753ff75ce5a0f243cba1d94582bafe09409",
+  "files": [
+    {
+      "path": "Package.swift",
+      "copied_path": "files/Package.swift",
+      "git_blob": "d3d9c83c63a92d579d32b531b19d569180655f48",
+      "sha256": "e52d9145bc807e664eda3b32137bc39b6bbc80bb3ba73acc879e3d79e678a24a"
+    },
+    {
+      "path": "src/ref.c",
+      "copied_path": "files/src/ref.c",
+      "git_blob": "10e45eba64eddd6ae0a8608438d414345a6aff9b",
+      "sha256": "9ac347fd8dc737af69bbb93d56ac8b4ab5488152f606880c8d7fc4592e207647"
+    },
+    {
+      "path": "kats/argon2d",
+      "copied_path": "files/kats/argon2d",
+      "git_blob": "760cd31540f3bacc1a771246a795f759b1a5fe0f",
+      "sha256": "73619cfe0f35e52fdd1ca2595ffaa359879467407f98b61f4969c2861cc329ce"
+    },
+    {
+      "path": "kats/argon2d.shasum",
+      "copied_path": "files/kats/argon2d.shasum",
+      "git_blob": "b1b045d1bda0cae14c60c1de5749cd735ac58483",
+      "sha256": "8575444528055281ac1b7ca6d95dabea69138fe7411dd299aa8bc0536a2a5fb8"
+    },
+    {
+      "path": "kats/argon2d_v16",
+      "copied_path": "files/kats/argon2d_v16",
+      "git_blob": "d35bd4269e496eff489f4bfb9fd850ddde9a6ed9",
+      "sha256": "4ec4569a016c3accc6a25a34252b03a6135939b3c452389917a3f3b65878165b"
+    },
+    {
+      "path": "kats/argon2d_v16.shasum",
+      "copied_path": "files/kats/argon2d_v16.shasum",
+      "git_blob": "6df69c8de7c487c94146e96d056c7cacfb81de6b",
+      "sha256": "25975f6cdfe21559c87f16f212e4348398b1f1344a179a6cecade37abf092ae3"
+    },
+    {
+      "path": "kats/argon2i",
+      "copied_path": "files/kats/argon2i",
+      "git_blob": "2438db048cdc09caacac147d75795d95834b70c9",
+      "sha256": "40a3aeafb092d10cf457a8ee0139c114c911ecf97bd5accf5a99c7ddd6917061"
+    },
+    {
+      "path": "kats/argon2i.shasum",
+      "copied_path": "files/kats/argon2i.shasum",
+      "git_blob": "eda8d2e3b10bad80529d5f7420aca9e691c5c565",
+      "sha256": "23cdf44c0d46299283aad7e8e421cb092aa6cbf0414da1c62fabca39560e8e97"
+    },
+    {
+      "path": "kats/argon2i_v16",
+      "copied_path": "files/kats/argon2i_v16",
+      "git_blob": "173ec023dbafe30c2f2546e531cb62f732d237c7",
+      "sha256": "334f03e627afb67b946a530b90d2e11fb2e6abb44df992c0fb3198c7bacf5930"
+    },
+    {
+      "path": "kats/argon2i_v16.shasum",
+      "copied_path": "files/kats/argon2i_v16.shasum",
+      "git_blob": "d36ecf6bc25ce21c124c3e33af87cb29e0aa47ac",
+      "sha256": "be47099260c638847ad8097d4fd0748b6d041e2ede323522de97de0985b9a06c"
+    },
+    {
+      "path": "kats/argon2id",
+      "copied_path": "files/kats/argon2id",
+      "git_blob": "e5cdc6bb4e43dad2efb5af778e2f6436da869882",
+      "sha256": "ba05643e504fc5778dda99e2d9f42ebe7d22ebb3923cc719fd591b1b14a8d28d"
+    },
+    {
+      "path": "kats/argon2id.shasum",
+      "copied_path": "files/kats/argon2id.shasum",
+      "git_blob": "54755af41342d9b10daa8ed1fb49d4dd6438ff83",
+      "sha256": "93f538293b8a907ffacef01d2a1ece1c307614d4a7f8531db624284f86f437de"
+    },
+    {
+      "path": "kats/argon2id_v16",
+      "copied_path": "files/kats/argon2id_v16",
+      "git_blob": "05ea2b315c577da1111f24d090833fa0c5643875",
+      "sha256": "680774be1d3ad2e74bbc56ee715dd6eb97a58279bf22edc57d00e840ca1ae469"
+    },
+    {
+      "path": "kats/argon2id_v16.shasum",
+      "copied_path": "files/kats/argon2id_v16.shasum",
+      "git_blob": "33f1f40107a660587f5bc33a81633a4914c6bd17",
+      "sha256": "d5413357b85e3042c930f6c5797950351f5ca284e1db1e9b974523af13b67e15"
+    },
+    {
+      "path": "kats/check-sums.ps1",
+      "copied_path": "files/kats/check-sums.ps1",
+      "git_blob": "36307bd7f0099646adc8ef7c77013c6d0ee0287c",
+      "sha256": "ec8dcebfbc0b8a49b8874b215a7017fbb3fa926727e9ef971d646c1634702413"
+    },
+    {
+      "path": "kats/check-sums.sh",
+      "copied_path": "files/kats/check-sums.sh",
+      "git_blob": "b297a162e949d11dbc268faa38cc2fd410f199bc",
+      "sha256": "d2e3a16867b015ff91ceff5cd36bc3891f2e4439a2fcf9235353973d393bb8f9"
+    },
+    {
+      "path": "kats/test.ps1",
+      "copied_path": "files/kats/test.ps1",
+      "git_blob": "d5db5b6ba128f8fb561b53f6c9071311826bb2b1",
+      "sha256": "74280ae789f6ee3551b5eee70a03263bb4cdff276de6cda72cb8b55c8d415672"
+    },
+    {
+      "path": "kats/test.sh",
+      "copied_path": "files/kats/test.sh",
+      "git_blob": "b320975467943b5e613d60ee1636a40aa8ab4bd2",
+      "sha256": "fbbdc0f37f9dfec148a6d300fa56cfadcbb468bd9d5f31a613fbda96a9c6a1c9"
+    }
+  ],
+  "license": {
+    "path": "LICENSE",
+    "copied_path": "license/LICENSE",
+    "git_blob": "a16d6d2ffee94866a0fb5ce3ab08a5b9c49967af",
+    "sha256": "ac36638bcfcedb75441a5daeeaf4ef75b565911712583c272830e9fa7fddb590"
+  }
+}

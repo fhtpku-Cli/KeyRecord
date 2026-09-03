@@ -1,0 +1,31 @@
+{
+  "sdk_path": "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk",
+  "retrieved_at": "2026-09-03T18:19:04Z",
+  "headers": [
+    {
+      "path": "System/Library/Frameworks/CoreGraphics.framework/Headers/CGEvent.h",
+      "copied_path": "files/System/Library/Frameworks/CoreGraphics.framework/Headers/CGEvent.h",
+      "sha256": "82c0ad9eb7c2f1ccfe8483fe96f5d71493ee1f5b4a6a68458ba9c07dd728f8bb"
+    },
+    {
+      "path": "System/Library/Frameworks/AppKit.framework/Headers/NSWorkspace.h",
+      "copied_path": "files/System/Library/Frameworks/AppKit.framework/Headers/NSWorkspace.h",
+      "sha256": "be46224f91d11b7d0e25a0ed80dda5c1a9e52c404038a5a7ebfc25794befff30"
+    },
+    {
+      "path": "System/Library/Frameworks/IOKit.framework/Headers/hidsystem/IOHIDLib.h",
+      "copied_path": "files/System/Library/Frameworks/IOKit.framework/Headers/hidsystem/IOHIDLib.h",
+      "sha256": "46003ed0e987f38e3af7e3d8b38feefccb6462605a5f459c2aaa08bfcfd78242"
+    },
+    {
+      "path": "System/Library/Frameworks/Security.framework/Headers/SecItem.h",
+      "copied_path": "files/System/Library/Frameworks/Security.framework/Headers/SecItem.h",
+      "sha256": "1a5a731dc52e85cf7fb6ebe26d75aa467113c07b6ec3389c98e183d75c651eaf"
+    },
+    {
+      "path": "System/Library/Frameworks/Carbon.framework/Frameworks/HIToolbox.framework/Headers/Events.h",
+      "copied_path": "files/System/Library/Frameworks/Carbon.framework/Frameworks/HIToolbox.framework/Headers/Events.h",
+      "sha256": "b80b0c6e10ea4a06494d02399424cb806cc04a2971724688cb2063e04f2149d6"
+    }
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "name": "qmk",
+  "url": "https://github.com/qmk/qmk_firmware.git",
+  "retrieved_at": "2026-09-03T18:17:31Z",
+  "upstream_ref": "3c73e928ab40b026adcff7112c8fc36a8d96152a",
+  "tree": "12276f044f5c8aa2a96075cb72c5d2c2d89955fe",
+  "files": [
+    {
+      "path": "quantum/via.h",
+      "copied_path": "files/quantum/via.h",
+      "git_blob": "ef788ebfd85c4d171dcb539f5932964a5a749e0d",
+      "sha256": "fdf2231eb0ba8699019b973ba68b685a9782b2fff87be6827bd899e299b76b1a"
+    },
+    {
+      "path": "quantum/via.c",
+      "copied_path": "files/quantum/via.c",
+      "git_blob": "9c10840ec51e7e8158d9bb44a78f38e7540597bb",
+      "sha256": "002f68bbe024ca3b5bdfbbcc0b677b6fdbb4c8bf632540e3733d61a61cabcd7a"
+    },
+    {
+      "path": "lib/python/qmk/cli/via2json.py",
+      "copied_path": "files/lib/python/qmk/cli/via2json.py",
+      "git_blob": "0997e9ca9f8e4b4747262dc19272860dd02c0ce0",
+      "sha256": "f7e8465a7407d8c54d6a0d500c1d71a9d6659d1bf5b67290be453fa00632bff0"
+    }
+  ],
+  "license": {
+    "path": "LICENSE",
+    "copied_path": "license/LICENSE",
+    "git_blob": "d159169d1050894d3ea3b98e1c965c4058208fe1",
+    "sha256": "8177f97513213526df2cf6184d8ff986c675afb514d4e68a404010521b880643"
+  }
+}

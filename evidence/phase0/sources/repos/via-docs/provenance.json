@@ -1,0 +1,27 @@
+{
+  "name": "via-docs",
+  "url": "https://github.com/the-via/website.git",
+  "retrieved_at": "2026-09-03T18:16:37Z",
+  "upstream_ref": "cfdff9d8404547f55e0128ff278ea237c8a39bee",
+  "tree": "5d057dd5439729f195b0e177b06363fbdcb44f2b",
+  "files": [
+    {
+      "path": "docs/specification.md",
+      "copied_path": "files/docs/specification.md",
+      "git_blob": "57047b9e165fd676f8e08ca9c11f72d1b13df865",
+      "sha256": "0b6644085eac41dd0f3b30a2573e38266c9cf8f365ef0091b3998f5de5b4c4ca"
+    },
+    {
+      "path": "docs/post_v3_changes.md",
+      "copied_path": "files/docs/post_v3_changes.md",
+      "git_blob": "19a6f0d6a2610234056a90f313bceaa7e4c2dc47",
+      "sha256": "cd8adb7a3a9c5422154667304da0eb39c95ad1417772f50f392168a4f04efc2a"
+    }
+  ],
+  "license": {
+    "path": "LICENSE",
+    "copied_path": "license/LICENSE",
+    "git_blob": "f288702d2fa16d3cdf0035b15a9fcbc552cd88e7",
+    "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986"
+  }
+}

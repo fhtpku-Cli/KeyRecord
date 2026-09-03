@@ -1,0 +1,105 @@
+{
+  "name": "karabiner",
+  "url": "https://github.com/pqrs-org/Karabiner-Elements.git",
+  "retrieved_at": "2026-09-03T18:16:00Z",
+  "upstream_ref": "865f0e0ee6ebb5f6a6857058b0cbfab8297f8469",
+  "tree": "10a85f02a5aa381e8e1523bb25df314a29b6cfa0",
+  "files": [
+    {
+      "path": "tests/src/complex_modifications_assets/json/lint/assets/available_since.json",
+      "copied_path": "files/tests/src/complex_modifications_assets/json/lint/assets/available_since.json",
+      "git_blob": "33c734a339baefee5de8975690025ef27e3f47b3",
+      "sha256": "dd07eb4aaf82195573e149aa8942dcfef748d9a5218398de270254b5d6b0fff1"
+    },
+    {
+      "path": "tests/src/complex_modifications_assets/json/lint/assets/broken.json",
+      "copied_path": "files/tests/src/complex_modifications_assets/json/lint/assets/broken.json",
+      "git_blob": "98232c64fce9360c79f119cf6de8f670f69f1c44",
+      "sha256": "a6fb08fda1acb957b6116bd37811a1fe41a01611c0631edbf786d6889a27a55c"
+    },
+    {
+      "path": "tests/src/complex_modifications_assets/json/lint/assets/conditions_error.json",
+      "copied_path": "files/tests/src/complex_modifications_assets/json/lint/assets/conditions_error.json",
+      "git_blob": "af63d51f7193bcf7f402e4cda8e2e35a81d76041",
+      "sha256": "a160682acb0bfee087d6f13e080b5432ac46eb59b4cd354a3e44e73eb285a811"
+    },
+    {
+      "path": "tests/src/complex_modifications_assets/json/lint/assets/maintainers_error.json",
+      "copied_path": "files/tests/src/complex_modifications_assets/json/lint/assets/maintainers_error.json",
+      "git_blob": "f60ae13a049b8218895597bff1c17f84553e61ad",
+      "sha256": "8c6ea390a665b7f844854087f3341c7438dc128b553ec9c2840a3abebdf37e2c"
+    },
+    {
+      "path": "tests/src/complex_modifications_assets/json/lint/assets/manipulators_error_1.json",
+      "copied_path": "files/tests/src/complex_modifications_assets/json/lint/assets/manipulators_error_1.json",
+      "git_blob": "d0d94a0239514fb4b3a116e273051cd9dc37c9ff",
+      "sha256": "355a3d9d08c4b5e4f006ae8504e87d73b7088da9b04f73da0edef6569a3e83cd"
+    },
+    {
+      "path": "tests/src/complex_modifications_assets/json/lint/assets/manipulators_error_2.json",
+      "copied_path": "files/tests/src/complex_modifications_assets/json/lint/assets/manipulators_error_2.json",
+      "git_blob": "5178c6ebf5b8d65ba40f4b6a4a838e53739c8fde",
+      "sha256": "ef2e0879576fa7f815bc9c1ed697507c6ec1155cd1a135f8ec251d412a9cf43c"
+    },
+    {
+      "path": "tests/src/complex_modifications_assets/json/lint/assets/manipulators_error_3.json",
+      "copied_path": "files/tests/src/complex_modifications_assets/json/lint/assets/manipulators_error_3.json",
+      "git_blob": "f98a4148673a51b2367a9fe2fdedb092fbeb04b5",
+      "sha256": "c3daa0e14512a20f68269f404acb20feed0bb9ae0e570fd3b89a76fbadb3e394"
+    },
+    {
+      "path": "tests/src/complex_modifications_assets/json/lint/assets/manipulators_error_4.json",
+      "copied_path": "files/tests/src/complex_modifications_assets/json/lint/assets/manipulators_error_4.json",
+      "git_blob": "ead270fda644f2dd74c1225ea9ff0229c1c06b0f",
+      "sha256": "ab77cf067623ad423982cd476e96f00dca9108040de672b131743b6bf9e1c0c5"
+    },
+    {
+      "path": "tests/src/complex_modifications_assets/json/lint/assets/manipulators_error_6.json",
+      "copied_path": "files/tests/src/complex_modifications_assets/json/lint/assets/manipulators_error_6.json",
+      "git_blob": "ab53cbde529a06a0d8f276df69f91b2fb186d4ab",
+      "sha256": "09b72a7758ab37c83070eba5a55861be25a34ac6774270d5a59e5326150cea41"
+    },
+    {
+      "path": "tests/src/complex_modifications_assets/json/lint/assets/rules_error.json",
+      "copied_path": "files/tests/src/complex_modifications_assets/json/lint/assets/rules_error.json",
+      "git_blob": "4ca1e20bc34c5e2422761089a98dac082441b55d",
+      "sha256": "e6c81340e06f4b3260d145d4d46dfdf2fa86777621f54c5f24d9de5c72970ee5"
+    },
+    {
+      "path": "tests/src/complex_modifications_assets/json/lint/assets/title_error.json",
+      "copied_path": "files/tests/src/complex_modifications_assets/json/lint/assets/title_error.json",
+      "git_blob": "84d2b6473f506c15053fea50cbc50a3ca942b211",
+      "sha256": "b2af328c43ce0b0496f3998517bc3605ed1f7a8be442236430b9a3aa77848e90"
+    },
+    {
+      "path": "tests/src/complex_modifications_assets/json/lint/assets/type_error.json",
+      "copied_path": "files/tests/src/complex_modifications_assets/json/lint/assets/type_error.json",
+      "git_blob": "fe51488c7066f6687ef680d6bfaa4f7768ef205c",
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    {
+      "path": "tests/src/complex_modifications_assets/json/lint/assets/unknown_key.json",
+      "copied_path": "files/tests/src/complex_modifications_assets/json/lint/assets/unknown_key.json",
+      "git_blob": "59c0292a287b1c0e6bd920966bf3f1941baf3d96",
+      "sha256": "76594984f625f40eaae2b6af762a6fa0203c791bc1e8681349979a0ba89b75a7"
+    },
+    {
+      "path": "tests/src/complex_modifications_assets/json/lint/assets/valid.json",
+      "copied_path": "files/tests/src/complex_modifications_assets/json/lint/assets/valid.json",
+      "git_blob": "0cdc5c3d644980a5399f4829a01bd129b3878d20",
+      "sha256": "b7533b69e1cb10ffbfc875aa93f09c82c0a6959e0be5af93b8584149e0661544"
+    },
+    {
+      "path": "src/bin/cli/src/main.cpp",
+      "copied_path": "files/src/bin/cli/src/main.cpp",
+      "git_blob": "2aa0aa40e8c3b8d3e01bcb370a2895068d3910cc",
+      "sha256": "b4e2ed11067107c6097ea2ca37bbdd50ec146954eef95dc8340cd5a082be8a53"
+    }
+  ],
+  "license": {
+    "path": "LICENSE.md",
+    "copied_path": "license/LICENSE.md",
+    "git_blob": "fdddb29aa445bf3d6a5d843d6dd77e10a9f99657",
+    "sha256": "6b0382b16279f26ff69014300541967a356a666eb0b91b422f6862f6b7dad17e"
+  }
+}

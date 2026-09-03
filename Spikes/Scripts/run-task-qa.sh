@@ -2,8 +2,10 @@
 set -euo pipefail
 
 tmp_dir="$(mktemp -d "${TMPDIR:-/tmp}/keyrecord-task-qa.XXXXXX")"
-cleanup() { rm -rf "$tmp_dir"; }
+cleanup() { local status=$?; trap - EXIT; rm -rf "$tmp_dir"; exit "$status"; }
 trap cleanup EXIT INT TERM HUP
+script_dir="$(cd "$(dirname "$0")" && pwd)"
+source "$script_dir/task-2-qa-lib.sh"
 
 if [[ "${1:-}" != "1" && "${1:-}" != "2" ]]; then
   printf 'Task %s QA is not implemented by scaffold task 1.\n' "${1:-missing}" >&2
@@ -16,13 +18,11 @@ if [[ "$1" == "2" ]]; then
       output=".omo/evidence/task-2-phase-0-validation.txt"
       : >"$tmp_dir/qa.log"
       run() {
-        printf '$' >>"$tmp_dir/qa.log"; printf ' %q' "$@" >>"$tmp_dir/qa.log"; printf '\n' >>"$tmp_dir/qa.log"
-        "$@" >>"$tmp_dir/qa.log" 2>&1
-        printf 'exit_status=0\n' >>"$tmp_dir/qa.log"
+        task2_run_logged "$tmp_dir/qa.log" "$@"
       }
-      if run swift run --package-path Spikes Phase0Probe preflight --output evidence/phase0/environment.json \
-        && run jq -e 'has("macOS") and has("architecture") and has("swift") and has("xcode") and has("guiSession") and has("listenEventAccess") and has("sudoNonInteractive") and has("applications") and has("hidSummary") and has("sourceReachability")' evidence/phase0/environment.json \
-        && run jq -e '[.. | objects | keys[]] | all(. ; (ascii_downcase | test("serial|keystream|credential|eventsequence|username")) | not)' evidence/phase0/environment.json \
+      if run swift run --package-path Spikes Phase0Probe preflight --output "$tmp_dir/environment.json" \
+        && run jq -e 'has("macOS") and has("architecture") and has("swift") and has("xcode") and has("guiSession") and has("listenEventAccess") and has("sudoNonInteractive") and has("applications") and has("hidSummary") and has("sourceReachability")' "$tmp_dir/environment.json" \
+        && run task2_privacy_scan "$tmp_dir/environment.json" \
         && run bash Spikes/Scripts/verify-manifests.sh evidence/phase0/sources \
         && run bash Spikes/Scripts/generate-synthetic-fixtures.sh "$tmp_dir/fixtures-a" \
         && run bash Spikes/Scripts/generate-synthetic-fixtures.sh "$tmp_dir/fixtures-b" \

@@ -21,21 +21,24 @@ assert_interrupted_removes_stale_pass() {
   local repository="$tmp_dir/happy"
   local output="$repository/.omo/evidence/task-4-phase-0-validation.txt"
   printf 'TASK_4_HAPPY=PASS\nSTALE=YES\n' >"$output"
-  (cd "$repository" && exec bash Spikes/Scripts/run-task-qa.sh 4 happy) >"$tmp_dir/$signal.log" 2>&1 &
-  local pid=$! status=0 removed=false
-  for _ in {1..200}; do
-    if [[ ! -e "$output" ]]; then removed=true; break; fi
-    kill -0 "$pid" 2>/dev/null || break
-    sleep 0.01
-  done
-  [[ "$removed" == true ]]
-  kill -s "$signal" "$pid"
-  set +e
-  wait "$pid"
-  status=$?
-  set -e
-  [[ "$status" -eq "$expected_status" ]]
-  [[ ! -e "$output" ]]
+  /usr/bin/perl -e '
+    use strict; use warnings; use Time::HiRes qw(usleep);
+    my ($repository, $output, $signal, $expected, $log) = @ARGV;
+    my $pid = fork(); die "fork: $!" unless defined $pid;
+    if ($pid == 0) {
+      chdir $repository or die "chdir: $!";
+      open STDOUT, ">", $log or die "stdout: $!";
+      open STDERR, ">&STDOUT" or die "stderr: $!";
+      exec "/bin/bash", "Spikes/Scripts/run-task-qa.sh", "4", "happy";
+      die "exec: $!";
+    }
+    my $removed = 0;
+    for (1..200) { if (!-e $output) { $removed = 1; last; } usleep(10_000); }
+    kill $signal, $pid;
+    waitpid($pid, 0);
+    my $status = $? >> 8;
+    exit(($removed && $status == $expected && !-e $output) ? 0 : 1);
+  ' "$repository" "$output" "$signal" "$expected_status" "$tmp_dir/$signal.log"
 }
 
 clone_and_run happy

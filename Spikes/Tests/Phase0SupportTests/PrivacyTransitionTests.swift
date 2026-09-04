@@ -36,18 +36,27 @@ final class PrivacyTransitionTests: XCTestCase {
         XCTAssertEqual(model.totals, before, "excluded apps must not produce data or meta-count deltas")
     }
 
-    func testPausedTapResetSleepAndWakeRemainClosedUntilExplicitRecovery() {
+    func testPausedTapResetSleepAndWakePreserveHistoryAndRemainClosedUntilExplicitRecovery() {
         var model = PrivacyTransitionModel()
         model.captureState = .paused
         assertZeroDelta(&model, context: .known(bundleID: "app.allowed"), secure: .disabled)
         model.captureState = .collecting
         _ = model.observeTerminalKeyDown(frontmost: .known(bundleID: "app.allowed"), secureInput: .disabled, excludedBundleIDs: [])
-        model.tapReset()
+        model.beginTransientObservation()
+        let beforeReset = model.totals
+        XCTAssertEqual(model.tapReset(), .zero)
         XCTAssertEqual(model.generation, 1)
-        XCTAssertEqual(model.totals, .zero)
+        XCTAssertEqual(model.totals, beforeReset)
+        XCTAssertEqual(model.bucketCounts[.bundle("app.allowed")], 1)
+        XCTAssertEqual(model.heldTransientCount, 0)
         assertZeroDelta(&model, context: .known(bundleID: "app.allowed"), secure: .disabled)
         model.recoverTap()
-        model.systemWillSleep()
+        model.beginTransientObservation()
+        let beforeSleep = model.totals
+        XCTAssertEqual(model.systemWillSleep(), .zero)
+        XCTAssertEqual(model.totals, beforeSleep)
+        XCTAssertEqual(model.bucketCounts[.bundle("app.allowed")], 1)
+        XCTAssertEqual(model.heldTransientCount, 0)
         assertZeroDelta(&model, context: .known(bundleID: "app.allowed"), secure: .disabled)
         model.systemDidWake()
         assertZeroDelta(&model, context: .known(bundleID: "app.allowed"), secure: .disabled)

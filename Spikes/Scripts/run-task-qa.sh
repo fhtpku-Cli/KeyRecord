@@ -77,14 +77,16 @@ if [[ "$1" == "6" ]]; then
         all(.legs[]; (.verdict != "BLOCKED") or (.dataDelta == 0 and .metaDelta == 0 and .blocker.blocked_by != "" and (.blocker.detect_command | length) > 0 and .blocker.prerequisite != "" and .blocker.unblock_action != ""))
       ' "$output/evidence.json" \
       && task2_run_logged "$tmp_dir/qa.log" jq -e '
-        ([.cases[] | select(.scenario == "known" and .outcome == "bundle" and .dataDelta == 1 and .metaDelta == 1)] | length) == 1 and
-        ([.cases[] | select(.scenario == "knownUnattributable" and .outcome == "UNKNOWN" and .dataDelta == 1 and .metaDelta == 1)] | length) == 1 and
-        all(.cases[] | select(.outcome == "closed"); .dataDelta == 0 and .metaDelta == 0)
+        ([.cases[] | select(.input.scenario == "known" and .observation.outcome == "bundle" and .observation.transitionDelta == {data:1,meta:1})] | length) == 1 and
+        ([.cases[] | select(.input.scenario == "knownUnattributable" and .observation.outcome == "UNKNOWN" and .observation.transitionDelta == {data:1,meta:1})] | length) == 1 and
+        all(.cases[] | select(.observation.outcome == "closed"); .observation.transitionDelta == {data:0,meta:0}) and
+        all(.cases[] | select(.input.scenario == "tapReset" or .input.scenario == "sleepWake"); .observation.beforeTotals == .observation.afterTotals and .observation.heldTransientAfter == 0)
       ' "$output/privacy-model.json" \
       && task2_run_logged "$tmp_dir/qa.log" jq -e '
-        .deterministicRecovery == true and (.families | keys | sort) == ["command","control","option","shift"] and
-        all(.families[]; (sort == ["activeSideUnknown","both","left","none","right"])) and
-        (.fnStates | sort) == ["knownActive","knownNone","unknown"]
+        .deterministicRecovery == true and (.sidedCases | length) == 20 and (.fnCases | length) == 9 and (.recoveryCases | length) == 3 and
+        ([.sidedCases[].observed] | unique | sort) == ["activeSideUnknown","both","left","none","right"] and
+        ([.fnCases[].observed] | unique | sort) == ["knownActive","knownNone","unknown"] and
+        all(.recoveryCases[]; ([.unknownStates[]] | unique) == ["activeSideUnknown"] and ([.recoveredStates[]] | unique) == ["right"] and .fnBeforeRecovery == "unknown" and .fnAfterRecovery == "knownNone")
       ' "$output/modifier-model.json"; then
       { printf 'TASK_6_HAPPY=PASS\nOBSERVABLE=known bundle, reliably unattributable UNKNOWN, indeterminate/secure/excluded closure, all sided states, Fn confidence, deterministic recovery, 3 model PASS plus 8 honest BLOCKED, O6/G0 OPEN\n'; cat "$tmp_dir/qa.log"; } >"$publish_temp"
     else exit 1; fi

@@ -35,19 +35,28 @@ public struct PrivacyTransitionModel: Sendable {
     public private(set) var totals: PrivacyTotals = .zero
     public private(set) var bucketCounts: [AppBucket: Int] = [:]
     public private(set) var generation: UInt64 = 0
+    public private(set) var heldTransientCount = 0
     private var tapAvailable = true
     private var awake = true
     private var wakeReconstructed = true
 
     public init() {}
 
+    public var gateOpen: Bool {
+        captureState == .collecting && tapAvailable && awake && wakeReconstructed
+    }
+
+    public mutating func beginTransientObservation() {
+        guard gateOpen else { return }
+        heldTransientCount += 1
+    }
+
     public mutating func observeTerminalKeyDown(
         frontmost: FrontmostState,
         secureInput: SecureInputState,
         excludedBundleIDs: Set<String>
     ) -> PrivacyDecision {
-        guard captureState == .collecting, tapAvailable, awake, wakeReconstructed,
-              secureInput == .disabled else { return .dropped }
+        guard gateOpen, secureInput == .disabled else { return .dropped }
         let bucket: AppBucket
         switch frontmost {
         case let .known(bundleID):
@@ -64,20 +73,22 @@ public struct PrivacyTransitionModel: Sendable {
         return .counted(bucket: bucket)
     }
 
-    public mutating func tapReset() {
+    @discardableResult
+    public mutating func tapReset() -> PrivacyTotals {
         generation += 1
         tapAvailable = false
-        totals = .zero
-        bucketCounts.removeAll(keepingCapacity: false)
+        heldTransientCount = 0
+        return .zero
     }
 
     public mutating func recoverTap() { tapAvailable = true }
 
-    public mutating func systemWillSleep() {
+    @discardableResult
+    public mutating func systemWillSleep() -> PrivacyTotals {
         awake = false
         wakeReconstructed = false
-        totals = .zero
-        bucketCounts.removeAll(keepingCapacity: false)
+        heldTransientCount = 0
+        return .zero
     }
 
     public mutating func systemDidWake() { awake = true }

@@ -24,8 +24,9 @@ enum SP2Probe {
         let d4 = environment.guiSession.status == .available && environment.sudoNonInteractive
         if environment.guiSession.status == .available { _ = boundedFrontmostMetadataPreflight() }
 
-        let privacy = privacyArtifact()
-        let modifiers = modifierArtifact()
+        let modelExecution = SP2ModelScenarios.run()
+        let privacy = modelExecution.privacy
+        let modifiers = modelExecution.modifiers
         let privacyData = try encoded(privacy)
         let modifierData = try encoded(modifiers)
         let liveData = try encoded(SP2AggregateArtifact(evidenceKind: .live))
@@ -43,14 +44,19 @@ enum SP2Probe {
             }
             let artifactName = rule.evidenceKind == .live ? "live-aggregate-counts.json"
                 : (legID.contains("sided") || legID.contains("fnRecoveryModel") ? "modifier-model.json" : "privacy-model.json")
-            let verdict: Verdict = rule.evidenceKind == .live ? .inconclusive : .pass
+            let verdict: Verdict
+            if rule.evidenceKind == .live {
+                verdict = .inconclusive
+            } else {
+                verdict = modelExecution.assertions[legID] == true ? .pass : .fail
+            }
             let delta = (legID == "sp2.frontmostKnown" || legID == "sp2.frontmostUnattributable") && verdict == .pass ? 1 : 0
             return SP2Leg(
                 legID: legID, evidenceKind: rule.evidenceKind, detectorID: rule.detectorID,
                 detectorAvailable: true, verdict: verdict, blocker: nil,
                 runnerCommitSha: identity.commitSha, runnerTreeSha: identity.treeSha,
                 environmentSha256: environmentHash, command: ["Phase0Probe", "sp2", "bounded", legID],
-                exitStatus: 0, artifactSha256: hashes[artifactName], dataDelta: delta, metaDelta: delta
+                exitStatus: 0, artifactPath: artifactName, artifactSha256: hashes[artifactName], dataDelta: delta, metaDelta: delta
             )
         }
         let report = SP2Evidence(
@@ -80,28 +86,6 @@ enum SP2Probe {
             runnerCommitSha: identity.commitSha, runnerTreeSha: identity.treeSha,
             environmentSha256: environmentHash, command: [], exitStatus: nil, artifactSha256: nil,
             dataDelta: 0, metaDelta: 0
-        )
-    }
-
-    private static func privacyArtifact() -> SP2PrivacyArtifact {
-        let cases = [
-            SP2PrivacyCase(scenario: "known", outcome: "bundle", dataDelta: 1, metaDelta: 1),
-            SP2PrivacyCase(scenario: "knownUnattributable", outcome: "UNKNOWN", dataDelta: 1, metaDelta: 1),
-            SP2PrivacyCase(scenario: "indeterminate", outcome: "closed", dataDelta: 0, metaDelta: 0),
-            SP2PrivacyCase(scenario: "excludedApp", outcome: "closed", dataDelta: 0, metaDelta: 0),
-            SP2PrivacyCase(scenario: "secureInputEnabled", outcome: "closed", dataDelta: 0, metaDelta: 0),
-            SP2PrivacyCase(scenario: "secureInputUnknown", outcome: "closed", dataDelta: 0, metaDelta: 0),
-            SP2PrivacyCase(scenario: "tapReset", outcome: "closed", dataDelta: 0, metaDelta: 0),
-            SP2PrivacyCase(scenario: "sleepWake", outcome: "closed", dataDelta: 0, metaDelta: 0),
-        ]
-        return SP2PrivacyArtifact(cases: cases)
-    }
-
-    private static func modifierArtifact() -> SP2ModifierArtifact {
-        let states = ModifierSideState.allCases.map(\.rawValue)
-        return SP2ModifierArtifact(
-            families: Dictionary(uniqueKeysWithValues: ModifierFamily.allCases.map { ($0.rawValue, states) }),
-            fnStates: FnConfidence.allCases.map(\.rawValue), deterministicRecovery: true
         )
     }
 

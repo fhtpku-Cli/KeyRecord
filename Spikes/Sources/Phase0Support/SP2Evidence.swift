@@ -14,18 +14,19 @@ public struct SP2Leg: Codable, Equatable, Sendable {
     public var environmentSha256: String
     public var command: [String]
     public var exitStatus: Int32?
+    public var artifactPath: String?
     public var artifactSha256: String?
     public var dataDelta: Int
     public var metaDelta: Int
 
     public init(legID: String, evidenceKind: EvidenceKind, detectorID: String, detectorAvailable: Bool,
                 verdict: Verdict, blocker: SP1Blocker?, runnerCommitSha: String, runnerTreeSha: String,
-                environmentSha256: String, command: [String], exitStatus: Int32?, artifactSha256: String?,
+                environmentSha256: String, command: [String], exitStatus: Int32?, artifactPath: String? = nil, artifactSha256: String?,
                 dataDelta: Int, metaDelta: Int) {
         self.legID = legID; self.evidenceKind = evidenceKind; self.detectorID = detectorID
         self.detectorAvailable = detectorAvailable; self.verdict = verdict; self.blocker = blocker
         self.runnerCommitSha = runnerCommitSha; self.runnerTreeSha = runnerTreeSha
-        self.environmentSha256 = environmentSha256; self.command = command; self.exitStatus = exitStatus
+        self.environmentSha256 = environmentSha256; self.command = command; self.exitStatus = exitStatus; self.artifactPath = artifactPath
         self.artifactSha256 = artifactSha256; self.dataDelta = dataDelta; self.metaDelta = metaDelta
     }
 }
@@ -63,15 +64,18 @@ public struct SP2Evidence: Codable, Equatable, Sendable {
             guard let rule = Phase0Registry.legRules[leg.legID], rule.evidenceKind == leg.evidenceKind,
                   rule.detectorID == leg.detectorID else { throw SP2ValidationError.invalidRule }
             guard leg.runnerCommitSha.isLowercaseGitSHA1, leg.runnerTreeSha.isLowercaseGitSHA1,
-                  leg.environmentSha256.isLowercaseSHA256, leg.dataDelta >= 0, leg.metaDelta >= 0 else {
+                  leg.environmentSha256.isLowercaseSHA256, leg.environmentSha256 != String(repeating: "0", count: 64),
+                  leg.dataDelta >= 0, leg.metaDelta >= 0 else {
                 throw SP2ValidationError.invalidProvenance
             }
             if leg.verdict == .blocked {
                 guard !leg.detectorAvailable, leg.blocker?.complete == true, leg.command.isEmpty,
-                      leg.exitStatus == nil, leg.artifactSha256 == nil else { throw SP2ValidationError.invalidBlocker }
+                      leg.exitStatus == nil, leg.artifactPath == nil, leg.artifactSha256 == nil else { throw SP2ValidationError.invalidBlocker }
             } else {
                 guard leg.detectorAvailable, leg.blocker == nil, !leg.command.isEmpty,
-                      leg.exitStatus != nil, leg.artifactSha256?.isLowercaseSHA256 == true else {
+                      leg.exitStatus != nil, leg.artifactPath?.isEmpty == false,
+                      leg.artifactSha256?.isLowercaseSHA256 == true,
+                      leg.artifactSha256 != String(repeating: "0", count: 64) else {
                     throw SP2ValidationError.invalidVerdict
                 }
                 if leg.verdict == .inconclusive, !rule.allowsInconclusive { throw SP2ValidationError.invalidVerdict }
@@ -107,6 +111,7 @@ public enum SP2RunnerBinding {
         "Spikes/Sources/Phase0Support/ModifierReconstruction.swift",
         "Spikes/Sources/Phase0Support/Registries.swift",
         "Spikes/Sources/Phase0Support/SP2Evidence.swift",
+        "Spikes/Sources/Phase0Support/SP2ModelScenarios.swift",
         "Spikes/Sources/EvidenceValidator/Canonical.swift",
         "Spikes/Sources/EvidenceValidator/EvidenceValidatorCommand.swift",
         "Spikes/Sources/EvidenceValidator/GitRunner.swift",
@@ -120,6 +125,7 @@ public enum SP2DirectoryLayout {
         "SP-2-CONCLUSION.md", "evidence.json", "privacy-model.json", "modifier-model.json", "live-aggregate-counts.json",
     ]
     public static let allNames = artifactNames.union(["manifest.sha256"])
+    public static let boundArtifactNames: Set<String> = ["privacy-model.json", "modifier-model.json", "live-aggregate-counts.json"]
 }
 
 public struct SP2AggregateArtifact: Codable, Equatable, Sendable {
@@ -128,31 +134,5 @@ public struct SP2AggregateArtifact: Codable, Equatable, Sendable {
     public let metaDelta: Int
     public init(evidenceKind: EvidenceKind, dataDelta: Int = 0, metaDelta: Int = 0) {
         self.evidenceKind = evidenceKind; self.dataDelta = dataDelta; self.metaDelta = metaDelta
-    }
-}
-
-public struct SP2PrivacyCase: Codable, Equatable, Sendable {
-    public let scenario: String
-    public let outcome: String
-    public let dataDelta: Int
-    public let metaDelta: Int
-    public init(scenario: String, outcome: String, dataDelta: Int, metaDelta: Int) {
-        self.scenario = scenario; self.outcome = outcome; self.dataDelta = dataDelta; self.metaDelta = metaDelta
-    }
-}
-
-public struct SP2PrivacyArtifact: Codable, Equatable, Sendable {
-    public let evidenceKind: EvidenceKind
-    public let cases: [SP2PrivacyCase]
-    public init(cases: [SP2PrivacyCase]) { evidenceKind = .fixture; self.cases = cases }
-}
-
-public struct SP2ModifierArtifact: Codable, Equatable, Sendable {
-    public let evidenceKind: EvidenceKind
-    public let families: [String: [String]]
-    public let fnStates: [String]
-    public let deterministicRecovery: Bool
-    public init(families: [String: [String]], fnStates: [String], deterministicRecovery: Bool) {
-        evidenceKind = .fixture; self.families = families; self.fnStates = fnStates; self.deterministicRecovery = deterministicRecovery
     }
 }

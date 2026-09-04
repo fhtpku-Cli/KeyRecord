@@ -145,6 +145,13 @@ final class Phase0ProbeTests: XCTestCase {
         }
     }
 
+    func testSP2ProbeDoesNotDeclareModelPassFromEvidenceKind() throws {
+        let packageRoot = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        let source = try String(contentsOf: packageRoot.appendingPathComponent("Sources/Phase0Probe/SP2Probe.swift"), encoding: .utf8)
+        XCTAssertFalse(source.contains("rule.evidenceKind == .live ? .inconclusive : .pass"))
+    }
+
     private func atomicityArguments(output: String = FileManager.default.temporaryDirectory.appendingPathComponent("unused.json").path) -> [String] {
         let repository = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent().deletingLastPathComponent()

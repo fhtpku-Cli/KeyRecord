@@ -16,6 +16,7 @@ enum SP2DirectoryValidator {
         catch let error as SP2ValidationError { throw ValidatorError("sp2_\(error.rawValue)") }
         try verifyManifest(directory)
         try validateArtifacts(directory)
+        try validateArtifactBindings(evidence, directory: directory, repository: repository)
         try validateConclusion(directory, evidence: evidence)
         try validateRunnerBinding(evidence, repository: repository)
         return GateValidationReport(legCount: evidence.legs.count, o4RowCount: 0, g0Status: evidence.g0Status)
@@ -46,45 +47,49 @@ enum SP2DirectoryValidator {
     }
 
     static func validateArtifacts(_ directory: URL) throws {
-        let live = try object(directory.appendingPathComponent("live-aggregate-counts.json"))
-        guard Set(live.keys) == ["evidenceKind", "dataDelta", "metaDelta"],
-              live["evidenceKind"] as? String == EvidenceKind.live.rawValue,
-              (live["dataDelta"] as? NSNumber)?.intValue == 0,
-              (live["metaDelta"] as? NSNumber)?.intValue == 0 else { throw ValidatorError("sp2_sensitive_detail_forbidden") }
-
-        let privacy = try object(directory.appendingPathComponent("privacy-model.json"))
-        guard Set(privacy.keys) == ["evidenceKind", "cases"],
-              privacy["evidenceKind"] as? String == EvidenceKind.fixture.rawValue,
-              let cases = privacy["cases"] as? [[String: Any]], cases.count == 8 else {
+        let privacyURL = directory.appendingPathComponent("privacy-model.json")
+        let modifierURL = directory.appendingPathComponent("modifier-model.json")
+        let liveURL = directory.appendingPathComponent("live-aggregate-counts.json")
+        for url in [privacyURL, modifierURL, liveURL] { try validatePrivacySafeJSON(url) }
+        let expected = SP2ModelScenarios.run()
+        let privacy: SP2PrivacyArtifact = try decode(privacyURL)
+        let modifiers: SP2ModifierArtifact = try decode(modifierURL)
+        let live: SP2AggregateArtifact = try decode(liveURL)
+        guard privacy == expected.privacy, modifiers == expected.modifiers else {
+            throw ValidatorError("sp2_model_recompute_mismatch")
+        }
+        guard live.evidenceKind == .live, live.dataDelta == 0, live.metaDelta == 0 else {
             throw ValidatorError("sp2_sensitive_detail_forbidden")
         }
-        let expected: [String: (String, Int, Int)] = [
-            "known": ("bundle", 1, 1), "knownUnattributable": ("UNKNOWN", 1, 1),
-            "indeterminate": ("closed", 0, 0), "excludedApp": ("closed", 0, 0),
-            "secureInputEnabled": ("closed", 0, 0), "secureInputUnknown": ("closed", 0, 0),
-            "tapReset": ("closed", 0, 0), "sleepWake": ("closed", 0, 0),
-        ]
-        var seen = Set<String>()
-        for item in cases {
-            guard Set(item.keys) == ["scenario", "outcome", "dataDelta", "metaDelta"],
-                  let scenario = item["scenario"] as? String, seen.insert(scenario).inserted,
-                  let expectedCase = expected[scenario], item["outcome"] as? String == expectedCase.0,
-                  (item["dataDelta"] as? NSNumber)?.intValue == expectedCase.1,
-                  (item["metaDelta"] as? NSNumber)?.intValue == expectedCase.2 else {
-                throw ValidatorError("sp2_sensitive_detail_forbidden")
+    }
+
+    static func validateArtifactBindings(_ evidence: SP2Evidence, directory: URL, repository: URL) throws {
+        let environmentURL = repository.appendingPathComponent("evidence/phase0/environment.json")
+        guard isRegularFile(environmentURL), let environmentData = try? Data(contentsOf: environmentURL) else {
+            throw ValidatorError("sp2_environment_missing")
+        }
+        do {
+            try PrivacySafeEnvironmentValidator.validateJSON(environmentData)
+            _ = try JSONDecoder().decode(EnvironmentEvidence.self, from: environmentData)
+        } catch { throw ValidatorError("sp2_environment_unsafe") }
+        let environmentHash = Canonical.sha256(environmentData)
+        guard evidence.legs.allSatisfy({ $0.environmentSha256 == environmentHash }) else {
+            throw ValidatorError("sp2_environment_hash_mismatch")
+        }
+        for leg in evidence.legs where leg.verdict != .blocked {
+            guard let expectedPath = artifactPath(for: leg.legID), leg.artifactPath == expectedPath,
+                  SP2DirectoryLayout.boundArtifactNames.contains(expectedPath),
+                  !expectedPath.contains("/"), !expectedPath.contains("..") else {
+                throw ValidatorError("sp2_artifact_path_invalid", leg.legID)
+            }
+            let url = directory.appendingPathComponent(expectedPath)
+            guard isRegularFile(url), let bytes = try? Data(contentsOf: url) else {
+                throw ValidatorError("sp2_artifact_missing", expectedPath)
+            }
+            guard leg.artifactSha256 == Canonical.sha256(bytes) else {
+                throw ValidatorError("sp2_artifact_hash_mismatch", leg.legID)
             }
         }
-        guard seen == Set(expected.keys) else { throw ValidatorError("sp2_sensitive_detail_forbidden") }
-
-        let modifier = try object(directory.appendingPathComponent("modifier-model.json"))
-        guard Set(modifier.keys) == ["evidenceKind", "families", "fnStates", "deterministicRecovery"],
-              modifier["evidenceKind"] as? String == EvidenceKind.fixture.rawValue,
-              modifier["deterministicRecovery"] as? Bool == true,
-              let families = modifier["families"] as? [String: [String]],
-              Set(families.keys) == Set(ModifierFamily.allCases.map(\.rawValue)),
-              families.values.allSatisfy({ Set($0) == Set(ModifierSideState.allCases.map(\.rawValue)) && $0.count == ModifierSideState.allCases.count }),
-              let fn = modifier["fnStates"] as? [String], Set(fn) == Set(FnConfidence.allCases.map(\.rawValue)),
-              fn.count == FnConfidence.allCases.count else { throw ValidatorError("sp2_sensitive_detail_forbidden") }
     }
 
     static func validateEvidenceShape(_ url: URL) throws {
@@ -95,7 +100,7 @@ enum SP2DirectoryValidator {
             "legID", "evidenceKind", "detectorID", "detectorAvailable", "verdict",
             "runnerCommitSha", "runnerTreeSha", "environmentSha256", "command", "dataDelta", "metaDelta",
         ]
-        let legKeys = requiredLegKeys.union(["blocker", "exitStatus", "artifactSha256"])
+        let legKeys = requiredLegKeys.union(["blocker", "exitStatus", "artifactPath", "artifactSha256"])
         let blockerKeys: Set<String> = ["blocked_by", "detect_command", "prerequisite", "unblock_action"]
         for leg in legs {
             let keys = Set(leg.keys)
@@ -149,6 +154,31 @@ enum SP2DirectoryValidator {
               evidence.g0Status == .passed || !text.contains("G0: **PASSED**") else {
             throw ValidatorError("sp2_misleading_conclusion")
         }
+    }
+    private static func artifactPath(for legID: String) -> String? {
+        if ["sp2.frontmostIndeterminate", "sp2.excludedApp", "sp2.tapReset"].contains(legID) { return "privacy-model.json" }
+        if ["sp2.sidedModifiers", "sp2.sidedRecovery", "sp2.fnRecoveryModel"].contains(legID) { return "modifier-model.json" }
+        if ["sp2.frontmostKnown", "sp2.frontmostUnattributable", "sp2.secureInput", "sp2.sleepWake", "sp2.fnRecoveryLive"].contains(legID) { return "live-aggregate-counts.json" }
+        return nil
+    }
+    private static func decode<T: Decodable>(_ url: URL) throws -> T {
+        guard isRegularFile(url), let data = try? Data(contentsOf: url), let value = try? JSONDecoder().decode(T.self, from: data) else {
+            throw ValidatorError("sp2_model_recompute_mismatch")
+        }
+        return value
+    }
+    private static func validatePrivacySafeJSON(_ url: URL) throws {
+        guard isRegularFile(url), let data = try? Data(contentsOf: url),
+              let value = try? JSONSerialization.jsonObject(with: data) else { throw ValidatorError("sp2_sensitive_detail_forbidden") }
+        let forbidden = ["keycode", "text", "sequence", "exacttimestamp", "eventtimestamp", "eventtime", "keystream", "credential", "username", "userid"]
+        func safe(_ value: Any) -> Bool {
+            if let object = value as? [String: Any] {
+                return object.allSatisfy { key, child in !forbidden.contains(key.lowercased()) && safe(child) }
+            }
+            if let array = value as? [Any] { return array.allSatisfy(safe) }
+            return true
+        }
+        guard safe(value) else { throw ValidatorError("sp2_sensitive_detail_forbidden") }
     }
     private static func object(_ url: URL) throws -> [String: Any] {
         guard isRegularFile(url), let data = try? Data(contentsOf: url),

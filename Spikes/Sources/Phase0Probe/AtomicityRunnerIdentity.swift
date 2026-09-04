@@ -57,6 +57,9 @@ struct GitAtomicityRunnerIdentityProvider: AtomicityRunnerIdentityProviding {
         "Spikes/Sources/Phase0Probe/AtomicityRunnerIdentity.swift",
         "Spikes/Sources/Phase0Support/AtomicReplacement.swift",
         "Spikes/Sources/Phase0Support/AtomicityEvidence.swift",
+        "Spikes/Sources/Phase0Support/InputObservation.swift",
+        "Spikes/Sources/Phase0Probe/SP1Probe.swift",
+        "Spikes/Scripts/run-task-qa.sh",
     ]
 
     private let currentDirectory: URL
@@ -145,7 +148,7 @@ struct GitAtomicityRunnerIdentityProvider: AtomicityRunnerIdentityProviding {
         return try Data(contentsOf: url, options: .mappedIfSafe)
     }
 
-    private static func isGitSHA1(_ value: String) -> Bool {
+    static func isGitSHA1(_ value: String) -> Bool {
         value.utf8.count == 40 && value.utf8.allSatisfy { (48...57).contains($0) || (97...102).contains($0) }
     }
 }

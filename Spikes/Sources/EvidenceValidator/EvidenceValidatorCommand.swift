@@ -21,13 +21,13 @@ public enum EvidenceValidatorCommand {
         case "help", "--help": print(usage)
         case "validate":
             guard arguments.count == 2 else { throw ValidatorError("usage", usage) }
-            try printReport(GateValidator.validate(directory: url(arguments[1])))
+            try printReport(validateDirectory(url(arguments[1])))
         case "bind": try bind(Array(arguments.dropFirst()))
         case "verify-candidate": try verifyCandidate(Array(arguments.dropFirst()))
         case "assemble-receipts": try assemble(Array(arguments.dropFirst()))
         case "verify-receipts": try verifyReceipts(Array(arguments.dropFirst()))
         default:
-            if arguments.count == 1 { try printReport(GateValidator.validate(directory: url(command))) }
+            if arguments.count == 1 { try printReport(validateDirectory(url(command))) }
             else { throw ValidatorError("usage", usage) }
         }
     }
@@ -90,6 +90,16 @@ public enum EvidenceValidatorCommand {
 
     private static func printReport(_ report: GateValidationReport) throws {
         print("VALID evidence legs=\(report.legCount) o4=\(report.o4RowCount) g0=\(report.g0Status.rawValue)")
+    }
+
+    private static func validateDirectory(_ directory: URL) throws -> GateValidationReport {
+        let evidence = directory.appendingPathComponent("evidence.json")
+        if let data = try? Data(contentsOf: evidence),
+           let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           object["runnerSourceSha256"] != nil {
+            return try SP1DirectoryValidator.validate(directory: directory)
+        }
+        return try GateValidator.validate(directory: directory)
     }
 
     private static func decodeFile<T: Decodable>(_ path: URL, code: String) throws -> T {

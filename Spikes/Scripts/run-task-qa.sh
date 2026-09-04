@@ -50,9 +50,35 @@ task4_verify_bound_runner() {
   printf 'bound_runner_commit=%s\nbound_runner_tree=%s\nbound_runner_source_bytes=exact\n' "$commit" "$tree" >>"$log_file"
 }
 
-if [[ "${1:-}" != "1" && "${1:-}" != "2" && "${1:-}" != "3" && "${1:-}" != "4" ]]; then
+if [[ "${1:-}" != "1" && "${1:-}" != "2" && "${1:-}" != "3" && "${1:-}" != "4" && "${1:-}" != "5" ]]; then
   printf 'Task %s QA is not implemented by scaffold task 1.\n' "${1:-missing}" >&2
   exit 64
+fi
+
+if [[ "$1" == "5" ]]; then
+  mode="${2:-}"
+  case "$mode" in happy) final_output=".omo/evidence/task-5-phase-0-validation.txt";; failure) final_output=".omo/evidence/task-5-phase-0-validation-failure.txt";; *) printf 'Usage: %s 5 happy|failure\n' "$0" >&2; exit 64;; esac
+  mkdir -p .omo/evidence
+  rm -f "$final_output"
+  publish_temp="$(mktemp ".omo/evidence/.task-5-${mode}.XXXXXX")"
+  : >"$tmp_dir/qa.log"
+  if [[ -n "${KEYRECORD_QA_DELAY:-}" ]]; then sleep "$KEYRECORD_QA_DELAY" & wait $!; fi
+  if [[ "$mode" == "happy" ]]; then
+    if task2_run_logged "$tmp_dir/qa.log" swift test --package-path Spikes --filter 'InputObservationTests.testProductStamped|InputObservationTests.testAutoRepeat|InputObservationTests.testTapReset|InputObservationTests.testO7' \
+      && task2_run_logged "$tmp_dir/qa.log" swift run --package-path Spikes Phase0Probe preflight --output "$tmp_dir/environment.json" \
+      && task2_run_logged "$tmp_dir/qa.log" jq -e '.listenEventAccess == "denied" and .guiSession.tapCreate == "denied"' "$tmp_dir/environment.json"; then
+      { printf 'TASK_5_HAPPY=PASS\nOBSERVABLE=marked synthetic drop, repeat count, reset generation, O7 boundary, and safe no-prompt listen preflight passed\n'; cat "$tmp_dir/qa.log"; } >"$publish_temp"
+    else exit 1; fi
+  else
+    if task2_run_logged "$tmp_dir/qa.log" swift test --package-path Spikes --filter InputObservationTests \
+      && task2_run_logged "$tmp_dir/qa.log" swift test --package-path Spikes --filter SP1ValidatorTests; then
+      { printf 'TASK_5_NEGATIVE=PASS\nOBSERVABLE=duplicate/missing observations, TCC denial, Karabiner absence, session/annotated, attempt, runner commit/tree, environment, tap-config identity mixing, and evidence reuse all rejected PASS; G0 OPEN\n'; cat "$tmp_dir/qa.log"; } >"$publish_temp"
+    else exit 1; fi
+  fi
+  mv "$publish_temp" "$final_output"
+  publish_temp=""
+  /usr/bin/head -n 1 "$final_output"
+  exit 0
 fi
 
 if [[ "$1" == "4" ]]; then

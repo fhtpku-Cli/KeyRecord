@@ -9,7 +9,7 @@ public enum Phase0ProbeCommand {
         do {
             let arguments = Array(CommandLine.arguments.dropFirst())
             if arguments == ["help"] || arguments.isEmpty {
-                print("Phase0Probe development spike harness; supported commands: preflight, atomicity, sp1, sp2, sp3")
+                print("Phase0Probe development spike harness; supported commands: preflight, atomicity, sp1, sp2, sp3, sp4a")
                 return
             }
             if arguments.first == "atomicity" {
@@ -28,12 +28,16 @@ public enum Phase0ProbeCommand {
                 try SP3Probe.run(arguments: arguments)
                 return
             }
+            if arguments.first == "sp4a" {
+                try SP4AProbe.run(arguments: arguments)
+                return
+            }
             guard arguments.count == 3, arguments[0] == "preflight", arguments[1] == "--output" else {
                 throw ProbeError.usage
             }
             try writePreflight(to: URL(fileURLWithPath: arguments[2]))
         } catch ProbeError.usage {
-            FileHandle.standardError.write(Data("Usage: Phase0Probe preflight --output <path> | atomicity --output <path> --environment <path> --iterations 100 | sp1|sp2|sp3 --environment <path> --output <directory>\n".utf8))
+            FileHandle.standardError.write(Data("Usage: Phase0Probe preflight --output <path> | atomicity --output <path> --environment <path> --iterations 100 | sp1|sp2|sp3|sp4a --environment <path> --output <directory>\n".utf8))
             Foundation.exit(64)
         } catch let error as AtomicityRunnerIdentityError {
             FileHandle.standardError.write(Data("ERROR \(error.code) \(error.description)\n".utf8))

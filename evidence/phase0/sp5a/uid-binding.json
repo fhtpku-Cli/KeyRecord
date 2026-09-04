@@ -1,0 +1,8 @@
+{
+  "fixtureUID" : "0000000000000000",
+  "matchingUIDAccepted" : true,
+  "mismatchDisposition" : "rejected-with-warning-required",
+  "mismatchError" : "uidMismatch",
+  "mismatchVerified" : false,
+  "mismatchedUID" : "FFFFFFFFFFFFFFFF"
+}

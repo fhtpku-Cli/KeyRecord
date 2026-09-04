@@ -1,0 +1,44 @@
+{
+  "afterValue" : "KC_ESC",
+  "allUnsupportedFieldsPreserved" : true,
+  "beforeValue" : "KC_B",
+  "bytesOutsideSelectedSlotIdentical" : true,
+  "fixtureByteCount" : 230,
+  "fixtureKind" : "synthetic",
+  "fixturePath" : "evidence/phase0/fixtures/synthetic/phase0.vil",
+  "fixtureSha256" : "61a93eac2421c9cbe1b0f81625f3d01f3ca9443645b4d9ba86c1f5237af633b3",
+  "noTrailingNewline" : true,
+  "nonSelectedSlotPreserved" : true,
+  "outputSha256" : "b0d2be941395a22416b9fa8368a9a74f782e26335dc5e9146bbd0d8d1c73078f",
+  "selectedSlot" : [
+    0,
+    0,
+    1
+  ],
+  "uid" : "0000000000000000",
+  "unsupportedFieldSha256After" : {
+    "alt_repeat_key" : "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "combo" : "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "encoder_layout" : "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "key_override" : "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "layout_options" : "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+    "macro" : "055539df4a0b804c58caf46c0cd2941af10d64c1395ddd8e50b5f55d945841e6",
+    "settings" : "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+    "tap_dance" : "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "via_protocol" : "19581e27de7ced00ff1ce50b2047e7a567c76b1cbaebabe5ef03f7c3017bb5b7",
+    "vial_protocol" : "e7f6c011776e8db7cd330b54174fd76f7d0216b612387a5ffcfb81e6f0919683"
+  },
+  "unsupportedFieldSha256Before" : {
+    "alt_repeat_key" : "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "combo" : "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "encoder_layout" : "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "key_override" : "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "layout_options" : "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+    "macro" : "055539df4a0b804c58caf46c0cd2941af10d64c1395ddd8e50b5f55d945841e6",
+    "settings" : "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+    "tap_dance" : "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "via_protocol" : "19581e27de7ced00ff1ce50b2047e7a567c76b1cbaebabe5ef03f7c3017bb5b7",
+    "vial_protocol" : "e7f6c011776e8db7cd330b54174fd76f7d0216b612387a5ffcfb81e6f0919683"
+  },
+  "version" : 1
+}

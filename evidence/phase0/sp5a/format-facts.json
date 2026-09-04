@@ -1,0 +1,32 @@
+{
+  "citations" : [
+    {
+      "path" : "evidence/phase0/sources/repos/vial-gui/files/src/main/python/protocol/keyboard_comm.py",
+      "sha256" : "d71b73a6217c5d12a05ff0cd3c85ea06b8f9df798cfb5f1a783207af4623ecdb"
+    },
+    {
+      "path" : "evidence/phase0/sources/repos/vial-gui/files/src/main/python/editor/keymap_editor.py",
+      "sha256" : "5266420876959c83bf4f2d7c5db177170a67a368e028f6b0813b3d1e9e6e03e1"
+    },
+    {
+      "path" : "evidence/phase0/sources/repos/vial-qmk/files/util/vial_generate_definition.py",
+      "sha256" : "ecd4b1ffeae61a1918ef704eff47f67e2f55ec48944a34a357af6a48abd4caae"
+    },
+    {
+      "path" : "evidence/phase0/sources/repos/vial-qmk/files/keyboards/vial_example/vial_rp2040/keymaps/vial/vial.json",
+      "sha256" : "09bdbe2ced2496af1ac7f0e7bf20956acc76b861670afe890b62f53bf512f711"
+    }
+  ],
+  "excludedClaims" : [
+    "official importer compatibility",
+    "device compatibility",
+    "device behavior",
+    "HID interaction",
+    "firmware write",
+    "real-device verification"
+  ],
+  "exportContract" : "Pinned Vial GUI save_layout emits a JSON version-1 keymap export containing UID, layout, encoder layout, options, macros, protocol values, advanced fields, and settings.",
+  "interchangeability" : "vial.json is not interchangeable with a .vil keymap export or a VIA definition.",
+  "uidContract" : "Pinned Vial GUI compares the export UID with the connected keyboard UID and warns before any restore on mismatch.",
+  "vialJSONClassification" : "vial.json is a firmware-embedded keyboard definition consumed by the Vial QMK definition generator."
+}

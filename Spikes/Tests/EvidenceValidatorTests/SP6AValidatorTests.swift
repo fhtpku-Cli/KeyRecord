@@ -106,7 +106,7 @@ private struct SP6ATestDirectory {
             try FileManager.default.copyItem(at: source.appendingPathComponent(path), to: destination)
         }
         try runGit(["add"] + SP6ARunnerBinding.sourcePaths.sorted(), repository)
-        try runGit(["-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "commit", "-q", "-m", "fixture sp6a source"], repository)
+        try runGit(["-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "commit", "--allow-empty", "-q", "-m", "fixture sp6a source"], repository)
         let commit = try gitOutput(["rev-parse", "HEAD"], repository), tree = try gitOutput(["rev-parse", "HEAD^{tree}"], repository)
         var sourceHashes: [String: String] = [:]
         for path in SP6ARunnerBinding.sourcePaths { sourceHashes[path] = Canonical.sha256(try Data(contentsOf: repository.appendingPathComponent(path))) }

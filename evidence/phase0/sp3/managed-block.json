@@ -1,0 +1,15 @@
+{
+  "baselineMismatchRejected" : true,
+  "clearPreservedOutsideBytes" : true,
+  "duplicateRejected" : true,
+  "externalEditRefused" : true,
+  "insertPreservedOutsideBytes" : true,
+  "malformedRejected" : true,
+  "maximumBytes" : 1048576,
+  "maximumDepth" : 64,
+  "restorePreservedOutsideBytes" : true,
+  "threeRuleBatchCount" : 3,
+  "updatePreservedOutsideBytes" : true,
+  "upstreamFixturePath" : "evidence/phase0/sources/repos/karabiner/files/tests/src/complex_modifications_assets/json/lint/assets/valid.json",
+  "upstreamFixtureSha256" : "b7533b69e1cb10ffbfc875aa93f09c82c0a6959e0be5af93b8584149e0661544"
+}

@@ -1,0 +1,12 @@
+{
+  "currentFormat" : "complex modifications asset JSON with title and rules",
+  "descriptionNotesMinimumVersion" : "16.1.23",
+  "descriptionNotesSourceURL" : "https://karabiner-elements.pqrs.org/docs/json/complex-modifications-manipulator-definition/description-notes/",
+  "fixtureSourcePath" : "tests/src/complex_modifications_assets/json/lint/assets/",
+  "limitation" : "Pinned current-format source is inspected; no installed multi-version sample exists, so compatibility and live behavior remain BLOCKED.",
+  "lintSourcePath" : "src/bin/cli/src/main.cpp",
+  "supportMatrixStatus" : "BLOCKED",
+  "upstreamCommit" : "865f0e0ee6ebb5f6a6857058b0cbfab8297f8469",
+  "upstreamRepository" : "https://github.com/pqrs-org/Karabiner-Elements.git",
+  "upstreamTree" : "10a85f02a5aa381e8e1523bb25df314a29b6cfa0"
+}

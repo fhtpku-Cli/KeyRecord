@@ -1,0 +1,174 @@
+{
+  "legs" : [
+    {
+      "artifactPath" : "atomicity-citation.json",
+      "artifactSha256" : "834bdf46a5e537b211180d39246841e2f460fa13ed4f6dc8e95bc3d7dcb16014",
+      "command" : [
+        "Phase0Probe",
+        "sp3",
+        "fixture",
+        "sp3.atomicity"
+      ],
+      "detectorAvailable" : true,
+      "detectorID" : "D0",
+      "environmentSha256" : "6b3288f5983cbce231295762d3f8381b8467d6dbe2e74fff0e17a1aebf7215f4",
+      "evidenceKind" : "fixture",
+      "exitStatus" : 0,
+      "legID" : "sp3.atomicity",
+      "runnerCommitSha" : "8dae79eee6480a906607c9fcf30ff1c95e93ae4d",
+      "runnerTreeSha" : "7b385a73954c0a7aebd3e0fdfa757ffa55df8d10",
+      "verdict" : "PASS"
+    },
+    {
+      "artifactPath" : "recovery.json",
+      "artifactSha256" : "385618f13718a106aadbfbf6b401652b5edc88dd9edbfacfc622bc65017f9cf7",
+      "command" : [
+        "Phase0Probe",
+        "sp3",
+        "fixture",
+        "sp3.crashRecovery"
+      ],
+      "detectorAvailable" : true,
+      "detectorID" : "D0",
+      "environmentSha256" : "6b3288f5983cbce231295762d3f8381b8467d6dbe2e74fff0e17a1aebf7215f4",
+      "evidenceKind" : "fixture",
+      "exitStatus" : 0,
+      "legID" : "sp3.crashRecovery",
+      "runnerCommitSha" : "8dae79eee6480a906607c9fcf30ff1c95e93ae4d",
+      "runnerTreeSha" : "7b385a73954c0a7aebd3e0fdfa757ffa55df8d10",
+      "verdict" : "PASS"
+    },
+    {
+      "blocker" : {
+        "blocked_by" : "karabiner_or_input_monitoring_unavailable",
+        "detect_command" : [
+          "environment.json",
+          "guiSession.tapCreate",
+          "listenEventAccess",
+          "applications.Karabiner-Elements"
+        ],
+        "prerequisite" : "GUI session, Input Monitoring already granted, and supported Karabiner installed",
+        "unblock_action" : "Provision an approved sandbox host separately; this probe never prompts, reloads, starts, or stops Karabiner"
+      },
+      "command" : [
+
+      ],
+      "detectorAvailable" : false,
+      "detectorID" : "D2",
+      "environmentSha256" : "6b3288f5983cbce231295762d3f8381b8467d6dbe2e74fff0e17a1aebf7215f4",
+      "evidenceKind" : "live",
+      "legID" : "sp3.disableLatency",
+      "runnerCommitSha" : "8dae79eee6480a906607c9fcf30ff1c95e93ae4d",
+      "runnerTreeSha" : "7b385a73954c0a7aebd3e0fdfa757ffa55df8d10",
+      "verdict" : "BLOCKED"
+    },
+    {
+      "artifactPath" : "managed-block.json",
+      "artifactSha256" : "65ef554e77f68900ad7a0280f77c12942589288749cdbfcf5b52f085e154bf5d",
+      "command" : [
+        "Phase0Probe",
+        "sp3",
+        "fixture",
+        "sp3.managedBlock"
+      ],
+      "detectorAvailable" : true,
+      "detectorID" : "D0",
+      "environmentSha256" : "6b3288f5983cbce231295762d3f8381b8467d6dbe2e74fff0e17a1aebf7215f4",
+      "evidenceKind" : "fixture",
+      "exitStatus" : 0,
+      "legID" : "sp3.managedBlock",
+      "runnerCommitSha" : "8dae79eee6480a906607c9fcf30ff1c95e93ae4d",
+      "runnerTreeSha" : "7b385a73954c0a7aebd3e0fdfa757ffa55df8d10",
+      "verdict" : "PASS"
+    },
+    {
+      "blocker" : {
+        "blocked_by" : "karabiner_or_input_monitoring_unavailable",
+        "detect_command" : [
+          "environment.json",
+          "guiSession.tapCreate",
+          "listenEventAccess",
+          "applications.Karabiner-Elements"
+        ],
+        "prerequisite" : "GUI session, Input Monitoring already granted, and supported Karabiner installed",
+        "unblock_action" : "Provision an approved sandbox host separately; this probe never prompts, reloads, starts, or stops Karabiner"
+      },
+      "command" : [
+
+      ],
+      "detectorAvailable" : false,
+      "detectorID" : "D2",
+      "environmentSha256" : "6b3288f5983cbce231295762d3f8381b8467d6dbe2e74fff0e17a1aebf7215f4",
+      "evidenceKind" : "live",
+      "legID" : "sp3.reload",
+      "runnerCommitSha" : "8dae79eee6480a906607c9fcf30ff1c95e93ae4d",
+      "runnerTreeSha" : "7b385a73954c0a7aebd3e0fdfa757ffa55df8d10",
+      "verdict" : "BLOCKED"
+    },
+    {
+      "blocker" : {
+        "blocked_by" : "supported_karabiner_cli_absent",
+        "detect_command" : [
+          "test",
+          "-x",
+          "/Library/Application Support/org.pqrs/Karabiner-Elements/bin/karabiner_cli"
+        ],
+        "prerequisite" : "supported installed karabiner_cli with a sampled full version",
+        "unblock_action" : "Install and sample a supported Karabiner version separately, then rerun"
+      },
+      "command" : [
+
+      ],
+      "detectorAvailable" : false,
+      "detectorID" : "D5",
+      "environmentSha256" : "6b3288f5983cbce231295762d3f8381b8467d6dbe2e74fff0e17a1aebf7215f4",
+      "evidenceKind" : "fixture",
+      "legID" : "sp3.schemaLint",
+      "runnerCommitSha" : "8dae79eee6480a906607c9fcf30ff1c95e93ae4d",
+      "runnerTreeSha" : "7b385a73954c0a7aebd3e0fdfa757ffa55df8d10",
+      "verdict" : "BLOCKED"
+    },
+    {
+      "blocker" : {
+        "blocked_by" : "supported_karabiner_cli_absent",
+        "detect_command" : [
+          "test",
+          "-x",
+          "/Library/Application Support/org.pqrs/Karabiner-Elements/bin/karabiner_cli"
+        ],
+        "prerequisite" : "supported installed karabiner_cli with a sampled full version",
+        "unblock_action" : "Install and sample a supported Karabiner version separately, then rerun"
+      },
+      "command" : [
+
+      ],
+      "detectorAvailable" : false,
+      "detectorID" : "D5",
+      "environmentSha256" : "6b3288f5983cbce231295762d3f8381b8467d6dbe2e74fff0e17a1aebf7215f4",
+      "evidenceKind" : "live",
+      "legID" : "sp3.versionSample",
+      "runnerCommitSha" : "8dae79eee6480a906607c9fcf30ff1c95e93ae4d",
+      "runnerTreeSha" : "7b385a73954c0a7aebd3e0fdfa757ffa55df8d10",
+      "verdict" : "BLOCKED"
+    }
+  ],
+  "runnerSourceSha256" : {
+    "Spikes/Scripts/run-task-qa.sh" : "080f7386cf8d6fd79665958318b1e64d6d12f7799b38a252d6055b404f6980ce",
+    "Spikes/Sources/EvidenceValidator/Canonical.swift" : "ab34555220fea7b5fcbc667e6a082ac98d5de0820c06cdf45f400d559320b2d8",
+    "Spikes/Sources/EvidenceValidator/EvidenceValidatorCommand.swift" : "516994128dc179edde659729f800240cfdc99b564bc928efd3d7a31b26a25211",
+    "Spikes/Sources/EvidenceValidator/GitRunner.swift" : "ca3f1ba4a52173c54e45aaccbcf453e989a368da83e0c6f452373e8a0feffafb",
+    "Spikes/Sources/EvidenceValidator/SP3DirectoryValidator.swift" : "f87ae6d929bbf3c123cddb7a28d9bb5e3e9c9db4ed70f6a75bff4ace9dc9cc62",
+    "Spikes/Sources/EvidenceValidator/ValidatorError.swift" : "93bb3aee3aac5fa3322fdf8ff04743eb275bbac228ce60f72e3bdc071da4e06e",
+    "Spikes/Sources/Phase0Probe/AtomicityRunnerIdentity.swift" : "ca02a3117bba7db464831280dd7609e278bff5129a7dc38527d091887b8f0254",
+    "Spikes/Sources/Phase0Probe/SP3Probe.swift" : "9a45bcccbf70db11cc2b7e4079cadb93e74aa783cc41c03de7ceb349863f444d",
+    "Spikes/Sources/Phase0Probe/main.swift" : "fb7cea66762c178fabd6ab3d6106fa42fa051d570c51adab4c36a3aa61d844fb",
+    "Spikes/Sources/Phase0Support/AtomicityEvidence.swift" : "5dfa5eceec76a50b23d8660dcc67e7c910b42ada5f99371b89c18321186cb293",
+    "Spikes/Sources/Phase0Support/KarabinerManagedBlock.swift" : "2b651db1283a38bc207582297b1859f58574c88fa4f1b2928fdf2047b4eb75db",
+    "Spikes/Sources/Phase0Support/Registries.swift" : "7b3bcb90f3f96ec5c0aea80acf45a16008e6cf5fc0b6b79a9ad0be0900c057fa",
+    "Spikes/Sources/Phase0Support/SP3Evidence.swift" : "6fd6f30b1f8ec6e0d6469357f322144801ae4a6ed1e7e4b4b8f4bb3ee50b0dbe",
+    "Spikes/Sources/Phase0Support/SP3FixtureScenarios.swift" : "93eced16c8ae4b111e7f30b6e0e751a3a173d93e7c94331e4bcdad83df27b3bc"
+  },
+  "schemaVersion" : 1,
+  "spikeID" : "SP-3",
+  "verdict" : "BLOCKED"
+}

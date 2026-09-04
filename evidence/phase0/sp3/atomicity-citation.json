@@ -1,0 +1,9 @@
+{
+  "artifactPath" : "evidence/phase0/shared-atomicity/result.json",
+  "artifactSha256" : "b1988f88705b201e4a31c43b098e7ae50ae716f4740090a5e3ef7378d1bd4107",
+  "citedBy" : [
+    "SP-3",
+    "SP-6A"
+  ],
+  "manifestPath" : "evidence/phase0/shared-atomicity/manifest.sha256"
+}

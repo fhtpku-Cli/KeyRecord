@@ -1,0 +1,16 @@
+{
+  "automaticExternalWrite" : false,
+  "crashBoundaries" : {
+    "afterDirectoryFsync" : "finishCommit",
+    "afterFileFsync" : "markFailedNoWrite",
+    "afterRename" : "finishCommit",
+    "afterWriteTemp" : "markFailedNoWrite",
+    "beforeDirectoryFsync" : "finishCommit",
+    "beforeFileFsync" : "markFailedNoWrite",
+    "beforeRename" : "markFailedNoWrite",
+    "beforeWriteTemp" : "markFailedNoWrite"
+  },
+  "external" : "externalChangeRefusal",
+  "hBase" : "markFailedNoWrite",
+  "hExpect" : "finishCommit"
+}

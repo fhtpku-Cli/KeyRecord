@@ -103,7 +103,12 @@ if [[ "$1" == "6" ]]; then
         signal_output="$tmp_dir/signal-${signal_name}-${attempt}"
         KEYRECORD_SP2_TEST_DELAY_AFTER_TEMP=2 "$probe" sp2 --environment evidence/phase0/environment.json --output "$signal_output" >>"$tmp_dir/qa.log" 2>&1 &
         child=$!
-        sleep 0.3
+        ready=false
+        for _ in {1..100}; do
+          if compgen -G "$tmp_dir/.sp2.*.tmp" >/dev/null; then ready=true; break; fi
+          sleep 0.05
+        done
+        [[ "$ready" == true ]] || failures=$((failures + 1))
         kill -s "$signal_name" "$child" 2>/dev/null || failures=$((failures + 1))
         set +e; wait "$child"; signal_status=$?; set -e
         printf 'signal=%s attempt=%s exit_status=%s\n' "$signal_name" "$attempt" "$signal_status" >>"$tmp_dir/qa.log"

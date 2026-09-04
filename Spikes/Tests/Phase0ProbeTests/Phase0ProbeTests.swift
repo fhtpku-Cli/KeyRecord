@@ -152,6 +152,39 @@ final class Phase0ProbeTests: XCTestCase {
         XCTAssertFalse(source.contains("rule.evidenceKind == .live ? .inconclusive : .pass"))
     }
 
+    func testSP3MalformedEnvironmentInvalidatesStaleDestination() throws {
+        try withTemporaryDirectory { directory in
+            let environment = directory.appendingPathComponent("malformed.json")
+            let output = directory.appendingPathComponent("sp3", isDirectory: true)
+            try Data("{malformed".utf8).write(to: environment)
+            try FileManager.default.createDirectory(at: output, withIntermediateDirectories: false)
+            try Data("stale\n".utf8).write(to: output.appendingPathComponent("stale.txt"))
+            XCTAssertThrowsError(try SP3Probe.run(arguments: ["sp3", "--environment", environment.path, "--output", output.path]))
+            XCTAssertFalse(FileManager.default.fileExists(atPath: output.path))
+            XCTAssertTrue(try FileManager.default.contentsOfDirectory(atPath: directory.path).allSatisfy { !$0.hasPrefix(".sp3.") })
+        }
+    }
+
+    func testSP3CurrentEnvironmentProducesThreePassFourBlockedAndCompleteOutput() throws {
+        try withTemporaryDirectory { directory in
+            let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+            let output = directory.appendingPathComponent("sp3", isDirectory: true)
+            let identity = AtomicityRunnerIdentity(
+                commitSha: String(repeating: "a", count: 40), treeSha: String(repeating: "b", count: 40),
+                sourceSha256: Dictionary(uniqueKeysWithValues: SP3RunnerBinding.sourcePaths.map { ($0, String(repeating: "c", count: 64)) })
+            )
+            try SP3Probe.run(arguments: ["sp3", "--environment", repository.appendingPathComponent("evidence/phase0/environment.json").path, "--output", output.path], identityProvider: FixedIdentityProvider(identity: identity))
+            let evidence = try JSONDecoder().decode(SP3Evidence.self, from: Data(contentsOf: output.appendingPathComponent("evidence.json")))
+            XCTAssertEqual(evidence.legs.filter { $0.verdict == .pass }.count, 3)
+            XCTAssertEqual(evidence.legs.filter { $0.verdict == .blocked }.count, 4)
+            XCTAssertTrue(evidence.legs.filter { $0.verdict == .blocked }.allSatisfy { $0.blocker?.complete == true && $0.command.isEmpty && $0.exitStatus == nil })
+            XCTAssertEqual(evidence.legs.first { $0.legID == "sp3.schemaLint" }?.blocker?.blockedBy, "supported_karabiner_cli_absent")
+            XCTAssertEqual(evidence.legs.first { $0.legID == "sp3.reload" }?.blocker?.blockedBy, "karabiner_or_input_monitoring_unavailable")
+            XCTAssertEqual(evidence.verdict, .blocked)
+            XCTAssertEqual(Set(try FileManager.default.contentsOfDirectory(atPath: output.path)), SP3DirectoryLayout.allNames)
+        }
+    }
+
     private func atomicityArguments(output: String = FileManager.default.temporaryDirectory.appendingPathComponent("unused.json").path) -> [String] {
         let repository = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent().deletingLastPathComponent()

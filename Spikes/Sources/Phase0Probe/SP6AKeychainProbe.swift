@@ -25,11 +25,16 @@ enum SP6AKeychainProbe {
         }
     }
 
-    static func run(service: String = servicePrefix + UUID().uuidString.lowercased()) throws -> SP6AKeychainArtifact {
-        guard validService(service) else { throw SP6AKeychainError.invalidNamespace }
+    static func run(
+        runner: SP6ANamespaceRunnerIdentity,
+        historyURL: URL? = nil
+    ) throws -> SP6AKeychainArtifact {
+        let receipt = try generationReceipt(runner: runner)
+        let history = try append(receipt: receipt, to: historyURL)
+        let service = receipt.service
         let cleanup = SP6AKeychainSignalCleanup(service: service)
         if let path = ProcessInfo.processInfo.environment["KEYRECORD_SP6A_TEST_READY_FILE"] {
-            try Data().write(to: URL(fileURLWithPath: path), options: .atomic)
+            try Data((service + "\n").utf8).write(to: URL(fileURLWithPath: path), options: .atomic)
         }
         let preCleanup = deleteNamespace(service)
         defer { _ = deleteNamespace(service); cleanup.complete() }
@@ -48,6 +53,7 @@ enum SP6AKeychainProbe {
                     service: service, preCleanupStatus: preCleanup, postCleanupStatus: errSecMissingEntitlement,
                     residueQueryStatus: residue.status, residueCount: residue.count
                 ),
+                generationReceipt: receipt, attemptHistory: history,
                 keyBytesPersistedOutsideKeychain: false
             )
         }
@@ -74,8 +80,56 @@ enum SP6AKeychainProbe {
                 service: service, preCleanupStatus: preCleanup, postCleanupStatus: postCleanup,
                 residueQueryStatus: residue.status, residueCount: residue.count
             ),
+            generationReceipt: receipt, attemptHistory: history,
             keyBytesPersistedOutsideKeychain: false
         )
+    }
+
+    private static func generationReceipt(runner: SP6ANamespaceRunnerIdentity) throws -> SP6ANamespaceGenerationReceipt {
+        var inputBytes = [UInt8](repeating: 0, count: 16)
+        let status = inputBytes.withUnsafeMutableBytes {
+            SecRandomCopyBytes(kSecRandomDefault, 16, $0.baseAddress!)
+        }
+        guard status == errSecSuccess,
+              let uuid = SP6ANamespaceDerivation.uuid(inputBytes: inputBytes) else {
+            throw SP6AKeychainError.randomGenerationFailed
+        }
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        let generatedAtUTC = formatter.string(from: Date())
+        let service = servicePrefix + uuid
+        return SP6ANamespaceGenerationReceipt(
+            attemptID: SP6ANamespaceDerivation.attemptID(
+                inputBytes: inputBytes, runner: runner, generatedAtUTC: generatedAtUTC
+            ),
+            inputBytes: inputBytes, randomStatus: status, uuid: uuid, service: service,
+            runner: runner, generatedAtUTC: generatedAtUTC, cleanupService: service
+        )
+    }
+
+    private static func append(
+        receipt: SP6ANamespaceGenerationReceipt, to historyURL: URL?
+    ) throws -> SP6ANamespaceAttemptHistory {
+        var history = SP6ANamespaceAttemptHistory(attempts: [])
+        if let historyURL, FileManager.default.fileExists(atPath: historyURL.path) {
+            history = try JSONDecoder().decode(SP6ANamespaceAttemptHistory.self, from: Data(contentsOf: historyURL))
+        }
+        guard history.schemaVersion == 1, history.scope == SP6ANamespaceAttemptHistory.capturedScope,
+              !history.attempts.contains(where: {
+                  $0.attemptID == receipt.attemptID || $0.service == receipt.service || $0.inputBytes == receipt.inputBytes
+              }) else {
+            throw SP6AKeychainError.attemptHistoryConflict
+        }
+        history.attempts.append(receipt)
+        if let historyURL {
+            let encoder = JSONEncoder()
+            encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
+            var data = try encoder.encode(history)
+            data.append(10)
+            try FileManager.default.createDirectory(at: historyURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try data.write(to: historyURL, options: .atomic)
+        }
+        return history
     }
 
     static func validService(_ service: String) -> Bool {
@@ -163,7 +217,7 @@ enum SP6AKeychainProbe {
     }
 }
 
-enum SP6AKeychainError: Error, Equatable { case invalidNamespace, lifecycleFailure }
+enum SP6AKeychainError: Error, Equatable { case invalidNamespace, lifecycleFailure, randomGenerationFailed, attemptHistoryConflict }
 
 private let errSecMissingEntitlement = OSStatus(-34018)
 

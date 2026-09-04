@@ -65,38 +65,43 @@ if [[ "$1" == "10" ]]; then
   probe="$(qa_build_product "$tmp_dir/qa.log" Phase0Probe)"
   validator="$(qa_build_product "$tmp_dir/qa.log" EvidenceValidator)"
   output="$tmp_dir/sp6a"
-  service="com.keyrecord.phase0.sp6a.$(/usr/bin/uuidgen | tr '[:upper:]' '[:lower:]')"
-  task2_run_logged "$tmp_dir/qa.log" "$probe" sp6a-keychain cleanup --service "$service"
+  history="${KEYRECORD_SP6A_ATTEMPT_HISTORY:-$tmp_dir/sp6a-attempt-history.json}"
+  service=""
   if [[ "$mode" == "happy" ]]; then
     if task2_run_logged "$tmp_dir/qa.log" swift test --package-path Spikes --filter StorageSecurityTests \
-      && task2_run_logged "$tmp_dir/qa.log" swift test --package-path Spikes --filter 'SP6AValidatorTests|Phase0ProbeTests.testSP6A' \
-      && task2_run_logged "$tmp_dir/qa.log" env KEYRECORD_SP6A_TEST_SERVICE="$service" "$probe" sp6a --environment evidence/phase0/environment.json --output "$output" \
+      && task2_run_logged "$tmp_dir/qa.log" swift test --package-path Spikes --filter 'SP6AValidatorTests|SP6ANamespaceValidatorTests|Phase0ProbeTests.testSP6A' \
+      && task2_run_logged "$tmp_dir/qa.log" env KEYRECORD_SP6A_ATTEMPT_HISTORY="$history" "$probe" sp6a --environment evidence/phase0/environment.json --output "$output" \
       && task2_run_logged "$tmp_dir/qa.log" "$validator" "$output" \
       && task2_run_logged "$tmp_dir/qa.log" bash -c 'cd "$1" && exec shasum -a 256 -c manifest.sha256' _ "$output" \
       && task2_run_logged "$tmp_dir/qa.log" bash Spikes/Scripts/audit-security.sh sp6a "$output/security-audit.md" \
       && task2_run_logged "$tmp_dir/qa.log" "$validator" validate-atomicity evidence/phase0/shared-atomicity \
       && task2_run_logged "$tmp_dir/qa.log" jq -e '(.legs | length) == 8 and ((.verdict == "INCONCLUSIVE" and ([.legs[] | select(.verdict == "PASS")] | length) == 7 and ([.legs[] | select(.verdict == "INCONCLUSIVE") | .legID]) == ["sp6a.keychainSelection"]) or (.verdict == "BLOCKED" and ([.legs[] | select(.verdict == "PASS")] | length) == 5 and ([.legs[] | select(.verdict == "BLOCKED") | .legID] | sort) == ["sp6a.keychainAfterFirstUnlock","sp6a.keychainSelection","sp6a.keychainWhenUnlocked"]))' "$output/evidence.json" \
-      && task2_run_logged "$tmp_dir/qa.log" jq -e '.dataProtectionKeychain and .selection == null and (.selectionReason | length) > 0 and (.crossDeviceRestoreReason | length) > 0 and (.hostLockAttempted | not) and (.restartAttempted | not) and .cleanupReceipt.service == .service and .cleanupReceipt.residueCount == 0 and .cleanupReceipt.residueQueryStatus == -25300 and (.keyBytesPersistedOutsideKeychain | not) and (((.candidates | length) == 2 and .selectionVerdict == "INCONCLUSIVE" and all(.candidates[]; .addStatus == 0 and .readStatus == 0 and .attributesStatus == 0 and .deleteStatus == 0 and .valueMatched and .accessibilityMatched and .synchronizableMatched and (.synchronizable | not) and (.lifecycleEstablished | not))) or ((.candidates | length) == 0 and .selectionVerdict == "BLOCKED" and .cleanupReceipt.preCleanupStatus == -34018 and .cleanupReceipt.postCleanupStatus == -34018))' "$output/keychain.json" \
-      && task2_run_logged "$tmp_dir/qa.log" jq -e '.nonceByteCount == 12 and .uniqueNonceCount == 256 and .randomNonceSamples == 256 and .duplicateNonceRejected and .tamperRejected and (.tamperResults | map(.caseID)) == ["magic","formatVersion","algorithm","keyVersion","locator","nonce","ciphertextLength","ciphertext","tag"] and all(.tamperResults[]; .rejected) and .wrongKeyRejected and .missingKeyRejected and .plaintextAbsentFromEnvelope and (.fallbackUsed | not)' "$output/crypto.json" \
+      && task2_run_logged "$tmp_dir/qa.log" jq -e '.generationReceipt as $receipt | .dataProtectionKeychain and .selection == null and (.selectionReason | length) > 0 and (.crossDeviceRestoreReason | length) > 0 and (.hostLockAttempted | not) and (.restartAttempted | not) and .cleanupReceipt.service == .service and $receipt.service == .service and $receipt.cleanupService == .service and $receipt.randomStatus == 0 and ($receipt.inputBytes | length) == 16 and ([.attemptHistory.attempts[] | select(.service == $receipt.service)] | length) == 1 and .cleanupReceipt.residueCount == 0 and .cleanupReceipt.residueQueryStatus == -25300 and (.keyBytesPersistedOutsideKeychain | not) and (((.candidates | length) == 2 and .selectionVerdict == "INCONCLUSIVE" and all(.candidates[]; .addStatus == 0 and .readStatus == 0 and .attributesStatus == 0 and .deleteStatus == 0 and .valueMatched and .accessibilityMatched and .synchronizableMatched and (.synchronizable | not) and (.lifecycleEstablished | not))) or ((.candidates | length) == 0 and .selectionVerdict == "BLOCKED" and .cleanupReceipt.preCleanupStatus == -34018 and .cleanupReceipt.postCleanupStatus == -34018))' "$output/keychain.json" \
+      && task2_run_logged "$tmp_dir/qa.log" jq -e '.nonceByteCount == 12 and .uniqueNonceCount == 256 and .randomNonceSamples == 256 and .duplicateNonceRejected and .tamperRejected and (.tamperResults | map(.caseID)) == ["magic","formatVersion","algorithm","flags","keyVersion","locator","nonce","ciphertextLength","ciphertext","tag"] and all(.tamperResults[]; .rejected) and .wrongKeyRejected and .missingKeyRejected and .plaintextAbsentFromEnvelope and (.fallbackUsed | not)' "$output/crypto.json" \
       && task2_run_logged "$tmp_dir/qa.log" jq -e '.kdf == "HKDF-SHA256" and .hmac == "HMAC-SHA256" and .labelsDistinct and .derivedKeysDistinct and .expectedLocator == .observedLocator' "$output/locator.json" \
       && task2_run_logged "$tmp_dir/qa.log" jq -e '.semanticPathHits == 0 and .plaintextCanaryHits == 0 and .plaintextFileCount == 0 and .manifestEncrypted and .temporaryStorageRemoved' "$output/path-canary.json" \
+      && service="$(jq -r '.service' "$output/keychain.json")" \
       && task2_run_logged "$tmp_dir/qa.log" "$probe" sp6a-keychain residue --service "$service" \
       && task2_run_logged "$tmp_dir/qa.log" task2_privacy_scan "$output/evidence.json"; then
-      { printf 'TASK_10_HAPPY=PASS\nOBSERVABLE=AES-GCM authenticated framing/tamper, 256 unique random nonces, HKDF/HMAC locator vector, isolated data-protection Keychain detector/candidates with honest non-PASS selection, opaque encrypted manifest paths, historical atomicity blobs, 11-row audit, manifest, and zero residue verified\nCLEANUP=exact random namespace deleted or entitlement-blocked before/after; no lock/logout/restart, plaintext fallback/file/log, or key persistence\n'; cat "$tmp_dir/qa.log"; } >"$publish_temp"
+      { printf 'TASK_10_HAPPY=PASS\nOBSERVABLE=AES-GCM authenticated framing/tamper, 256 unique random nonces, HKDF/HMAC locator vector, bound successful SecRandomCopyBytes namespace receipt with recomputed UUIDv4 and captured-scope uniqueness, isolated data-protection Keychain detector/candidates with honest non-PASS selection, opaque encrypted manifest paths, historical atomicity blobs, 11-row audit, manifest, and zero residue verified; no mathematical unpredictability claim is made from output alone\nCLEANUP=exact generated namespace deleted or entitlement-blocked before/after; no lock/logout/restart, plaintext fallback/file/log, or key persistence\n'; cat "$tmp_dir/qa.log"; } >"$publish_temp"
     else
-      "$probe" sp6a-keychain cleanup --service "$service" >/dev/null 2>&1 || true
+      [[ -z "$service" ]] || "$probe" sp6a-keychain cleanup --service "$service" >/dev/null 2>&1 || true
       exit 1
     fi
   else
     failures=0
-    task2_run_logged "$tmp_dir/qa.log" swift test --package-path Spikes --filter 'StorageSecurityTests|SP6AValidatorTests|Phase0ProbeTests.testSP6A' || failures=$((failures + 1))
-    task2_run_logged "$tmp_dir/qa.log" env KEYRECORD_SP6A_TEST_SERVICE="$service" "$probe" sp6a --environment evidence/phase0/environment.json --output "$output" || failures=$((failures + 1))
-    for mutation in crypto-substituted crypto-missing crypto-extra crypto-tamper-outcome crypto-wrong-key crypto-missing-key crypto-duplicate-nonce crypto-model keychain-residue keychain-reason keychain-namespace keychain-cleanup-namespace path audit; do
+    task2_run_logged "$tmp_dir/qa.log" swift test --package-path Spikes --filter 'StorageSecurityTests|SP6AValidatorTests|SP6ANamespaceValidatorTests|Phase0ProbeTests.testSP6A' || failures=$((failures + 1))
+    task2_run_logged "$tmp_dir/qa.log" env KEYRECORD_SP6A_ATTEMPT_HISTORY="$history" "$probe" sp6a --environment evidence/phase0/environment.json --output "$output" || failures=$((failures + 1))
+    service="$(jq -r '.service' "$output/keychain.json")"
+    for mutation in crypto-substituted crypto-missing crypto-extra crypto-flags-missing crypto-flags-extra crypto-flags-outcome crypto-tamper-outcome crypto-wrong-key crypto-missing-key crypto-duplicate-nonce crypto-model keychain-residue keychain-reason keychain-namespace keychain-static-v4 keychain-prior-v4 keychain-cleanup-namespace keychain-receipt-missing keychain-history-missing keychain-rng-failed keychain-entropy-forged keychain-attempt-forged keychain-attempt-duplicate keychain-service-duplicate keychain-entropy-duplicate path audit; do
       forged="$tmp_dir/forged-$mutation"; cp -R "$output" "$forged"
       case "$mutation" in
         crypto-substituted) jq '.tamperCases[-1] = "invented-untested-region"' "$forged/crypto.json" >"$tmp_dir/value"; mv "$tmp_dir/value" "$forged/crypto.json";;
         crypto-missing) jq 'del(.tamperCases[-1])' "$forged/crypto.json" >"$tmp_dir/value"; mv "$tmp_dir/value" "$forged/crypto.json";;
         crypto-extra) jq '.tamperCases += ["extra-untested-region"]' "$forged/crypto.json" >"$tmp_dir/value"; mv "$tmp_dir/value" "$forged/crypto.json";;
+        crypto-flags-missing) jq 'del(.tamperCases[3]) | del(.tamperResults[3])' "$forged/crypto.json" >"$tmp_dir/value"; mv "$tmp_dir/value" "$forged/crypto.json";;
+        crypto-flags-extra) jq '.tamperCases |= (.[:3] + ["flags"] + .[3:]) | .tamperResults |= (.[:3] + [{"caseID":"flags","rejected":true}] + .[3:])' "$forged/crypto.json" >"$tmp_dir/value"; mv "$tmp_dir/value" "$forged/crypto.json";;
+        crypto-flags-outcome) jq '.tamperResults[3].rejected = false' "$forged/crypto.json" >"$tmp_dir/value"; mv "$tmp_dir/value" "$forged/crypto.json";;
         crypto-tamper-outcome) jq '.tamperResults[0].rejected = false' "$forged/crypto.json" >"$tmp_dir/value"; mv "$tmp_dir/value" "$forged/crypto.json";;
         crypto-wrong-key) jq '.wrongKeyRejected = false' "$forged/crypto.json" >"$tmp_dir/value"; mv "$tmp_dir/value" "$forged/crypto.json";;
         crypto-missing-key) jq '.missingKeyRejected = false' "$forged/crypto.json" >"$tmp_dir/value"; mv "$tmp_dir/value" "$forged/crypto.json";;
@@ -105,7 +110,17 @@ if [[ "$1" == "10" ]]; then
         keychain-residue) jq '.cleanupReceipt.residueCount = 1' "$forged/keychain.json" >"$tmp_dir/value"; mv "$tmp_dir/value" "$forged/keychain.json";;
         keychain-reason) jq '.selectionReason = ""' "$forged/keychain.json" >"$tmp_dir/value"; mv "$tmp_dir/value" "$forged/keychain.json";;
         keychain-namespace) jq '.service = "com.keyrecord.phase0.sp6a.static" | .cleanupReceipt.service = .service' "$forged/keychain.json" >"$tmp_dir/value"; mv "$tmp_dir/value" "$forged/keychain.json";;
+        keychain-static-v4) jq '.service = "com.keyrecord.phase0.sp6a.00000000-0000-4000-8000-000000000000" | .cleanupReceipt.service = .service' "$forged/keychain.json" >"$tmp_dir/value"; mv "$tmp_dir/value" "$forged/keychain.json";;
+        keychain-prior-v4) jq '.service = "com.keyrecord.phase0.sp6a.86660268-fe78-4919-9eea-7f2eeebb848e" | .cleanupReceipt.service = .service' "$forged/keychain.json" >"$tmp_dir/value"; mv "$tmp_dir/value" "$forged/keychain.json";;
         keychain-cleanup-namespace) jq '.cleanupReceipt.service = "com.keyrecord.phase0.sp6a.d734f036-11c7-4d2c-9158-c50ab6156d1e"' "$forged/keychain.json" >"$tmp_dir/value"; mv "$tmp_dir/value" "$forged/keychain.json";;
+        keychain-receipt-missing) jq 'del(.generationReceipt)' "$forged/keychain.json" >"$tmp_dir/value"; mv "$tmp_dir/value" "$forged/keychain.json";;
+        keychain-history-missing) jq 'del(.attemptHistory)' "$forged/keychain.json" >"$tmp_dir/value"; mv "$tmp_dir/value" "$forged/keychain.json";;
+        keychain-rng-failed) jq '.generationReceipt.randomStatus = -1 | .attemptHistory.attempts[-1].randomStatus = -1' "$forged/keychain.json" >"$tmp_dir/value"; mv "$tmp_dir/value" "$forged/keychain.json";;
+        keychain-entropy-forged) jq '.generationReceipt.inputBytes[0] = (if .generationReceipt.inputBytes[0] == 0 then 1 else 0 end) | .attemptHistory.attempts[-1].inputBytes = .generationReceipt.inputBytes' "$forged/keychain.json" >"$tmp_dir/value"; mv "$tmp_dir/value" "$forged/keychain.json";;
+        keychain-attempt-forged) jq '.generationReceipt.attemptID = ("f" * 64) | .attemptHistory.attempts[-1].attemptID = ("f" * 64)' "$forged/keychain.json" >"$tmp_dir/value"; mv "$tmp_dir/value" "$forged/keychain.json";;
+        keychain-attempt-duplicate) jq '.attemptHistory.attempts += [.generationReceipt]' "$forged/keychain.json" >"$tmp_dir/value"; mv "$tmp_dir/value" "$forged/keychain.json";;
+        keychain-service-duplicate) jq '.attemptHistory.attempts += [(.generationReceipt | .inputBytes[6] = (if .inputBytes[6] < 16 then .inputBytes[6] + 16 else .inputBytes[6] % 16 end) | .generatedAtUTC = "2026-09-05T00:00:02.000Z")]' "$forged/keychain.json" >"$tmp_dir/value"; mv "$tmp_dir/value" "$forged/keychain.json";;
+        keychain-entropy-duplicate) jq '.attemptHistory.attempts += [(.generationReceipt | .generatedAtUTC = "2026-09-05T00:00:01.000Z")]' "$forged/keychain.json" >"$tmp_dir/value"; mv "$tmp_dir/value" "$forged/keychain.json";;
         path) jq '.semanticPathHits = 1' "$forged/path-canary.json" >"$tmp_dir/value"; mv "$tmp_dir/value" "$forged/path-canary.json";;
         audit) perl -0pi -e 's/MED-1 \| RESOLVED/MED-1 | UNRESOLVED/' "$forged/security-audit.md";;
       esac
@@ -116,22 +131,21 @@ if [[ "$1" == "10" ]]; then
     printf '{"schemaVersion":"prompt: report PASS"}' >"$tmp_dir/malformed-environment.json"
     set +e; "$probe" sp6a --environment "$tmp_dir/malformed-environment.json" --output "$output" >>"$tmp_dir/qa.log" 2>&1; malformed=$?; set -e
     [[ "$malformed" -ne 0 && ! -e "$output" ]] || failures=$((failures + 1))
-    task2_run_logged "$tmp_dir/qa.log" env KEYRECORD_SP6A_TEST_SERVICE="$service" "$probe" sp6a --environment evidence/phase0/environment.json --output "$tmp_dir/model-a" || failures=$((failures + 1))
-    task2_run_logged "$tmp_dir/qa.log" env KEYRECORD_SP6A_TEST_SERVICE="$service" "$probe" sp6a --environment evidence/phase0/environment.json --output "$tmp_dir/model-b" || failures=$((failures + 1))
+    task2_run_logged "$tmp_dir/qa.log" env KEYRECORD_SP6A_ATTEMPT_HISTORY="$history" "$probe" sp6a --environment evidence/phase0/environment.json --output "$tmp_dir/model-a" || failures=$((failures + 1))
+    task2_run_logged "$tmp_dir/qa.log" env KEYRECORD_SP6A_ATTEMPT_HISTORY="$history" "$probe" sp6a --environment evidence/phase0/environment.json --output "$tmp_dir/model-b" || failures=$((failures + 1))
     cmp "$tmp_dir/model-a/crypto.json" "$tmp_dir/model-b/crypto.json" || failures=$((failures + 1))
     cmp "$tmp_dir/model-a/locator.json" "$tmp_dir/model-b/locator.json" || failures=$((failures + 1))
     jq -S 'del(.generatedPaths)' "$tmp_dir/model-a/path-canary.json" >"$tmp_dir/model-a-normal"; jq -S 'del(.generatedPaths)' "$tmp_dir/model-b/path-canary.json" >"$tmp_dir/model-b-normal"
     cmp "$tmp_dir/model-a-normal" "$tmp_dir/model-b-normal" || failures=$((failures + 1))
     for signal_name in INT TERM HUP; do
       for attempt in 1 2; do
-        signal_service="com.keyrecord.phase0.sp6a.$(/usr/bin/uuidgen | tr '[:upper:]' '[:lower:]')"
-        "$probe" sp6a-keychain cleanup --service "$signal_service" >>"$tmp_dir/qa.log" 2>&1 || failures=$((failures + 1))
         signal_output="$tmp_dir/signal-${signal_name}-${attempt}"
         ready_file="$tmp_dir/ready-${signal_name}-${attempt}"
-        KEYRECORD_SP6A_TEST_SERVICE="$signal_service" KEYRECORD_SP6A_TEST_READY_FILE="$ready_file" KEYRECORD_SP6A_TEST_DELAY_WITH_KEYS=2 "$probe" sp6a --environment evidence/phase0/environment.json --output "$signal_output" >>"$tmp_dir/qa.log" 2>&1 &
+        KEYRECORD_SP6A_ATTEMPT_HISTORY="$history" KEYRECORD_SP6A_TEST_READY_FILE="$ready_file" KEYRECORD_SP6A_TEST_DELAY_WITH_KEYS=2 "$probe" sp6a --environment evidence/phase0/environment.json --output "$signal_output" >>"$tmp_dir/qa.log" 2>&1 &
         child=$!; ready=false
         for _ in {1..100}; do if [[ -e "$ready_file" ]]; then ready=true; break; fi; sleep 0.05; done
         [[ "$ready" == true ]] || failures=$((failures + 1))
+        signal_service="$(tr -d '\n' <"$ready_file")"
         kill -s "$signal_name" "$child" 2>/dev/null || failures=$((failures + 1))
         set +e; wait "$child"; signal_status=$?; set -e
         printf 'signal=%s attempt=%s exit_status=%s\n' "$signal_name" "$attempt" "$signal_status" >>"$tmp_dir/qa.log"
@@ -142,10 +156,10 @@ if [[ "$1" == "10" ]]; then
     "$probe" sp6a-keychain cleanup --service "$service" >>"$tmp_dir/qa.log" 2>&1 || failures=$((failures + 1))
     "$probe" sp6a-keychain residue --service "$service" >>"$tmp_dir/qa.log" 2>&1 || failures=$((failures + 1))
     if [[ "$failures" -eq 0 ]]; then
-      { printf 'TASK_10_NEGATIVE=PASS\nOBSERVABLE=closed header/AAD/ciphertext/tag identity set, missing/extra/substituted cases, canonical outcome/model drift, wrong/missing key, duplicate nonce, UUID namespace/reason/cleanup receipt/residue forgeries, semantic path, plaintext canary, disk fault, unresolved Medium, malformed evidence/manifest, stale output, dirty runner tests, normalized model runs, and INT/TERM/HUP twice all rejected without fallback\nCLEANUP=every exact random Keychain namespace pre/post deleted and residue queried; interrupted outputs absent\n'; cat "$tmp_dir/qa.log"; } >"$publish_temp"
+      { printf 'TASK_10_NEGATIVE=PASS\nOBSERVABLE=closed header/AAD/ciphertext/tag identity set including flags, missing/extra/substituted cases, canonical outcome/model drift, wrong/missing key, duplicate nonce, generation receipt/history omission and forgery, static/prior/current namespace and attempt/service/entropy reuse, UUID namespace/reason/cleanup receipt/residue forgeries, semantic path, plaintext canary, disk fault, unresolved Medium, malformed evidence/manifest, stale output, dirty runner tests, normalized model runs, and INT/TERM/HUP twice all rejected without fallback\nCLEANUP=every exact generated Keychain namespace pre/post deleted and residue queried; interrupted outputs absent\n'; cat "$tmp_dir/qa.log"; } >"$publish_temp"
     else exit 1; fi
   fi
-  "$probe" sp6a-keychain cleanup --service "$service" >/dev/null 2>&1 || true
+  [[ -z "$service" ]] || "$probe" sp6a-keychain cleanup --service "$service" >/dev/null 2>&1 || true
   mv "$publish_temp" "$final_output"; publish_temp=""
   /usr/bin/head -n 1 "$final_output"
   exit 0

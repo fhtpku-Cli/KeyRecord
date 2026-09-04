@@ -125,6 +125,8 @@ public struct SP6AKeychainArtifact: Codable, Equatable, Sendable {
     public let crossDeviceRestoreVerdict: Verdict
     public let crossDeviceRestoreReason: String
     public let cleanupReceipt: SP6AKeychainCleanupReceipt
+    public let generationReceipt: SP6ANamespaceGenerationReceipt
+    public let attemptHistory: SP6ANamespaceAttemptHistory
     public let keyBytesPersistedOutsideKeychain: Bool
 
     public var preCleanupStatus: Int32 { cleanupReceipt.preCleanupStatus }
@@ -136,13 +138,16 @@ public struct SP6AKeychainArtifact: Codable, Equatable, Sendable {
         service: String, dataProtectionKeychain: Bool, candidates: [SP6AKeychainCandidate],
         selection: String?, selectionVerdict: Verdict, selectionReason: String, hostLockAttempted: Bool,
         restartAttempted: Bool, crossDeviceRestoreVerdict: Verdict, crossDeviceRestoreReason: String,
-        cleanupReceipt: SP6AKeychainCleanupReceipt, keyBytesPersistedOutsideKeychain: Bool
+        cleanupReceipt: SP6AKeychainCleanupReceipt, generationReceipt: SP6ANamespaceGenerationReceipt,
+        attemptHistory: SP6ANamespaceAttemptHistory, keyBytesPersistedOutsideKeychain: Bool
     ) {
         self.service = service; self.dataProtectionKeychain = dataProtectionKeychain
         self.candidates = candidates; self.selection = selection; self.selectionVerdict = selectionVerdict; self.selectionReason = selectionReason
         self.hostLockAttempted = hostLockAttempted; self.restartAttempted = restartAttempted
         self.crossDeviceRestoreVerdict = crossDeviceRestoreVerdict; self.crossDeviceRestoreReason = crossDeviceRestoreReason
         self.cleanupReceipt = cleanupReceipt
+        self.generationReceipt = generationReceipt
+        self.attemptHistory = attemptHistory
         self.keyBytesPersistedOutsideKeychain = keyBytesPersistedOutsideKeychain
     }
 }
@@ -176,7 +181,11 @@ public enum SP6AScenarios {
     public static let vectorMasterKey = SymmetricKey(data: Data(0..<32))
     public static let expectedLocator = "b9c0bbfa794d054814fabaf3e3d88e33c732f72abcd020fb2ec0c06c49575f5b"
     public static let authenticatedHeaderFields = ["magic", "formatVersion", "algorithm", "flags", "keyVersion", "opaqueLocator", "nonce", "ciphertextLength"]
-    public static let tamperCaseIDs = ["magic", "formatVersion", "algorithm", "keyVersion", "locator", "nonce", "ciphertextLength", "ciphertext", "tag"]
+    public static let headerTamperCases = [
+        "magic": "magic", "formatVersion": "formatVersion", "algorithm": "algorithm", "flags": "flags",
+        "keyVersion": "keyVersion", "opaqueLocator": "locator", "nonce": "nonce", "ciphertextLength": "ciphertextLength",
+    ]
+    public static let tamperCaseIDs = ["magic", "formatVersion", "algorithm", "flags", "keyVersion", "locator", "nonce", "ciphertextLength", "ciphertext", "tag"]
 
     public static func crypto() throws -> SP6ACryptoArtifact {
         let plaintext = Data("KR-SP6A-SYNTHETIC-CANARY".utf8)
@@ -191,8 +200,13 @@ public enum SP6AScenarios {
             if index == 0 { sampleEnvelope = envelope }
         }
         let parsed = try AuthenticatedStorageEnvelope.parse(sampleEnvelope)
-        let indices = [0, 4, 5, 8, 12, 44, 56, AuthenticatedStorageEnvelope.headerByteCount,
-                       AuthenticatedStorageEnvelope.headerByteCount + parsed.ciphertext.count]
+        let indices = [0, 4, 5, 7, 8, 12, 44, 56, AuthenticatedStorageEnvelope.headerByteCount,
+                        AuthenticatedStorageEnvelope.headerByteCount + parsed.ciphertext.count]
+        guard tamperCaseIDs.count == indices.count,
+              Set(headerTamperCases.keys) == Set(authenticatedHeaderFields),
+              Set(headerTamperCases.values).isSubset(of: Set(tamperCaseIDs)) else {
+            throw StorageEnvelopeError.invalidLength
+        }
         var tamperResults: [SP6ACryptoCaseResult] = []
         for (caseID, index) in zip(tamperCaseIDs, indices) {
             var changed = sampleEnvelope; changed[index] ^= 1

@@ -167,13 +167,42 @@ final class SP6AValidatorTests: XCTestCase {
         }
     }
 
+    func testValidStaticAndPreviouslyUsedUUIDv4NamespacesReject() throws {
+        let namespaces = [
+            "com.keyrecord.phase0.sp6a.00000000-0000-4000-8000-000000000000",
+            "com.keyrecord.phase0.sp6a.86660268-fe78-4919-9eea-7f2eeebb848e",
+        ]
+        for namespace in namespaces {
+            let fixture = try SP6ATestDirectory.make()
+            defer { fixture.remove() }
+            try fixture.rewrite(
+                "keychain.json",
+                replacing: "com.keyrecord.phase0.sp6a.8f4e6b6a-0bd1-4acd-8e58-4a864295d1f7",
+                with: namespace,
+                remanifest: false
+            )
+            try fixture.rebindArtifact("keychain.json")
+            XCTAssertEqual(
+                errorCode { _ = try SP6ADirectoryValidator.validate(directory: fixture.output, repository: fixture.repository) },
+                "sp6a_keychain_namespace_reused"
+            )
+        }
+    }
+
+    func testCanonicalTamperMatrixCoversFlags() {
+        XCTAssertTrue(SP6AScenarios.tamperCaseIDs.contains("flags"))
+        XCTAssertEqual(SP6AScenarios.tamperCaseIDs.count, 10)
+        XCTAssertEqual(Set(SP6AScenarios.headerTamperCases.keys), Set(SP6AScenarios.authenticatedHeaderFields))
+        XCTAssertTrue(Set(SP6AScenarios.headerTamperCases.values).isSubset(of: Set(SP6AScenarios.tamperCaseIDs)))
+    }
+
     func testMismatchedCleanupNamespaceAndForgedResidueReject() throws {
         let cleanupFixture = try SP6ATestDirectory.make()
         defer { cleanupFixture.remove() }
-        try cleanupFixture.rewriteFirst(
-            "keychain.json",
-            replacing: "com.keyrecord.phase0.sp6a.8f4e6b6a-0bd1-4acd-8e58-4a864295d1f7",
-            with: "com.keyrecord.phase0.sp6a.d734f036-11c7-4d2c-9158-c50ab6156d1e"
+        let cleanupArtifact = try cleanupFixture.keychain()
+        try cleanupFixture.writeKeychain(
+            cleanupArtifact, receipt: cleanupArtifact.generationReceipt, history: cleanupArtifact.attemptHistory,
+            cleanupService: "com.keyrecord.phase0.sp6a.d734f036-11c7-4d2c-9158-c50ab6156d1e"
         )
         try cleanupFixture.rebindArtifact("keychain.json")
         XCTAssertEqual(
@@ -239,7 +268,7 @@ private enum SP6ATestFixture {
     }
 }
 
-private struct SP6ATestDirectory {
+struct SP6ATestDirectory {
     let container: URL
     let repository: URL
     let output: URL
@@ -261,8 +290,20 @@ private struct SP6ATestDirectory {
         let commit = try gitOutput(["rev-parse", "HEAD"], repository), tree = try gitOutput(["rev-parse", "HEAD^{tree}"], repository)
         var sourceHashes: [String: String] = [:]
         for path in SP6ARunnerBinding.sourcePaths { sourceHashes[path] = Canonical.sha256(try Data(contentsOf: repository.appendingPathComponent(path))) }
+        let service = "com.keyrecord.phase0.sp6a.8f4e6b6a-0bd1-4acd-8e58-4a864295d1f7"
+        let runner = SP6ANamespaceRunnerIdentity(
+            commitSha: commit, treeSha: tree,
+            environmentSha256: Canonical.sha256(try Data(contentsOf: repository.appendingPathComponent("evidence/phase0/environment.json")))
+        )
+        let inputBytes: [UInt8] = [0x8f, 0x4e, 0x6b, 0x6a, 0x0b, 0xd1, 0x4a, 0xcd, 0x8e, 0x58, 0x4a, 0x86, 0x42, 0x95, 0xd1, 0xf7]
+        let generatedAtUTC = "2026-09-05T00:00:00.000Z"
+        let generationReceipt = SP6ANamespaceGenerationReceipt(
+            attemptID: SP6ANamespaceDerivation.attemptID(inputBytes: inputBytes, runner: runner, generatedAtUTC: generatedAtUTC),
+            inputBytes: inputBytes, randomStatus: 0, uuid: String(service.dropFirst(SP6AKeychainNamespace.prefix.count)),
+            service: service, runner: runner, generatedAtUTC: generatedAtUTC, cleanupService: service
+        )
         let keychain = SP6AKeychainArtifact(
-            service: "com.keyrecord.phase0.sp6a.8f4e6b6a-0bd1-4acd-8e58-4a864295d1f7", dataProtectionKeychain: true,
+            service: service, dataProtectionKeychain: true,
             candidates: [
                 candidate("sp6a.keychainAfterFirstUnlock", "after-first-unlock", "cku"),
                 candidate("sp6a.keychainWhenUnlocked", "when-unlocked", "aku"),
@@ -271,9 +312,11 @@ private struct SP6ATestDirectory {
             selectionReason: "Unlocked-only behavior cannot establish locked/background lifecycle.", hostLockAttempted: false,
             restartAttempted: false, crossDeviceRestoreVerdict: .blocked, crossDeviceRestoreReason: "No approved second device.",
             cleanupReceipt: SP6AKeychainCleanupReceipt(
-                service: "com.keyrecord.phase0.sp6a.8f4e6b6a-0bd1-4acd-8e58-4a864295d1f7",
+                service: service,
                 preCleanupStatus: -25300, postCleanupStatus: -25300, residueQueryStatus: -25300, residueCount: 0
             ),
+            generationReceipt: generationReceipt,
+            attemptHistory: SP6ANamespaceAttemptHistory(attempts: [generationReceipt]),
             keyBytesPersistedOutsideKeychain: false
         )
         let artifacts: [String: Data] = [
@@ -331,6 +374,36 @@ private struct SP6ATestDirectory {
         body(&artifact)
         try Self.pretty(artifact).write(to: url)
     }
+    func keychain() throws -> SP6AKeychainArtifact {
+        try JSONDecoder().decode(SP6AKeychainArtifact.self, from: Data(contentsOf: output.appendingPathComponent("keychain.json")))
+    }
+    func writeKeychain(
+        _ value: SP6AKeychainArtifact, receipt: SP6ANamespaceGenerationReceipt,
+        history: SP6ANamespaceAttemptHistory, cleanupService: String? = nil
+    ) throws {
+        let changed = SP6AKeychainArtifact(
+            service: receipt.service, dataProtectionKeychain: value.dataProtectionKeychain, candidates: value.candidates,
+            selection: value.selection, selectionVerdict: value.selectionVerdict, selectionReason: value.selectionReason,
+            hostLockAttempted: value.hostLockAttempted, restartAttempted: value.restartAttempted,
+            crossDeviceRestoreVerdict: value.crossDeviceRestoreVerdict, crossDeviceRestoreReason: value.crossDeviceRestoreReason,
+            cleanupReceipt: SP6AKeychainCleanupReceipt(
+                service: cleanupService ?? receipt.cleanupService, preCleanupStatus: value.preCleanupStatus, postCleanupStatus: value.postCleanupStatus,
+                residueQueryStatus: value.residueQueryStatus, residueCount: value.residueCount
+            ),
+            generationReceipt: receipt, attemptHistory: history,
+            keyBytesPersistedOutsideKeychain: value.keyBytesPersistedOutsideKeychain
+        )
+        try Self.pretty(changed).write(to: output.appendingPathComponent("keychain.json"))
+    }
+    func removeKeychainField(_ field: String) throws {
+        let url = output.appendingPathComponent("keychain.json")
+        let data = try Data(contentsOf: url)
+        guard var object = try JSONSerialization.jsonObject(with: data) as? [String: Any] else { throw CocoaError(.coderInvalidValue) }
+        object.removeValue(forKey: field)
+        var changed = try JSONSerialization.data(withJSONObject: object, options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes])
+        changed.append(10)
+        try changed.write(to: url)
+    }
     func remove() { try? FileManager.default.removeItem(at: container) }
 
     private static func candidate(_ leg: String, _ account: String, _ accessibility: String) -> SP6AKeychainCandidate {
@@ -358,4 +431,28 @@ private struct SP6ATestDirectory {
         try process.run(); process.waitUntilExit(); guard process.terminationStatus == 0 else { throw CocoaError(.fileReadUnknown) }
         return String(decoding: pipe.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines)
     }
+}
+
+func receiptCopy(
+    _ value: SP6ANamespaceGenerationReceipt,
+    inputBytes: [UInt8]? = nil,
+    randomStatus: Int32? = nil,
+    attemptID: String? = nil,
+    generatedAtUTC: String? = nil,
+    runner: SP6ANamespaceRunnerIdentity? = nil,
+    recomputeUUID: Bool = false,
+    recomputeAttemptID: Bool = false
+) -> SP6ANamespaceGenerationReceipt {
+    let bytes = inputBytes ?? value.inputBytes
+    let identity = runner ?? value.runner
+    let utc = generatedAtUTC ?? value.generatedAtUTC
+    let uuid = recomputeUUID ? SP6ANamespaceDerivation.uuid(inputBytes: bytes)! : value.uuid
+    let service = recomputeUUID ? SP6AKeychainNamespace.prefix + uuid : value.service
+    let identifier = recomputeAttemptID
+        ? SP6ANamespaceDerivation.attemptID(inputBytes: bytes, runner: identity, generatedAtUTC: utc)
+        : attemptID ?? value.attemptID
+    return SP6ANamespaceGenerationReceipt(
+        attemptID: identifier, inputBytes: bytes, randomStatus: randomStatus ?? value.randomStatus,
+        uuid: uuid, service: service, runner: identity, generatedAtUTC: utc, cleanupService: service
+    )
 }

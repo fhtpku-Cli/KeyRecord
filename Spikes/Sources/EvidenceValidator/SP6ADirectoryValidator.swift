@@ -39,7 +39,7 @@ enum SP6ADirectoryValidator {
         guard SP6AScenarios.valid(locator), locator == SP6AScenarios.locator() else { throw ValidatorError("sp6a_locator_invalid") }
         let canary: SP6APathCanaryArtifact = try exactDecode(directory, "path-canary.json", code: "sp6a_path_canary_invalid")
         guard SP6AScenarios.valid(canary) else { throw ValidatorError("sp6a_path_canary_invalid") }
-        let keychain: SP6AKeychainArtifact = try exactDecode(directory, "keychain.json", code: "sp6a_keychain_cleanup_invalid")
+        let keychain = try decodeKeychain(directory)
         try validateKeychain(keychain)
         guard let audit = try? String(contentsOf: directory.appendingPathComponent("security-audit.md"), encoding: .utf8) else { throw ValidatorError("sp6a_security_audit_invalid") }
         do { try SecurityAuditValidator.validate(audit) } catch { throw ValidatorError("sp6a_security_audit_invalid") }
@@ -52,7 +52,12 @@ enum SP6ADirectoryValidator {
         catch { throw ValidatorError("sp6a_environment_unsafe") }
         let hash = Canonical.sha256(environment)
         guard evidence.legs.allSatisfy({ $0.environmentSha256 == hash }) else { throw ValidatorError("sp6a_environment_hash_mismatch") }
-        let keychain: SP6AKeychainArtifact = try exactDecode(directory, "keychain.json", code: "sp6a_keychain_cleanup_invalid")
+        let keychain = try decodeKeychain(directory)
+        guard let first = evidence.legs.first else { throw ValidatorError("sp6a_d9_evidence_mismatch") }
+        try SP6ANamespaceValidator.validateIdentity(
+            keychain, commitSha: first.runnerCommitSha, treeSha: first.runnerTreeSha,
+            environmentSha256: hash
+        )
         let d9Legs = evidence.legs.filter { $0.detectorID == "D9" }
         if keychain.candidates.isEmpty {
             guard d9Legs.count == 3, d9Legs.allSatisfy({ !$0.detectorAvailable && $0.verdict == .blocked }) else {
@@ -116,6 +121,7 @@ enum SP6ADirectoryValidator {
 
     private static func validateKeychain(_ value: SP6AKeychainArtifact) throws {
         guard SP6AKeychainNamespace.isValid(value.service) else { throw ValidatorError("sp6a_keychain_namespace_invalid") }
+        try SP6ANamespaceValidator.validate(value)
         guard value.cleanupReceipt.service == value.service else { throw ValidatorError("sp6a_keychain_cleanup_namespace_mismatch") }
         guard !value.selectionReason.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
               !value.crossDeviceRestoreReason.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
@@ -155,6 +161,20 @@ enum SP6ADirectoryValidator {
         let url = directory.appendingPathComponent(name)
         guard isRegular(url), let data = try? Data(contentsOf: url), let decoded = try? JSONDecoder().decode(T.self, from: data),
               let canonical = try? pretty(decoded), data == canonical else { throw ValidatorError(code) }
+        return decoded
+    }
+    private static func decodeKeychain(_ directory: URL) throws -> SP6AKeychainArtifact {
+        let url = directory.appendingPathComponent("keychain.json")
+        guard isRegular(url), let data = try? Data(contentsOf: url),
+              let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            throw ValidatorError("sp6a_keychain_cleanup_invalid")
+        }
+        guard object["generationReceipt"] != nil else { throw ValidatorError("sp6a_keychain_generation_receipt_missing") }
+        guard object["attemptHistory"] != nil else { throw ValidatorError("sp6a_keychain_attempt_history_missing") }
+        guard let decoded = try? JSONDecoder().decode(SP6AKeychainArtifact.self, from: data),
+              let canonical = try? pretty(decoded), data == canonical else {
+            throw ValidatorError("sp6a_keychain_generation_receipt_invalid")
+        }
         return decoded
     }
     private static func pretty<T: Encodable>(_ value: T) throws -> Data {

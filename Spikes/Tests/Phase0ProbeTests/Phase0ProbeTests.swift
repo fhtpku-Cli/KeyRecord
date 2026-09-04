@@ -258,21 +258,29 @@ final class Phase0ProbeTests: XCTestCase {
     }
 
     func testSP6AKeychainCandidatesUseIsolatedNamespaceAndLeaveNoResidue() throws {
-        let service = SP6AKeychainProbe.servicePrefix + UUID().uuidString.lowercased()
         let ready = FileManager.default.temporaryDirectory.appendingPathComponent("sp6a-ready-\(UUID().uuidString)")
         setenv("KEYRECORD_SP6A_TEST_READY_FILE", ready.path, 1)
-        _ = SP6AKeychainProbe.deleteNamespace(service)
         defer {
             unsetenv("KEYRECORD_SP6A_TEST_READY_FILE")
             try? FileManager.default.removeItem(at: ready)
-            _ = SP6AKeychainProbe.deleteNamespace(service)
         }
-        let artifact = try SP6AKeychainProbe.run(service: service)
+        let runner = SP6ANamespaceRunnerIdentity(
+            commitSha: String(repeating: "a", count: 40), treeSha: String(repeating: "b", count: 40),
+            environmentSha256: String(repeating: "c", count: 64)
+        )
+        let artifact = try SP6AKeychainProbe.run(runner: runner)
+        let service = artifact.service
+        defer { _ = SP6AKeychainProbe.deleteNamespace(service) }
 
         XCTAssertTrue(FileManager.default.fileExists(atPath: ready.path))
         XCTAssertTrue(SP6AKeychainProbe.validService(service))
         XCTAssertEqual(artifact.service, service)
         XCTAssertEqual(artifact.cleanupReceipt.service, service)
+        XCTAssertEqual(artifact.generationReceipt.service, service)
+        XCTAssertEqual(artifact.attemptHistory.attempts, [artifact.generationReceipt])
+        XCTAssertEqual(artifact.generationReceipt.runner, runner)
+        XCTAssertEqual(artifact.generationReceipt.inputBytes.count, 16)
+        XCTAssertEqual(SP6ANamespaceDerivation.uuid(inputBytes: artifact.generationReceipt.inputBytes), artifact.generationReceipt.uuid)
         XCTAssertTrue(artifact.candidates.isEmpty)
         XCTAssertEqual(artifact.preCleanupStatus, -34018)
         XCTAssertEqual(artifact.postCleanupStatus, -34018)
@@ -287,9 +295,6 @@ final class Phase0ProbeTests: XCTestCase {
     func testSP6ARejectsStaticNamespaceBeforeKeychainAccess() {
         let service = SP6AKeychainProbe.servicePrefix + "00000000-0000-0000-0000-000000000000"
         XCTAssertFalse(SP6AKeychainProbe.validService(service))
-        XCTAssertThrowsError(try SP6AKeychainProbe.run(service: service)) {
-            XCTAssertEqual($0 as? SP6AKeychainError, .invalidNamespace)
-        }
     }
 
     func testSP6AMalformedEnvironmentInvalidatesStaleDestinationWithoutKeychainUse() throws {
@@ -320,6 +325,7 @@ final class Phase0ProbeTests: XCTestCase {
             XCTAssertEqual(evidence.legs.filter { $0.verdict == .pass }.count, 5)
             XCTAssertEqual(Set(evidence.legs.filter { $0.verdict == .blocked }.map(\.legID)), ["sp6a.keychainAfterFirstUnlock", "sp6a.keychainWhenUnlocked", "sp6a.keychainSelection"])
             XCTAssertEqual(keychain.residueCount, 0)
+            XCTAssertEqual(keychain.attemptHistory.attempts.filter { $0 == keychain.generationReceipt }.count, 1)
             XCTAssertEqual(Set(try FileManager.default.contentsOfDirectory(atPath: output.path)), SP6ADirectoryLayout.allNames)
         }
     }

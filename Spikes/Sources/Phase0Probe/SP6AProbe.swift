@@ -17,7 +17,12 @@ enum SP6AProbe {
         let identity = try identityProvider.resolve()
         let crypto = try SP6AScenarios.crypto(), locator = SP6AScenarios.locator(), pathCanary = try SP6AScenarios.pathCanary()
         guard SP6AScenarios.valid(crypto), SP6AScenarios.valid(locator), SP6AScenarios.valid(pathCanary) else { throw SP6AProbeError.fixtureFailure }
-        let keychain = try SP6AKeychainProbe.run(service: ProcessInfo.processInfo.environment["KEYRECORD_SP6A_TEST_SERVICE"] ?? SP6AKeychainProbe.servicePrefix + UUID().uuidString.lowercased())
+        let namespaceRunner = SP6ANamespaceRunnerIdentity(
+            commitSha: identity.commitSha, treeSha: identity.treeSha,
+            environmentSha256: ViaDefinitionDigest.sha256(environmentData)
+        )
+        let historyURL = ProcessInfo.processInfo.environment["KEYRECORD_SP6A_ATTEMPT_HISTORY"].map(URL.init(fileURLWithPath:))
+        let keychain = try SP6AKeychainProbe.run(runner: namespaceRunner, historyURL: historyURL)
         let citation = SP6AAtomicityCitation.expected
         let audit = SecurityAuditFixture.valid
         try SecurityAuditValidator.validate(audit)
@@ -94,8 +99,8 @@ enum SP6AProbe {
 
     private static func d9Summary(_ evidence: SP6AEvidence) -> String {
         evidence.verdict == .blocked
-            ? "The exact random Keychain namespace pre-cleanup returned missing-entitlement, so candidate add/read/attribute/delete assertions did not execute; a residue query found zero items."
-            : "Both isolated ThisDeviceOnly Keychain candidates passed unlocked add/read/attribute/delete checks with synchronizable=false and left zero items."
+            ? "The bound runner recorded successful SecRandomCopyBytes input, recomputable RFC 4122 UUIDv4 transformation, nonsentinel entropy, and no namespace reuse in the defined captured attempt scope. Its exact Keychain namespace pre-cleanup returned missing-entitlement, so candidate add/read/attribute/delete assertions did not execute; a residue query found zero items. This does not prove mathematical unpredictability from output alone."
+            : "The bound runner recorded successful SecRandomCopyBytes input, recomputable RFC 4122 UUIDv4 transformation, nonsentinel entropy, and no namespace reuse in the defined captured attempt scope. Both isolated ThisDeviceOnly Keychain candidates passed unlocked add/read/attribute/delete checks with synchronizable=false and left zero items. This does not prove mathematical unpredictability from output alone."
     }
 
     private static func encoded<T: Encodable>(_ value: T) throws -> Data {

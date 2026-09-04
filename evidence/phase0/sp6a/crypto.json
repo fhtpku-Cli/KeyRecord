@@ -1,0 +1,37 @@
+{
+  "algorithm" : "AES-256-GCM",
+  "authenticatedHeaderFields" : [
+    "magic",
+    "formatVersion",
+    "algorithm",
+    "flags",
+    "keyVersion",
+    "opaqueLocator",
+    "nonce",
+    "ciphertextLength"
+  ],
+  "duplicateNonceRejected" : true,
+  "fallbackUsed" : false,
+  "formatVersion" : 1,
+  "headerByteCount" : 64,
+  "missingKeyRejected" : true,
+  "nonceByteCount" : 12,
+  "plaintextAbsentFromEnvelope" : true,
+  "randomNonceSamples" : 256,
+  "roundTripPassed" : true,
+  "tagByteCount" : 16,
+  "tamperCases" : [
+    "magic",
+    "formatVersion",
+    "algorithm",
+    "keyVersion",
+    "locator",
+    "nonce",
+    "ciphertextLength",
+    "ciphertext",
+    "tag"
+  ],
+  "tamperRejected" : true,
+  "uniqueNonceCount" : 256,
+  "wrongKeyRejected" : true
+}

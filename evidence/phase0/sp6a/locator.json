@@ -1,0 +1,13 @@
+{
+  "derivedKeysDistinct" : true,
+  "encryptionInfo" : "KeyRecord/SP-6A/object-encryption/v1",
+  "expectedLocator" : "b9c0bbfa794d054814fabaf3e3d88e33c732f72abcd020fb2ec0c06c49575f5b",
+  "hmac" : "HMAC-SHA256",
+  "kdf" : "HKDF-SHA256",
+  "labelsDistinct" : true,
+  "locatorInfo" : "KeyRecord/SP-6A/opaque-locator/v1",
+  "objectID" : "synthetic-object-42",
+  "observedLocator" : "b9c0bbfa794d054814fabaf3e3d88e33c732f72abcd020fb2ec0c06c49575f5b",
+  "opaquePath" : "b9/c0bbfa794d054814fabaf3e3d88e33c732f72abcd020fb2ec0c06c49575f5b.krenc",
+  "salt" : "KeyRecord/SP-6A/HKDF-SHA256/v1"
+}

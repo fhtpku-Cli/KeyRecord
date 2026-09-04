@@ -1,0 +1,14 @@
+{
+  "encryptedFileCount" : 2,
+  "generatedPaths" : [
+    "49/1c6e19ade0ceffa6bf627d715d6e9b8e09a749c4d6fa94fa99dbcd5daae814.krenc",
+    "10/fe47c0bdbba47b21747bbea53f09b4201bb423612810066d424b943f508149.krenc"
+  ],
+  "manifestEncrypted" : true,
+  "opaquePathCount" : 2,
+  "pathCount" : 2,
+  "plaintextCanaryHits" : 0,
+  "plaintextFileCount" : 0,
+  "semanticPathHits" : 0,
+  "temporaryStorageRemoved" : true
+}

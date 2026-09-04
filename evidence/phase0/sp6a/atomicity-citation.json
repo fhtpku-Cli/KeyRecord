@@ -1,0 +1,14 @@
+{
+  "artifactPath" : "evidence/phase0/shared-atomicity/result.json",
+  "artifactSha256" : "b1988f88705b201e4a31c43b098e7ae50ae716f4740090a5e3ef7378d1bd4107",
+  "citedBy" : [
+    "SP-3",
+    "SP-6A"
+  ],
+  "historicalArtifactBlobSha" : "9b312cbdf201f9206d56ab58733019f8efc6212f",
+  "historicalCommitSha" : "73be49fcc34c648e993534192bd3c8e310e02a94",
+  "historicalManifestBlobSha" : "d83a9404611accfd3f303d8816616cf002cc3852",
+  "manifestPath" : "evidence/phase0/shared-atomicity/manifest.sha256",
+  "resultRunnerCommitSha" : "96cfdfa8054373f5333bee1b43312f564098bc2e",
+  "resultRunnerTreeSha" : "039cc1fa57acbebf89959a6fc0db957ab347dcc0"
+}

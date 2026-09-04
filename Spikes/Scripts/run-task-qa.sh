@@ -32,10 +32,20 @@ trap 'interrupt 129' HUP
 script_dir="$(cd "$(dirname "$0")" && pwd)"
 source "$script_dir/task-2-qa-lib.sh"
 
+qa_build_product() {
+  local log_file="$1" product="$2" scratch="$tmp_dir/swift-build" bin_path
+  task2_run_logged "$log_file" swift build --package-path Spikes --scratch-path "$scratch" --product "$product" || return 1
+  bin_path="$(swift build --package-path Spikes --scratch-path "$scratch" --show-bin-path)" || return 1
+  [[ -x "$bin_path/$product" ]] || {
+    printf 'missing_built_product=%s\n' "$bin_path/$product" >>"$log_file"
+    return 1
+  }
+  printf '%s\n' "$bin_path/$product"
+}
+
 task4_verify_bound_runner() {
-  local log_file="$1" result_file="$2" evidence_dir validator
+  local log_file="$1" result_file="$2" validator="$3" evidence_dir
   evidence_dir="$(dirname "$result_file")"
-  validator="$(swift build --package-path Spikes --show-bin-path)/EvidenceValidator"
   task2_run_logged "$log_file" "$validator" validate-atomicity "$evidence_dir"
 }
 
@@ -52,8 +62,8 @@ if [[ "$1" == "7" ]]; then
   publish_temp="$(mktemp ".omo/evidence/.task-7-${mode}.XXXXXX")"
   : >"$tmp_dir/qa.log"
   if [[ -n "${KEYRECORD_QA_DELAY:-}" ]]; then sleep "$KEYRECORD_QA_DELAY" & wait $!; fi
-  probe="$(swift build --package-path Spikes --show-bin-path)/Phase0Probe"
-  validator="$(swift build --package-path Spikes --show-bin-path)/EvidenceValidator"
+  probe="$(qa_build_product "$tmp_dir/qa.log" Phase0Probe)"
+  validator="$(qa_build_product "$tmp_dir/qa.log" EvidenceValidator)"
   output="$tmp_dir/sp3"
   if [[ "$mode" == "happy" ]]; then
     if task2_run_logged "$tmp_dir/qa.log" swift test --package-path Spikes --filter KarabinerSpikeTests \
@@ -109,8 +119,8 @@ if [[ "$1" == "6" ]]; then
   publish_temp="$(mktemp ".omo/evidence/.task-6-${mode}.XXXXXX")"
   : >"$tmp_dir/qa.log"
   if [[ -n "${KEYRECORD_QA_DELAY:-}" ]]; then sleep "$KEYRECORD_QA_DELAY" & wait $!; fi
-  probe="$(swift build --package-path Spikes --show-bin-path)/Phase0Probe"
-  validator="$(swift build --package-path Spikes --show-bin-path)/EvidenceValidator"
+  probe="$(qa_build_product "$tmp_dir/qa.log" Phase0Probe)"
+  validator="$(qa_build_product "$tmp_dir/qa.log" EvidenceValidator)"
   output="$tmp_dir/sp2"
   if [[ "$mode" == "happy" ]]; then
     if task2_run_logged "$tmp_dir/qa.log" swift test --package-path Spikes --filter 'PrivacyTransitionTests|ModifierReconstructionTests' \
@@ -209,10 +219,12 @@ if [[ "$1" == "4" ]]; then
       rm -f "$final_output"
       publish_temp="$(mktemp ".omo/evidence/.task-4-happy.XXXXXX")"
       : >"$tmp_dir/qa.log"
+      probe="$(qa_build_product "$tmp_dir/qa.log" Phase0Probe)"
+      validator="$(qa_build_product "$tmp_dir/qa.log" EvidenceValidator)"
       runner_commit="$(GIT_MASTER=1 git rev-parse HEAD)"
       runner_tree="$(GIT_MASTER=1 git rev-parse HEAD^{tree})"
       result="$tmp_dir/result.json"
-      if task2_run_logged "$tmp_dir/qa.log" swift run --package-path Spikes Phase0Probe atomicity --output "$result" --environment evidence/phase0/environment.json --iterations 100 \
+      if task2_run_logged "$tmp_dir/qa.log" "$probe" atomicity --output "$result" --environment evidence/phase0/environment.json --iterations 100 \
         && task2_run_logged "$tmp_dir/qa.log" jq -e '
           .newHash as $newHash | .oldHash as $oldHash |
           .verdict == "PASS" and .ordinaryRenameObservedAtomic == true and .exchangeRenameNeeded == false and
@@ -228,7 +240,7 @@ if [[ "$1" == "4" ]]; then
           .verdict == "PASS" and
           ((.command | index("--runner-commit")) == null) and ((.command | index("--runner-tree")) == null)
         ' evidence/phase0/shared-atomicity/result.json \
-        && task4_verify_bound_runner "$tmp_dir/qa.log" evidence/phase0/shared-atomicity/result.json \
+        && task4_verify_bound_runner "$tmp_dir/qa.log" evidence/phase0/shared-atomicity/result.json "$validator" \
         && task2_run_logged "$tmp_dir/qa.log" bash -c 'cd "$1" && exec shasum -a 256 -c manifest.sha256' _ evidence/phase0/shared-atomicity; then
         { printf 'TASK_4_HAPPY=PASS\nOBSERVABLE=100/100 complete new-image hashes; 8 crash boundaries old-or-new; ordinary APFS rename observed; self-bound runner and manifest verified\n'; cat "$tmp_dir/qa.log"; } >"$publish_temp"
         mv "$publish_temp" "$final_output"
@@ -262,7 +274,8 @@ if [[ "$1" == "4" ]]; then
 fi
 
 if [[ "$1" == "3" ]]; then
-  validator="$(swift build --package-path Spikes --show-bin-path)/EvidenceValidator"
+  : >"$tmp_dir/qa.log"
+  validator="$(qa_build_product "$tmp_dir/qa.log" EvidenceValidator)"
   task3_run_in_directory() {
     local directory="$1"
     shift
@@ -303,7 +316,6 @@ if [[ "$1" == "3" ]]; then
   case "${2:-}" in
     happy)
       output=".omo/evidence/task-3-phase-0-validation.txt"
-      : >"$tmp_dir/qa.log"
       GIT_MASTER=1 git clone --quiet . "$tmp_dir/repo"
       mkdir -p "$tmp_dir/repo/.omo/plans" "$tmp_dir/repo/.omo/evidence"
       cp .omo/plans/phase-0-validation.md "$tmp_dir/repo/.omo/plans/phase-0-validation.md"
@@ -323,7 +335,6 @@ if [[ "$1" == "3" ]]; then
       ;;
     failure)
       output=".omo/evidence/task-3-phase-0-validation-failure.txt"
-      : >"$tmp_dir/qa.log"
       failures=0
       for fixture in Spikes/Tests/Fixtures/Evidence/invalid/*; do
         expected="$(tr -d '\r\n' <"$fixture/expected-error.txt")"

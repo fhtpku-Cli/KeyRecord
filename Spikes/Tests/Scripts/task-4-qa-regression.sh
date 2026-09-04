@@ -10,10 +10,17 @@ clone_and_run() {
   local mode="$1"
   local repository="$tmp_dir/$mode"
   GIT_MASTER=1 git clone --quiet "$repo_root" "$repository"
+  [[ ! -e "$repository/.build" && ! -e "$repository/Spikes/.build" ]]
   [[ ! -e "$repository/.omo/evidence" ]]
   (cd "$repository" && bash Spikes/Scripts/run-task-qa.sh 4 "$mode")
   /usr/bin/grep -Eq '^TASK_4_(HAPPY|NEGATIVE)=PASS$' "$repository/.omo/evidence/task-4-phase-0-validation${mode/happy/}.txt" 2>/dev/null \
     || /usr/bin/grep -Eq '^TASK_4_(HAPPY|NEGATIVE)=PASS$' "$repository/.omo/evidence/task-4-phase-0-validation-failure.txt"
+  if [[ "$mode" == "happy" ]]; then
+    /usr/bin/grep -Eq '^\$ swift build --package-path Spikes --scratch-path .+ --product EvidenceValidator$' \
+      "$repository/.omo/evidence/task-4-phase-0-validation.txt"
+    /usr/bin/grep -Eq '^VALID atomicity_historical_binding$' \
+      "$repository/.omo/evidence/task-4-phase-0-validation.txt"
+  fi
 }
 
 assert_interrupted_removes_stale_pass() {
@@ -46,4 +53,4 @@ clone_and_run failure
 assert_interrupted_removes_stale_pass TERM 143
 assert_interrupted_removes_stale_pass INT 130
 
-printf 'TASK_4_QA_REGRESSION=PASS fresh_happy=PASS fresh_failure=PASS stale_term=REMOVED stale_int=REMOVED\n'
+printf 'TASK_4_QA_REGRESSION=PASS fresh_happy=PASS fresh_failure=PASS validator_build=PASS validator_execution=PASS stale_term=REMOVED stale_int=REMOVED\n'

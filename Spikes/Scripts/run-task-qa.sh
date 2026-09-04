@@ -66,6 +66,7 @@ if [[ "$1" == "10" ]]; then
   validator="$(qa_build_product "$tmp_dir/qa.log" EvidenceValidator)"
   output="$tmp_dir/sp6a"
   history="${KEYRECORD_SP6A_ATTEMPT_HISTORY:-$tmp_dir/sp6a-attempt-history.json}"
+  unset KEYRECORD_SP6A_ATTEMPT_HISTORY
   service=""
   if [[ "$mode" == "happy" ]]; then
     if task2_run_logged "$tmp_dir/qa.log" swift test --package-path Spikes --filter StorageSecurityTests \

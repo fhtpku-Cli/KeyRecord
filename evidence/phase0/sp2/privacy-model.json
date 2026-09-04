@@ -1,52 +1,274 @@
 {
   "cases" : [
     {
-      "dataDelta" : 1,
-      "metaDelta" : 1,
-      "outcome" : "bundle",
-      "scenario" : "known"
+      "input" : {
+        "action" : "terminalKeyDown",
+        "beginTransient" : false,
+        "bundleID" : "test.allowed",
+        "excludedBundleIDs" : [
+
+        ],
+        "frontmost" : "known",
+        "scenario" : "known",
+        "secureInput" : "disabled",
+        "seedAllowedCount" : 0
+      },
+      "observation" : {
+        "afterTotals" : {
+          "data" : 1,
+          "meta" : 1
+        },
+        "beforeTotals" : {
+          "data" : 0,
+          "meta" : 0
+        },
+        "gateOpenAfter" : true,
+        "generationAfter" : 0,
+        "heldTransientAfter" : 0,
+        "heldTransientBefore" : 0,
+        "outcome" : "bundle",
+        "transitionDelta" : {
+          "data" : 1,
+          "meta" : 1
+        },
+        "unknownBucketCount" : 0
+      }
     },
     {
-      "dataDelta" : 1,
-      "metaDelta" : 1,
-      "outcome" : "UNKNOWN",
-      "scenario" : "knownUnattributable"
+      "input" : {
+        "action" : "terminalKeyDown",
+        "beginTransient" : false,
+        "excludedBundleIDs" : [
+
+        ],
+        "frontmost" : "knownUnattributable",
+        "scenario" : "knownUnattributable",
+        "secureInput" : "disabled",
+        "seedAllowedCount" : 0
+      },
+      "observation" : {
+        "afterTotals" : {
+          "data" : 1,
+          "meta" : 1
+        },
+        "beforeTotals" : {
+          "data" : 0,
+          "meta" : 0
+        },
+        "gateOpenAfter" : true,
+        "generationAfter" : 0,
+        "heldTransientAfter" : 0,
+        "heldTransientBefore" : 0,
+        "outcome" : "UNKNOWN",
+        "transitionDelta" : {
+          "data" : 1,
+          "meta" : 1
+        },
+        "unknownBucketCount" : 1
+      }
     },
     {
-      "dataDelta" : 0,
-      "metaDelta" : 0,
-      "outcome" : "closed",
-      "scenario" : "indeterminate"
+      "input" : {
+        "action" : "terminalKeyDown",
+        "beginTransient" : false,
+        "excludedBundleIDs" : [
+
+        ],
+        "frontmost" : "indeterminate",
+        "scenario" : "indeterminate",
+        "secureInput" : "disabled",
+        "seedAllowedCount" : 0
+      },
+      "observation" : {
+        "afterTotals" : {
+          "data" : 0,
+          "meta" : 0
+        },
+        "beforeTotals" : {
+          "data" : 0,
+          "meta" : 0
+        },
+        "gateOpenAfter" : true,
+        "generationAfter" : 0,
+        "heldTransientAfter" : 0,
+        "heldTransientBefore" : 0,
+        "outcome" : "closed",
+        "transitionDelta" : {
+          "data" : 0,
+          "meta" : 0
+        },
+        "unknownBucketCount" : 0
+      }
     },
     {
-      "dataDelta" : 0,
-      "metaDelta" : 0,
-      "outcome" : "closed",
-      "scenario" : "excludedApp"
+      "input" : {
+        "action" : "terminalKeyDown",
+        "beginTransient" : false,
+        "bundleID" : "test.excluded",
+        "excludedBundleIDs" : [
+          "test.excluded"
+        ],
+        "frontmost" : "known",
+        "scenario" : "excludedApp",
+        "secureInput" : "disabled",
+        "seedAllowedCount" : 0
+      },
+      "observation" : {
+        "afterTotals" : {
+          "data" : 0,
+          "meta" : 0
+        },
+        "beforeTotals" : {
+          "data" : 0,
+          "meta" : 0
+        },
+        "gateOpenAfter" : true,
+        "generationAfter" : 0,
+        "heldTransientAfter" : 0,
+        "heldTransientBefore" : 0,
+        "outcome" : "closed",
+        "transitionDelta" : {
+          "data" : 0,
+          "meta" : 0
+        },
+        "unknownBucketCount" : 0
+      }
     },
     {
-      "dataDelta" : 0,
-      "metaDelta" : 0,
-      "outcome" : "closed",
-      "scenario" : "secureInputEnabled"
+      "input" : {
+        "action" : "terminalKeyDown",
+        "beginTransient" : false,
+        "bundleID" : "test.allowed",
+        "excludedBundleIDs" : [
+
+        ],
+        "frontmost" : "known",
+        "scenario" : "secureInputEnabled",
+        "secureInput" : "enabled",
+        "seedAllowedCount" : 0
+      },
+      "observation" : {
+        "afterTotals" : {
+          "data" : 0,
+          "meta" : 0
+        },
+        "beforeTotals" : {
+          "data" : 0,
+          "meta" : 0
+        },
+        "gateOpenAfter" : true,
+        "generationAfter" : 0,
+        "heldTransientAfter" : 0,
+        "heldTransientBefore" : 0,
+        "outcome" : "closed",
+        "transitionDelta" : {
+          "data" : 0,
+          "meta" : 0
+        },
+        "unknownBucketCount" : 0
+      }
     },
     {
-      "dataDelta" : 0,
-      "metaDelta" : 0,
-      "outcome" : "closed",
-      "scenario" : "secureInputUnknown"
+      "input" : {
+        "action" : "terminalKeyDown",
+        "beginTransient" : false,
+        "bundleID" : "test.allowed",
+        "excludedBundleIDs" : [
+
+        ],
+        "frontmost" : "known",
+        "scenario" : "secureInputUnknown",
+        "secureInput" : "unknown",
+        "seedAllowedCount" : 0
+      },
+      "observation" : {
+        "afterTotals" : {
+          "data" : 0,
+          "meta" : 0
+        },
+        "beforeTotals" : {
+          "data" : 0,
+          "meta" : 0
+        },
+        "gateOpenAfter" : true,
+        "generationAfter" : 0,
+        "heldTransientAfter" : 0,
+        "heldTransientBefore" : 0,
+        "outcome" : "closed",
+        "transitionDelta" : {
+          "data" : 0,
+          "meta" : 0
+        },
+        "unknownBucketCount" : 0
+      }
     },
     {
-      "dataDelta" : 0,
-      "metaDelta" : 0,
-      "outcome" : "closed",
-      "scenario" : "tapReset"
+      "input" : {
+        "action" : "tapReset",
+        "beginTransient" : true,
+        "bundleID" : "test.allowed",
+        "excludedBundleIDs" : [
+
+        ],
+        "frontmost" : "known",
+        "scenario" : "tapReset",
+        "secureInput" : "disabled",
+        "seedAllowedCount" : 1
+      },
+      "observation" : {
+        "afterTotals" : {
+          "data" : 1,
+          "meta" : 1
+        },
+        "beforeTotals" : {
+          "data" : 1,
+          "meta" : 1
+        },
+        "gateOpenAfter" : false,
+        "generationAfter" : 1,
+        "heldTransientAfter" : 0,
+        "heldTransientBefore" : 1,
+        "outcome" : "closed",
+        "transitionDelta" : {
+          "data" : 0,
+          "meta" : 0
+        },
+        "unknownBucketCount" : 0
+      }
     },
     {
-      "dataDelta" : 0,
-      "metaDelta" : 0,
-      "outcome" : "closed",
-      "scenario" : "sleepWake"
+      "input" : {
+        "action" : "systemSleep",
+        "beginTransient" : true,
+        "bundleID" : "test.allowed",
+        "excludedBundleIDs" : [
+
+        ],
+        "frontmost" : "known",
+        "scenario" : "sleepWake",
+        "secureInput" : "disabled",
+        "seedAllowedCount" : 1
+      },
+      "observation" : {
+        "afterTotals" : {
+          "data" : 1,
+          "meta" : 1
+        },
+        "beforeTotals" : {
+          "data" : 1,
+          "meta" : 1
+        },
+        "gateOpenAfter" : false,
+        "generationAfter" : 0,
+        "heldTransientAfter" : 0,
+        "heldTransientBefore" : 1,
+        "outcome" : "closed",
+        "transitionDelta" : {
+          "data" : 0,
+          "meta" : 0
+        },
+        "unknownBucketCount" : 0
+      }
     }
   ],
   "evidenceKind" : "fixture"

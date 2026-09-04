@@ -1,39 +1,252 @@
 {
   "deterministicRecovery" : true,
   "evidenceKind" : "fixture",
-  "families" : {
-    "command" : [
-      "none",
-      "left",
-      "right",
-      "both",
-      "activeSideUnknown"
-    ],
-    "control" : [
-      "none",
-      "left",
-      "right",
-      "both",
-      "activeSideUnknown"
-    ],
-    "option" : [
-      "none",
-      "left",
-      "right",
-      "both",
-      "activeSideUnknown"
-    ],
-    "shift" : [
-      "none",
-      "left",
-      "right",
-      "both",
-      "activeSideUnknown"
-    ]
-  },
-  "fnStates" : [
-    "knownNone",
-    "knownActive",
-    "unknown"
+  "fnCases" : [
+    {
+      "observed" : "unknown",
+      "operations" : [
+
+      ]
+    },
+    {
+      "observed" : "knownNone",
+      "operations" : [
+        {
+          "active" : false
+        }
+      ]
+    },
+    {
+      "observed" : "knownActive",
+      "operations" : [
+        {
+          "active" : true
+        }
+      ]
+    },
+    {
+      "observed" : "unknown",
+      "operations" : [
+        {
+          "transition" : "eventLoss"
+        }
+      ]
+    },
+    {
+      "observed" : "knownNone",
+      "operations" : [
+        {
+          "transition" : "eventLoss"
+        },
+        {
+          "active" : false
+        }
+      ]
+    },
+    {
+      "observed" : "unknown",
+      "operations" : [
+        {
+          "transition" : "tapReset"
+        }
+      ]
+    },
+    {
+      "observed" : "knownNone",
+      "operations" : [
+        {
+          "transition" : "tapReset"
+        },
+        {
+          "active" : false
+        }
+      ]
+    },
+    {
+      "observed" : "unknown",
+      "operations" : [
+        {
+          "transition" : "wake"
+        }
+      ]
+    },
+    {
+      "observed" : "knownNone",
+      "operations" : [
+        {
+          "transition" : "wake"
+        },
+        {
+          "active" : false
+        }
+      ]
+    }
+  ],
+  "recoveryCases" : [
+    {
+      "fnAfterRecovery" : "knownNone",
+      "fnBeforeRecovery" : "unknown",
+      "recoveredStates" : {
+        "command" : "right",
+        "control" : "right",
+        "option" : "right",
+        "shift" : "right"
+      },
+      "transition" : "eventLoss",
+      "unknownStates" : {
+        "command" : "activeSideUnknown",
+        "control" : "activeSideUnknown",
+        "option" : "activeSideUnknown",
+        "shift" : "activeSideUnknown"
+      }
+    },
+    {
+      "fnAfterRecovery" : "knownNone",
+      "fnBeforeRecovery" : "unknown",
+      "recoveredStates" : {
+        "command" : "right",
+        "control" : "right",
+        "option" : "right",
+        "shift" : "right"
+      },
+      "transition" : "tapReset",
+      "unknownStates" : {
+        "command" : "activeSideUnknown",
+        "control" : "activeSideUnknown",
+        "option" : "activeSideUnknown",
+        "shift" : "activeSideUnknown"
+      }
+    },
+    {
+      "fnAfterRecovery" : "knownNone",
+      "fnBeforeRecovery" : "unknown",
+      "recoveredStates" : {
+        "command" : "right",
+        "control" : "right",
+        "option" : "right",
+        "shift" : "right"
+      },
+      "transition" : "wake",
+      "unknownStates" : {
+        "command" : "activeSideUnknown",
+        "control" : "activeSideUnknown",
+        "option" : "activeSideUnknown",
+        "shift" : "activeSideUnknown"
+      }
+    }
+  ],
+  "sidedCases" : [
+    {
+      "family" : "command",
+      "observed" : "activeSideUnknown"
+    },
+    {
+      "family" : "command",
+      "left" : false,
+      "observed" : "none",
+      "right" : false
+    },
+    {
+      "family" : "command",
+      "left" : true,
+      "observed" : "left",
+      "right" : false
+    },
+    {
+      "family" : "command",
+      "left" : false,
+      "observed" : "right",
+      "right" : true
+    },
+    {
+      "family" : "command",
+      "left" : true,
+      "observed" : "both",
+      "right" : true
+    },
+    {
+      "family" : "option",
+      "observed" : "activeSideUnknown"
+    },
+    {
+      "family" : "option",
+      "left" : false,
+      "observed" : "none",
+      "right" : false
+    },
+    {
+      "family" : "option",
+      "left" : true,
+      "observed" : "left",
+      "right" : false
+    },
+    {
+      "family" : "option",
+      "left" : false,
+      "observed" : "right",
+      "right" : true
+    },
+    {
+      "family" : "option",
+      "left" : true,
+      "observed" : "both",
+      "right" : true
+    },
+    {
+      "family" : "control",
+      "observed" : "activeSideUnknown"
+    },
+    {
+      "family" : "control",
+      "left" : false,
+      "observed" : "none",
+      "right" : false
+    },
+    {
+      "family" : "control",
+      "left" : true,
+      "observed" : "left",
+      "right" : false
+    },
+    {
+      "family" : "control",
+      "left" : false,
+      "observed" : "right",
+      "right" : true
+    },
+    {
+      "family" : "control",
+      "left" : true,
+      "observed" : "both",
+      "right" : true
+    },
+    {
+      "family" : "shift",
+      "observed" : "activeSideUnknown"
+    },
+    {
+      "family" : "shift",
+      "left" : false,
+      "observed" : "none",
+      "right" : false
+    },
+    {
+      "family" : "shift",
+      "left" : true,
+      "observed" : "left",
+      "right" : false
+    },
+    {
+      "family" : "shift",
+      "left" : false,
+      "observed" : "right",
+      "right" : true
+    },
+    {
+      "family" : "shift",
+      "left" : true,
+      "observed" : "both",
+      "right" : true
+    }
   ]
 }

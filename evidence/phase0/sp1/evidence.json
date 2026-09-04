@@ -1,0 +1,137 @@
+{
+  "g0Status" : "OPEN",
+  "legs" : [
+    {
+      "blocker" : {
+        "blocked_by" : "input_monitoring_denied",
+        "detect_command" : [
+          "CGPreflightListenEventAccess",
+          "environment.json guiSession.tapCreate"
+        ],
+        "prerequisite" : "GUI session with Input Monitoring already granted for this executable",
+        "unblock_action" : "Grant Input Monitoring outside this probe, then rerun; this probe never prompts"
+      },
+      "detectorAvailable" : false,
+      "environmentSha256" : "6b3288f5983cbce231295762d3f8381b8467d6dbe2e74fff0e17a1aebf7215f4",
+      "legID" : "sp1.autoRepeat",
+      "runnerCommitSha" : "0badc7cb7b5728c9ccd2711d8811f69ddb97d633",
+      "runnerTreeSha" : "5bf1673aa5bf28460583c5068f83476e6d5b3bc7",
+      "verdict" : "BLOCKED"
+    },
+    {
+      "blocker" : {
+        "blocked_by" : "input_monitoring_denied",
+        "detect_command" : [
+          "CGPreflightListenEventAccess",
+          "environment.json guiSession.tapCreate"
+        ],
+        "prerequisite" : "GUI session with Input Monitoring already granted for this executable",
+        "unblock_action" : "Grant Input Monitoring outside this probe, then rerun; this probe never prompts"
+      },
+      "detectorAvailable" : false,
+      "environmentSha256" : "6b3288f5983cbce231295762d3f8381b8467d6dbe2e74fff0e17a1aebf7215f4",
+      "legID" : "sp1.o7Boundary",
+      "runnerCommitSha" : "0badc7cb7b5728c9ccd2711d8811f69ddb97d633",
+      "runnerTreeSha" : "5bf1673aa5bf28460583c5068f83476e6d5b3bc7",
+      "verdict" : "BLOCKED"
+    },
+    {
+      "blocker" : {
+        "blocked_by" : "input_monitoring_denied",
+        "detect_command" : [
+          "CGPreflightListenEventAccess",
+          "environment.json guiSession.tapCreate"
+        ],
+        "prerequisite" : "GUI session with Input Monitoring already granted for this executable",
+        "unblock_action" : "Grant Input Monitoring outside this probe, then rerun; this probe never prompts"
+      },
+      "detectorAvailable" : false,
+      "environmentSha256" : "6b3288f5983cbce231295762d3f8381b8467d6dbe2e74fff0e17a1aebf7215f4",
+      "legID" : "sp1.productStampedDrop",
+      "runnerCommitSha" : "0badc7cb7b5728c9ccd2711d8811f69ddb97d633",
+      "runnerTreeSha" : "5bf1673aa5bf28460583c5068f83476e6d5b3bc7",
+      "verdict" : "BLOCKED"
+    },
+    {
+      "blocker" : {
+        "blocked_by" : "input_monitoring_denied",
+        "detect_command" : [
+          "CGPreflightListenEventAccess",
+          "environment.json guiSession.tapCreate"
+        ],
+        "prerequisite" : "GUI session with Input Monitoring already granted for this executable",
+        "unblock_action" : "Grant Input Monitoring outside this probe, then rerun; this probe never prompts"
+      },
+      "detectorAvailable" : false,
+      "environmentSha256" : "6b3288f5983cbce231295762d3f8381b8467d6dbe2e74fff0e17a1aebf7215f4",
+      "legID" : "sp1.systemShortcut",
+      "runnerCommitSha" : "0badc7cb7b5728c9ccd2711d8811f69ddb97d633",
+      "runnerTreeSha" : "5bf1673aa5bf28460583c5068f83476e6d5b3bc7",
+      "verdict" : "BLOCKED"
+    },
+    {
+      "blocker" : {
+        "blocked_by" : "input_monitoring_denied;karabiner_absent",
+        "detect_command" : [
+          "CGPreflightListenEventAccess",
+          "environment.json applications[name=Karabiner-Elements]"
+        ],
+        "prerequisite" : "Input Monitoring granted and a separately authorized supported Karabiner installation with controlled OFF/ON mapping",
+        "unblock_action" : "Grant Input Monitoring and install/configure Karabiner only through separate user-authorized actions, then rerun both OFF/ON legs"
+      },
+      "detectorAvailable" : false,
+      "environmentSha256" : "6b3288f5983cbce231295762d3f8381b8467d6dbe2e74fff0e17a1aebf7215f4",
+      "legID" : "sp1.tap.annotated.matrix",
+      "runnerCommitSha" : "0badc7cb7b5728c9ccd2711d8811f69ddb97d633",
+      "runnerTreeSha" : "5bf1673aa5bf28460583c5068f83476e6d5b3bc7",
+      "verdict" : "BLOCKED"
+    },
+    {
+      "blocker" : {
+        "blocked_by" : "input_monitoring_denied;karabiner_absent",
+        "detect_command" : [
+          "CGPreflightListenEventAccess",
+          "environment.json applications[name=Karabiner-Elements]"
+        ],
+        "prerequisite" : "Input Monitoring granted and a separately authorized supported Karabiner installation with controlled OFF/ON mapping",
+        "unblock_action" : "Grant Input Monitoring and install/configure Karabiner only through separate user-authorized actions, then rerun both OFF/ON legs"
+      },
+      "detectorAvailable" : false,
+      "environmentSha256" : "6b3288f5983cbce231295762d3f8381b8467d6dbe2e74fff0e17a1aebf7215f4",
+      "legID" : "sp1.tap.session.matrix",
+      "runnerCommitSha" : "0badc7cb7b5728c9ccd2711d8811f69ddb97d633",
+      "runnerTreeSha" : "5bf1673aa5bf28460583c5068f83476e6d5b3bc7",
+      "verdict" : "BLOCKED"
+    },
+    {
+      "blocker" : {
+        "blocked_by" : "input_monitoring_denied",
+        "detect_command" : [
+          "CGPreflightListenEventAccess",
+          "environment.json guiSession.tapCreate"
+        ],
+        "prerequisite" : "GUI session with Input Monitoring already granted for this executable",
+        "unblock_action" : "Grant Input Monitoring outside this probe, then rerun; this probe never prompts"
+      },
+      "detectorAvailable" : false,
+      "environmentSha256" : "6b3288f5983cbce231295762d3f8381b8467d6dbe2e74fff0e17a1aebf7215f4",
+      "legID" : "sp1.tapReset",
+      "runnerCommitSha" : "0badc7cb7b5728c9ccd2711d8811f69ddb97d633",
+      "runnerTreeSha" : "5bf1673aa5bf28460583c5068f83476e6d5b3bc7",
+      "verdict" : "BLOCKED"
+    }
+  ],
+  "o7Guarantee" : "only product-stamped synthetic events are guaranteed excluded; unmarked injection indicators remain suspected, never proven, and no source-field exclusion is claimed.",
+  "runnerSourceSha256" : {
+    "Spikes/Scripts/run-task-qa.sh" : "75367ffaf71f2c505079bf8d1ad9e4d88ee60f2bf12792e2a46ccc256465eaf8",
+    "Spikes/Sources/Phase0Probe/AtomicityProbe.swift" : "b5e9a2c1e0beea4af772e7516799c057d41ba1ca431541f8e944738e20194165",
+    "Spikes/Sources/Phase0Probe/AtomicityRunnerIdentity.swift" : "da30b70ecf1f951ee154968d24f4e424db4eaf9e0b85710ac52897479ad8539b",
+    "Spikes/Sources/Phase0Probe/SP1Probe.swift" : "909c99a6f63ef0b8b3e53c36e28358f3f54dfa518f3901dc4f20e74be0b6754d",
+    "Spikes/Sources/Phase0Probe/main.swift" : "239404b5d210a1a2888424f03d039226f4e1b70faba61311b1110a32eacc0db6",
+    "Spikes/Sources/Phase0Support/AtomicReplacement.swift" : "2b41ebb3195e28a094dc70407456cb51e757245286f7c963d0deeb0a1537be9b",
+    "Spikes/Sources/Phase0Support/AtomicityEvidence.swift" : "5dfa5eceec76a50b23d8660dcc67e7c910b42ada5f99371b89c18321186cb293",
+    "Spikes/Sources/Phase0Support/InputObservation.swift" : "24bb7fe18d28645c54380bddae7c804dbd794c9e99bdf112652ea770b0d8b565"
+  },
+  "schemaVersion" : 1,
+  "verdict" : "BLOCKED"
+}

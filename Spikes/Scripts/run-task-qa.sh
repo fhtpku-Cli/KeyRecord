@@ -71,8 +71,9 @@ if [[ "$1" == "5" ]]; then
     else exit 1; fi
   else
     if task2_run_logged "$tmp_dir/qa.log" swift test --package-path Spikes --filter InputObservationTests \
-      && task2_run_logged "$tmp_dir/qa.log" swift test --package-path Spikes --filter SP1ValidatorTests; then
-      { printf 'TASK_5_NEGATIVE=PASS\nOBSERVABLE=duplicate/missing observations, TCC denial, Karabiner absence, session/annotated, attempt, runner commit/tree, environment, tap-config identity mixing, and evidence reuse all rejected PASS; G0 OPEN\n'; cat "$tmp_dir/qa.log"; } >"$publish_temp"
+      && task2_run_logged "$tmp_dir/qa.log" swift test --package-path Spikes --filter SP1ValidatorTests \
+      && task2_run_logged "$tmp_dir/qa.log" swift test --package-path Spikes --filter 'Phase0ProbeTests.testSP1MalformedEnvironmentInvalidatesStaleDestination|Phase0ProbeTests.testSP1PublishesOnlyCompleteDirectory'; then
+      { printf 'TASK_5_NEGATIVE=PASS\nOBSERVABLE=duplicate/missing observations, aggregate precedence, TCC/Karabiner blockers, artifact content, runner object/source binding, identity mixing/reuse, and stale-output cleanup all reject unsupported PASS; G0 OPEN\n'; cat "$tmp_dir/qa.log"; } >"$publish_temp"
     else exit 1; fi
   fi
   mv "$publish_temp" "$final_output"

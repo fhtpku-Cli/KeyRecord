@@ -25,6 +25,24 @@ public struct ProductStampedRecord: Codable, Equatable, Sendable {
     public let dropped: Bool
 }
 
+public struct SP1SyntheticArtifact: Codable, Equatable, Sendable {
+    public let evidenceKind: EvidenceKind
+    public let productStampedSynthetic: Bool
+    public let records: [ProductStampedRecord]
+    public init(records: [ProductStampedRecord]) {
+        evidenceKind = .synthetic; productStampedSynthetic = true; self.records = records
+    }
+}
+
+public struct SP1LiveAggregateArtifact: Codable, Equatable, Sendable {
+    public let evidenceKind: EvidenceKind
+    public let systemShortcutObservedCount: Int
+    public let unmarkedObservedCount: Int
+    public init(systemShortcutObservedCount: Int, unmarkedObservedCount: Int) {
+        evidenceKind = .live; self.systemShortcutObservedCount = systemShortcutObservedCount; self.unmarkedObservedCount = unmarkedObservedCount
+    }
+}
+
 public enum InputObservationError: Error, Equatable { case malformedProductMarker }
 
 public struct InputObservationState: Sendable {
@@ -151,28 +169,50 @@ public struct SP1Evidence: Codable, Equatable, Sendable {
             guard leg.runnerCommitSha.isLowercaseGitSHA1, leg.runnerTreeSha.isLowercaseGitSHA1, leg.environmentSha256.isLowercaseSHA256 else { throw SP1ValidationError.invalidProvenance }
             if leg.verdict == .blocked {
                 guard !leg.detectorAvailable, leg.blocker?.complete == true, leg.identity == nil, leg.artifactSha256 == nil, leg.matrix == nil else { throw SP1ValidationError.invalidBlocker }
+            } else {
+                guard leg.detectorAvailable, leg.blocker == nil, leg.artifactSha256?.isLowercaseSHA256 == true else { throw SP1ValidationError.invalidProvenance }
             }
         }
         let passingMatrices = legs.filter { Self.matrixIDs.contains($0.legID) && $0.verdict == .pass }
         if selectedTapIdentity == nil {
-            guard verdict != .pass, passingMatrices.isEmpty, legs.contains(where: { $0.verdict != .pass }) else { throw SP1ValidationError.invalidSelection }
-            return
-        }
-        guard verdict == .pass, passingMatrices.count == 1, let selected = selectedTapIdentity, passingMatrices[0].matrix?.passes == true else { throw SP1ValidationError.invalidMatrix }
-        guard !selected.tapType.isEmpty, !selected.attemptID.isEmpty, selected.runnerCommitSha.isLowercaseGitSHA1,
-              selected.runnerTreeSha.isLowercaseGitSHA1, selected.environmentSha256.isLowercaseSHA256,
-              selected.tapConfigSha256.isLowercaseSHA256 else { throw SP1ValidationError.invalidProvenance }
-        let selectedLegID = "sp1.tap.\(selected.tapType).matrix"
-        guard passingMatrices[0].legID == selectedLegID else { throw SP1ValidationError.invalidSelection }
-        let bound = legs.filter { $0.legID == selectedLegID || !Self.matrixIDs.contains($0.legID) }
-        var hashes = Set<String>()
-        for leg in bound {
-            guard leg.verdict == .pass, leg.identity == selected,
-                  leg.runnerCommitSha == selected.runnerCommitSha, leg.runnerTreeSha == selected.runnerTreeSha,
-                  leg.environmentSha256 == selected.environmentSha256 else { throw SP1ValidationError.mixedIdentity }
-            guard let hash = leg.artifactSha256, hash.isLowercaseSHA256 else { throw SP1ValidationError.invalidProvenance }
-            guard hashes.insert(hash).inserted else { throw SP1ValidationError.reusedEvidence }
+            guard passingMatrices.isEmpty else { throw SP1ValidationError.invalidSelection }
+            guard verdict == Self.aggregate(legs.map(\.verdict)) else { throw SP1ValidationError.invalidAggregate }
+        } else {
+            guard passingMatrices.count == 1, let selected = selectedTapIdentity, passingMatrices[0].matrix?.passes == true else { throw SP1ValidationError.invalidMatrix }
+            guard !selected.tapType.isEmpty, !selected.attemptID.isEmpty, selected.runnerCommitSha.isLowercaseGitSHA1,
+                  selected.runnerTreeSha.isLowercaseGitSHA1, selected.environmentSha256.isLowercaseSHA256,
+                  selected.tapConfigSha256.isLowercaseSHA256 else { throw SP1ValidationError.invalidProvenance }
+            let selectedLegID = "sp1.tap.\(selected.tapType).matrix"
+            guard passingMatrices[0].legID == selectedLegID else { throw SP1ValidationError.invalidSelection }
+            let bound = legs.filter { $0.legID == selectedLegID || !Self.matrixIDs.contains($0.legID) }
+            var hashes = Set<String>()
+            for leg in bound {
+                guard leg.identity == selected,
+                      leg.runnerCommitSha == selected.runnerCommitSha, leg.runnerTreeSha == selected.runnerTreeSha,
+                      leg.environmentSha256 == selected.environmentSha256 else { throw SP1ValidationError.mixedIdentity }
+                guard let hash = leg.artifactSha256, hashes.insert(hash).inserted else { throw SP1ValidationError.reusedEvidence }
+            }
+            guard verdict == Self.aggregate(bound.map(\.verdict)) else { throw SP1ValidationError.invalidAggregate }
         }
     }
     private static let matrixIDs: Set<String> = ["sp1.tap.session.matrix", "sp1.tap.annotated.matrix"]
+    private static func aggregate(_ verdicts: [Verdict]) -> Verdict {
+        verdicts.max { precedence($0) < precedence($1) } ?? .blocked
+    }
+    private static func precedence(_ verdict: Verdict) -> Int {
+        switch verdict { case .pass: 0; case .inconclusive: 1; case .blocked: 2; case .fail: 3 }
+    }
+}
+
+public enum SP1RunnerBinding {
+    public static let sourcePaths: Set<String> = [
+        "Spikes/Scripts/run-task-qa.sh",
+        "Spikes/Sources/Phase0Probe/AtomicityProbe.swift",
+        "Spikes/Sources/Phase0Probe/AtomicityRunnerIdentity.swift",
+        "Spikes/Sources/Phase0Probe/SP1Probe.swift",
+        "Spikes/Sources/Phase0Probe/main.swift",
+        "Spikes/Sources/Phase0Support/AtomicReplacement.swift",
+        "Spikes/Sources/Phase0Support/AtomicityEvidence.swift",
+        "Spikes/Sources/Phase0Support/InputObservation.swift",
+    ]
 }

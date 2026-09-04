@@ -69,6 +69,57 @@ final class InputObservationTests: XCTestCase {
         let report = mutate(validReport()) { $0.legs[3].artifactSha256 = $0.legs[2].artifactSha256 }
         assertReject(.reusedEvidence, report)
     }
+    func testNoSelectionFailOutranksBlocked() {
+        var report = blockedReport(tcc: false, karabiner: false)
+        let index = report.legs.startIndex
+        report.legs[index].verdict = .fail
+        report.legs[index].detectorAvailable = true
+        report.legs[index].blocker = nil
+        report.legs[index].artifactSha256 = String(repeating: "f", count: 64)
+        assertReject(.invalidAggregate, report)
+        report.verdict = .fail
+        XCTAssertNoThrow(try report.validate())
+    }
+
+    func testNoSelectionInconclusiveOutranksPass() {
+        var report = blockedReport(tcc: false, karabiner: false)
+        for index in report.legs.indices {
+            let matrix = report.legs[index].legID.hasPrefix("sp1.tap.")
+            report.legs[index].verdict = matrix || index == report.legs.startIndex ? .inconclusive : .pass
+            report.legs[index].detectorAvailable = true
+            report.legs[index].blocker = nil
+            report.legs[index].artifactSha256 = String(format: "%064x", index + 20)
+        }
+        report.verdict = .inconclusive
+        XCTAssertNoThrow(try report.validate())
+    }
+
+    func testNoSelectionBlockedOutranksInconclusive() {
+        var report = blockedReport(tcc: false, karabiner: false)
+        for index in report.legs.indices.dropFirst() {
+            report.legs[index].verdict = .inconclusive
+            report.legs[index].detectorAvailable = true
+            report.legs[index].blocker = nil
+            report.legs[index].artifactSha256 = String(format: "%064x", index + 40)
+        }
+        XCTAssertNoThrow(try report.validate())
+        report.verdict = .inconclusive
+        assertReject(.invalidAggregate, report)
+    }
+
+    func testSelectedTapAggregationIncludesAncillaryAndExcludesNonselectedTap() {
+        var report = validReport()
+        let ancillary = report.legs.firstIndex(where: { $0.legID == "sp1.autoRepeat" })!
+        report.legs[ancillary].verdict = .fail
+        report.verdict = .fail
+        XCTAssertNoThrow(try report.validate())
+        let nonselected = report.legs.firstIndex(where: { $0.legID == "sp1.tap.annotated.matrix" })!
+        report.legs[nonselected].verdict = .blocked
+        report.legs[nonselected].detectorAvailable = false
+        report.legs[nonselected].blocker = SP1Blocker(blockedBy: "not_selected", detectCommand: ["fixture"], prerequisite: "candidate", unblockAction: "rerun")
+        report.legs[nonselected].artifactSha256 = nil
+        XCTAssertNoThrow(try report.validate())
+    }
     func testDuplicateAndMissingMatrixCountsRejectPass() {
         assertReject(.invalidMatrix, mutate(validReport()) { report in report.legs[report.legs.firstIndex(where: { $0.legID == "sp1.tap.session.matrix" })!].matrix = .init(offObservedCode: 4, offCount: 2, onObservedCode: 5, onCount: 1, expectedPhysicalCode: 4, expectedTransformedCode: 5) })
         assertReject(.invalidMatrix, mutate(validReport()) { report in report.legs[report.legs.firstIndex(where: { $0.legID == "sp1.tap.session.matrix" })!].matrix = .init(offObservedCode: 4, offCount: 1, onObservedCode: nil, onCount: 0, expectedPhysicalCode: 4, expectedTransformedCode: 5) })

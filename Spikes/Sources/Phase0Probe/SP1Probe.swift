@@ -1,4 +1,5 @@
 import CoreGraphics
+import Darwin
 import Foundation
 import Phase0Support
 
@@ -7,6 +8,7 @@ enum SP1Probe {
         guard arguments.count == 5, arguments[0] == "sp1", arguments[1] == "--environment", arguments[3] == "--output" else { throw ProbeError.usage }
         let environmentURL = URL(fileURLWithPath: arguments[2])
         let output = URL(fileURLWithPath: arguments[4])
+        try invalidate(output)
         let environmentData = try boundedFile(environmentURL)
         let environment = try JSONDecoder().decode(EnvironmentEvidence.self, from: environmentData)
         let identity = try identityProvider.resolve()
@@ -65,17 +67,20 @@ enum SP1Probe {
     private static func publish(report: SP1Evidence, output: URL) throws {
         let parent = output.deletingLastPathComponent()
         try FileManager.default.createDirectory(at: parent, withIntermediateDirectories: true)
-        if FileManager.default.fileExists(atPath: output.path) { try FileManager.default.removeItem(at: output) }
         let temporary = parent.appendingPathComponent(".sp1.\(UUID().uuidString).tmp", isDirectory: true)
+        let signalCleanup = SP1SignalCleanup(paths: [temporary, output])
         try FileManager.default.createDirectory(at: temporary, withIntermediateDirectories: false)
         do {
+            if let value = ProcessInfo.processInfo.environment["KEYRECORD_SP1_TEST_DELAY_AFTER_TEMP"], let delay = Double(value) {
+                Thread.sleep(forTimeInterval: min(max(delay, 0), 5))
+            }
             try writeJSON(report, to: temporary.appendingPathComponent("evidence.json"))
             var synthetic = InputObservationState()
             for kind in InputEventKind.allCases {
                 try synthetic.observe(.init(kind: kind, keyCode: 4, isAutoRepeat: false, marker: ProductSyntheticMarker.value))
             }
-            try writeJSON(synthetic.productStampedRecords, to: temporary.appendingPathComponent("product-stamped-synthetic.json"))
-            try writeJSON(["systemShortcutObservedCount": 0, "unmarkedObservedCount": 0], to: temporary.appendingPathComponent("live-aggregate-counts.json"))
+            try writeJSON(SP1SyntheticArtifact(records: synthetic.productStampedRecords), to: temporary.appendingPathComponent("product-stamped-synthetic.json"))
+            try writeJSON(SP1LiveAggregateArtifact(systemShortcutObservedCount: 0, unmarkedObservedCount: 0), to: temporary.appendingPathComponent("live-aggregate-counts.json"))
             try Data(("# O7 addendum\n\n" + O7Boundary.guarantee + "\n\nNo source-field exclusion beyond aggregate observation is claimed.\n").utf8)
                 .write(to: temporary.appendingPathComponent("O7-ADDENDUM.md"))
             let blockers = report.legs.map { "- `\($0.legID)`: \($0.verdict.rawValue) (`\($0.blocker?.blockedBy ?? "executed")`)" }.joined(separator: "\n")
@@ -83,8 +88,10 @@ enum SP1Probe {
             try Data(conclusion.utf8).write(to: temporary.appendingPathComponent("SP-1-CONCLUSION.md"))
             try writeManifest(in: temporary)
             try FileManager.default.moveItem(at: temporary, to: output)
+            signalCleanup.complete()
         } catch {
             try? FileManager.default.removeItem(at: temporary)
+            signalCleanup.complete()
             throw error
         }
     }
@@ -105,9 +112,45 @@ enum SP1Probe {
         guard values.isRegularFile == true, values.isSymbolicLink != true, (values.fileSize ?? Int.max) <= 1_048_576 else { throw SP1ProbeError.invalidEnvironment }
         return try Data(contentsOf: url)
     }
+
+    private static func invalidate(_ output: URL) throws {
+        if FileManager.default.fileExists(atPath: output.path) { try FileManager.default.removeItem(at: output) }
+        let parent = output.deletingLastPathComponent()
+        guard FileManager.default.fileExists(atPath: parent.path) || FileManager.default.fileExists(atPath: parent.deletingLastPathComponent().path) else {
+            throw SP1ProbeError.invalidOutput
+        }
+        if FileManager.default.fileExists(atPath: parent.path) {
+            for name in try FileManager.default.contentsOfDirectory(atPath: parent.path) where name.hasPrefix(".sp1.") && name.hasSuffix(".tmp") {
+                try? FileManager.default.removeItem(at: parent.appendingPathComponent(name))
+            }
+        }
+    }
 }
 
-private enum SP1ProbeError: Error { case invalidEnvironment, listenOnlyTapUnavailable }
+private enum SP1ProbeError: Error { case invalidEnvironment, invalidOutput, listenOnlyTapUnavailable }
+
+private final class SP1SignalCleanup: @unchecked Sendable {
+    private let paths: [URL]
+    private var sources: [DispatchSourceSignal] = []
+    init(paths: [URL]) {
+        self.paths = paths
+        for item in [(SIGINT, 130), (SIGTERM, 143), (SIGHUP, 129)] {
+            signal(item.0, SIG_IGN)
+            let source = DispatchSource.makeSignalSource(signal: item.0, queue: .global())
+            source.setEventHandler { [paths] in
+                for path in paths { try? FileManager.default.removeItem(at: path) }
+                Foundation.exit(Int32(item.1))
+            }
+            source.resume()
+            sources.append(source)
+        }
+    }
+    func complete() {
+        sources.forEach { $0.cancel() }
+        sources.removeAll()
+        signal(SIGINT, SIG_DFL); signal(SIGTERM, SIG_DFL); signal(SIGHUP, SIG_DFL)
+    }
+}
 
 private func sp1Callback(proxy: CGEventTapProxy, type: CGEventType, event: CGEvent, userInfo: UnsafeMutableRawPointer?) -> Unmanaged<CGEvent>? {
     Unmanaged.passUnretained(event)

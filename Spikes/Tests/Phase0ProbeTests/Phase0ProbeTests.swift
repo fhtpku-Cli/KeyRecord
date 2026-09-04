@@ -88,6 +88,30 @@ final class Phase0ProbeTests: XCTestCase {
         }
     }
 
+    func testSP1MalformedEnvironmentInvalidatesStaleDestination() throws {
+        try withTemporaryDirectory { directory in
+            let environment = directory.appendingPathComponent("malformed.json")
+            let output = directory.appendingPathComponent("sp1", isDirectory: true)
+            try Data("{malformed".utf8).write(to: environment)
+            try FileManager.default.createDirectory(at: output, withIntermediateDirectories: false)
+            try Data("stale\n".utf8).write(to: output.appendingPathComponent("stale.txt"))
+
+            XCTAssertThrowsError(try SP1Probe.run(arguments: ["sp1", "--environment", environment.path, "--output", output.path]))
+            XCTAssertFalse(FileManager.default.fileExists(atPath: output.path))
+            XCTAssertTrue(try FileManager.default.contentsOfDirectory(atPath: directory.path).allSatisfy { !$0.hasPrefix(".sp1.") })
+        }
+    }
+
+    func testSP1PublishesOnlyCompleteDirectory() throws {
+        try withTemporaryDirectory { directory in
+            let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+            let output = directory.appendingPathComponent("sp1", isDirectory: true)
+            let identity = AtomicityRunnerIdentity(commitSha: String(repeating: "a", count: 40), treeSha: String(repeating: "b", count: 40), sourceSha256: ["source": String(repeating: "c", count: 64)])
+            try SP1Probe.run(arguments: ["sp1", "--environment", repository.appendingPathComponent("evidence/phase0/environment.json").path, "--output", output.path], identityProvider: FixedIdentityProvider(identity: identity))
+            XCTAssertEqual(Set(try FileManager.default.contentsOfDirectory(atPath: output.path)), ["evidence.json", "product-stamped-synthetic.json", "live-aggregate-counts.json", "O7-ADDENDUM.md", "SP-1-CONCLUSION.md", "manifest.sha256"])
+        }
+    }
+
     private func atomicityArguments(output: String = FileManager.default.temporaryDirectory.appendingPathComponent("unused.json").path) -> [String] {
         let repository = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent().deletingLastPathComponent()

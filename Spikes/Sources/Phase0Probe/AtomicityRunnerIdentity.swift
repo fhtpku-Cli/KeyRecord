@@ -51,16 +51,7 @@ enum AtomicityRunnerIdentityError: Error, Equatable, CustomStringConvertible, Se
 }
 
 struct GitAtomicityRunnerIdentityProvider: AtomicityRunnerIdentityProviding {
-    static let runnerSourcePaths = [
-        "Spikes/Sources/Phase0Probe/main.swift",
-        "Spikes/Sources/Phase0Probe/AtomicityProbe.swift",
-        "Spikes/Sources/Phase0Probe/AtomicityRunnerIdentity.swift",
-        "Spikes/Sources/Phase0Support/AtomicReplacement.swift",
-        "Spikes/Sources/Phase0Support/AtomicityEvidence.swift",
-        "Spikes/Sources/Phase0Support/InputObservation.swift",
-        "Spikes/Sources/Phase0Probe/SP1Probe.swift",
-        "Spikes/Scripts/run-task-qa.sh",
-    ]
+    static let runnerSourcePaths = SP1RunnerBinding.sourcePaths.sorted()
 
     private let currentDirectory: URL
     private let timeout: TimeInterval

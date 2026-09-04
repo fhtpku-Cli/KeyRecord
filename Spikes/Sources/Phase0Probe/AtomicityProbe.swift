@@ -3,15 +3,21 @@ import Foundation
 import Phase0Support
 
 enum AtomicityProbe {
-    static func run(arguments: [String]) throws {
-        guard arguments.count == 11, arguments[0] == "atomicity",
-              arguments[1] == "--output", arguments[3] == "--environment",
-              arguments[5] == "--iterations", arguments[7] == "--runner-commit",
-              arguments[9] == "--runner-tree", let iterations = Int(arguments[6]), iterations == 100 else {
+    static func run(
+        arguments: [String],
+        identityProvider: any AtomicityRunnerIdentityProviding = GitAtomicityRunnerIdentityProvider()
+    ) throws {
+        if arguments.contains("--runner-commit") || arguments.contains("--runner-tree") {
+            throw AtomicityRunnerIdentityError.callerSuppliedIdentity
+        }
+        guard arguments.count == 7, arguments[0] == "atomicity",
+               arguments[1] == "--output", arguments[3] == "--environment",
+               arguments[5] == "--iterations", let iterations = Int(arguments[6]), iterations == 100 else {
             throw ProbeError.usage
         }
         let output = URL(fileURLWithPath: arguments[2])
         let environment = URL(fileURLWithPath: arguments[4])
+        let identity = try identityProvider.resolve()
         let workspace = FileManager.default.temporaryDirectory
             .appendingPathComponent("keyrecord-atomicity-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: workspace, withIntermediateDirectories: false)
@@ -20,8 +26,8 @@ enum AtomicityProbe {
                 workspace: workspace,
                 iterations: iterations,
                 environment: environment,
-                runnerCommit: arguments[8],
-                runnerTree: arguments[10],
+                runnerCommit: identity.commitSha,
+                runnerTree: identity.treeSha,
                 command: ["swift", "run", "--package-path", "Spikes", "Phase0Probe"] + arguments
             )
             let encoder = JSONEncoder()

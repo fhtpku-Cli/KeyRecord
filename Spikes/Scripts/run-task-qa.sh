@@ -2,7 +2,16 @@
 set -euo pipefail
 
 tmp_dir="$(mktemp -d "${TMPDIR:-/tmp}/keyrecord-task-qa.XXXXXX")"
-cleanup() { status=$?; trap - EXIT; rm -rf "$tmp_dir"; exit "$status"; }
+final_output=""
+publish_temp=""
+cleanup() {
+  status=$?
+  trap - EXIT
+  [[ "$status" -eq 0 || -z "$final_output" ]] || rm -f "$final_output"
+  [[ -z "$publish_temp" ]] || rm -f "$publish_temp"
+  rm -rf "$tmp_dir"
+  exit "$status"
+}
 interrupt() {
   status="$1"
   trap - EXIT INT TERM HUP
@@ -11,6 +20,8 @@ interrupt() {
     kill $child_pids 2>/dev/null || true
     wait $child_pids 2>/dev/null || true
   fi
+  [[ -z "$final_output" ]] || rm -f "$final_output"
+  [[ -z "$publish_temp" ]] || rm -f "$publish_temp"
   rm -rf "$tmp_dir"
   exit "$status"
 }
@@ -29,12 +40,15 @@ fi
 if [[ "$1" == "4" ]]; then
   case "${2:-}" in
     happy)
-      output=".omo/evidence/task-4-phase-0-validation.txt"
+      final_output=".omo/evidence/task-4-phase-0-validation.txt"
+      mkdir -p .omo/evidence
+      rm -f "$final_output"
+      publish_temp="$(mktemp ".omo/evidence/.task-4-happy.XXXXXX")"
       : >"$tmp_dir/qa.log"
       runner_commit="$(GIT_MASTER=1 git rev-parse HEAD)"
       runner_tree="$(GIT_MASTER=1 git rev-parse HEAD^{tree})"
       result="$tmp_dir/result.json"
-      if task2_run_logged "$tmp_dir/qa.log" swift run --package-path Spikes Phase0Probe atomicity --output "$result" --environment evidence/phase0/environment.json --iterations 100 --runner-commit "$runner_commit" --runner-tree "$runner_tree" \
+      if task2_run_logged "$tmp_dir/qa.log" swift run --package-path Spikes Phase0Probe atomicity --output "$result" --environment evidence/phase0/environment.json --iterations 100 \
         && task2_run_logged "$tmp_dir/qa.log" jq -e '
           .newHash as $newHash | .oldHash as $oldHash |
           .verdict == "PASS" and .ordinaryRenameObservedAtomic == true and .exchangeRenameNeeded == false and
@@ -42,32 +56,43 @@ if [[ "$1" == "4" ]]; then
           ([.successfulExecutions[] | select(.terminalState != "new" or .observedHash != $newHash)] | length) == 0 and
           (.boundaries | length) == 8 and ([.boundaries[] | select((.observedHash != $oldHash and .observedHash != $newHash) or .staleTemporaryFilesAfterCleanup != 0)] | length) == 0 and
           (.failures | length) == 4 and ([.failures[] | select((.observedHash != $oldHash and .observedHash != $newHash) or .temporaryFilesAfterCleanup != 0)] | length) == 0 and
-          .citedBy == ["SP-3", "SP-6A"]
-        ' "$result" \
+          .citedBy == ["SP-3", "SP-6A"] and
+          .runnerCommitSha == $runner_commit and .runnerTreeSha == $runner_tree and
+          ((.command | index("--runner-commit")) == null) and ((.command | index("--runner-tree")) == null)
+        ' --arg runner_commit "$runner_commit" --arg runner_tree "$runner_tree" "$result" \
+        && task2_run_logged "$tmp_dir/qa.log" jq -e --arg runner_commit "$runner_commit" --arg runner_tree "$runner_tree" '
+          .verdict == "PASS" and .runnerCommitSha == $runner_commit and .runnerTreeSha == $runner_tree and
+          ((.command | index("--runner-commit")) == null) and ((.command | index("--runner-tree")) == null)
+        ' evidence/phase0/shared-atomicity/result.json \
         && task2_run_logged "$tmp_dir/qa.log" bash -c 'cd "$1" && exec shasum -a 256 -c manifest.sha256' _ evidence/phase0/shared-atomicity; then
-        { printf 'TASK_4_HAPPY=PASS\nOBSERVABLE=100/100 complete new-image hashes; 8 crash boundaries old-or-new; ordinary APFS rename observed; manifest verified\n'; cat "$tmp_dir/qa.log"; } >"$output"
+        { printf 'TASK_4_HAPPY=PASS\nOBSERVABLE=100/100 complete new-image hashes; 8 crash boundaries old-or-new; ordinary APFS rename observed; self-bound runner and manifest verified\n'; cat "$tmp_dir/qa.log"; } >"$publish_temp"
+        mv "$publish_temp" "$final_output"
+        publish_temp=""
       else
-        { printf 'TASK_4_HAPPY=FAIL\n'; cat "$tmp_dir/qa.log"; } >"$output"
         exit 1
       fi
       ;;
     failure)
-      output=".omo/evidence/task-4-phase-0-validation-failure.txt"
+      final_output=".omo/evidence/task-4-phase-0-validation-failure.txt"
+      mkdir -p .omo/evidence
+      rm -f "$final_output"
+      publish_temp="$(mktemp ".omo/evidence/.task-4-failure.XXXXXX")"
       : >"$tmp_dir/qa.log"
       failures=0
       for test_name in testWriteFailure testFileFsyncFailure testRenameFailure testDirectoryFsyncFailure testCrashAtEachBoundary; do
         task2_run_logged "$tmp_dir/qa.log" swift test --package-path Spikes --filter "AtomicReplacementTests.$test_name" || failures=$((failures + 1))
       done
       if [[ "$failures" -eq 0 ]]; then
-        { printf 'TASK_4_NEGATIVE=PASS\nOBSERVABLE=write-temp, file-fsync, rename, directory-fsync, and all 8 crash-boundary injections accepted only complete old/new targets; stale temps cleaned\n'; cat "$tmp_dir/qa.log"; } >"$output"
+        { printf 'TASK_4_NEGATIVE=PASS\nOBSERVABLE=write-temp, file-fsync, rename, directory-fsync, and all 8 crash-boundary injections accepted only complete old/new targets; stale temps cleaned\n'; cat "$tmp_dir/qa.log"; } >"$publish_temp"
+        mv "$publish_temp" "$final_output"
+        publish_temp=""
       else
-        { printf 'TASK_4_NEGATIVE=FAIL\nfailures=%s\n' "$failures"; cat "$tmp_dir/qa.log"; } >"$output"
         exit 1
       fi
       ;;
     *) printf 'Usage: %s 4 happy|failure\n' "$0" >&2; exit 64 ;;
   esac
-  /usr/bin/grep -E '^TASK_4_(HAPPY|NEGATIVE)=' "$output"
+  /usr/bin/grep -E '^TASK_4_(HAPPY|NEGATIVE)=' "$final_output"
   exit 0
 fi
 

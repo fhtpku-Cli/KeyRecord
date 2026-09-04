@@ -21,8 +21,11 @@ public enum Phase0ProbeCommand {
             }
             try writePreflight(to: URL(fileURLWithPath: arguments[2]))
         } catch ProbeError.usage {
-            FileHandle.standardError.write(Data("Usage: Phase0Probe preflight --output <path> | atomicity --output <path> --environment <path> --iterations 100 --runner-commit <sha> --runner-tree <sha>\n".utf8))
+            FileHandle.standardError.write(Data("Usage: Phase0Probe preflight --output <path> | atomicity --output <path> --environment <path> --iterations 100\n".utf8))
             Foundation.exit(64)
+        } catch let error as AtomicityRunnerIdentityError {
+            FileHandle.standardError.write(Data("ERROR \(error.code) \(error.description)\n".utf8))
+            Foundation.exit(1)
         } catch {
             FileHandle.standardError.write(Data("Phase0Probe preflight failed: \(error)\n".utf8))
             Foundation.exit(1)

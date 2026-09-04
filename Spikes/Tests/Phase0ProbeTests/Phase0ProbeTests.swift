@@ -112,6 +112,39 @@ final class Phase0ProbeTests: XCTestCase {
         }
     }
 
+    func testSP2MalformedEnvironmentInvalidatesStaleDestination() throws {
+        try withTemporaryDirectory { directory in
+            let environment = directory.appendingPathComponent("malformed.json")
+            let output = directory.appendingPathComponent("sp2", isDirectory: true)
+            try Data("{malformed".utf8).write(to: environment)
+            try FileManager.default.createDirectory(at: output, withIntermediateDirectories: false)
+            try Data("stale\n".utf8).write(to: output.appendingPathComponent("stale.txt"))
+            XCTAssertThrowsError(try SP2Probe.run(arguments: ["sp2", "--environment", environment.path, "--output", output.path]))
+            XCTAssertFalse(FileManager.default.fileExists(atPath: output.path))
+            XCTAssertTrue(try FileManager.default.contentsOfDirectory(atPath: directory.path).allSatisfy { !$0.hasPrefix(".sp2.") })
+        }
+    }
+
+    func testSP2CurrentEnvironmentProducesThreePassEightBlockedAndCompleteOutput() throws {
+        try withTemporaryDirectory { directory in
+            let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+            let output = directory.appendingPathComponent("sp2", isDirectory: true)
+            let identity = AtomicityRunnerIdentity(commitSha: String(repeating: "a", count: 40), treeSha: String(repeating: "b", count: 40), sourceSha256: Dictionary(uniqueKeysWithValues: SP2RunnerBinding.sourcePaths.map { ($0, String(repeating: "c", count: 64)) }))
+            try SP2Probe.run(arguments: ["sp2", "--environment", repository.appendingPathComponent("evidence/phase0/environment.json").path, "--output", output.path], identityProvider: FixedIdentityProvider(identity: identity))
+            let evidence = try JSONDecoder().decode(SP2Evidence.self, from: Data(contentsOf: output.appendingPathComponent("evidence.json")))
+            XCTAssertEqual(evidence.legs.filter { $0.verdict == .pass }.count, 3)
+            XCTAssertEqual(evidence.legs.filter { $0.verdict == .blocked }.count, 8)
+            XCTAssertTrue(evidence.legs.filter { $0.verdict == .blocked }.allSatisfy { $0.blocker?.complete == true })
+            XCTAssertEqual(evidence.legs.first { $0.legID == "sp2.secureInput" }?.blocker?.blockedBy, "secure_input_helper_unavailable")
+            XCTAssertEqual(evidence.legs.first { $0.legID == "sp2.sleepWake" }?.blocker?.blockedBy, "noninteractive_sleep_privilege_unavailable")
+            XCTAssertTrue(evidence.legs.allSatisfy { $0.dataDelta == 0 && $0.metaDelta == 0 })
+            XCTAssertEqual(evidence.verdict, .blocked)
+            XCTAssertEqual(evidence.o6Status, .open)
+            XCTAssertEqual(evidence.g0Status, .open)
+            XCTAssertEqual(Set(try FileManager.default.contentsOfDirectory(atPath: output.path)), SP2DirectoryLayout.allNames)
+        }
+    }
+
     private func atomicityArguments(output: String = FileManager.default.temporaryDirectory.appendingPathComponent("unused.json").path) -> [String] {
         let repository = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent().deletingLastPathComponent()

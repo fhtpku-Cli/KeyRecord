@@ -55,10 +55,13 @@ struct GitAtomicityRunnerIdentityProvider: AtomicityRunnerIdentityProviding {
 
     private let currentDirectory: URL
     private let timeout: TimeInterval
+    private let sourcePaths: [String]
 
-    init(currentDirectory: URL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath), timeout: TimeInterval = 5) {
+    init(currentDirectory: URL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath), timeout: TimeInterval = 5,
+         sourcePaths: [String] = Self.runnerSourcePaths) {
         self.currentDirectory = currentDirectory
         self.timeout = timeout
+        self.sourcePaths = sourcePaths
     }
 
     func resolve() throws -> AtomicityRunnerIdentity {
@@ -70,7 +73,7 @@ struct GitAtomicityRunnerIdentityProvider: AtomicityRunnerIdentityProviding {
         guard Self.isGitSHA1(tree) else { throw AtomicityRunnerIdentityError.invalidGitIdentity("HEAD^{tree}") }
 
         var sourceSha256: [String: String] = [:]
-        for path in Self.runnerSourcePaths {
+        for path in sourcePaths {
             let status = try gitText(
                 ["status", "--porcelain=v1", "--untracked-files=all", "--", path],
                 in: root,

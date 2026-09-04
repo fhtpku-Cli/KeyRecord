@@ -50,9 +50,75 @@ task4_verify_bound_runner() {
   printf 'bound_runner_commit=%s\nbound_runner_tree=%s\nbound_runner_source_bytes=exact\n' "$commit" "$tree" >>"$log_file"
 }
 
-if [[ "${1:-}" != "1" && "${1:-}" != "2" && "${1:-}" != "3" && "${1:-}" != "4" && "${1:-}" != "5" ]]; then
+if [[ "${1:-}" != "1" && "${1:-}" != "2" && "${1:-}" != "3" && "${1:-}" != "4" && "${1:-}" != "5" && "${1:-}" != "6" ]]; then
   printf 'Task %s QA is not implemented by scaffold task 1.\n' "${1:-missing}" >&2
   exit 64
+fi
+
+if [[ "$1" == "6" ]]; then
+  mode="${2:-}"
+  case "$mode" in happy) final_output=".omo/evidence/task-6-phase-0-validation.txt";; failure) final_output=".omo/evidence/task-6-phase-0-validation-failure.txt";; *) printf 'Usage: %s 6 happy|failure\n' "$0" >&2; exit 64;; esac
+  mkdir -p .omo/evidence
+  rm -f "$final_output"
+  publish_temp="$(mktemp ".omo/evidence/.task-6-${mode}.XXXXXX")"
+  : >"$tmp_dir/qa.log"
+  if [[ -n "${KEYRECORD_QA_DELAY:-}" ]]; then sleep "$KEYRECORD_QA_DELAY" & wait $!; fi
+  probe="$(swift build --package-path Spikes --show-bin-path)/Phase0Probe"
+  validator="$(swift build --package-path Spikes --show-bin-path)/EvidenceValidator"
+  output="$tmp_dir/sp2"
+  if [[ "$mode" == "happy" ]]; then
+    if task2_run_logged "$tmp_dir/qa.log" swift test --package-path Spikes --filter 'PrivacyTransitionTests|ModifierReconstructionTests' \
+      && task2_run_logged "$tmp_dir/qa.log" "$probe" sp2 --environment evidence/phase0/environment.json --output "$output" \
+      && task2_run_logged "$tmp_dir/qa.log" "$validator" "$output" \
+      && task2_run_logged "$tmp_dir/qa.log" jq -e '
+        .verdict == "BLOCKED" and .o6Status == "OPEN" and .g0Status == "OPEN" and
+        ([.legs[] | select(.verdict == "PASS")] | length) == 3 and
+        ([.legs[] | select(.verdict == "BLOCKED")] | length) == 8 and
+        all(.legs[]; (.verdict != "BLOCKED") or (.dataDelta == 0 and .metaDelta == 0 and .blocker.blocked_by != "" and (.blocker.detect_command | length) > 0 and .blocker.prerequisite != "" and .blocker.unblock_action != ""))
+      ' "$output/evidence.json" \
+      && task2_run_logged "$tmp_dir/qa.log" jq -e '
+        ([.cases[] | select(.scenario == "known" and .outcome == "bundle" and .dataDelta == 1 and .metaDelta == 1)] | length) == 1 and
+        ([.cases[] | select(.scenario == "knownUnattributable" and .outcome == "UNKNOWN" and .dataDelta == 1 and .metaDelta == 1)] | length) == 1 and
+        all(.cases[] | select(.outcome == "closed"); .dataDelta == 0 and .metaDelta == 0)
+      ' "$output/privacy-model.json" \
+      && task2_run_logged "$tmp_dir/qa.log" jq -e '
+        .deterministicRecovery == true and (.families | keys | sort) == ["command","control","option","shift"] and
+        all(.families[]; (sort == ["activeSideUnknown","both","left","none","right"])) and
+        (.fnStates | sort) == ["knownActive","knownNone","unknown"]
+      ' "$output/modifier-model.json"; then
+      { printf 'TASK_6_HAPPY=PASS\nOBSERVABLE=known bundle, reliably unattributable UNKNOWN, indeterminate/secure/excluded closure, all sided states, Fn confidence, deterministic recovery, 3 model PASS plus 8 honest BLOCKED, O6/G0 OPEN\n'; cat "$tmp_dir/qa.log"; } >"$publish_temp"
+    else exit 1; fi
+  else
+    failures=0
+    task2_run_logged "$tmp_dir/qa.log" swift test --package-path Spikes --filter 'PrivacyTransitionTests.testContradictory|PrivacyTransitionTests.testFullContext|PrivacyTransitionTests.testPaused|ModifierReconstructionTests.testReset|SP2ValidatorTests|Phase0ProbeTests.testSP2' || failures=$((failures + 1))
+    task2_run_logged "$tmp_dir/qa.log" "$probe" sp2 --environment evidence/phase0/environment.json --output "$output" || failures=$((failures + 1))
+    task2_run_logged "$tmp_dir/qa.log" jq -e '
+      all(.legs[] | select(.verdict == "BLOCKED"); .dataDelta == 0 and .metaDelta == 0 and .detectorAvailable == false) and
+      (.legs[] | select(.legID == "sp2.secureInput") | .blocker.blocked_by) == "secure_input_helper_unavailable" and
+      (.legs[] | select(.legID == "sp2.sleepWake") | .blocker.blocked_by) == "noninteractive_sleep_privilege_unavailable" and
+      .o6Status == "OPEN" and .g0Status == "OPEN"
+    ' "$output/evidence.json" || failures=$((failures + 1))
+    for signal_name in INT TERM HUP; do
+      for attempt in 1 2; do
+        signal_output="$tmp_dir/signal-${signal_name}-${attempt}"
+        KEYRECORD_SP2_TEST_DELAY_AFTER_TEMP=2 "$probe" sp2 --environment evidence/phase0/environment.json --output "$signal_output" >>"$tmp_dir/qa.log" 2>&1 &
+        child=$!
+        sleep 0.3
+        kill -s "$signal_name" "$child" 2>/dev/null || failures=$((failures + 1))
+        set +e; wait "$child"; signal_status=$?; set -e
+        printf 'signal=%s attempt=%s exit_status=%s\n' "$signal_name" "$attempt" "$signal_status" >>"$tmp_dir/qa.log"
+        [[ ! -e "$signal_output" ]] || failures=$((failures + 1))
+        compgen -G "$tmp_dir/.sp2.*.tmp" >/dev/null && failures=$((failures + 1))
+      done
+    done
+    if [[ "$failures" -eq 0 ]]; then
+      { printf 'TASK_6_NEGATIVE=PASS\nOBSERVABLE=contradictory cache, unknown Secure Input, loss/reset/wake, absent safe helper, no-sudo sleep blocker, zero deltas, stale/malformed/forged evidence rejection, O6/G0 OPEN, and INT/TERM/HUP cleanup twice passed\n'; cat "$tmp_dir/qa.log"; } >"$publish_temp"
+    else exit 1; fi
+  fi
+  mv "$publish_temp" "$final_output"
+  publish_temp=""
+  /usr/bin/head -n 1 "$final_output"
+  exit 0
 fi
 
 if [[ "$1" == "5" ]]; then

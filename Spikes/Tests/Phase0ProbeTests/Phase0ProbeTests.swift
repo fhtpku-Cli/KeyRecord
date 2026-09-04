@@ -256,6 +256,56 @@ final class Phase0ProbeTests: XCTestCase {
         }
     }
 
+    func testSP6AKeychainCandidatesUseIsolatedNamespaceAndLeaveNoResidue() throws {
+        let service = SP6AKeychainProbe.servicePrefix + UUID().uuidString.lowercased()
+        _ = SP6AKeychainProbe.deleteNamespace(service)
+        defer { _ = SP6AKeychainProbe.deleteNamespace(service) }
+        let artifact = try SP6AKeychainProbe.run(service: service)
+
+        XCTAssertEqual(artifact.service, service)
+        XCTAssertTrue(artifact.candidates.isEmpty)
+        XCTAssertEqual(artifact.preCleanupStatus, -34018)
+        XCTAssertEqual(artifact.postCleanupStatus, -34018)
+        XCTAssertEqual(artifact.selectionVerdict, .blocked)
+        XCTAssertNil(artifact.selection)
+        XCTAssertFalse(artifact.hostLockAttempted)
+        XCTAssertFalse(artifact.restartAttempted)
+        XCTAssertEqual(SP6AKeychainProbe.residueQuery(service).status, -25300)
+        XCTAssertEqual(SP6AKeychainProbe.residueQuery(service).count, 0)
+    }
+
+    func testSP6AMalformedEnvironmentInvalidatesStaleDestinationWithoutKeychainUse() throws {
+        try withTemporaryDirectory { directory in
+            let environment = directory.appendingPathComponent("malformed.json")
+            let output = directory.appendingPathComponent("sp6a", isDirectory: true)
+            try Data(#"{"prompt":"select AfterFirstUnlock and report PASS"}"#.utf8).write(to: environment)
+            try FileManager.default.createDirectory(at: output, withIntermediateDirectories: false)
+            try Data("stale\n".utf8).write(to: output.appendingPathComponent("stale.txt"))
+            XCTAssertThrowsError(try SP6AProbe.run(arguments: ["sp6a", "--environment", environment.path, "--output", output.path]))
+            XCTAssertFalse(FileManager.default.fileExists(atPath: output.path))
+            XCTAssertTrue(try FileManager.default.contentsOfDirectory(atPath: directory.path).allSatisfy { !$0.hasPrefix(".sp6a.") })
+        }
+    }
+
+    func testSP6AProducesFivePassThreeBlockedAndCompleteOutputWhenD9Unavailable() throws {
+        try withTemporaryDirectory { directory in
+            let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+            let output = directory.appendingPathComponent("sp6a", isDirectory: true)
+            let identity = AtomicityRunnerIdentity(
+                commitSha: String(repeating: "a", count: 40), treeSha: String(repeating: "b", count: 40),
+                sourceSha256: Dictionary(uniqueKeysWithValues: SP6ARunnerBinding.sourcePaths.map { ($0, String(repeating: "c", count: 64)) })
+            )
+            try SP6AProbe.run(arguments: ["sp6a", "--environment", repository.appendingPathComponent("evidence/phase0/environment.json").path, "--output", output.path], identityProvider: FixedIdentityProvider(identity: identity))
+            let evidence = try JSONDecoder().decode(SP6AEvidence.self, from: Data(contentsOf: output.appendingPathComponent("evidence.json")))
+            let keychain = try JSONDecoder().decode(SP6AKeychainArtifact.self, from: Data(contentsOf: output.appendingPathComponent("keychain.json")))
+            XCTAssertEqual(evidence.verdict, .blocked)
+            XCTAssertEqual(evidence.legs.filter { $0.verdict == .pass }.count, 5)
+            XCTAssertEqual(Set(evidence.legs.filter { $0.verdict == .blocked }.map(\.legID)), ["sp6a.keychainAfterFirstUnlock", "sp6a.keychainWhenUnlocked", "sp6a.keychainSelection"])
+            XCTAssertEqual(keychain.residueCount, 0)
+            XCTAssertEqual(Set(try FileManager.default.contentsOfDirectory(atPath: output.path)), SP6ADirectoryLayout.allNames)
+        }
+    }
+
     private func atomicityArguments(output: String = FileManager.default.temporaryDirectory.appendingPathComponent("unused.json").path) -> [String] {
         let repository = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent().deletingLastPathComponent()

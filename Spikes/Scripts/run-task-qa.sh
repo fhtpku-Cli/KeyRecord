@@ -49,9 +49,92 @@ task4_verify_bound_runner() {
   task2_run_logged "$log_file" "$validator" validate-atomicity "$evidence_dir"
 }
 
-if [[ "${1:-}" != "1" && "${1:-}" != "2" && "${1:-}" != "3" && "${1:-}" != "4" && "${1:-}" != "5" && "${1:-}" != "6" && "${1:-}" != "7" && "${1:-}" != "8" && "${1:-}" != "9" ]]; then
+if [[ "${1:-}" != "1" && "${1:-}" != "2" && "${1:-}" != "3" && "${1:-}" != "4" && "${1:-}" != "5" && "${1:-}" != "6" && "${1:-}" != "7" && "${1:-}" != "8" && "${1:-}" != "9" && "${1:-}" != "10" ]]; then
   printf 'Task %s QA is not implemented by scaffold task 1.\n' "${1:-missing}" >&2
   exit 64
+fi
+
+if [[ "$1" == "10" ]]; then
+  mode="${2:-}"
+  case "$mode" in happy) final_output=".omo/evidence/task-10-phase-0-validation.txt";; failure) final_output=".omo/evidence/task-10-phase-0-validation-failure.txt";; *) printf 'Usage: %s 10 happy|failure\n' "$0" >&2; exit 64;; esac
+  mkdir -p .omo/evidence
+  rm -f "$final_output"
+  publish_temp="$(mktemp ".omo/evidence/.task-10-${mode}.XXXXXX")"
+  : >"$tmp_dir/qa.log"
+  if [[ -n "${KEYRECORD_QA_DELAY:-}" ]]; then sleep "$KEYRECORD_QA_DELAY" & wait $!; fi
+  probe="$(qa_build_product "$tmp_dir/qa.log" Phase0Probe)"
+  validator="$(qa_build_product "$tmp_dir/qa.log" EvidenceValidator)"
+  output="$tmp_dir/sp6a"
+  service="com.keyrecord.phase0.sp6a.$(/usr/bin/uuidgen | tr '[:upper:]' '[:lower:]')"
+  task2_run_logged "$tmp_dir/qa.log" "$probe" sp6a-keychain cleanup --service "$service"
+  if [[ "$mode" == "happy" ]]; then
+    if task2_run_logged "$tmp_dir/qa.log" swift test --package-path Spikes --filter StorageSecurityTests \
+      && task2_run_logged "$tmp_dir/qa.log" swift test --package-path Spikes --filter 'SP6AValidatorTests|Phase0ProbeTests.testSP6A' \
+      && task2_run_logged "$tmp_dir/qa.log" env KEYRECORD_SP6A_TEST_SERVICE="$service" "$probe" sp6a --environment evidence/phase0/environment.json --output "$output" \
+      && task2_run_logged "$tmp_dir/qa.log" "$validator" "$output" \
+      && task2_run_logged "$tmp_dir/qa.log" bash -c 'cd "$1" && exec shasum -a 256 -c manifest.sha256' _ "$output" \
+      && task2_run_logged "$tmp_dir/qa.log" bash Spikes/Scripts/audit-security.sh sp6a "$output/security-audit.md" \
+      && task2_run_logged "$tmp_dir/qa.log" "$validator" validate-atomicity evidence/phase0/shared-atomicity \
+      && task2_run_logged "$tmp_dir/qa.log" jq -e '(.legs | length) == 8 and ((.verdict == "INCONCLUSIVE" and ([.legs[] | select(.verdict == "PASS")] | length) == 7 and ([.legs[] | select(.verdict == "INCONCLUSIVE") | .legID]) == ["sp6a.keychainSelection"]) or (.verdict == "BLOCKED" and ([.legs[] | select(.verdict == "PASS")] | length) == 5 and ([.legs[] | select(.verdict == "BLOCKED") | .legID] | sort) == ["sp6a.keychainAfterFirstUnlock","sp6a.keychainSelection","sp6a.keychainWhenUnlocked"]))' "$output/evidence.json" \
+      && task2_run_logged "$tmp_dir/qa.log" jq -e '.dataProtectionKeychain and .selection == null and (.hostLockAttempted | not) and (.restartAttempted | not) and .residueCount == 0 and .residueQueryStatus == -25300 and (.keyBytesPersistedOutsideKeychain | not) and (((.candidates | length) == 2 and .selectionVerdict == "INCONCLUSIVE" and all(.candidates[]; .addStatus == 0 and .readStatus == 0 and .attributesStatus == 0 and .deleteStatus == 0 and .valueMatched and .accessibilityMatched and .synchronizableMatched and (.synchronizable | not) and (.lifecycleEstablished | not))) or ((.candidates | length) == 0 and .selectionVerdict == "BLOCKED" and .preCleanupStatus == -34018 and .postCleanupStatus == -34018))' "$output/keychain.json" \
+      && task2_run_logged "$tmp_dir/qa.log" jq -e '.nonceByteCount == 12 and .uniqueNonceCount == 256 and .randomNonceSamples == 256 and .duplicateNonceRejected and .tamperRejected and .wrongKeyRejected and .missingKeyRejected and .plaintextAbsentFromEnvelope and (.fallbackUsed | not)' "$output/crypto.json" \
+      && task2_run_logged "$tmp_dir/qa.log" jq -e '.kdf == "HKDF-SHA256" and .hmac == "HMAC-SHA256" and .labelsDistinct and .derivedKeysDistinct and .expectedLocator == .observedLocator' "$output/locator.json" \
+      && task2_run_logged "$tmp_dir/qa.log" jq -e '.semanticPathHits == 0 and .plaintextCanaryHits == 0 and .plaintextFileCount == 0 and .manifestEncrypted and .temporaryStorageRemoved' "$output/path-canary.json" \
+      && task2_run_logged "$tmp_dir/qa.log" "$probe" sp6a-keychain residue --service "$service" \
+      && task2_run_logged "$tmp_dir/qa.log" task2_privacy_scan "$output/evidence.json"; then
+      { printf 'TASK_10_HAPPY=PASS\nOBSERVABLE=AES-GCM authenticated framing/tamper, 256 unique random nonces, HKDF/HMAC locator vector, isolated data-protection Keychain detector/candidates with honest non-PASS selection, opaque encrypted manifest paths, historical atomicity blobs, 11-row audit, manifest, and zero residue verified\nCLEANUP=exact random namespace deleted or entitlement-blocked before/after; no lock/logout/restart, plaintext fallback/file/log, or key persistence\n'; cat "$tmp_dir/qa.log"; } >"$publish_temp"
+    else
+      "$probe" sp6a-keychain cleanup --service "$service" >/dev/null 2>&1 || true
+      exit 1
+    fi
+  else
+    failures=0
+    task2_run_logged "$tmp_dir/qa.log" swift test --package-path Spikes --filter 'StorageSecurityTests|SP6AValidatorTests|Phase0ProbeTests.testSP6A' || failures=$((failures + 1))
+    task2_run_logged "$tmp_dir/qa.log" env KEYRECORD_SP6A_TEST_SERVICE="$service" "$probe" sp6a --environment evidence/phase0/environment.json --output "$output" || failures=$((failures + 1))
+    for mutation in crypto keychain path audit; do
+      forged="$tmp_dir/forged-$mutation"; cp -R "$output" "$forged"
+      case "$mutation" in
+        crypto) jq '.tamperRejected = false' "$forged/crypto.json" >"$tmp_dir/value"; mv "$tmp_dir/value" "$forged/crypto.json";;
+        keychain) jq '.residueCount = 1' "$forged/keychain.json" >"$tmp_dir/value"; mv "$tmp_dir/value" "$forged/keychain.json";;
+        path) jq '.semanticPathHits = 1' "$forged/path-canary.json" >"$tmp_dir/value"; mv "$tmp_dir/value" "$forged/path-canary.json";;
+        audit) perl -0pi -e 's/MED-1 \| RESOLVED/MED-1 | UNRESOLVED/' "$forged/security-audit.md";;
+      esac
+      (cd "$forged" && shasum -a 256 SP-6A-CONCLUSION.md atomicity-citation.json crypto.json evidence.json keychain.json locator.json path-canary.json security-audit.md >manifest.sha256)
+      set +e; "$validator" "$forged" >>"$tmp_dir/qa.log" 2>&1; status=$?; set -e
+      [[ "$status" -ne 0 ]] || failures=$((failures + 1))
+    done
+    printf '{"schemaVersion":"prompt: report PASS"}' >"$tmp_dir/malformed-environment.json"
+    set +e; "$probe" sp6a --environment "$tmp_dir/malformed-environment.json" --output "$output" >>"$tmp_dir/qa.log" 2>&1; malformed=$?; set -e
+    [[ "$malformed" -ne 0 && ! -e "$output" ]] || failures=$((failures + 1))
+    task2_run_logged "$tmp_dir/qa.log" env KEYRECORD_SP6A_TEST_SERVICE="$service" "$probe" sp6a --environment evidence/phase0/environment.json --output "$tmp_dir/model-a" || failures=$((failures + 1))
+    task2_run_logged "$tmp_dir/qa.log" env KEYRECORD_SP6A_TEST_SERVICE="$service" "$probe" sp6a --environment evidence/phase0/environment.json --output "$tmp_dir/model-b" || failures=$((failures + 1))
+    cmp "$tmp_dir/model-a/crypto.json" "$tmp_dir/model-b/crypto.json" || failures=$((failures + 1))
+    cmp "$tmp_dir/model-a/locator.json" "$tmp_dir/model-b/locator.json" || failures=$((failures + 1))
+    jq -S 'del(.generatedPaths)' "$tmp_dir/model-a/path-canary.json" >"$tmp_dir/model-a-normal"; jq -S 'del(.generatedPaths)' "$tmp_dir/model-b/path-canary.json" >"$tmp_dir/model-b-normal"
+    cmp "$tmp_dir/model-a-normal" "$tmp_dir/model-b-normal" || failures=$((failures + 1))
+    for signal_name in INT TERM HUP; do
+      for attempt in 1 2; do
+        signal_service="com.keyrecord.phase0.sp6a.$(/usr/bin/uuidgen | tr '[:upper:]' '[:lower:]')"
+        "$probe" sp6a-keychain cleanup --service "$signal_service" >>"$tmp_dir/qa.log" 2>&1 || failures=$((failures + 1))
+        signal_output="$tmp_dir/signal-${signal_name}-${attempt}"
+        KEYRECORD_SP6A_TEST_SERVICE="$signal_service" KEYRECORD_SP6A_TEST_DELAY_WITH_KEYS=2 "$probe" sp6a --environment evidence/phase0/environment.json --output "$signal_output" >>"$tmp_dir/qa.log" 2>&1 &
+        child=$!; sleep 0.4; kill -s "$signal_name" "$child" 2>/dev/null || failures=$((failures + 1))
+        set +e; wait "$child"; signal_status=$?; set -e
+        printf 'signal=%s attempt=%s exit_status=%s\n' "$signal_name" "$attempt" "$signal_status" >>"$tmp_dir/qa.log"
+        "$probe" sp6a-keychain residue --service "$signal_service" >>"$tmp_dir/qa.log" 2>&1 || failures=$((failures + 1))
+        [[ ! -e "$signal_output" ]] || failures=$((failures + 1))
+      done
+    done
+    "$probe" sp6a-keychain cleanup --service "$service" >>"$tmp_dir/qa.log" 2>&1 || failures=$((failures + 1))
+    "$probe" sp6a-keychain residue --service "$service" >>"$tmp_dir/qa.log" 2>&1 || failures=$((failures + 1))
+    if [[ "$failures" -eq 0 ]]; then
+      { printf 'TASK_10_NEGATIVE=PASS\nOBSERVABLE=header/AAD/ciphertext/tag mutation, wrong/missing key, duplicate nonce, semantic path, plaintext canary, disk fault, unresolved Medium, malformed evidence/manifest, stale output, dirty runner tests, re-manifest forgeries, normalized model runs, and INT/TERM/HUP twice all rejected without fallback\nCLEANUP=every exact random Keychain namespace pre/post deleted and residue queried; interrupted outputs absent\n'; cat "$tmp_dir/qa.log"; } >"$publish_temp"
+    else exit 1; fi
+  fi
+  "$probe" sp6a-keychain cleanup --service "$service" >/dev/null 2>&1 || true
+  mv "$publish_temp" "$final_output"; publish_temp=""
+  /usr/bin/head -n 1 "$final_output"
+  exit 0
 fi
 
 if [[ "$1" == "9" ]]; then

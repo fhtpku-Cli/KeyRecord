@@ -90,6 +90,7 @@ public enum SP3RunnerBinding {
         "Spikes/Sources/Phase0Support/Registries.swift",
         "Spikes/Sources/Phase0Support/SP3Evidence.swift",
         "Spikes/Sources/Phase0Support/SP3FixtureScenarios.swift",
+        "Spikes/Sources/EvidenceValidator/AtomicityHistoricalValidator.swift",
         "Spikes/Sources/EvidenceValidator/Canonical.swift",
         "Spikes/Sources/EvidenceValidator/EvidenceValidatorCommand.swift",
         "Spikes/Sources/EvidenceValidator/GitRunner.swift",

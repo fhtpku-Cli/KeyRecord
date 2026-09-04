@@ -32,6 +32,44 @@
     "tag"
   ],
   "tamperRejected" : true,
+  "tamperResults" : [
+    {
+      "caseID" : "magic",
+      "rejected" : true
+    },
+    {
+      "caseID" : "formatVersion",
+      "rejected" : true
+    },
+    {
+      "caseID" : "algorithm",
+      "rejected" : true
+    },
+    {
+      "caseID" : "keyVersion",
+      "rejected" : true
+    },
+    {
+      "caseID" : "locator",
+      "rejected" : true
+    },
+    {
+      "caseID" : "nonce",
+      "rejected" : true
+    },
+    {
+      "caseID" : "ciphertextLength",
+      "rejected" : true
+    },
+    {
+      "caseID" : "ciphertext",
+      "rejected" : true
+    },
+    {
+      "caseID" : "tag",
+      "rejected" : true
+    }
+  ],
   "uniqueNonceCount" : 256,
   "wrongKeyRejected" : true
 }

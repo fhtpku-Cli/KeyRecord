@@ -2,17 +2,20 @@
   "candidates" : [
 
   ],
+  "cleanupReceipt" : {
+    "postCleanupStatus" : -34018,
+    "preCleanupStatus" : -34018,
+    "residueCount" : 0,
+    "residueQueryStatus" : -25300,
+    "service" : "com.keyrecord.phase0.sp6a.ffb62654-5437-46e5-925e-f15e2e98985b"
+  },
   "crossDeviceRestoreReason" : "No separately approved second-device backup/restore environment is available.",
   "crossDeviceRestoreVerdict" : "BLOCKED",
   "dataProtectionKeychain" : true,
   "hostLockAttempted" : false,
   "keyBytesPersistedOutsideKeychain" : false,
-  "postCleanupStatus" : -34018,
-  "preCleanupStatus" : -34018,
-  "residueCount" : 0,
-  "residueQueryStatus" : -25300,
   "restartAttempted" : false,
   "selectionReason" : "D9 is unavailable: the isolated data-protection Keychain namespace requires an application identifier entitlement not present on this SwiftPM runner.",
   "selectionVerdict" : "BLOCKED",
-  "service" : "com.keyrecord.phase0.sp6a.33333333-3333-3333-3333-333333333333"
+  "service" : "com.keyrecord.phase0.sp6a.ffb62654-5437-46e5-925e-f15e2e98985b"
 }

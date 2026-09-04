@@ -33,21 +33,10 @@ script_dir="$(cd "$(dirname "$0")" && pwd)"
 source "$script_dir/task-2-qa-lib.sh"
 
 task4_verify_bound_runner() {
-  local log_file="$1" result_file="$2" commit tree resolved_tree path
-  commit="$(jq -er .runnerCommitSha "$result_file")"
-  tree="$(jq -er .runnerTreeSha "$result_file")"
-  resolved_tree="$(GIT_MASTER=1 git rev-parse --verify "$commit^{tree}")"
-  [[ "$tree" == "$resolved_tree" ]] || return 1
-  task2_run_logged "$log_file" env GIT_MASTER=1 git merge-base --is-ancestor "$commit" HEAD || return 1
-  for path in \
-    Spikes/Sources/Phase0Probe/main.swift \
-    Spikes/Sources/Phase0Probe/AtomicityProbe.swift \
-    Spikes/Sources/Phase0Probe/AtomicityRunnerIdentity.swift \
-    Spikes/Sources/Phase0Support/AtomicReplacement.swift \
-    Spikes/Sources/Phase0Support/AtomicityEvidence.swift; do
-    task2_run_logged "$log_file" bash -c 'GIT_MASTER=1 git cat-file -e "$1:$2" && GIT_MASTER=1 git show "$1:$2" | cmp - "$2"' _ "$commit" "$path" || return 1
-  done
-  printf 'bound_runner_commit=%s\nbound_runner_tree=%s\nbound_runner_source_bytes=exact\n' "$commit" "$tree" >>"$log_file"
+  local log_file="$1" result_file="$2" evidence_dir validator
+  evidence_dir="$(dirname "$result_file")"
+  validator="$(swift build --package-path Spikes --show-bin-path)/EvidenceValidator"
+  task2_run_logged "$log_file" "$validator" validate-atomicity "$evidence_dir"
 }
 
 if [[ "${1:-}" != "1" && "${1:-}" != "2" && "${1:-}" != "3" && "${1:-}" != "4" && "${1:-}" != "5" && "${1:-}" != "6" && "${1:-}" != "7" ]]; then

@@ -3,6 +3,16 @@ import Foundation
 
 public enum AtomicityTerminalState: String, Codable, Sendable { case old, new }
 
+public enum AtomicityRunnerBinding {
+    public static let sourcePaths: Set<String> = [
+        "Spikes/Sources/Phase0Probe/main.swift",
+        "Spikes/Sources/Phase0Probe/AtomicityProbe.swift",
+        "Spikes/Sources/Phase0Probe/AtomicityRunnerIdentity.swift",
+        "Spikes/Sources/Phase0Support/AtomicReplacement.swift",
+        "Spikes/Sources/Phase0Support/AtomicityEvidence.swift",
+    ]
+}
+
 public struct AtomicityHost: Codable, Equatable, Sendable {
     public let filesystem: String
     public let macOSVersion: String
@@ -114,6 +124,7 @@ public struct AtomicityEvidence: Codable, Equatable, Sendable {
     public let environmentSha256: String
     public let runnerCommitSha: String
     public let runnerTreeSha: String
+    public let runnerSourceSha256: [String: String]?
     public let command: [String]
     public let host: AtomicityHost
     public let oldHash: String
@@ -125,14 +136,15 @@ public struct AtomicityEvidence: Codable, Equatable, Sendable {
 
     enum CodingKeys: String, CodingKey, CaseIterable, StrictCodingKeys {
         case schemaVersion, verdict, scope, limitation, ordinaryRenameObservedAtomic, exchangeRenameNeeded
-        case environmentSha256, runnerCommitSha, runnerTreeSha, command, host, oldHash, newHash
+        case environmentSha256, runnerCommitSha, runnerTreeSha, runnerSourceSha256, command, host, oldHash, newHash
         case successfulExecutions, boundaries, failures, citedBy
     }
 
-    public init(verdict: Verdict, scope: String, limitation: String, ordinaryRenameObservedAtomic: Bool, exchangeRenameNeeded: Bool, environmentSha256: String, runnerCommitSha: String, runnerTreeSha: String, command: [String], host: AtomicityHost, oldHash: String, newHash: String, successfulExecutions: [AtomicityExecution], boundaries: [AtomicityBoundaryResult], failures: [AtomicityFailureResult], citedBy: [String]) {
-        schemaVersion = 1; self.verdict = verdict; self.scope = scope; self.limitation = limitation
+    public init(verdict: Verdict, scope: String, limitation: String, ordinaryRenameObservedAtomic: Bool, exchangeRenameNeeded: Bool, environmentSha256: String, runnerCommitSha: String, runnerTreeSha: String, runnerSourceSha256: [String: String]? = nil, command: [String], host: AtomicityHost, oldHash: String, newHash: String, successfulExecutions: [AtomicityExecution], boundaries: [AtomicityBoundaryResult], failures: [AtomicityFailureResult], citedBy: [String]) {
+        schemaVersion = runnerSourceSha256 == nil ? 1 : 2; self.verdict = verdict; self.scope = scope; self.limitation = limitation
         self.ordinaryRenameObservedAtomic = ordinaryRenameObservedAtomic; self.exchangeRenameNeeded = exchangeRenameNeeded
         self.environmentSha256 = environmentSha256; self.runnerCommitSha = runnerCommitSha; self.runnerTreeSha = runnerTreeSha
+        self.runnerSourceSha256 = runnerSourceSha256
         self.command = command; self.host = host; self.oldHash = oldHash; self.newHash = newHash
         self.successfulExecutions = successfulExecutions; self.boundaries = boundaries; self.failures = failures; self.citedBy = citedBy
     }
@@ -146,6 +158,7 @@ public struct AtomicityEvidence: Codable, Equatable, Sendable {
         exchangeRenameNeeded = try values.decode(Bool.self, forKey: .exchangeRenameNeeded)
         environmentSha256 = try values.decode(String.self, forKey: .environmentSha256)
         runnerCommitSha = try values.decode(String.self, forKey: .runnerCommitSha); runnerTreeSha = try values.decode(String.self, forKey: .runnerTreeSha)
+        runnerSourceSha256 = try values.decodeIfPresent([String: String].self, forKey: .runnerSourceSha256)
         command = try values.decode([String].self, forKey: .command); host = try values.decode(AtomicityHost.self, forKey: .host)
         oldHash = try values.decode(String.self, forKey: .oldHash); newHash = try values.decode(String.self, forKey: .newHash)
         successfulExecutions = try values.decode([AtomicityExecution].self, forKey: .successfulExecutions)
@@ -155,7 +168,7 @@ public struct AtomicityEvidence: Codable, Equatable, Sendable {
     }
 
     public func validate() throws {
-        guard schemaVersion == 1, verdict == .pass, host.filesystem == "apfs",
+        guard (schemaVersion == 1 || schemaVersion == 2), verdict == .pass, host.filesystem == "apfs",
               !host.macOSVersion.isEmpty, host.macOSVersion != "unknown", !host.macOSBuild.isEmpty, host.macOSBuild != "unknown",
               !host.architecture.isEmpty, host.architecture != "unknown", ordinaryRenameObservedAtomic, !exchangeRenameNeeded,
               environmentSha256.isLowercaseSHA256, runnerCommitSha.isLowercaseGitSHA1, runnerTreeSha.isLowercaseGitSHA1,
@@ -169,6 +182,15 @@ public struct AtomicityEvidence: Codable, Equatable, Sendable {
               citedBy == ["SP-3", "SP-6A"] else { throw EvidenceModelError.invalidBlocker(field: "atomicity_evidence") }
         let expectedHostHash = AtomicityHost(filesystem: host.filesystem, macOSVersion: host.macOSVersion, macOSBuild: host.macOSBuild, architecture: host.architecture).hostHash
         guard host.hostHash == expectedHostHash else { throw EvidenceModelError.invalidSHA256(field: "hostHash") }
+        if schemaVersion == 1 {
+            guard runnerSourceSha256 == nil else { throw EvidenceModelError.invalidBlocker(field: "runnerSourceSha256") }
+        } else {
+            guard let runnerSourceSha256,
+                  Set(runnerSourceSha256.keys) == AtomicityRunnerBinding.sourcePaths,
+                  runnerSourceSha256.values.allSatisfy(\.isLowercaseSHA256) else {
+                throw EvidenceModelError.invalidSHA256(field: "runnerSourceSha256")
+            }
+        }
     }
 }
 

@@ -28,6 +28,7 @@ enum AtomicityProbe {
                 environment: environment,
                 runnerCommit: identity.commitSha,
                 runnerTree: identity.treeSha,
+                runnerSourceSha256: identity.sourceSha256,
                 command: ["swift", "run", "--package-path", "Spikes", "Phase0Probe"] + arguments
             )
             let encoder = JSONEncoder()
@@ -46,7 +47,7 @@ enum AtomicityProbe {
         }
     }
 
-    private static func execute(workspace: URL, iterations: Int, environment: URL, runnerCommit: String, runnerTree: String, command: [String]) throws -> AtomicityEvidence {
+    private static func execute(workspace: URL, iterations: Int, environment: URL, runnerCommit: String, runnerTree: String, runnerSourceSha256: [String: String], command: [String]) throws -> AtomicityEvidence {
         let oldBytes = Data(repeating: 0x4f, count: 32_771)
         let newBytes = Data(repeating: 0x4e, count: 65_539)
         let oldHash = AtomicityDigest.sha256(oldBytes)
@@ -82,6 +83,7 @@ enum AtomicityProbe {
             environmentSha256: environmentHash,
             runnerCommitSha: runnerCommit,
             runnerTreeSha: runnerTree,
+            runnerSourceSha256: runnerSourceSha256,
             command: command,
             host: host,
             oldHash: oldHash,

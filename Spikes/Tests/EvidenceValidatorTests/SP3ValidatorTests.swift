@@ -121,10 +121,11 @@ private struct SP3TestDirectory {
         try FileManager.default.createDirectory(at: repository, withIntermediateDirectories: true)
         try git(["init", "-q"], repository)
         var sourceHashes: [String: String] = [:]
-        for path in SP3RunnerBinding.sourcePaths {
+        for path in SP3RunnerBinding.sourcePaths.union(AtomicityRunnerBinding.sourcePaths) {
             let url = repository.appendingPathComponent(path)
             try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-            let bytes = Data("fixture source \(path)\n".utf8); try bytes.write(to: url); sourceHashes[path] = Canonical.sha256(bytes)
+            let bytes = Data("fixture source \(path)\n".utf8); try bytes.write(to: url)
+            if SP3RunnerBinding.sourcePaths.contains(path) { sourceHashes[path] = Canonical.sha256(bytes) }
         }
         for relative in ["evidence/phase0/environment.json", SP3FixtureScenarios.fixtureRelativePath, "evidence/phase0/shared-atomicity/result.json", "evidence/phase0/shared-atomicity/manifest.sha256"] {
             let destination = repository.appendingPathComponent(relative)
@@ -134,6 +135,14 @@ private struct SP3TestDirectory {
         try git(["add", "."], repository)
         try git(["-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "commit", "-q", "-m", "fixture"], repository)
         let commit = try gitOutput(["rev-parse", "HEAD"], repository), tree = try gitOutput(["rev-parse", "HEAD^{tree}"], repository)
+        let atomicityResultURL = repository.appendingPathComponent("evidence/phase0/shared-atomicity/result.json")
+        var atomicity = try JSONSerialization.jsonObject(with: Data(contentsOf: atomicityResultURL)) as! [String: Any]
+        atomicity["runnerCommitSha"] = commit; atomicity["runnerTreeSha"] = tree
+        let atomicityData = try JSONSerialization.data(withJSONObject: atomicity, options: [.prettyPrinted, .sortedKeys])
+        try atomicityData.write(to: atomicityResultURL)
+        try Data("\(Canonical.sha256(atomicityData))  result.json\n".utf8).write(
+            to: repository.appendingPathComponent("evidence/phase0/shared-atomicity/manifest.sha256")
+        )
         let environment = try Data(contentsOf: repository.appendingPathComponent("evidence/phase0/environment.json"))
         try FileManager.default.createDirectory(at: output, withIntermediateDirectories: true)
         let managed = try SP3FixtureScenarios.managedBlock(repository: repository)

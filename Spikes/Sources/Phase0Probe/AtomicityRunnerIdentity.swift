@@ -51,7 +51,7 @@ enum AtomicityRunnerIdentityError: Error, Equatable, CustomStringConvertible, Se
 }
 
 struct GitAtomicityRunnerIdentityProvider: AtomicityRunnerIdentityProviding {
-    static let runnerSourcePaths = SP1RunnerBinding.sourcePaths.sorted()
+    static let runnerSourcePaths = AtomicityRunnerBinding.sourcePaths.sorted()
 
     private let currentDirectory: URL
     private let timeout: TimeInterval

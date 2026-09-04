@@ -77,6 +77,10 @@ enum SP3DirectoryValidator {
               citation.artifactSha256 == Canonical.sha256(result), manifest == "\(citation.artifactSha256)  result.json\n",
               let atomicity = try? JSONDecoder().decode(AtomicityEvidence.self, from: result) else { throw ValidatorError("sp3_atomicity_citation_mismatch") }
         do { try atomicity.validate() } catch { throw ValidatorError("sp3_atomicity_citation_mismatch") }
+        _ = try AtomicityHistoricalValidator.validate(
+            directory: resultURL.deletingLastPathComponent(),
+            repository: repository
+        )
     }
 
     static func validateBindings(_ evidence: SP3Evidence, directory: URL, repository: URL) throws {

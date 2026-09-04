@@ -22,6 +22,10 @@ public enum EvidenceValidatorCommand {
         case "validate":
             guard arguments.count == 2 else { throw ValidatorError("usage", usage) }
             try printReport(validateDirectory(url(arguments[1])))
+        case "validate-atomicity":
+            guard arguments.count == 2 else { throw ValidatorError("usage", usage) }
+            _ = try AtomicityHistoricalValidator.validate(directory: url(arguments[1]), repository: url("."))
+            print("VALID atomicity_historical_binding")
         case "bind": try bind(Array(arguments.dropFirst()))
         case "verify-candidate": try verifyCandidate(Array(arguments.dropFirst()))
         case "assemble-receipts": try assemble(Array(arguments.dropFirst()))
@@ -138,7 +142,7 @@ public enum EvidenceValidatorCommand {
     private static func url(_ path: String) -> URL { URL(fileURLWithPath: path, relativeTo: URL(fileURLWithPath: FileManager.default.currentDirectoryPath)).standardizedFileURL }
     private static func writeError(_ value: String) { FileHandle.standardError.write(Data(value.utf8)) }
 
-    private static let usage = "EvidenceValidator <evidence-directory> | validate <directory> | bind --evidence PATH --plan PATH --output PATH [--environment PATH] | verify-candidate CANDIDATE --evidence PATH --plan PATH [--environment PATH] | assemble-receipts SOURCE --output PATH --candidate PATH --commands PATH --required-reviewers F1,F2,F3,F4 | verify-receipts AGGREGATE --source-dir PATH --candidate PATH --commands PATH --required-reviewers F1,F2,F3,F4 [expected flags]"
+    private static let usage = "EvidenceValidator <evidence-directory> | validate <directory> | validate-atomicity <directory> | bind --evidence PATH --plan PATH --output PATH [--environment PATH] | verify-candidate CANDIDATE --evidence PATH --plan PATH [--environment PATH] | assemble-receipts SOURCE --output PATH --candidate PATH --commands PATH --required-reviewers F1,F2,F3,F4 | verify-receipts AGGREGATE --source-dir PATH --candidate PATH --commands PATH --required-reviewers F1,F2,F3,F4 [expected flags]"
 }
 
 private final class Options {

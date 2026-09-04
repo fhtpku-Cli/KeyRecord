@@ -47,7 +47,9 @@ final class Phase0ProbeTests: XCTestCase {
             let identity = AtomicityRunnerIdentity(
                 commitSha: String(repeating: "a", count: 40),
                 treeSha: String(repeating: "b", count: 40),
-                sourceSha256: [:]
+                sourceSha256: Dictionary(uniqueKeysWithValues: AtomicityRunnerBinding.sourcePaths.map {
+                    ($0, String(repeating: "c", count: 64))
+                })
             )
 
             try AtomicityProbe.run(
@@ -58,6 +60,8 @@ final class Phase0ProbeTests: XCTestCase {
             let evidence = try JSONDecoder().decode(AtomicityEvidence.self, from: Data(contentsOf: output))
             XCTAssertEqual(evidence.runnerCommitSha, identity.commitSha)
             XCTAssertEqual(evidence.runnerTreeSha, identity.treeSha)
+            XCTAssertEqual(evidence.schemaVersion, 2)
+            XCTAssertEqual(evidence.runnerSourceSha256, identity.sourceSha256)
             XCTAssertFalse(evidence.command.contains("--runner-commit"))
             XCTAssertFalse(evidence.command.contains("--runner-tree"))
         }

@@ -32,6 +32,24 @@ trap 'interrupt 129' HUP
 script_dir="$(cd "$(dirname "$0")" && pwd)"
 source "$script_dir/task-2-qa-lib.sh"
 
+task4_verify_bound_runner() {
+  local log_file="$1" result_file="$2" commit tree resolved_tree path
+  commit="$(jq -er .runnerCommitSha "$result_file")"
+  tree="$(jq -er .runnerTreeSha "$result_file")"
+  resolved_tree="$(GIT_MASTER=1 git rev-parse --verify "$commit^{tree}")"
+  [[ "$tree" == "$resolved_tree" ]] || return 1
+  task2_run_logged "$log_file" env GIT_MASTER=1 git merge-base --is-ancestor "$commit" HEAD || return 1
+  for path in \
+    Spikes/Sources/Phase0Probe/main.swift \
+    Spikes/Sources/Phase0Probe/AtomicityProbe.swift \
+    Spikes/Sources/Phase0Probe/AtomicityRunnerIdentity.swift \
+    Spikes/Sources/Phase0Support/AtomicReplacement.swift \
+    Spikes/Sources/Phase0Support/AtomicityEvidence.swift; do
+    task2_run_logged "$log_file" bash -c 'GIT_MASTER=1 git cat-file -e "$1:$2" && GIT_MASTER=1 git show "$1:$2" | cmp - "$2"' _ "$commit" "$path" || return 1
+  done
+  printf 'bound_runner_commit=%s\nbound_runner_tree=%s\nbound_runner_source_bytes=exact\n' "$commit" "$tree" >>"$log_file"
+}
+
 if [[ "${1:-}" != "1" && "${1:-}" != "2" && "${1:-}" != "3" && "${1:-}" != "4" ]]; then
   printf 'Task %s QA is not implemented by scaffold task 1.\n' "${1:-missing}" >&2
   exit 64
@@ -60,10 +78,11 @@ if [[ "$1" == "4" ]]; then
           .runnerCommitSha == $runner_commit and .runnerTreeSha == $runner_tree and
           ((.command | index("--runner-commit")) == null) and ((.command | index("--runner-tree")) == null)
         ' --arg runner_commit "$runner_commit" --arg runner_tree "$runner_tree" "$result" \
-        && task2_run_logged "$tmp_dir/qa.log" jq -e --arg runner_commit "$runner_commit" --arg runner_tree "$runner_tree" '
-          .verdict == "PASS" and .runnerCommitSha == $runner_commit and .runnerTreeSha == $runner_tree and
+        && task2_run_logged "$tmp_dir/qa.log" jq -e '
+          .verdict == "PASS" and
           ((.command | index("--runner-commit")) == null) and ((.command | index("--runner-tree")) == null)
         ' evidence/phase0/shared-atomicity/result.json \
+        && task4_verify_bound_runner "$tmp_dir/qa.log" evidence/phase0/shared-atomicity/result.json \
         && task2_run_logged "$tmp_dir/qa.log" bash -c 'cd "$1" && exec shasum -a 256 -c manifest.sha256' _ evidence/phase0/shared-atomicity; then
         { printf 'TASK_4_HAPPY=PASS\nOBSERVABLE=100/100 complete new-image hashes; 8 crash boundaries old-or-new; ordinary APFS rename observed; self-bound runner and manifest verified\n'; cat "$tmp_dir/qa.log"; } >"$publish_temp"
         mv "$publish_temp" "$final_output"

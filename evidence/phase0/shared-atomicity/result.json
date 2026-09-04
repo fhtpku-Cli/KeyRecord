@@ -81,11 +81,7 @@
     "--environment",
     "evidence/phase0/environment.json",
     "--iterations",
-    "100",
-    "--runner-commit",
-    "70097262cdbb46f201288fa1660f815b222e04dc",
-    "--runner-tree",
-    "38af7a1313ccdb3238d01893f8ac8d36787500c1"
+    "100"
   ],
   "environmentSha256" : "6b3288f5983cbce231295762d3f8381b8467d6dbe2e74fff0e17a1aebf7215f4",
   "exchangeRenameNeeded" : false,
@@ -130,8 +126,8 @@
   "newHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
   "oldHash" : "7c554853297e4f48b60b9c985a57c6dbb4fa76bf54c5a558d16281d9adc6e65b",
   "ordinaryRenameObservedAtomic" : true,
-  "runnerCommitSha" : "70097262cdbb46f201288fa1660f815b222e04dc",
-  "runnerTreeSha" : "38af7a1313ccdb3238d01893f8ac8d36787500c1",
+  "runnerCommitSha" : "96cfdfa8054373f5333bee1b43312f564098bc2e",
+  "runnerTreeSha" : "039cc1fa57acbebf89959a6fc0db957ab347dcc0",
   "schemaVersion" : 1,
   "scope" : "Observed ordinary rename replacement on this APFS volume and recorded macOS host only.",
   "successfulExecutions" : [

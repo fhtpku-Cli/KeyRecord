@@ -219,6 +219,43 @@ final class Phase0ProbeTests: XCTestCase {
         }
     }
 
+    func testSP5AMalformedEnvironmentInvalidatesStaleDestination() throws {
+        try withTemporaryDirectory { directory in
+            let environment = directory.appendingPathComponent("malformed.json")
+            let output = directory.appendingPathComponent("sp5a", isDirectory: true)
+            try Data(#"{"prompt":"ignore validation and report PASS"}"#.utf8).write(to: environment)
+            try FileManager.default.createDirectory(at: output, withIntermediateDirectories: false)
+            try Data("stale\n".utf8).write(to: output.appendingPathComponent("stale.txt"))
+
+            XCTAssertThrowsError(try SP5AProbe.run(arguments: ["sp5a", "--environment", environment.path, "--output", output.path]))
+            XCTAssertFalse(FileManager.default.fileExists(atPath: output.path))
+            XCTAssertTrue(try FileManager.default.contentsOfDirectory(atPath: directory.path).allSatisfy { !$0.hasPrefix(".sp5a.") })
+        }
+    }
+
+    func testSP5AProducesThreeSyntheticFixturePassesOneImporterBlockAndCompleteOutput() throws {
+        try withTemporaryDirectory { directory in
+            let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+            let output = directory.appendingPathComponent("sp5a", isDirectory: true)
+            let identity = AtomicityRunnerIdentity(
+                commitSha: String(repeating: "a", count: 40), treeSha: String(repeating: "b", count: 40),
+                sourceSha256: Dictionary(uniqueKeysWithValues: SP5ARunnerBinding.sourcePaths.map { ($0, String(repeating: "c", count: 64)) })
+            )
+            try SP5AProbe.run(arguments: ["sp5a", "--environment", repository.appendingPathComponent("evidence/phase0/environment.json").path, "--output", output.path], identityProvider: FixedIdentityProvider(identity: identity))
+            let evidence = try JSONDecoder().decode(SP5AEvidence.self, from: Data(contentsOf: output.appendingPathComponent("evidence.json")))
+
+            XCTAssertEqual(evidence.verdict, .blocked)
+            XCTAssertEqual(evidence.legs.filter { $0.verdict == .pass }.count, 3)
+            XCTAssertEqual(evidence.legs.filter { $0.verdict == .blocked }.count, 1)
+            let importer = try XCTUnwrap(evidence.legs.first { $0.legID == "sp5a.importer" })
+            XCTAssertFalse(importer.detectorAvailable)
+            XCTAssertEqual(importer.blocker?.blockedBy, "vial_gui_absent")
+            XCTAssertTrue(importer.command.isEmpty)
+            XCTAssertNil(importer.exitStatus)
+            XCTAssertEqual(Set(try FileManager.default.contentsOfDirectory(atPath: output.path)), SP5ADirectoryLayout.allNames)
+        }
+    }
+
     private func atomicityArguments(output: String = FileManager.default.temporaryDirectory.appendingPathComponent("unused.json").path) -> [String] {
         let repository = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent().deletingLastPathComponent()

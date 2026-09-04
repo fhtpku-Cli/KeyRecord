@@ -1,0 +1,20 @@
+{
+  "byteCount" : 21536,
+  "definitionSchemaOnly" : true,
+  "identityFields" : [
+    "vendorProductId"
+  ],
+  "observedSha256" : "b42bea649bde12804e6ddd5d872b63dbb4d8b5a228ad8814b9d44856e136921a",
+  "schema" : "V2",
+  "source" : {
+    "commit" : "65b50efc8e14e6feabff38ce20c191edf1f078f9",
+    "gitBlob" : "8e89dd0f5103c5b7e15f43eaab785ef4ad6a62f3",
+    "licenseBlob" : "f288702d2fa16d3cdf0035b15a9fcbc552cd88e7",
+    "licensePath" : "evidence/phase0/sources/repos/via-app/license/LICENSE",
+    "licenseSha256" : "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
+    "path" : "evidence/phase0/sources/repos/via-app/files/src/utils/test-keyboard-definition.json",
+    "repository" : "https://github.com/the-via/app.git",
+    "sha256" : "b42bea649bde12804e6ddd5d872b63dbb4d8b5a228ad8814b9d44856e136921a",
+    "tree" : "9d76a3b8a5b7ec976c3ef9048c49caa09779e25b"
+  }
+}

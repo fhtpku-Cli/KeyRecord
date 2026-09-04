@@ -1,0 +1,21 @@
+{
+  "citations" : [
+    {
+      "path" : "evidence/phase0/sources/repos/via-docs/files/docs/specification.md",
+      "sha256" : "0b6644085eac41dd0f3b30a2573e38266c9cf8f365ef0091b3998f5de5b4c4ca"
+    },
+    {
+      "path" : "evidence/phase0/sources/repos/via-docs/files/docs/post_v3_changes.md",
+      "sha256" : "cd8adb7a3a9c5422154667304da0eb39c95ad1417772f50f392168a4f04efc2a"
+    }
+  ],
+  "customDefinitions" : "Manufacturer-provided custom V2/V3 definitions are sideloaded through VIA's Design tab.",
+  "excludedClaims" : [
+    "device protocol",
+    "keycode dialect",
+    "layout backup format",
+    "official importer compatibility",
+    "device behavior"
+  ],
+  "officialDefinitions" : "VIA definitions are stored in the VIA keyboards repository and served to VIA when a keyboard connects."
+}

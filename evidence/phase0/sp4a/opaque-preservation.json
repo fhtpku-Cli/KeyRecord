@@ -1,0 +1,11 @@
+{
+  "bytesOutsideMutationIdentical" : true,
+  "fixtureKind" : "deterministic-adversarial-definition",
+  "macroAfterSha256" : "856101bbde6f07964e24c14085d6e03df72073ac69bd62903c7b3575ee60e6e7",
+  "macroBeforeSha256" : "856101bbde6f07964e24c14085d6e03df72073ac69bd62903c7b3575ee60e6e7",
+  "mutationChangedDocument" : true,
+  "mutationField" : "name",
+  "schema" : "V2",
+  "unknownAfterSha256" : "0a639195ae9d1197b36f9d260e87b114360a145e119c4889a7509a8bd3a960ff",
+  "unknownBeforeSha256" : "0a639195ae9d1197b36f9d260e87b114360a145e119c4889a7509a8bd3a960ff"
+}

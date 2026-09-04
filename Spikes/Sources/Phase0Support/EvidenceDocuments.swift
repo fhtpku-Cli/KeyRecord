@@ -306,6 +306,21 @@ public struct FinalCandidate: Codable, Equatable, Sendable {
             guard hash.isLowercaseSHA256 else { throw EvidenceModelError.invalidSHA256(field: field) }
         }
     }
+
+    public init(commitSha: String, treeSha: String, auditBaseSha: String, planSha256: String, environmentSha256: String, evidenceDigest: String, boundInputPathsSha256: String, createdAt: String) {
+        self.commitSha = commitSha
+        self.treeSha = treeSha
+        self.auditBaseSha = auditBaseSha
+        self.planSha256 = planSha256
+        self.environmentSha256 = environmentSha256
+        self.evidenceDigest = evidenceDigest
+        self.boundInputPathsSha256 = boundInputPathsSha256
+        self.createdAt = createdAt
+    }
+
+    public func replacing(treeSha: String) -> FinalCandidate {
+        FinalCandidate(commitSha: commitSha, treeSha: treeSha, auditBaseSha: auditBaseSha, planSha256: planSha256, environmentSha256: environmentSha256, evidenceDigest: evidenceDigest, boundInputPathsSha256: boundInputPathsSha256, createdAt: createdAt)
+    }
 }
 
 public struct CommandResult: Codable, Equatable, Sendable {

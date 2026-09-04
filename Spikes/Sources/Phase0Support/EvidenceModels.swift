@@ -1,13 +1,13 @@
 import Foundation
 
-public enum Verdict: String, Codable, CaseIterable, Sendable {
+public enum Verdict: String, Codable, CaseIterable, Hashable, Sendable {
     case pass = "PASS"
     case fail = "FAIL"
     case inconclusive = "INCONCLUSIVE"
     case blocked = "BLOCKED"
 }
 
-public enum EvidenceKind: String, Codable, CaseIterable, Sendable {
+public enum EvidenceKind: String, Codable, CaseIterable, Hashable, Sendable {
     case fixture
     case synthetic
     case source

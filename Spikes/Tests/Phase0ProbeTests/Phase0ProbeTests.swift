@@ -1,3 +1,4 @@
+import Darwin
 import Foundation
 import XCTest
 @testable import Phase0Support
@@ -258,10 +259,17 @@ final class Phase0ProbeTests: XCTestCase {
 
     func testSP6AKeychainCandidatesUseIsolatedNamespaceAndLeaveNoResidue() throws {
         let service = SP6AKeychainProbe.servicePrefix + UUID().uuidString.lowercased()
+        let ready = FileManager.default.temporaryDirectory.appendingPathComponent("sp6a-ready-\(UUID().uuidString)")
+        setenv("KEYRECORD_SP6A_TEST_READY_FILE", ready.path, 1)
         _ = SP6AKeychainProbe.deleteNamespace(service)
-        defer { _ = SP6AKeychainProbe.deleteNamespace(service) }
+        defer {
+            unsetenv("KEYRECORD_SP6A_TEST_READY_FILE")
+            try? FileManager.default.removeItem(at: ready)
+            _ = SP6AKeychainProbe.deleteNamespace(service)
+        }
         let artifact = try SP6AKeychainProbe.run(service: service)
 
+        XCTAssertTrue(FileManager.default.fileExists(atPath: ready.path))
         XCTAssertEqual(artifact.service, service)
         XCTAssertTrue(artifact.candidates.isEmpty)
         XCTAssertEqual(artifact.preCleanupStatus, -34018)

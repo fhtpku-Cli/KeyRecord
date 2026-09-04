@@ -117,8 +117,12 @@ if [[ "$1" == "10" ]]; then
         signal_service="com.keyrecord.phase0.sp6a.$(/usr/bin/uuidgen | tr '[:upper:]' '[:lower:]')"
         "$probe" sp6a-keychain cleanup --service "$signal_service" >>"$tmp_dir/qa.log" 2>&1 || failures=$((failures + 1))
         signal_output="$tmp_dir/signal-${signal_name}-${attempt}"
-        KEYRECORD_SP6A_TEST_SERVICE="$signal_service" KEYRECORD_SP6A_TEST_DELAY_WITH_KEYS=2 "$probe" sp6a --environment evidence/phase0/environment.json --output "$signal_output" >>"$tmp_dir/qa.log" 2>&1 &
-        child=$!; sleep 0.4; kill -s "$signal_name" "$child" 2>/dev/null || failures=$((failures + 1))
+        ready_file="$tmp_dir/ready-${signal_name}-${attempt}"
+        KEYRECORD_SP6A_TEST_SERVICE="$signal_service" KEYRECORD_SP6A_TEST_READY_FILE="$ready_file" KEYRECORD_SP6A_TEST_DELAY_WITH_KEYS=2 "$probe" sp6a --environment evidence/phase0/environment.json --output "$signal_output" >>"$tmp_dir/qa.log" 2>&1 &
+        child=$!; ready=false
+        for _ in {1..100}; do if [[ -e "$ready_file" ]]; then ready=true; break; fi; sleep 0.05; done
+        [[ "$ready" == true ]] || failures=$((failures + 1))
+        kill -s "$signal_name" "$child" 2>/dev/null || failures=$((failures + 1))
         set +e; wait "$child"; signal_status=$?; set -e
         printf 'signal=%s attempt=%s exit_status=%s\n' "$signal_name" "$attempt" "$signal_status" >>"$tmp_dir/qa.log"
         "$probe" sp6a-keychain residue --service "$signal_service" >>"$tmp_dir/qa.log" 2>&1 || failures=$((failures + 1))

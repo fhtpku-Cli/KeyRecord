@@ -28,6 +28,9 @@ enum SP6AKeychainProbe {
     static func run(service: String = servicePrefix + UUID().uuidString.lowercased()) throws -> SP6AKeychainArtifact {
         guard service.hasPrefix(servicePrefix), service.count == servicePrefix.count + 36 else { throw SP6AKeychainError.invalidNamespace }
         let cleanup = SP6AKeychainSignalCleanup(service: service)
+        if let path = ProcessInfo.processInfo.environment["KEYRECORD_SP6A_TEST_READY_FILE"] {
+            try Data().write(to: URL(fileURLWithPath: path), options: .atomic)
+        }
         let preCleanup = deleteNamespace(service)
         defer { _ = deleteNamespace(service); cleanup.complete() }
         if preCleanup == errSecMissingEntitlement {

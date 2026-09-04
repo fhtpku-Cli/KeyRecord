@@ -1,0 +1,640 @@
+{
+  "boundaries" : [
+    {
+      "boundary" : "beforeWriteTemp",
+      "injectedStatus" : "injected crash at beforeWriteTemp",
+      "observedHash" : "7c554853297e4f48b60b9c985a57c6dbb4fa76bf54c5a558d16281d9adc6e65b",
+      "staleTemporaryFilesAfterCleanup" : 0,
+      "staleTemporaryFilesBeforeCleanup" : 0,
+      "terminalState" : "old"
+    },
+    {
+      "boundary" : "afterWriteTemp",
+      "injectedStatus" : "injected crash at afterWriteTemp",
+      "observedHash" : "7c554853297e4f48b60b9c985a57c6dbb4fa76bf54c5a558d16281d9adc6e65b",
+      "staleTemporaryFilesAfterCleanup" : 0,
+      "staleTemporaryFilesBeforeCleanup" : 1,
+      "terminalState" : "old"
+    },
+    {
+      "boundary" : "beforeFileFsync",
+      "injectedStatus" : "injected crash at beforeFileFsync",
+      "observedHash" : "7c554853297e4f48b60b9c985a57c6dbb4fa76bf54c5a558d16281d9adc6e65b",
+      "staleTemporaryFilesAfterCleanup" : 0,
+      "staleTemporaryFilesBeforeCleanup" : 1,
+      "terminalState" : "old"
+    },
+    {
+      "boundary" : "afterFileFsync",
+      "injectedStatus" : "injected crash at afterFileFsync",
+      "observedHash" : "7c554853297e4f48b60b9c985a57c6dbb4fa76bf54c5a558d16281d9adc6e65b",
+      "staleTemporaryFilesAfterCleanup" : 0,
+      "staleTemporaryFilesBeforeCleanup" : 1,
+      "terminalState" : "old"
+    },
+    {
+      "boundary" : "beforeRename",
+      "injectedStatus" : "injected crash at beforeRename",
+      "observedHash" : "7c554853297e4f48b60b9c985a57c6dbb4fa76bf54c5a558d16281d9adc6e65b",
+      "staleTemporaryFilesAfterCleanup" : 0,
+      "staleTemporaryFilesBeforeCleanup" : 1,
+      "terminalState" : "old"
+    },
+    {
+      "boundary" : "afterRename",
+      "injectedStatus" : "injected crash at afterRename",
+      "observedHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
+      "staleTemporaryFilesAfterCleanup" : 0,
+      "staleTemporaryFilesBeforeCleanup" : 0,
+      "terminalState" : "new"
+    },
+    {
+      "boundary" : "beforeDirectoryFsync",
+      "injectedStatus" : "injected crash at beforeDirectoryFsync",
+      "observedHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
+      "staleTemporaryFilesAfterCleanup" : 0,
+      "staleTemporaryFilesBeforeCleanup" : 0,
+      "terminalState" : "new"
+    },
+    {
+      "boundary" : "afterDirectoryFsync",
+      "injectedStatus" : "injected crash at afterDirectoryFsync",
+      "observedHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
+      "staleTemporaryFilesAfterCleanup" : 0,
+      "staleTemporaryFilesBeforeCleanup" : 0,
+      "terminalState" : "new"
+    }
+  ],
+  "citedBy" : [
+    "SP-3",
+    "SP-6A"
+  ],
+  "command" : [
+    "swift",
+    "run",
+    "--package-path",
+    "Spikes",
+    "Phase0Probe",
+    "atomicity",
+    "--output",
+    "evidence/phase0/shared-atomicity/result.json",
+    "--environment",
+    "evidence/phase0/environment.json",
+    "--iterations",
+    "100",
+    "--runner-commit",
+    "70097262cdbb46f201288fa1660f815b222e04dc",
+    "--runner-tree",
+    "38af7a1313ccdb3238d01893f8ac8d36787500c1"
+  ],
+  "environmentSha256" : "6b3288f5983cbce231295762d3f8381b8467d6dbe2e74fff0e17a1aebf7215f4",
+  "exchangeRenameNeeded" : false,
+  "failures" : [
+    {
+      "injectedStatus" : "injected failure at writeTemp",
+      "observedHash" : "7c554853297e4f48b60b9c985a57c6dbb4fa76bf54c5a558d16281d9adc6e65b",
+      "step" : "writeTemp",
+      "temporaryFilesAfterCleanup" : 0,
+      "terminalState" : "old"
+    },
+    {
+      "injectedStatus" : "injected failure at fileFsync",
+      "observedHash" : "7c554853297e4f48b60b9c985a57c6dbb4fa76bf54c5a558d16281d9adc6e65b",
+      "step" : "fileFsync",
+      "temporaryFilesAfterCleanup" : 0,
+      "terminalState" : "old"
+    },
+    {
+      "injectedStatus" : "injected failure at rename",
+      "observedHash" : "7c554853297e4f48b60b9c985a57c6dbb4fa76bf54c5a558d16281d9adc6e65b",
+      "step" : "rename",
+      "temporaryFilesAfterCleanup" : 0,
+      "terminalState" : "old"
+    },
+    {
+      "injectedStatus" : "injected failure at directoryFsync",
+      "observedHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
+      "step" : "directoryFsync",
+      "temporaryFilesAfterCleanup" : 0,
+      "terminalState" : "new"
+    }
+  ],
+  "host" : {
+    "architecture" : "arm64",
+    "filesystem" : "apfs",
+    "hostHash" : "49d3bcee38c4cda3028663e3c927cb47dd24db56d5db263d18c0f46074c27295",
+    "macOSBuild" : "25G76",
+    "macOSVersion" : "26.6.1"
+  },
+  "limitation" : "This fixture probe does not establish behavior for non-APFS filesystems or other macOS versions/builds, and does not claim power-loss durability beyond completed fsync calls.",
+  "newHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
+  "oldHash" : "7c554853297e4f48b60b9c985a57c6dbb4fa76bf54c5a558d16281d9adc6e65b",
+  "ordinaryRenameObservedAtomic" : true,
+  "runnerCommitSha" : "70097262cdbb46f201288fa1660f815b222e04dc",
+  "runnerTreeSha" : "38af7a1313ccdb3238d01893f8ac8d36787500c1",
+  "schemaVersion" : 1,
+  "scope" : "Observed ordinary rename replacement on this APFS volume and recorded macOS host only.",
+  "successfulExecutions" : [
+    {
+      "iteration" : 1,
+      "observedHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
+      "terminalState" : "new"
+    },
+    {
+      "iteration" : 2,
+      "observedHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
+      "terminalState" : "new"
+    },
+    {
+      "iteration" : 3,
+      "observedHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
+      "terminalState" : "new"
+    },
+    {
+      "iteration" : 4,
+      "observedHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
+      "terminalState" : "new"
+    },
+    {
+      "iteration" : 5,
+      "observedHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
+      "terminalState" : "new"
+    },
+    {
+      "iteration" : 6,
+      "observedHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
+      "terminalState" : "new"
+    },
+    {
+      "iteration" : 7,
+      "observedHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
+      "terminalState" : "new"
+    },
+    {
+      "iteration" : 8,
+      "observedHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
+      "terminalState" : "new"
+    },
+    {
+      "iteration" : 9,
+      "observedHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
+      "terminalState" : "new"
+    },
+    {
+      "iteration" : 10,
+      "observedHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
+      "terminalState" : "new"
+    },
+    {
+      "iteration" : 11,
+      "observedHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
+      "terminalState" : "new"
+    },
+    {
+      "iteration" : 12,
+      "observedHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
+      "terminalState" : "new"
+    },
+    {
+      "iteration" : 13,
+      "observedHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
+      "terminalState" : "new"
+    },
+    {
+      "iteration" : 14,
+      "observedHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
+      "terminalState" : "new"
+    },
+    {
+      "iteration" : 15,
+      "observedHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
+      "terminalState" : "new"
+    },
+    {
+      "iteration" : 16,
+      "observedHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
+      "terminalState" : "new"
+    },
+    {
+      "iteration" : 17,
+      "observedHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
+      "terminalState" : "new"
+    },
+    {
+      "iteration" : 18,
+      "observedHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
+      "terminalState" : "new"
+    },
+    {
+      "iteration" : 19,
+      "observedHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
+      "terminalState" : "new"
+    },
+    {
+      "iteration" : 20,
+      "observedHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
+      "terminalState" : "new"
+    },
+    {
+      "iteration" : 21,
+      "observedHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
+      "terminalState" : "new"
+    },
+    {
+      "iteration" : 22,
+      "observedHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
+      "terminalState" : "new"
+    },
+    {
+      "iteration" : 23,
+      "observedHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
+      "terminalState" : "new"
+    },
+    {
+      "iteration" : 24,
+      "observedHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
+      "terminalState" : "new"
+    },
+    {
+      "iteration" : 25,
+      "observedHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
+      "terminalState" : "new"
+    },
+    {
+      "iteration" : 26,
+      "observedHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
+      "terminalState" : "new"
+    },
+    {
+      "iteration" : 27,
+      "observedHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
+      "terminalState" : "new"
+    },
+    {
+      "iteration" : 28,
+      "observedHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
+      "terminalState" : "new"
+    },
+    {
+      "iteration" : 29,
+      "observedHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
+      "terminalState" : "new"
+    },
+    {
+      "iteration" : 30,
+      "observedHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
+      "terminalState" : "new"
+    },
+    {
+      "iteration" : 31,
+      "observedHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
+      "terminalState" : "new"
+    },
+    {
+      "iteration" : 32,
+      "observedHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
+      "terminalState" : "new"
+    },
+    {
+      "iteration" : 33,
+      "observedHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
+      "terminalState" : "new"
+    },
+    {
+      "iteration" : 34,
+      "observedHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
+      "terminalState" : "new"
+    },
+    {
+      "iteration" : 35,
+      "observedHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
+      "terminalState" : "new"
+    },
+    {
+      "iteration" : 36,
+      "observedHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
+      "terminalState" : "new"
+    },
+    {
+      "iteration" : 37,
+      "observedHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
+      "terminalState" : "new"
+    },
+    {
+      "iteration" : 38,
+      "observedHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
+      "terminalState" : "new"
+    },
+    {
+      "iteration" : 39,
+      "observedHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
+      "terminalState" : "new"
+    },
+    {
+      "iteration" : 40,
+      "observedHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
+      "terminalState" : "new"
+    },
+    {
+      "iteration" : 41,
+      "observedHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
+      "terminalState" : "new"
+    },
+    {
+      "iteration" : 42,
+      "observedHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
+      "terminalState" : "new"
+    },
+    {
+      "iteration" : 43,
+      "observedHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
+      "terminalState" : "new"
+    },
+    {
+      "iteration" : 44,
+      "observedHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
+      "terminalState" : "new"
+    },
+    {
+      "iteration" : 45,
+      "observedHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
+      "terminalState" : "new"
+    },
+    {
+      "iteration" : 46,
+      "observedHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
+      "terminalState" : "new"
+    },
+    {
+      "iteration" : 47,
+      "observedHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
+      "terminalState" : "new"
+    },
+    {
+      "iteration" : 48,
+      "observedHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
+      "terminalState" : "new"
+    },
+    {
+      "iteration" : 49,
+      "observedHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
+      "terminalState" : "new"
+    },
+    {
+      "iteration" : 50,
+      "observedHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
+      "terminalState" : "new"
+    },
+    {
+      "iteration" : 51,
+      "observedHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
+      "terminalState" : "new"
+    },
+    {
+      "iteration" : 52,
+      "observedHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
+      "terminalState" : "new"
+    },
+    {
+      "iteration" : 53,
+      "observedHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
+      "terminalState" : "new"
+    },
+    {
+      "iteration" : 54,
+      "observedHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
+      "terminalState" : "new"
+    },
+    {
+      "iteration" : 55,
+      "observedHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
+      "terminalState" : "new"
+    },
+    {
+      "iteration" : 56,
+      "observedHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
+      "terminalState" : "new"
+    },
+    {
+      "iteration" : 57,
+      "observedHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
+      "terminalState" : "new"
+    },
+    {
+      "iteration" : 58,
+      "observedHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
+      "terminalState" : "new"
+    },
+    {
+      "iteration" : 59,
+      "observedHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
+      "terminalState" : "new"
+    },
+    {
+      "iteration" : 60,
+      "observedHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
+      "terminalState" : "new"
+    },
+    {
+      "iteration" : 61,
+      "observedHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
+      "terminalState" : "new"
+    },
+    {
+      "iteration" : 62,
+      "observedHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
+      "terminalState" : "new"
+    },
+    {
+      "iteration" : 63,
+      "observedHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
+      "terminalState" : "new"
+    },
+    {
+      "iteration" : 64,
+      "observedHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
+      "terminalState" : "new"
+    },
+    {
+      "iteration" : 65,
+      "observedHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
+      "terminalState" : "new"
+    },
+    {
+      "iteration" : 66,
+      "observedHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
+      "terminalState" : "new"
+    },
+    {
+      "iteration" : 67,
+      "observedHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
+      "terminalState" : "new"
+    },
+    {
+      "iteration" : 68,
+      "observedHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
+      "terminalState" : "new"
+    },
+    {
+      "iteration" : 69,
+      "observedHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
+      "terminalState" : "new"
+    },
+    {
+      "iteration" : 70,
+      "observedHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
+      "terminalState" : "new"
+    },
+    {
+      "iteration" : 71,
+      "observedHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
+      "terminalState" : "new"
+    },
+    {
+      "iteration" : 72,
+      "observedHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
+      "terminalState" : "new"
+    },
+    {
+      "iteration" : 73,
+      "observedHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
+      "terminalState" : "new"
+    },
+    {
+      "iteration" : 74,
+      "observedHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
+      "terminalState" : "new"
+    },
+    {
+      "iteration" : 75,
+      "observedHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
+      "terminalState" : "new"
+    },
+    {
+      "iteration" : 76,
+      "observedHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
+      "terminalState" : "new"
+    },
+    {
+      "iteration" : 77,
+      "observedHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
+      "terminalState" : "new"
+    },
+    {
+      "iteration" : 78,
+      "observedHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
+      "terminalState" : "new"
+    },
+    {
+      "iteration" : 79,
+      "observedHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
+      "terminalState" : "new"
+    },
+    {
+      "iteration" : 80,
+      "observedHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
+      "terminalState" : "new"
+    },
+    {
+      "iteration" : 81,
+      "observedHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
+      "terminalState" : "new"
+    },
+    {
+      "iteration" : 82,
+      "observedHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
+      "terminalState" : "new"
+    },
+    {
+      "iteration" : 83,
+      "observedHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
+      "terminalState" : "new"
+    },
+    {
+      "iteration" : 84,
+      "observedHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
+      "terminalState" : "new"
+    },
+    {
+      "iteration" : 85,
+      "observedHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
+      "terminalState" : "new"
+    },
+    {
+      "iteration" : 86,
+      "observedHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
+      "terminalState" : "new"
+    },
+    {
+      "iteration" : 87,
+      "observedHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
+      "terminalState" : "new"
+    },
+    {
+      "iteration" : 88,
+      "observedHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
+      "terminalState" : "new"
+    },
+    {
+      "iteration" : 89,
+      "observedHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
+      "terminalState" : "new"
+    },
+    {
+      "iteration" : 90,
+      "observedHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
+      "terminalState" : "new"
+    },
+    {
+      "iteration" : 91,
+      "observedHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
+      "terminalState" : "new"
+    },
+    {
+      "iteration" : 92,
+      "observedHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
+      "terminalState" : "new"
+    },
+    {
+      "iteration" : 93,
+      "observedHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
+      "terminalState" : "new"
+    },
+    {
+      "iteration" : 94,
+      "observedHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
+      "terminalState" : "new"
+    },
+    {
+      "iteration" : 95,
+      "observedHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
+      "terminalState" : "new"
+    },
+    {
+      "iteration" : 96,
+      "observedHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
+      "terminalState" : "new"
+    },
+    {
+      "iteration" : 97,
+      "observedHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
+      "terminalState" : "new"
+    },
+    {
+      "iteration" : 98,
+      "observedHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
+      "terminalState" : "new"
+    },
+    {
+      "iteration" : 99,
+      "observedHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
+      "terminalState" : "new"
+    },
+    {
+      "iteration" : 100,
+      "observedHash" : "2cb935677307c042f44e31a79d70d75be69c9d4d62c6b18aeb48c664852dcd28",
+      "terminalState" : "new"
+    }
+  ],
+  "verdict" : "PASS"
+}

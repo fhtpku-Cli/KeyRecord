@@ -21,9 +21,54 @@ trap 'interrupt 129' HUP
 script_dir="$(cd "$(dirname "$0")" && pwd)"
 source "$script_dir/task-2-qa-lib.sh"
 
-if [[ "${1:-}" != "1" && "${1:-}" != "2" && "${1:-}" != "3" ]]; then
+if [[ "${1:-}" != "1" && "${1:-}" != "2" && "${1:-}" != "3" && "${1:-}" != "4" ]]; then
   printf 'Task %s QA is not implemented by scaffold task 1.\n' "${1:-missing}" >&2
   exit 64
+fi
+
+if [[ "$1" == "4" ]]; then
+  case "${2:-}" in
+    happy)
+      output=".omo/evidence/task-4-phase-0-validation.txt"
+      : >"$tmp_dir/qa.log"
+      runner_commit="$(GIT_MASTER=1 git rev-parse HEAD)"
+      runner_tree="$(GIT_MASTER=1 git rev-parse HEAD^{tree})"
+      result="$tmp_dir/result.json"
+      if task2_run_logged "$tmp_dir/qa.log" swift run --package-path Spikes Phase0Probe atomicity --output "$result" --environment evidence/phase0/environment.json --iterations 100 --runner-commit "$runner_commit" --runner-tree "$runner_tree" \
+        && task2_run_logged "$tmp_dir/qa.log" jq -e '
+          .newHash as $newHash | .oldHash as $oldHash |
+          .verdict == "PASS" and .ordinaryRenameObservedAtomic == true and .exchangeRenameNeeded == false and
+          (.successfulExecutions | length) == 100 and
+          ([.successfulExecutions[] | select(.terminalState != "new" or .observedHash != $newHash)] | length) == 0 and
+          (.boundaries | length) == 8 and ([.boundaries[] | select((.observedHash != $oldHash and .observedHash != $newHash) or .staleTemporaryFilesAfterCleanup != 0)] | length) == 0 and
+          (.failures | length) == 4 and ([.failures[] | select((.observedHash != $oldHash and .observedHash != $newHash) or .temporaryFilesAfterCleanup != 0)] | length) == 0 and
+          .citedBy == ["SP-3", "SP-6A"]
+        ' "$result" \
+        && task2_run_logged "$tmp_dir/qa.log" bash -c 'cd "$1" && exec shasum -a 256 -c manifest.sha256' _ evidence/phase0/shared-atomicity; then
+        { printf 'TASK_4_HAPPY=PASS\nOBSERVABLE=100/100 complete new-image hashes; 8 crash boundaries old-or-new; ordinary APFS rename observed; manifest verified\n'; cat "$tmp_dir/qa.log"; } >"$output"
+      else
+        { printf 'TASK_4_HAPPY=FAIL\n'; cat "$tmp_dir/qa.log"; } >"$output"
+        exit 1
+      fi
+      ;;
+    failure)
+      output=".omo/evidence/task-4-phase-0-validation-failure.txt"
+      : >"$tmp_dir/qa.log"
+      failures=0
+      for test_name in testWriteFailure testFileFsyncFailure testRenameFailure testDirectoryFsyncFailure testCrashAtEachBoundary; do
+        task2_run_logged "$tmp_dir/qa.log" swift test --package-path Spikes --filter "AtomicReplacementTests.$test_name" || failures=$((failures + 1))
+      done
+      if [[ "$failures" -eq 0 ]]; then
+        { printf 'TASK_4_NEGATIVE=PASS\nOBSERVABLE=write-temp, file-fsync, rename, directory-fsync, and all 8 crash-boundary injections accepted only complete old/new targets; stale temps cleaned\n'; cat "$tmp_dir/qa.log"; } >"$output"
+      else
+        { printf 'TASK_4_NEGATIVE=FAIL\nfailures=%s\n' "$failures"; cat "$tmp_dir/qa.log"; } >"$output"
+        exit 1
+      fi
+      ;;
+    *) printf 'Usage: %s 4 happy|failure\n' "$0" >&2; exit 64 ;;
+  esac
+  /usr/bin/grep -E '^TASK_4_(HAPPY|NEGATIVE)=' "$output"
+  exit 0
 fi
 
 if [[ "$1" == "3" ]]; then

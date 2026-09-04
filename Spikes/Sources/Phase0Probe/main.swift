@@ -4,13 +4,16 @@ import Foundation
 import IOKit.hid
 import Phase0Support
 
-@main
 public enum Phase0ProbeCommand {
     public static func main() {
         do {
             let arguments = Array(CommandLine.arguments.dropFirst())
             if arguments == ["help"] || arguments.isEmpty {
-                print("Phase0Probe development spike harness; supported command: preflight --output <path>")
+                print("Phase0Probe development spike harness; supported commands: preflight, atomicity")
+                return
+            }
+            if arguments.first == "atomicity" {
+                try AtomicityProbe.run(arguments: arguments)
                 return
             }
             guard arguments.count == 3, arguments[0] == "preflight", arguments[1] == "--output" else {
@@ -18,7 +21,7 @@ public enum Phase0ProbeCommand {
             }
             try writePreflight(to: URL(fileURLWithPath: arguments[2]))
         } catch ProbeError.usage {
-            FileHandle.standardError.write(Data("Usage: Phase0Probe preflight --output <path>\n".utf8))
+            FileHandle.standardError.write(Data("Usage: Phase0Probe preflight --output <path> | atomicity --output <path> --environment <path> --iterations 100 --runner-commit <sha> --runner-tree <sha>\n".utf8))
             Foundation.exit(64)
         } catch {
             FileHandle.standardError.write(Data("Phase0Probe preflight failed: \(error)\n".utf8))
@@ -148,8 +151,10 @@ public enum Phase0ProbeCommand {
     }
 }
 
-private enum ProbeError: Error { case usage }
+enum ProbeError: Error { case usage }
 
 private func probeTapCallback(proxy: CGEventTapProxy, type: CGEventType, event: CGEvent, userInfo: UnsafeMutableRawPointer?) -> Unmanaged<CGEvent>? {
     Unmanaged.passUnretained(event)
 }
+
+Phase0ProbeCommand.main()

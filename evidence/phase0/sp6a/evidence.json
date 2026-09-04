@@ -15,13 +15,13 @@
       "evidenceKind" : "fixture",
       "exitStatus" : 0,
       "legID" : "sp6a.atomicity",
-      "runnerCommitSha" : "5f23254eed31e438ceac000b63e073b3c4e61eca",
-      "runnerTreeSha" : "15c91d0872023c2d9ed0acdbd1873c9dcdcfbf56",
+      "runnerCommitSha" : "a9c4441248ff13adc01e8a03879f039178a334af",
+      "runnerTreeSha" : "2e43e7422be60257eb7407adf15f5b3277f50d09",
       "verdict" : "PASS"
     },
     {
       "artifactPath" : "crypto.json",
-      "artifactSha256" : "cc984719efad34e18c4320b921619fd989a947c6698633767f14d6b461b209bd",
+      "artifactSha256" : "8ab599a0ac3c880dcb8ba25cf0384d379959661b9b6a23d0e1dcc3cf1f1c397e",
       "command" : [
         "Phase0Probe",
         "sp6a",
@@ -34,8 +34,8 @@
       "evidenceKind" : "fixture",
       "exitStatus" : 0,
       "legID" : "sp6a.envelope",
-      "runnerCommitSha" : "5f23254eed31e438ceac000b63e073b3c4e61eca",
-      "runnerTreeSha" : "15c91d0872023c2d9ed0acdbd1873c9dcdcfbf56",
+      "runnerCommitSha" : "a9c4441248ff13adc01e8a03879f039178a334af",
+      "runnerTreeSha" : "2e43e7422be60257eb7407adf15f5b3277f50d09",
       "verdict" : "PASS"
     },
     {
@@ -53,8 +53,8 @@
       "evidenceKind" : "fixture",
       "exitStatus" : 0,
       "legID" : "sp6a.hkdfLocator",
-      "runnerCommitSha" : "5f23254eed31e438ceac000b63e073b3c4e61eca",
-      "runnerTreeSha" : "15c91d0872023c2d9ed0acdbd1873c9dcdcfbf56",
+      "runnerCommitSha" : "a9c4441248ff13adc01e8a03879f039178a334af",
+      "runnerTreeSha" : "2e43e7422be60257eb7407adf15f5b3277f50d09",
       "verdict" : "PASS"
     },
     {
@@ -76,8 +76,8 @@
       "environmentSha256" : "6b3288f5983cbce231295762d3f8381b8467d6dbe2e74fff0e17a1aebf7215f4",
       "evidenceKind" : "live",
       "legID" : "sp6a.keychainAfterFirstUnlock",
-      "runnerCommitSha" : "5f23254eed31e438ceac000b63e073b3c4e61eca",
-      "runnerTreeSha" : "15c91d0872023c2d9ed0acdbd1873c9dcdcfbf56",
+      "runnerCommitSha" : "a9c4441248ff13adc01e8a03879f039178a334af",
+      "runnerTreeSha" : "2e43e7422be60257eb7407adf15f5b3277f50d09",
       "verdict" : "BLOCKED"
     },
     {
@@ -99,8 +99,8 @@
       "environmentSha256" : "6b3288f5983cbce231295762d3f8381b8467d6dbe2e74fff0e17a1aebf7215f4",
       "evidenceKind" : "live",
       "legID" : "sp6a.keychainSelection",
-      "runnerCommitSha" : "5f23254eed31e438ceac000b63e073b3c4e61eca",
-      "runnerTreeSha" : "15c91d0872023c2d9ed0acdbd1873c9dcdcfbf56",
+      "runnerCommitSha" : "a9c4441248ff13adc01e8a03879f039178a334af",
+      "runnerTreeSha" : "2e43e7422be60257eb7407adf15f5b3277f50d09",
       "verdict" : "BLOCKED"
     },
     {
@@ -122,13 +122,13 @@
       "environmentSha256" : "6b3288f5983cbce231295762d3f8381b8467d6dbe2e74fff0e17a1aebf7215f4",
       "evidenceKind" : "live",
       "legID" : "sp6a.keychainWhenUnlocked",
-      "runnerCommitSha" : "5f23254eed31e438ceac000b63e073b3c4e61eca",
-      "runnerTreeSha" : "15c91d0872023c2d9ed0acdbd1873c9dcdcfbf56",
+      "runnerCommitSha" : "a9c4441248ff13adc01e8a03879f039178a334af",
+      "runnerTreeSha" : "2e43e7422be60257eb7407adf15f5b3277f50d09",
       "verdict" : "BLOCKED"
     },
     {
       "artifactPath" : "path-canary.json",
-      "artifactSha256" : "5a17a0c3f6bd0f6a29b8e9b606364e47b12a989e57efcfc46bcf1f7503186ec7",
+      "artifactSha256" : "08044a33e0c8f511fadbdd1cca504dedfd7cdf1723eeeac6375fa9de5c59e989",
       "command" : [
         "Phase0Probe",
         "sp6a",
@@ -141,8 +141,8 @@
       "evidenceKind" : "fixture",
       "exitStatus" : 0,
       "legID" : "sp6a.pathCanary",
-      "runnerCommitSha" : "5f23254eed31e438ceac000b63e073b3c4e61eca",
-      "runnerTreeSha" : "15c91d0872023c2d9ed0acdbd1873c9dcdcfbf56",
+      "runnerCommitSha" : "a9c4441248ff13adc01e8a03879f039178a334af",
+      "runnerTreeSha" : "2e43e7422be60257eb7407adf15f5b3277f50d09",
       "verdict" : "PASS"
     },
     {
@@ -160,30 +160,33 @@
       "evidenceKind" : "source",
       "exitStatus" : 0,
       "legID" : "sp6a.securityAudit",
-      "runnerCommitSha" : "5f23254eed31e438ceac000b63e073b3c4e61eca",
-      "runnerTreeSha" : "15c91d0872023c2d9ed0acdbd1873c9dcdcfbf56",
+      "runnerCommitSha" : "a9c4441248ff13adc01e8a03879f039178a334af",
+      "runnerTreeSha" : "2e43e7422be60257eb7407adf15f5b3277f50d09",
       "verdict" : "PASS"
     }
   ],
   "runnerSourceSha256" : {
     "Spikes/Scripts/audit-security.sh" : "990c8fa6d513627eb71e2db9b994f282d5f6636da2c52b9be388e5fdf37abfb2",
-    "Spikes/Scripts/run-task-qa.sh" : "c2c47739cd21f50c8941d68978f8159d248b40116c6e539e2c2eca3939b37d35",
+    "Spikes/Scripts/run-task-qa.sh" : "1e047ac241caca6068395f112b7537ff7af2e02473800edea3902cc42d0ab8d3",
     "Spikes/Sources/EvidenceValidator/AtomicityHistoricalValidator.swift" : "de6d7857a2f4dbd52075f924d5b2d89fef53d12851500eb1cc55d831cf89d1c2",
     "Spikes/Sources/EvidenceValidator/Canonical.swift" : "ab34555220fea7b5fcbc667e6a082ac98d5de0820c06cdf45f400d559320b2d8",
     "Spikes/Sources/EvidenceValidator/EvidenceValidatorCommand.swift" : "ad475e046b8639ec1a16664f3fac828877b8327088e2cb9d0a5687347ae0524c",
     "Spikes/Sources/EvidenceValidator/GitRunner.swift" : "ca3f1ba4a52173c54e45aaccbcf453e989a368da83e0c6f452373e8a0feffafb",
-    "Spikes/Sources/EvidenceValidator/SP6ADirectoryValidator.swift" : "55a97f85910220e220e591957a706f3f27b32c43a3fb5b6c07cbcd56ae71b243",
+    "Spikes/Sources/EvidenceValidator/SP6ADirectoryValidator.swift" : "2b1e5ae4361bd467dfa14dfcc5687cf2df21ac791163ec39b90ed27cf29f5a33",
+    "Spikes/Sources/EvidenceValidator/SP6ANamespaceValidator.swift" : "beddf447be945d3353ceefa1c45b4c958d4fec75f584466fea0b64182e958e09",
     "Spikes/Sources/EvidenceValidator/ValidatorError.swift" : "93bb3aee3aac5fa3322fdf8ff04743eb275bbac228ce60f72e3bdc071da4e06e",
     "Spikes/Sources/Phase0Probe/AtomicityRunnerIdentity.swift" : "e4f42429273aab519df207a9c1a269238e34e87f685e70e4a7342dad27391c13",
-    "Spikes/Sources/Phase0Probe/SP6AKeychainProbe.swift" : "35ac2f5e41bca0a58de2652833c8bb845f618c434667984b3373ded688e83d73",
-    "Spikes/Sources/Phase0Probe/SP6AProbe.swift" : "feac21ad98087dcc14900e2164c206e7eaeab1fc803fdfa9bfdad9371361af46",
+    "Spikes/Sources/Phase0Probe/SP6AKeychainProbe.swift" : "fe4e02a139220f0073ccbf900112621d20389e9076c96e7d3600513af817f664",
+    "Spikes/Sources/Phase0Probe/SP6AProbe.swift" : "91e858e5514c6e3ec0428ec1ed434dbdbdecd6fb8869554bd555601cbda1b248",
     "Spikes/Sources/Phase0Probe/main.swift" : "911975ead8289e93f36b317525b2ecbf72cbafbba14c3d125af242bdc6d0a8d9",
     "Spikes/Sources/Phase0Support/AuthenticatedStorage.swift" : "3770862e01a7af157acb35d5dd2c43b7d6f72925d76e84c7b5ba4d9c96f85e16",
     "Spikes/Sources/Phase0Support/Registries.swift" : "7b3bcb90f3f96ec5c0aea80acf45a16008e6cf5fc0b6b79a9ad0be0900c057fa",
-    "Spikes/Sources/Phase0Support/SP6AArtifacts.swift" : "8989c5db29e98db256fe6177ce0792e49587735f6da80674c18dbcaa3ef7f904",
-    "Spikes/Sources/Phase0Support/SP6AEvidence.swift" : "b9a13b0a80089485c359895fa632117dc263966392efabdc40da68771fb15ade",
-    "Spikes/Tests/EvidenceValidatorTests/SP6AValidatorTests.swift" : "fcf70f9120865e3ef526a13151efa6051993db49a974ae478e1463027d0d1154",
-    "Spikes/Tests/Phase0ProbeTests/Phase0ProbeTests.swift" : "ea101e6ef5d0877cd539ddd2fdca00e523f2bcd8f11aaf201a48521bc559eeb5",
+    "Spikes/Sources/Phase0Support/SP6AArtifacts.swift" : "79dc2150af63a10aa254a11f4d81eb7542adf8e8f3089932e4d0e12d29c60bd8",
+    "Spikes/Sources/Phase0Support/SP6AEvidence.swift" : "22b950126ba761d9d460cedcb5778b63fe1a9f5ba19eb59fa0a3a0607b429d2f",
+    "Spikes/Sources/Phase0Support/SP6ANamespaceEvidence.swift" : "09d3e809d2d205760ba3e946a57c8ea80c60ae8a051bf6e54d05fcd2b0d1bc58",
+    "Spikes/Tests/EvidenceValidatorTests/SP6ANamespaceValidatorTests.swift" : "1cc66887dec037248d16dfd0576d224169608fcf61211c1987a1719d76262ebf",
+    "Spikes/Tests/EvidenceValidatorTests/SP6AValidatorTests.swift" : "c487ee68807d75d12e1986ba9297ae3192251527c3be406389e4a400a0159769",
+    "Spikes/Tests/Phase0ProbeTests/Phase0ProbeTests.swift" : "a3052a69cbaafe0b5f821384caa0e1b2999fbe197a53192bb6d0e0f488da6091",
     "Spikes/Tests/Phase0SupportTests/StorageSecurityTests.swift" : "019dcc49914b348cdebe0aaa96b948e9f12cade4eb790a9cf7710359e387c7de"
   },
   "schemaVersion" : 1,

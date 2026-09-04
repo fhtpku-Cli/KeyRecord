@@ -24,6 +24,7 @@
     "magic",
     "formatVersion",
     "algorithm",
+    "flags",
     "keyVersion",
     "locator",
     "nonce",
@@ -43,6 +44,10 @@
     },
     {
       "caseID" : "algorithm",
+      "rejected" : true
+    },
+    {
+      "caseID" : "flags",
       "rejected" : true
     },
     {

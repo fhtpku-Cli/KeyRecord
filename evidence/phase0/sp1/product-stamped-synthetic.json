@@ -1,23 +1,27 @@
-[
-  {
-    "dropped" : true,
-    "isAutoRepeat" : false,
-    "keyCode" : 4,
-    "kind" : "keyDown",
-    "marker" : 5427492104824964435
-  },
-  {
-    "dropped" : true,
-    "isAutoRepeat" : false,
-    "keyCode" : 4,
-    "kind" : "keyUp",
-    "marker" : 5427492104824964435
-  },
-  {
-    "dropped" : true,
-    "isAutoRepeat" : false,
-    "keyCode" : 4,
-    "kind" : "flagsChanged",
-    "marker" : 5427492104824964435
-  }
-]
+{
+  "evidenceKind" : "synthetic",
+  "productStampedSynthetic" : true,
+  "records" : [
+    {
+      "dropped" : true,
+      "isAutoRepeat" : false,
+      "keyCode" : 4,
+      "kind" : "keyDown",
+      "marker" : 5427492104824964435
+    },
+    {
+      "dropped" : true,
+      "isAutoRepeat" : false,
+      "keyCode" : 4,
+      "kind" : "keyUp",
+      "marker" : 5427492104824964435
+    },
+    {
+      "dropped" : true,
+      "isAutoRepeat" : false,
+      "keyCode" : 4,
+      "kind" : "flagsChanged",
+      "marker" : 5427492104824964435
+    }
+  ]
+}

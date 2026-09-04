@@ -1,6 +1,28 @@
 import CryptoKit
 import Foundation
 
+public enum SP6AKeychainNamespace {
+    public static let prefix = "com.keyrecord.phase0.sp6a."
+
+    public static func isValid(_ service: String) -> Bool {
+        guard service.hasPrefix(prefix) else { return false }
+        let suffix = String(service.dropFirst(prefix.count))
+        guard suffix.count == 36, let uuid = UUID(uuidString: suffix), suffix == uuid.uuidString.lowercased() else { return false }
+        let characters = Array(suffix.utf8)
+        return characters[14] == 52 && [56, 57, 97, 98].contains(characters[19])
+    }
+}
+
+public struct SP6ACryptoCaseResult: Codable, Equatable, Sendable {
+    public let caseID: String
+    public let rejected: Bool
+
+    public init(caseID: String, rejected: Bool) {
+        self.caseID = caseID
+        self.rejected = rejected
+    }
+}
+
 public struct SP6ACryptoArtifact: Codable, Equatable, Sendable {
     public let algorithm: String
     public let formatVersion: Int
@@ -13,7 +35,8 @@ public struct SP6ACryptoArtifact: Codable, Equatable, Sendable {
     public let roundTripPassed: Bool
     public let authenticatedHeaderFields: [String]
     public let tamperRejected: Bool
-    public let tamperCases: [String]
+    public var tamperCases: [String]
+    public var tamperResults: [SP6ACryptoCaseResult]
     public let wrongKeyRejected: Bool
     public let missingKeyRejected: Bool
     public let plaintextAbsentFromEnvelope: Bool
@@ -74,10 +97,25 @@ public struct SP6AKeychainCandidate: Codable, Equatable, Sendable {
     }
 }
 
+public struct SP6AKeychainCleanupReceipt: Codable, Equatable, Sendable {
+    public let service: String
+    public let preCleanupStatus: Int32
+    public let postCleanupStatus: Int32
+    public let residueQueryStatus: Int32
+    public let residueCount: Int
+
+    public init(service: String, preCleanupStatus: Int32, postCleanupStatus: Int32, residueQueryStatus: Int32, residueCount: Int) {
+        self.service = service
+        self.preCleanupStatus = preCleanupStatus
+        self.postCleanupStatus = postCleanupStatus
+        self.residueQueryStatus = residueQueryStatus
+        self.residueCount = residueCount
+    }
+}
+
 public struct SP6AKeychainArtifact: Codable, Equatable, Sendable {
     public let service: String
     public let dataProtectionKeychain: Bool
-    public let preCleanupStatus: Int32
     public let candidates: [SP6AKeychainCandidate]
     public let selection: String?
     public let selectionVerdict: Verdict
@@ -86,22 +124,25 @@ public struct SP6AKeychainArtifact: Codable, Equatable, Sendable {
     public let restartAttempted: Bool
     public let crossDeviceRestoreVerdict: Verdict
     public let crossDeviceRestoreReason: String
-    public let postCleanupStatus: Int32
-    public let residueQueryStatus: Int32
-    public let residueCount: Int
+    public let cleanupReceipt: SP6AKeychainCleanupReceipt
     public let keyBytesPersistedOutsideKeychain: Bool
 
+    public var preCleanupStatus: Int32 { cleanupReceipt.preCleanupStatus }
+    public var postCleanupStatus: Int32 { cleanupReceipt.postCleanupStatus }
+    public var residueQueryStatus: Int32 { cleanupReceipt.residueQueryStatus }
+    public var residueCount: Int { cleanupReceipt.residueCount }
+
     public init(
-        service: String, dataProtectionKeychain: Bool, preCleanupStatus: Int32, candidates: [SP6AKeychainCandidate],
+        service: String, dataProtectionKeychain: Bool, candidates: [SP6AKeychainCandidate],
         selection: String?, selectionVerdict: Verdict, selectionReason: String, hostLockAttempted: Bool,
         restartAttempted: Bool, crossDeviceRestoreVerdict: Verdict, crossDeviceRestoreReason: String,
-        postCleanupStatus: Int32, residueQueryStatus: Int32, residueCount: Int, keyBytesPersistedOutsideKeychain: Bool
+        cleanupReceipt: SP6AKeychainCleanupReceipt, keyBytesPersistedOutsideKeychain: Bool
     ) {
-        self.service = service; self.dataProtectionKeychain = dataProtectionKeychain; self.preCleanupStatus = preCleanupStatus
+        self.service = service; self.dataProtectionKeychain = dataProtectionKeychain
         self.candidates = candidates; self.selection = selection; self.selectionVerdict = selectionVerdict; self.selectionReason = selectionReason
         self.hostLockAttempted = hostLockAttempted; self.restartAttempted = restartAttempted
         self.crossDeviceRestoreVerdict = crossDeviceRestoreVerdict; self.crossDeviceRestoreReason = crossDeviceRestoreReason
-        self.postCleanupStatus = postCleanupStatus; self.residueQueryStatus = residueQueryStatus; self.residueCount = residueCount
+        self.cleanupReceipt = cleanupReceipt
         self.keyBytesPersistedOutsideKeychain = keyBytesPersistedOutsideKeychain
     }
 }
@@ -134,11 +175,13 @@ public enum SP6AScenarios {
     public static let vectorObjectID = Data("synthetic-object-42".utf8)
     public static let vectorMasterKey = SymmetricKey(data: Data(0..<32))
     public static let expectedLocator = "b9c0bbfa794d054814fabaf3e3d88e33c732f72abcd020fb2ec0c06c49575f5b"
+    public static let authenticatedHeaderFields = ["magic", "formatVersion", "algorithm", "flags", "keyVersion", "opaqueLocator", "nonce", "ciphertextLength"]
+    public static let tamperCaseIDs = ["magic", "formatVersion", "algorithm", "keyVersion", "locator", "nonce", "ciphertextLength", "ciphertext", "tag"]
 
     public static func crypto() throws -> SP6ACryptoArtifact {
         let plaintext = Data("KR-SP6A-SYNTHETIC-CANARY".utf8)
         let locator = StorageKeySchedule.locator(masterKey: vectorMasterKey, objectID: vectorObjectID)
-        var detector = NonceReuseDetector(), nonces = Set<Data>(), tamperPassed = true
+        var detector = NonceReuseDetector(), nonces = Set<Data>()
         var sampleEnvelope = Data()
         for index in 0..<256 {
             let envelope = try AuthenticatedStorageEnvelope.seal(plaintext, masterKey: vectorMasterKey, keyVersion: 7, locator: locator)
@@ -150,10 +193,15 @@ public enum SP6AScenarios {
         let parsed = try AuthenticatedStorageEnvelope.parse(sampleEnvelope)
         let indices = [0, 4, 5, 8, 12, 44, 56, AuthenticatedStorageEnvelope.headerByteCount,
                        AuthenticatedStorageEnvelope.headerByteCount + parsed.ciphertext.count]
-        for index in indices {
+        var tamperResults: [SP6ACryptoCaseResult] = []
+        for (caseID, index) in zip(tamperCaseIDs, indices) {
             var changed = sampleEnvelope; changed[index] ^= 1
-            if (try? AuthenticatedStorageEnvelope.open(changed, keys: [7: vectorMasterKey])) != nil { tamperPassed = false }
+            tamperResults.append(SP6ACryptoCaseResult(
+                caseID: caseID,
+                rejected: (try? AuthenticatedStorageEnvelope.open(changed, keys: [7: vectorMasterKey])) == nil
+            ))
         }
+        let tamperPassed = tamperResults.allSatisfy(\.rejected)
         let duplicateRejected: Bool
         do { try detector.record(parsed.header.nonce, keyVersion: 7); duplicateRejected = false }
         catch StorageEnvelopeError.duplicateNonce { duplicateRejected = true }
@@ -162,9 +210,10 @@ public enum SP6AScenarios {
             tagByteCount: parsed.tag.count, randomNonceSamples: 256, uniqueNonceCount: nonces.count,
             duplicateNonceRejected: duplicateRejected,
             roundTripPassed: try AuthenticatedStorageEnvelope.open(sampleEnvelope, keys: [7: vectorMasterKey]) == plaintext,
-            authenticatedHeaderFields: ["magic", "formatVersion", "algorithm", "flags", "keyVersion", "opaqueLocator", "nonce", "ciphertextLength"],
+            authenticatedHeaderFields: authenticatedHeaderFields,
             tamperRejected: tamperPassed,
-            tamperCases: ["magic", "formatVersion", "algorithm", "keyVersion", "locator", "nonce", "ciphertextLength", "ciphertext", "tag"],
+            tamperCases: tamperCaseIDs,
+            tamperResults: tamperResults,
             wrongKeyRejected: (try? AuthenticatedStorageEnvelope.open(sampleEnvelope, keys: [7: SymmetricKey(size: .bits256)])) == nil,
             missingKeyRejected: (try? AuthenticatedStorageEnvelope.open(sampleEnvelope, keys: [:])) == nil,
             plaintextAbsentFromEnvelope: sampleEnvelope.range(of: plaintext) == nil, fallbackUsed: false
@@ -214,7 +263,8 @@ public enum SP6AScenarios {
         artifact.algorithm == "AES-256-GCM" && artifact.formatVersion == 1 && artifact.headerByteCount == 64
             && artifact.nonceByteCount == 12 && artifact.tagByteCount == 16 && artifact.randomNonceSamples == 256
             && artifact.uniqueNonceCount == 256 && artifact.duplicateNonceRejected && artifact.roundTripPassed
-            && artifact.authenticatedHeaderFields.count == 8 && artifact.tamperRejected && artifact.tamperCases.count == 9
+            && artifact.authenticatedHeaderFields == authenticatedHeaderFields && artifact.tamperRejected && artifact.tamperCases == tamperCaseIDs
+            && artifact.tamperResults.map(\.caseID) == tamperCaseIDs && artifact.tamperResults.allSatisfy(\.rejected)
             && artifact.wrongKeyRejected && artifact.missingKeyRejected && artifact.plaintextAbsentFromEnvelope && !artifact.fallbackUsed
     }
 

@@ -30,6 +30,9 @@ final class StorageSecurityTests: XCTestCase {
             changed[index] ^= 1
             XCTAssertThrowsError(try AuthenticatedStorageEnvelope.open(changed, keys: [7: master]), "index \(index)")
         }
+        let canonical = try SP6AScenarios.crypto()
+        XCTAssertEqual(canonical.tamperResults.map(\.caseID), SP6AScenarios.tamperCaseIDs)
+        XCTAssertTrue(canonical.tamperResults.allSatisfy(\.rejected))
     }
 
     func testWrongMissingAndDeletedVersionKeysFailWithoutFallback() throws {

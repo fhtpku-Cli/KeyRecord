@@ -270,7 +270,9 @@ final class Phase0ProbeTests: XCTestCase {
         let artifact = try SP6AKeychainProbe.run(service: service)
 
         XCTAssertTrue(FileManager.default.fileExists(atPath: ready.path))
+        XCTAssertTrue(SP6AKeychainProbe.validService(service))
         XCTAssertEqual(artifact.service, service)
+        XCTAssertEqual(artifact.cleanupReceipt.service, service)
         XCTAssertTrue(artifact.candidates.isEmpty)
         XCTAssertEqual(artifact.preCleanupStatus, -34018)
         XCTAssertEqual(artifact.postCleanupStatus, -34018)
@@ -280,6 +282,14 @@ final class Phase0ProbeTests: XCTestCase {
         XCTAssertFalse(artifact.restartAttempted)
         XCTAssertEqual(SP6AKeychainProbe.residueQuery(service).status, -25300)
         XCTAssertEqual(SP6AKeychainProbe.residueQuery(service).count, 0)
+    }
+
+    func testSP6ARejectsStaticNamespaceBeforeKeychainAccess() {
+        let service = SP6AKeychainProbe.servicePrefix + "00000000-0000-0000-0000-000000000000"
+        XCTAssertFalse(SP6AKeychainProbe.validService(service))
+        XCTAssertThrowsError(try SP6AKeychainProbe.run(service: service)) {
+            XCTAssertEqual($0 as? SP6AKeychainError, .invalidNamespace)
+        }
     }
 
     func testSP6AMalformedEnvironmentInvalidatesStaleDestinationWithoutKeychainUse() throws {

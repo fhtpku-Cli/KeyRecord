@@ -32,6 +32,15 @@ public enum SP6AValidationError: String, Error, Equatable {
     case invalidRunnerSourceSet, misleadingSelection, missingLeg
 }
 
+public enum SP6AD9Blocker {
+    public static let expected = SP1Blocker(
+        blockedBy: "data_protection_keychain_entitlement_unavailable",
+        detectCommand: ["SecItemDelete", "isolated-random-service", "kSecUseDataProtectionKeychain=true"],
+        prerequisite: "signed probe runner with an application identifier entitlement and isolated data-protection Keychain access",
+        unblockAction: "Run the same bound probe from a separately approved signed helper without locking, logging out, or restarting the host"
+    )
+}
+
 public struct SP6AEvidence: Codable, Equatable, Sendable {
     public static let requiredLegIDs = Set(Phase0Registry.legRules.keys.filter { $0.hasPrefix("sp6a.") })
     public var schemaVersion: Int
@@ -61,7 +70,7 @@ public struct SP6AEvidence: Codable, Equatable, Sendable {
                   leg.runnerCommitSha == first.runnerCommitSha, leg.runnerTreeSha == first.runnerTreeSha,
                   leg.environmentSha256.isLowercaseSHA256 else { throw SP6AValidationError.invalidProvenance }
             if leg.detectorID == "D9", !leg.detectorAvailable {
-                guard leg.verdict == .blocked, leg.blocker?.complete == true, leg.command.isEmpty, leg.exitStatus == nil,
+                guard leg.verdict == .blocked, leg.blocker == SP6AD9Blocker.expected, leg.command.isEmpty, leg.exitStatus == nil,
                       leg.artifactPath == nil, leg.artifactSha256 == nil else { throw SP6AValidationError.invalidBlocker }
             } else {
                 guard leg.detectorAvailable, leg.blocker == nil, !leg.command.isEmpty, leg.exitStatus == 0,

@@ -4,12 +4,12 @@ import Phase0Support
 import Security
 
 enum SP6AKeychainProbe {
-    static let servicePrefix = "com.keyrecord.phase0.sp6a."
+    static let servicePrefix = SP6AKeychainNamespace.prefix
     static let candidateAccounts = ["after-first-unlock", "when-unlocked"]
 
     static func command(arguments: [String]) throws {
         guard arguments.count == 4, arguments[0] == "sp6a-keychain", arguments[2] == "--service",
-              arguments[3].hasPrefix(servicePrefix), arguments[3].count == servicePrefix.count + 36 else {
+              validService(arguments[3]) else {
             throw ProbeError.usage
         }
         switch arguments[1] {
@@ -26,7 +26,7 @@ enum SP6AKeychainProbe {
     }
 
     static func run(service: String = servicePrefix + UUID().uuidString.lowercased()) throws -> SP6AKeychainArtifact {
-        guard service.hasPrefix(servicePrefix), service.count == servicePrefix.count + 36 else { throw SP6AKeychainError.invalidNamespace }
+        guard validService(service) else { throw SP6AKeychainError.invalidNamespace }
         let cleanup = SP6AKeychainSignalCleanup(service: service)
         if let path = ProcessInfo.processInfo.environment["KEYRECORD_SP6A_TEST_READY_FILE"] {
             try Data().write(to: URL(fileURLWithPath: path), options: .atomic)
@@ -39,12 +39,15 @@ enum SP6AKeychainProbe {
             }
             let residue = residueQuery(service)
             return SP6AKeychainArtifact(
-                service: service, dataProtectionKeychain: true, preCleanupStatus: preCleanup, candidates: [],
+                service: service, dataProtectionKeychain: true, candidates: [],
                 selection: nil, selectionVerdict: .blocked,
                 selectionReason: "D9 is unavailable: the isolated data-protection Keychain namespace requires an application identifier entitlement not present on this SwiftPM runner.",
                 hostLockAttempted: false, restartAttempted: false, crossDeviceRestoreVerdict: .blocked,
                 crossDeviceRestoreReason: "No separately approved second-device backup/restore environment is available.",
-                postCleanupStatus: errSecMissingEntitlement, residueQueryStatus: residue.status, residueCount: residue.count,
+                cleanupReceipt: SP6AKeychainCleanupReceipt(
+                    service: service, preCleanupStatus: preCleanup, postCleanupStatus: errSecMissingEntitlement,
+                    residueQueryStatus: residue.status, residueCount: residue.count
+                ),
                 keyBytesPersistedOutsideKeychain: false
             )
         }
@@ -62,14 +65,21 @@ enum SP6AKeychainProbe {
             throw SP6AKeychainError.lifecycleFailure
         }
         return SP6AKeychainArtifact(
-            service: service, dataProtectionKeychain: true, preCleanupStatus: preCleanup, candidates: candidates,
+            service: service, dataProtectionKeychain: true, candidates: candidates,
             selection: nil, selectionVerdict: .inconclusive,
             selectionReason: "Unlocked add/read/attribute/delete observations cannot establish locked or background-after-first-unlock lifecycle behavior; host lock, logout, and restart are forbidden.",
             hostLockAttempted: false, restartAttempted: false, crossDeviceRestoreVerdict: .blocked,
             crossDeviceRestoreReason: "No separately approved second-device backup/restore environment is available.",
-            postCleanupStatus: postCleanup, residueQueryStatus: residue.status, residueCount: residue.count,
+            cleanupReceipt: SP6AKeychainCleanupReceipt(
+                service: service, preCleanupStatus: preCleanup, postCleanupStatus: postCleanup,
+                residueQueryStatus: residue.status, residueCount: residue.count
+            ),
             keyBytesPersistedOutsideKeychain: false
         )
+    }
+
+    static func validService(_ service: String) -> Bool {
+        SP6AKeychainNamespace.isValid(service)
     }
 
     static func deleteNamespace(_ service: String) -> OSStatus {
@@ -153,7 +163,7 @@ enum SP6AKeychainProbe {
     }
 }
 
-enum SP6AKeychainError: Error { case invalidNamespace, lifecycleFailure }
+enum SP6AKeychainError: Error, Equatable { case invalidNamespace, lifecycleFailure }
 
 private let errSecMissingEntitlement = OSStatus(-34018)
 

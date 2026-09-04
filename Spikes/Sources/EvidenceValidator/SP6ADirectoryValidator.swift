@@ -34,13 +34,13 @@ enum SP6ADirectoryValidator {
 
     static func validateArtifacts(_ directory: URL) throws {
         let crypto: SP6ACryptoArtifact = try exactDecode(directory, "crypto.json", code: "sp6a_crypto_invalid")
-        guard SP6AScenarios.valid(crypto) else { throw ValidatorError("sp6a_crypto_invalid") }
+        try validateCrypto(crypto)
         let locator: SP6ALocatorArtifact = try exactDecode(directory, "locator.json", code: "sp6a_locator_invalid")
         guard SP6AScenarios.valid(locator), locator == SP6AScenarios.locator() else { throw ValidatorError("sp6a_locator_invalid") }
         let canary: SP6APathCanaryArtifact = try exactDecode(directory, "path-canary.json", code: "sp6a_path_canary_invalid")
         guard SP6AScenarios.valid(canary) else { throw ValidatorError("sp6a_path_canary_invalid") }
         let keychain: SP6AKeychainArtifact = try exactDecode(directory, "keychain.json", code: "sp6a_keychain_cleanup_invalid")
-        guard validKeychain(keychain) else { throw ValidatorError("sp6a_keychain_cleanup_invalid") }
+        try validateKeychain(keychain)
         guard let audit = try? String(contentsOf: directory.appendingPathComponent("security-audit.md"), encoding: .utf8) else { throw ValidatorError("sp6a_security_audit_invalid") }
         do { try SecurityAuditValidator.validate(audit) } catch { throw ValidatorError("sp6a_security_audit_invalid") }
     }
@@ -102,22 +102,43 @@ enum SP6ADirectoryValidator {
         }
     }
 
-    private static func validKeychain(_ value: SP6AKeychainArtifact) -> Bool {
+    private static func validateCrypto(_ value: SP6ACryptoArtifact) throws {
+        guard value.authenticatedHeaderFields == SP6AScenarios.authenticatedHeaderFields,
+              value.tamperCases == SP6AScenarios.tamperCaseIDs,
+              value.tamperResults.map(\.caseID) == SP6AScenarios.tamperCaseIDs else {
+            throw ValidatorError("sp6a_crypto_case_set_mismatch")
+        }
+        let canonical: SP6ACryptoArtifact
+        do { canonical = try SP6AScenarios.crypto() }
+        catch { throw ValidatorError("sp6a_crypto_canonical_execution_failed") }
+        guard value == canonical else { throw ValidatorError("sp6a_crypto_canonical_mismatch") }
+    }
+
+    private static func validateKeychain(_ value: SP6AKeychainArtifact) throws {
+        guard SP6AKeychainNamespace.isValid(value.service) else { throw ValidatorError("sp6a_keychain_namespace_invalid") }
+        guard value.cleanupReceipt.service == value.service else { throw ValidatorError("sp6a_keychain_cleanup_namespace_mismatch") }
+        guard !value.selectionReason.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              !value.crossDeviceRestoreReason.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            throw ValidatorError("sp6a_keychain_reason_missing")
+        }
+        guard value.cleanupReceipt.residueQueryStatus == -25300, value.cleanupReceipt.residueCount == 0 else {
+            throw ValidatorError("sp6a_keychain_residue_invalid")
+        }
         let expected = [
             "sp6a.keychainAfterFirstUnlock": "cku",
             "sp6a.keychainWhenUnlocked": "aku",
         ]
-        let common = value.service.hasPrefix("com.keyrecord.phase0.sp6a.") && value.dataProtectionKeychain
+        let common = value.dataProtectionKeychain
             && !value.hostLockAttempted && !value.restartAttempted && value.crossDeviceRestoreVerdict == .blocked
-            && value.residueQueryStatus == -25300 && value.residueCount == 0 && !value.keyBytesPersistedOutsideKeychain
-        let blocked = value.preCleanupStatus == -34018 && value.postCleanupStatus == -34018 && value.candidates.isEmpty
+            && !value.keyBytesPersistedOutsideKeychain
+        let blocked = value.cleanupReceipt.preCleanupStatus == -34018 && value.cleanupReceipt.postCleanupStatus == -34018 && value.candidates.isEmpty
             && value.selection == nil && value.selectionVerdict == .blocked
-        let available = value.preCleanupStatus == -25300 && value.candidates.count == 2
+        let available = value.cleanupReceipt.preCleanupStatus == -25300 && value.candidates.count == 2
             && Set(value.candidates.map(\.legID)) == Set(expected.keys)
             && value.candidates.allSatisfy { expected[$0.legID] == $0.accessibility && $0.addStatus == 0 && $0.readStatus == 0 && $0.attributesStatus == 0 && $0.deleteStatus == 0
                 && $0.valueMatched && $0.accessibilityMatched && $0.synchronizableMatched && !$0.synchronizable && !$0.lifecycleEstablished }
-            && value.selection == nil && value.selectionVerdict == .inconclusive && value.postCleanupStatus == -25300
-        return common && (blocked || available)
+            && value.selection == nil && value.selectionVerdict == .inconclusive && value.cleanupReceipt.postCleanupStatus == -25300
+        guard common && (blocked || available) else { throw ValidatorError("sp6a_keychain_contract_invalid") }
     }
 
     private static func validateConclusion(_ directory: URL, evidence: SP6AEvidence) throws {

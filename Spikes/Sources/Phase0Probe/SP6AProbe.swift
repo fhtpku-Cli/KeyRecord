@@ -34,12 +34,7 @@ enum SP6AProbe {
             if rule.detectorID == "D9", !d9Available {
                 return SP6ALeg(
                     legID: id, evidenceKind: rule.evidenceKind, detectorID: rule.detectorID, detectorAvailable: false, verdict: .blocked,
-                    blocker: SP1Blocker(
-                        blockedBy: "data_protection_keychain_entitlement_unavailable",
-                        detectCommand: ["SecItemDelete", "isolated-random-service", "kSecUseDataProtectionKeychain=true"],
-                        prerequisite: "signed probe runner with an application identifier entitlement and isolated data-protection Keychain access",
-                        unblockAction: "Run the same bound probe from a separately approved signed helper without locking, logging out, or restarting the host"
-                    ),
+                    blocker: SP6AD9Blocker.expected,
                     runnerCommitSha: identity.commitSha, runnerTreeSha: identity.treeSha, environmentSha256: environmentHash,
                     command: [], exitStatus: nil, artifactPath: nil, artifactSha256: nil
                 )

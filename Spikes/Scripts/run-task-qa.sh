@@ -76,8 +76,8 @@ if [[ "$1" == "10" ]]; then
       && task2_run_logged "$tmp_dir/qa.log" bash Spikes/Scripts/audit-security.sh sp6a "$output/security-audit.md" \
       && task2_run_logged "$tmp_dir/qa.log" "$validator" validate-atomicity evidence/phase0/shared-atomicity \
       && task2_run_logged "$tmp_dir/qa.log" jq -e '(.legs | length) == 8 and ((.verdict == "INCONCLUSIVE" and ([.legs[] | select(.verdict == "PASS")] | length) == 7 and ([.legs[] | select(.verdict == "INCONCLUSIVE") | .legID]) == ["sp6a.keychainSelection"]) or (.verdict == "BLOCKED" and ([.legs[] | select(.verdict == "PASS")] | length) == 5 and ([.legs[] | select(.verdict == "BLOCKED") | .legID] | sort) == ["sp6a.keychainAfterFirstUnlock","sp6a.keychainSelection","sp6a.keychainWhenUnlocked"]))' "$output/evidence.json" \
-      && task2_run_logged "$tmp_dir/qa.log" jq -e '.dataProtectionKeychain and .selection == null and (.hostLockAttempted | not) and (.restartAttempted | not) and .residueCount == 0 and .residueQueryStatus == -25300 and (.keyBytesPersistedOutsideKeychain | not) and (((.candidates | length) == 2 and .selectionVerdict == "INCONCLUSIVE" and all(.candidates[]; .addStatus == 0 and .readStatus == 0 and .attributesStatus == 0 and .deleteStatus == 0 and .valueMatched and .accessibilityMatched and .synchronizableMatched and (.synchronizable | not) and (.lifecycleEstablished | not))) or ((.candidates | length) == 0 and .selectionVerdict == "BLOCKED" and .preCleanupStatus == -34018 and .postCleanupStatus == -34018))' "$output/keychain.json" \
-      && task2_run_logged "$tmp_dir/qa.log" jq -e '.nonceByteCount == 12 and .uniqueNonceCount == 256 and .randomNonceSamples == 256 and .duplicateNonceRejected and .tamperRejected and .wrongKeyRejected and .missingKeyRejected and .plaintextAbsentFromEnvelope and (.fallbackUsed | not)' "$output/crypto.json" \
+      && task2_run_logged "$tmp_dir/qa.log" jq -e '.dataProtectionKeychain and .selection == null and (.selectionReason | length) > 0 and (.crossDeviceRestoreReason | length) > 0 and (.hostLockAttempted | not) and (.restartAttempted | not) and .cleanupReceipt.service == .service and .cleanupReceipt.residueCount == 0 and .cleanupReceipt.residueQueryStatus == -25300 and (.keyBytesPersistedOutsideKeychain | not) and (((.candidates | length) == 2 and .selectionVerdict == "INCONCLUSIVE" and all(.candidates[]; .addStatus == 0 and .readStatus == 0 and .attributesStatus == 0 and .deleteStatus == 0 and .valueMatched and .accessibilityMatched and .synchronizableMatched and (.synchronizable | not) and (.lifecycleEstablished | not))) or ((.candidates | length) == 0 and .selectionVerdict == "BLOCKED" and .cleanupReceipt.preCleanupStatus == -34018 and .cleanupReceipt.postCleanupStatus == -34018))' "$output/keychain.json" \
+      && task2_run_logged "$tmp_dir/qa.log" jq -e '.nonceByteCount == 12 and .uniqueNonceCount == 256 and .randomNonceSamples == 256 and .duplicateNonceRejected and .tamperRejected and (.tamperResults | map(.caseID)) == ["magic","formatVersion","algorithm","keyVersion","locator","nonce","ciphertextLength","ciphertext","tag"] and all(.tamperResults[]; .rejected) and .wrongKeyRejected and .missingKeyRejected and .plaintextAbsentFromEnvelope and (.fallbackUsed | not)' "$output/crypto.json" \
       && task2_run_logged "$tmp_dir/qa.log" jq -e '.kdf == "HKDF-SHA256" and .hmac == "HMAC-SHA256" and .labelsDistinct and .derivedKeysDistinct and .expectedLocator == .observedLocator' "$output/locator.json" \
       && task2_run_logged "$tmp_dir/qa.log" jq -e '.semanticPathHits == 0 and .plaintextCanaryHits == 0 and .plaintextFileCount == 0 and .manifestEncrypted and .temporaryStorageRemoved' "$output/path-canary.json" \
       && task2_run_logged "$tmp_dir/qa.log" "$probe" sp6a-keychain residue --service "$service" \
@@ -91,11 +91,21 @@ if [[ "$1" == "10" ]]; then
     failures=0
     task2_run_logged "$tmp_dir/qa.log" swift test --package-path Spikes --filter 'StorageSecurityTests|SP6AValidatorTests|Phase0ProbeTests.testSP6A' || failures=$((failures + 1))
     task2_run_logged "$tmp_dir/qa.log" env KEYRECORD_SP6A_TEST_SERVICE="$service" "$probe" sp6a --environment evidence/phase0/environment.json --output "$output" || failures=$((failures + 1))
-    for mutation in crypto keychain path audit; do
+    for mutation in crypto-substituted crypto-missing crypto-extra crypto-tamper-outcome crypto-wrong-key crypto-missing-key crypto-duplicate-nonce crypto-model keychain-residue keychain-reason keychain-namespace keychain-cleanup-namespace path audit; do
       forged="$tmp_dir/forged-$mutation"; cp -R "$output" "$forged"
       case "$mutation" in
-        crypto) jq '.tamperRejected = false' "$forged/crypto.json" >"$tmp_dir/value"; mv "$tmp_dir/value" "$forged/crypto.json";;
-        keychain) jq '.residueCount = 1' "$forged/keychain.json" >"$tmp_dir/value"; mv "$tmp_dir/value" "$forged/keychain.json";;
+        crypto-substituted) jq '.tamperCases[-1] = "invented-untested-region"' "$forged/crypto.json" >"$tmp_dir/value"; mv "$tmp_dir/value" "$forged/crypto.json";;
+        crypto-missing) jq 'del(.tamperCases[-1])' "$forged/crypto.json" >"$tmp_dir/value"; mv "$tmp_dir/value" "$forged/crypto.json";;
+        crypto-extra) jq '.tamperCases += ["extra-untested-region"]' "$forged/crypto.json" >"$tmp_dir/value"; mv "$tmp_dir/value" "$forged/crypto.json";;
+        crypto-tamper-outcome) jq '.tamperResults[0].rejected = false' "$forged/crypto.json" >"$tmp_dir/value"; mv "$tmp_dir/value" "$forged/crypto.json";;
+        crypto-wrong-key) jq '.wrongKeyRejected = false' "$forged/crypto.json" >"$tmp_dir/value"; mv "$tmp_dir/value" "$forged/crypto.json";;
+        crypto-missing-key) jq '.missingKeyRejected = false' "$forged/crypto.json" >"$tmp_dir/value"; mv "$tmp_dir/value" "$forged/crypto.json";;
+        crypto-duplicate-nonce) jq '.duplicateNonceRejected = false' "$forged/crypto.json" >"$tmp_dir/value"; mv "$tmp_dir/value" "$forged/crypto.json";;
+        crypto-model) jq '.randomNonceSamples = 255' "$forged/crypto.json" >"$tmp_dir/value"; mv "$tmp_dir/value" "$forged/crypto.json";;
+        keychain-residue) jq '.cleanupReceipt.residueCount = 1' "$forged/keychain.json" >"$tmp_dir/value"; mv "$tmp_dir/value" "$forged/keychain.json";;
+        keychain-reason) jq '.selectionReason = ""' "$forged/keychain.json" >"$tmp_dir/value"; mv "$tmp_dir/value" "$forged/keychain.json";;
+        keychain-namespace) jq '.service = "com.keyrecord.phase0.sp6a.static" | .cleanupReceipt.service = .service' "$forged/keychain.json" >"$tmp_dir/value"; mv "$tmp_dir/value" "$forged/keychain.json";;
+        keychain-cleanup-namespace) jq '.cleanupReceipt.service = "com.keyrecord.phase0.sp6a.d734f036-11c7-4d2c-9158-c50ab6156d1e"' "$forged/keychain.json" >"$tmp_dir/value"; mv "$tmp_dir/value" "$forged/keychain.json";;
         path) jq '.semanticPathHits = 1' "$forged/path-canary.json" >"$tmp_dir/value"; mv "$tmp_dir/value" "$forged/path-canary.json";;
         audit) perl -0pi -e 's/MED-1 \| RESOLVED/MED-1 | UNRESOLVED/' "$forged/security-audit.md";;
       esac
@@ -132,7 +142,7 @@ if [[ "$1" == "10" ]]; then
     "$probe" sp6a-keychain cleanup --service "$service" >>"$tmp_dir/qa.log" 2>&1 || failures=$((failures + 1))
     "$probe" sp6a-keychain residue --service "$service" >>"$tmp_dir/qa.log" 2>&1 || failures=$((failures + 1))
     if [[ "$failures" -eq 0 ]]; then
-      { printf 'TASK_10_NEGATIVE=PASS\nOBSERVABLE=header/AAD/ciphertext/tag mutation, wrong/missing key, duplicate nonce, semantic path, plaintext canary, disk fault, unresolved Medium, malformed evidence/manifest, stale output, dirty runner tests, re-manifest forgeries, normalized model runs, and INT/TERM/HUP twice all rejected without fallback\nCLEANUP=every exact random Keychain namespace pre/post deleted and residue queried; interrupted outputs absent\n'; cat "$tmp_dir/qa.log"; } >"$publish_temp"
+      { printf 'TASK_10_NEGATIVE=PASS\nOBSERVABLE=closed header/AAD/ciphertext/tag identity set, missing/extra/substituted cases, canonical outcome/model drift, wrong/missing key, duplicate nonce, UUID namespace/reason/cleanup receipt/residue forgeries, semantic path, plaintext canary, disk fault, unresolved Medium, malformed evidence/manifest, stale output, dirty runner tests, normalized model runs, and INT/TERM/HUP twice all rejected without fallback\nCLEANUP=every exact random Keychain namespace pre/post deleted and residue queried; interrupted outputs absent\n'; cat "$tmp_dir/qa.log"; } >"$publish_temp"
     else exit 1; fi
   fi
   "$probe" sp6a-keychain cleanup --service "$service" >/dev/null 2>&1 || true

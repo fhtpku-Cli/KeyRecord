@@ -1,0 +1,53 @@
+{
+  "cases" : [
+    {
+      "dataDelta" : 1,
+      "metaDelta" : 1,
+      "outcome" : "bundle",
+      "scenario" : "known"
+    },
+    {
+      "dataDelta" : 1,
+      "metaDelta" : 1,
+      "outcome" : "UNKNOWN",
+      "scenario" : "knownUnattributable"
+    },
+    {
+      "dataDelta" : 0,
+      "metaDelta" : 0,
+      "outcome" : "closed",
+      "scenario" : "indeterminate"
+    },
+    {
+      "dataDelta" : 0,
+      "metaDelta" : 0,
+      "outcome" : "closed",
+      "scenario" : "excludedApp"
+    },
+    {
+      "dataDelta" : 0,
+      "metaDelta" : 0,
+      "outcome" : "closed",
+      "scenario" : "secureInputEnabled"
+    },
+    {
+      "dataDelta" : 0,
+      "metaDelta" : 0,
+      "outcome" : "closed",
+      "scenario" : "secureInputUnknown"
+    },
+    {
+      "dataDelta" : 0,
+      "metaDelta" : 0,
+      "outcome" : "closed",
+      "scenario" : "tapReset"
+    },
+    {
+      "dataDelta" : 0,
+      "metaDelta" : 0,
+      "outcome" : "closed",
+      "scenario" : "sleepWake"
+    }
+  ],
+  "evidenceKind" : "fixture"
+}

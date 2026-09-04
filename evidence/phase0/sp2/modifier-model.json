@@ -1,0 +1,39 @@
+{
+  "deterministicRecovery" : true,
+  "evidenceKind" : "fixture",
+  "families" : {
+    "command" : [
+      "none",
+      "left",
+      "right",
+      "both",
+      "activeSideUnknown"
+    ],
+    "control" : [
+      "none",
+      "left",
+      "right",
+      "both",
+      "activeSideUnknown"
+    ],
+    "option" : [
+      "none",
+      "left",
+      "right",
+      "both",
+      "activeSideUnknown"
+    ],
+    "shift" : [
+      "none",
+      "left",
+      "right",
+      "both",
+      "activeSideUnknown"
+    ]
+  },
+  "fnStates" : [
+    "knownNone",
+    "knownActive",
+    "unknown"
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "verdict": "BLOCKED",
+  "detectorAvailable": false,
+  "blocker": {
+    "blocked_by": "physical_intel_macos14_host_unavailable",
+    "detect_command": [
+      "uname",
+      "-m"
+    ],
+    "prerequisite": "physical x86_64 Mac running macOS 14 or later",
+    "unblock_action": "Run the bound benchmark with frozen recommended parameters on a physical Intel macOS 14+ host"
+  },
+  "frozenParameters": {
+    "candidate": "phc",
+    "memoryKiB": 524288,
+    "iterations": 5,
+    "parallelism": 4,
+    "saltLength": 16
+  }
+}

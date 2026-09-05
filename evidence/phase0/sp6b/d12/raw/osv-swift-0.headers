@@ -1,0 +1,11 @@
+HTTP/2 200
+content-type: application/json
+date: Sat, 05 Sep 2026 06:32:06 GMT
+server: Google Frontend
+x-cloud-trace-context: 9adf7d51ae66181e11803d69006432a5/10076566300078399805
+traceparent: 00-9adf7d51ae66181e11803d69006432a5-8bd727a977d8613d-00
+alt-svc: h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+grpc-status: 0
+grpc-message:
+content-length: 2
+x-envoy-decorator-operation: ingress QueryAffected

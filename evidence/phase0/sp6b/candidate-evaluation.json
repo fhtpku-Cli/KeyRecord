@@ -1,0 +1,58 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-09-05T06:32:08Z",
+  "dependencyFrozen": false,
+  "recommendation": "phc",
+  "eligibleCandidateIDs": [
+    "phc",
+    "swift"
+  ],
+  "candidates": [
+    {
+      "id": "phc",
+      "canonicalURL": "https://github.com/P-H-C/phc-winner-argon2.git",
+      "commit": "f57e61e19229e23c4445b85494dbf7c07de721cb",
+      "tree": "ac3dc753ff75ce5a0f243cba1d94582bafe09409",
+      "latestCommitDate": "2021-06-25T08:21:15Z",
+      "pedigree": "phcReference",
+      "runtimeDependencyCount": 0,
+      "sourceLOC": 2988,
+      "licenseApproved": true,
+      "vectorsPassed": true,
+      "dualArchMacOS14Build": true,
+      "minimumMacOSMajor": 10,
+      "unresolvedSignificantFindings": 0
+    },
+    {
+      "id": "swift",
+      "canonicalURL": "https://github.com/MarlonJD/argon2id-swift-native.git",
+      "commit": "14d47de1914ac63b368ddb2cfe0f47ffe25f04cf",
+      "tree": "4bb860f4c47b4b327ea207da3fe7a007a05c7b81",
+      "latestCommitDate": "2026-05-25T11:13:33Z",
+      "pedigree": "independent",
+      "runtimeDependencyCount": 0,
+      "sourceLOC": 558,
+      "licenseApproved": true,
+      "vectorsPassed": true,
+      "dualArchMacOS14Build": true,
+      "minimumMacOSMajor": 10,
+      "unresolvedSignificantFindings": 0
+    }
+  ],
+  "scores": {
+    "phc": {
+      "pedigree": 3,
+      "dependencies": 2,
+      "maintenance": 0,
+      "dualArchBuild": 2,
+      "sourceSize": 1
+    },
+    "swift": {
+      "pedigree": 1,
+      "dependencies": 2,
+      "maintenance": 2,
+      "dualArchBuild": 2,
+      "sourceSize": 1
+    }
+  }
+}

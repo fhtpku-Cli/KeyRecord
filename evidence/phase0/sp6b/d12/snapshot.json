@@ -1,0 +1,146 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-09-05T06:32:08Z",
+  "candidates": [
+    {
+      "id": "phc",
+      "ownerRepo": "P-H-C/phc-winner-argon2",
+      "commit": "f57e61e19229e23c4445b85494dbf7c07de721cb",
+      "github": [
+        {
+          "url": "https://api.github.com/repos/P-H-C/phc-winner-argon2/security-advisories?per_page=100",
+          "requestBody": null,
+          "status": 200,
+          "retrievedAt": "2026-09-05T06:32:03Z",
+          "headersSha256": "64e91d787e914e82f3c3602bf1283cb4a000f9a22fe9d60b07d02753fc46b2ab",
+          "rawBodySha256": "2ba33ca0557f1bb5b7ba88d67f9d0093c7185a36ec51fe2b7bd9372d3e001d6d",
+          "headersPath": "raw/github-phc-0.headers",
+          "rawBodyPath": "raw/github-phc-0.json",
+          "next": null
+        }
+      ],
+      "osv": [
+        {
+          "request": {
+            "url": "https://api.osv.dev/v1/query",
+            "requestBody": "{\"commit\":\"f57e61e19229e23c4445b85494dbf7c07de721cb\"}",
+            "status": 200,
+            "retrievedAt": "2026-09-05T06:32:03Z",
+            "headersSha256": "c7f33cd8c4e7d87229316cc59ef223795313d462b42d40c96d09102acdacca32",
+            "rawBodySha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+            "headersPath": "raw/osv-phc-0.headers",
+            "rawBodyPath": "raw/osv-phc-0.json",
+            "next": null
+          },
+          "responseNextPageToken": null
+        }
+      ]
+    },
+    {
+      "id": "swift",
+      "ownerRepo": "MarlonJD/argon2id-swift-native",
+      "commit": "14d47de1914ac63b368ddb2cfe0f47ffe25f04cf",
+      "github": [
+        {
+          "url": "https://api.github.com/repos/MarlonJD/argon2id-swift-native/security-advisories?per_page=100",
+          "requestBody": null,
+          "status": 200,
+          "retrievedAt": "2026-09-05T06:32:03Z",
+          "headersSha256": "ac28ddb3cfa65e7abdb722ed767f553ac6c88ba5371d0100fd965eb7295e6fd6",
+          "rawBodySha256": "2ba33ca0557f1bb5b7ba88d67f9d0093c7185a36ec51fe2b7bd9372d3e001d6d",
+          "headersPath": "raw/github-swift-0.headers",
+          "rawBodyPath": "raw/github-swift-0.json",
+          "next": null
+        }
+      ],
+      "osv": [
+        {
+          "request": {
+            "url": "https://api.osv.dev/v1/query",
+            "requestBody": "{\"commit\":\"14d47de1914ac63b368ddb2cfe0f47ffe25f04cf\"}",
+            "status": 200,
+            "retrievedAt": "2026-09-05T06:32:03Z",
+            "headersSha256": "24517e6c53130cac3d4edd959cbd2ed5a45566cd0569ca403c8d9c55cf8b6320",
+            "rawBodySha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+            "headersPath": "raw/osv-swift-0.headers",
+            "rawBodyPath": "raw/osv-swift-0.json",
+            "next": null
+          },
+          "responseNextPageToken": null
+        }
+      ]
+    }
+  ],
+  "nvd": {
+    "pages": [
+      {
+        "request": {
+          "url": "https://services.nvd.nist.gov/rest/json/cves/2.0?keywordSearch=argon2&resultsPerPage=2000",
+          "requestBody": null,
+          "status": 200,
+          "retrievedAt": "2026-09-05T06:32:03Z",
+          "headersSha256": "c3b30de29238652d1151200f9c4f566b22c7afeb781e9f22cefb328b887506a8",
+          "rawBodySha256": "67e226f2725eb7c55ba3afcedebb621a32e56b6ebd6ab0269a96e28158b05372",
+          "headersPath": "raw/nvd-0.headers",
+          "rawBodyPath": "raw/nvd-0.json",
+          "next": null
+        },
+        "startIndex": 0,
+        "resultsPerPage": 10,
+        "totalResults": 10,
+        "vulnerabilities": [
+          {
+            "cveID": "CVE-2023-27481",
+            "impact": "none",
+            "rationale": "CVE-2023-27481 is an application, language binding, or non-candidate implementation keyword hit; neither exact pinned repository is affected"
+          },
+          {
+            "cveID": "CVE-2026-25222",
+            "impact": "none",
+            "rationale": "CVE-2026-25222 is an application, language binding, or non-candidate implementation keyword hit; neither exact pinned repository is affected"
+          },
+          {
+            "cveID": "CVE-2026-8463",
+            "impact": "none",
+            "rationale": "CVE-2026-8463 is an application, language binding, or non-candidate implementation keyword hit; neither exact pinned repository is affected"
+          },
+          {
+            "cveID": "CVE-2026-56124",
+            "impact": "none",
+            "rationale": "CVE-2026-56124 is an application, language binding, or non-candidate implementation keyword hit; neither exact pinned repository is affected"
+          },
+          {
+            "cveID": "CVE-2026-59648",
+            "impact": "none",
+            "rationale": "CVE-2026-59648 is an application, language binding, or non-candidate implementation keyword hit; neither exact pinned repository is affected"
+          },
+          {
+            "cveID": "CVE-2026-48084",
+            "impact": "none",
+            "rationale": "CVE-2026-48084 is an application, language binding, or non-candidate implementation keyword hit; neither exact pinned repository is affected"
+          },
+          {
+            "cveID": "CVE-2026-72801",
+            "impact": "none",
+            "rationale": "CVE-2026-72801 is an application, language binding, or non-candidate implementation keyword hit; neither exact pinned repository is affected"
+          },
+          {
+            "cveID": "CVE-2026-81704",
+            "impact": "none",
+            "rationale": "CVE-2026-81704 is an application, language binding, or non-candidate implementation keyword hit; neither exact pinned repository is affected"
+          },
+          {
+            "cveID": "CVE-2026-81721",
+            "impact": "none",
+            "rationale": "CVE-2026-81721 is an application, language binding, or non-candidate implementation keyword hit; neither exact pinned repository is affected"
+          },
+          {
+            "cveID": "CVE-2026-53720",
+            "impact": "none",
+            "rationale": "CVE-2026-53720 is an application, language binding, or non-candidate implementation keyword hit; neither exact pinned repository is affected"
+          }
+        ]
+      }
+    ]
+  }
+}

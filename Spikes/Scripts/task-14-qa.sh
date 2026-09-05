@@ -95,16 +95,25 @@ else
   set +e; (cd "$dirty_repo" && "$dirty_bin" run-all --environment "$source_environment" --output "$tmp_dir/dirty") >>"$log" 2>&1; status=$?; set -e
   [[ "$status" -ne 0 && ! -e "$tmp_dir/dirty" ]] || failures=$((failures + 1))
   for signal_name in INT TERM HUP; do
-    for phase in early child; do
+    for phase in early child final; do
       signal_output="$tmp_dir/signal-${signal_name}-${phase}"
-      if [[ "$phase" == early ]]; then delay_env="KEYRECORD_RUN_ALL_TEST_DELAY_AFTER_TEMP=3"; else delay_env="KEYRECORD_RUN_ALL_TEST_DELAY_DURING_CHILD=3"; fi
-      env "$delay_env" "$probe" run-all --environment evidence/phase0/environment.json --output "$signal_output" >>"$log" 2>&1 & child=$!
-      ready=false; for _ in {1..100}; do compgen -G "$tmp_dir/.phase0.*.tmp" >/dev/null && { ready=true; break; }; sleep 0.05; done
-      [[ "$phase" == early ]] || sleep 0.25
+      ready_file="$tmp_dir/ready-${signal_name}-${phase}"
+      case "$phase" in
+        early) delay_env="KEYRECORD_RUN_ALL_TEST_DELAY_AFTER_TEMP=3" ;;
+        child) delay_env="KEYRECORD_RUN_ALL_TEST_DELAY_DURING_CHILD=3" ;;
+        final) delay_env="KEYRECORD_RUN_ALL_TEST_DELAY_BEFORE_PUBLISH=3"; mkdir "$signal_output"; printf 'old-complete\n' >"$signal_output/complete" ;;
+      esac
+      env "$delay_env" KEYRECORD_RUN_ALL_TEST_READY_FILE="$ready_file" "$probe" run-all --environment evidence/phase0/environment.json --output "$signal_output" >>"$log" 2>&1 & child=$!
+      ready=false; for _ in {1..400}; do [[ -e "$ready_file" ]] && { ready=true; break; }; sleep 0.05; done
       [[ "$ready" == true ]] || failures=$((failures + 1)); kill -s "$signal_name" "$child" 2>/dev/null || failures=$((failures + 1))
       set +e; wait "$child"; status=$?; set -e
       printf 'signal=%s phase=%s exit_status=%s\n' "$signal_name" "$phase" "$status" >>"$log"
-      [[ "$status" -ne 0 && ! -e "$signal_output" ]] || failures=$((failures + 1)); compgen -G "$tmp_dir/.phase0.*.tmp" >/dev/null && failures=$((failures + 1))
+      if [[ "$phase" == final ]]; then
+        [[ "$status" -ne 0 && "$(<"$signal_output/complete")" == old-complete ]] || failures=$((failures + 1))
+      else
+        [[ "$status" -ne 0 && ! -e "$signal_output" ]] || failures=$((failures + 1))
+      fi
+      compgen -G "$tmp_dir/.phase0.*.tmp" >/dev/null && failures=$((failures + 1))
     done
   done
   if [[ "$failures" -eq 0 ]]; then

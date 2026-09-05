@@ -128,7 +128,8 @@ public enum Phase0PrivacyAudit {
             if let field = fieldKeys.first(where: forbiddenFields.contains) {
                 throw Phase0PrivacyError.forbiddenField(path, field)
             }
-            if fieldKeys.contains("keycode") {
+            let eventKey = object.keys.first { $0.precomposedStringWithCanonicalMapping.lowercased().filter(\.isLetter) == "keycode" }
+            if let eventKey, object[eventKey] is NSNumber {
                 let marker = (object["marker"] as? NSNumber)?.uint64Value
                 guard marker == ProductSyntheticMarker.value else {
                     throw Phase0PrivacyError.unmarkedEventRecord(path)

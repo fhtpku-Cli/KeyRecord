@@ -6,7 +6,7 @@ extension D12Snapshot {
         candidate(id: "swift", repo: "MarlonJD/argon2id-swift-native", commit: "14d47de1914ac63b368ddb2cfe0f47ffe25f04cf"),
     ], nvd: D12NVD(pages: [D12NVDPage(
         request: page(url: "https://services.nvd.nist.gov/rest/json/cves/2.0?keywordSearch=argon2&resultsPerPage=2000"),
-        startIndex: 0, resultsPerPage: 2_000, totalResults: 2,
+        startIndex: 0, resultsPerPage: 10, totalResults: 2,
         vulnerabilities: [
             NVDVulnerability(cveID: "CVE-2024-0001", impact: .phc, rationale: "PHC implementation named"),
             NVDVulnerability(cveID: "CVE-2024-0002", impact: .none, rationale: "unrelated product keyword match"),

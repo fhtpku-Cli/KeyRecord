@@ -53,7 +53,9 @@ enum SP6BDirectoryValidator {
         }
         let rawRoot = directory.appendingPathComponent("d12/raw")
         let actual = try regularPaths(rawRoot).map { "raw/\($0)" }
-        guard Set(actual) == referenced else { throw ValidatorError("sp6b_d12_raw_membership") }
+        guard Set(actual) == referenced else {
+            throw ValidatorError("sp6b_d12_raw_membership", "actual=\(actual.sorted()) expected=\(referenced.sorted())")
+        }
     }
 
     private static func rawPage(_ page: D12HTTPPage, directory: URL, referenced: inout Set<String>) throws -> Data {
@@ -86,7 +88,9 @@ enum SP6BDirectoryValidator {
             + snapshot.nvd.pages.flatMap { [$0.request.headersPath, $0.request.rawBodyPath] }
         let expected = SP6BDirectoryLayout.fixedArtifactNames.union(raw.map { "d12/\($0)" })
         let actual = Set(try regularPaths(directory).filter { $0 != "manifest.sha256" })
-        guard rows == expected, actual == expected else { throw ValidatorError("sp6b_manifest_membership_mismatch") }
+        guard rows == expected, actual == expected else {
+            throw ValidatorError("sp6b_manifest_membership_mismatch", "rows=\(rows.sorted()) actual=\(actual.sorted()) expected=\(expected.sorted())")
+        }
     }
 
     private static func validateCandidates(_ directory: URL) throws {
@@ -154,12 +158,13 @@ enum SP6BDirectoryValidator {
         return value
     }
     private static func regularPaths(_ root: URL) throws -> [String] {
-        guard let enumerator = FileManager.default.enumerator(at: root, includingPropertiesForKeys: [.isRegularFileKey, .isSymbolicLinkKey]) else { throw ValidatorError("sp6b_directory_missing") }
+        guard let enumerator = FileManager.default.enumerator(atPath: root.path) else { throw ValidatorError("sp6b_directory_missing") }
         return try enumerator.compactMap { item in
-            guard let url = item as? URL else { return nil }
+            guard let relative = item as? String else { return nil }
+            let url = root.appendingPathComponent(relative)
             let values = try url.resourceValues(forKeys: [.isRegularFileKey, .isSymbolicLinkKey])
             guard values.isSymbolicLink != true else { throw ValidatorError("sp6b_symlink") }
-            return values.isRegularFile == true ? String(url.path.dropFirst(root.path.count + 1)) : nil
+            return values.isRegularFile == true ? relative : nil
         }
     }
     private static func linkNext(_ headers: String) -> String? {

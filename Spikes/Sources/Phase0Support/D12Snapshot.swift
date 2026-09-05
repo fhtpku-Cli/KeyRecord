@@ -103,7 +103,8 @@ public struct D12Snapshot: Codable, Equatable, Sendable {
                 ? "https://services.nvd.nist.gov/rest/json/cves/2.0?keywordSearch=argon2&resultsPerPage=2000"
                 : "https://services.nvd.nist.gov/rest/json/cves/2.0?keywordSearch=argon2&resultsPerPage=2000&startIndex=\(page.startIndex)"
             guard page.request.url == expectedURL,
-                  page.request.requestBody == nil, page.startIndex == expectedStart, page.resultsPerPage == 2_000,
+                  page.request.requestBody == nil, page.startIndex == expectedStart,
+                  page.resultsPerPage > 0, page.resultsPerPage <= 2_000,
                   total == nil || total == page.totalResults else { throw D12ValidationError.nvdPagination }
             total = page.totalResults
             expectedStart += page.resultsPerPage

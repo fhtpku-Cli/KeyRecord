@@ -1,0 +1,269 @@
+{
+  "conclusionGenerated" : false,
+  "directories" : [
+    "fixtures",
+    "shared-atomicity",
+    "sources",
+    "sp1",
+    "sp2",
+    "sp3",
+    "sp4a",
+    "sp4b",
+    "sp5a",
+    "sp5b",
+    "sp6a",
+    "sp6b"
+  ],
+  "environmentSha256" : "6b3288f5983cbce231295762d3f8381b8467d6dbe2e74fff0e17a1aebf7215f4",
+  "rootArtifacts" : [
+    "README.md",
+    "environment.json",
+    "privacy-audit.json",
+    "run-all.json"
+  ],
+  "runnerCommitSha" : "958d3d275e08bd302fa3a24d22af3e9c242e3409",
+  "runnerSourceSha256" : {
+    "Spikes/Scripts/run-task-qa.sh" : "bcea44c9434fba8b6189344f0b983590cb8566ab85956e8c25d95ae058ae8a78",
+    "Spikes/Scripts/task-14-qa.sh" : "b442ceeced5c70e32c1b984b1a82e916f57b1e786a45cb14654837e222684cac",
+    "Spikes/Sources/EvidenceValidator/EvidenceValidatorCommand.swift" : "bad4d3113ca2fdff9e99b051fbfe6d42fc8d406c71b3b23df17f5dc1436ce30b",
+    "Spikes/Sources/EvidenceValidator/Phase0RootValidator.swift" : "512596233425ce27d26f37a429e2376b643e04ecca959351b96dbcdefc8d5e4c",
+    "Spikes/Sources/Phase0Probe/RunAllProbe.swift" : "a726b18c798d5c94bfcc1b1fce9c4fcf9f8fd12c517cb2b3b560f459bf9578c0",
+    "Spikes/Sources/Phase0Probe/main.swift" : "4f12c425094d0e4516a5bad751cda12f24fee482ca63213904bbfb36f391e0c4",
+    "Spikes/Sources/Phase0Support/Phase0Privacy.swift" : "f058de6eb5af8afb03815ce8c41a129d4a55d8344f49372d9fcb37470d66a711",
+    "Spikes/Sources/Phase0Support/Phase0RunReceipt.swift" : "a80ce1e641410293ece210a79942b2646c8d02ca204a7ceb47d0831f82bffd7b",
+    "Spikes/Tests/EvidenceValidatorTests/Phase0RootValidatorTests.swift" : "1ca739d9e46743c75b0327b60d6cd274fec3283f29fe0bbf1b9b324582b38cda",
+    "Spikes/Tests/Phase0ProbeTests/RunAllProbeTests.swift" : "0a65653229b8c7b601183fb79986ff8cfa85363b7130c5817c4fb543c2a284fd"
+  },
+  "runnerTreeSha" : "a09c3cf977f3491acc0359ecebf0892b5cbce042",
+  "schemaVersion" : 1,
+  "stages" : [
+    {
+      "artifactSha256" : "6b3288f5983cbce231295762d3f8381b8467d6dbe2e74fff0e17a1aebf7215f4",
+      "command" : [
+        "Phase0Probe",
+        "run-all",
+        "preflight",
+        "--environment",
+        "environment.json"
+      ],
+      "exitStatus" : 0,
+      "id" : "preflight",
+      "policy" : "validated-preserved",
+      "stderr" : "",
+      "stdout" : "validated supplied immutable environment\n",
+      "verdict" : "PASS"
+    },
+    {
+      "artifactSha256" : "aa9b42551e188e38fe264406045e71bc2782d38f919ae6aa4c1e02f54814e7ea",
+      "command" : [
+        "Phase0Probe",
+        "atomicity",
+        "--output",
+        "shared-atomicity/observed-result.json",
+        "--environment",
+        "environment.json",
+        "--iterations",
+        "100"
+      ],
+      "exitStatus" : 0,
+      "id" : "shared-atomicity",
+      "policy" : "executed-observation;canonical-preserved",
+      "stderr" : "",
+      "stdout" : "ATOMICITY=PASS executions=100 boundaries=8 failures=4 output=${OUTPUT_ROOT}/.atomicity-observed.json\nobserved_result_sha256=b60809cef81ffc0a5629de3fdd4d3f3307429deb275ed33ab18ca66a96e2df7a\n",
+      "verdict" : "PASS"
+    },
+    {
+      "command" : [
+        "Phase0Probe",
+        "sp1",
+        "--environment",
+        "environment.json",
+        "--output",
+        "sp1"
+      ],
+      "exitStatus" : 0,
+      "id" : "sp1",
+      "policy" : "regenerated-canonical",
+      "stderr" : "",
+      "stdout" : "SP1=BLOCKED selectedTapIdentity=NONE g0=OPEN output=${OUTPUT_ROOT}/sp1\n",
+      "verdict" : "BLOCKED"
+    },
+    {
+      "command" : [
+        "Phase0Probe",
+        "sp2",
+        "--environment",
+        "environment.json",
+        "--output",
+        "sp2"
+      ],
+      "exitStatus" : 0,
+      "id" : "sp2",
+      "policy" : "regenerated-canonical",
+      "stderr" : "",
+      "stdout" : "SP2=BLOCKED pass=3 blocked=8 o6=OPEN g0=OPEN output=${OUTPUT_ROOT}/sp2\n",
+      "verdict" : "BLOCKED"
+    },
+    {
+      "command" : [
+        "Phase0Probe",
+        "sp3",
+        "--environment",
+        "environment.json",
+        "--output",
+        "sp3"
+      ],
+      "exitStatus" : 0,
+      "id" : "sp3",
+      "policy" : "regenerated-canonical",
+      "stderr" : "",
+      "stdout" : "SP3=BLOCKED pass=3 blocked=4 output=${OUTPUT_ROOT}/sp3\n",
+      "verdict" : "BLOCKED"
+    },
+    {
+      "command" : [
+        "Phase0Probe",
+        "sp4a",
+        "--environment",
+        "environment.json",
+        "--output",
+        "sp4a"
+      ],
+      "exitStatus" : 0,
+      "id" : "sp4a",
+      "policy" : "regenerated-canonical",
+      "stderr" : "",
+      "stdout" : "SP4A=PASS pass=4 definitionOnly=true output=${OUTPUT_ROOT}/sp4a\n",
+      "verdict" : "PASS"
+    },
+    {
+      "command" : [
+        "Phase0Probe",
+        "sp4b",
+        "--environment",
+        "environment.json",
+        "--output",
+        "sp4b"
+      ],
+      "exitStatus" : 0,
+      "id" : "sp4b",
+      "policy" : "regenerated-canonical",
+      "stderr" : "",
+      "stdout" : "SP4B=BLOCKED pass=2 blocked=3 importerExecuted=false deviceAccess=false deploymentExported=false output=${OUTPUT_ROOT}/sp4b\n",
+      "verdict" : "BLOCKED"
+    },
+    {
+      "command" : [
+        "Phase0Probe",
+        "sp5a",
+        "--environment",
+        "environment.json",
+        "--output",
+        "sp5a"
+      ],
+      "exitStatus" : 0,
+      "id" : "sp5a",
+      "policy" : "regenerated-canonical",
+      "stderr" : "",
+      "stdout" : "SP5A=BLOCKED pass=3 blocked=1 importerExecuted=false output=${OUTPUT_ROOT}/sp5a\n",
+      "verdict" : "BLOCKED"
+    },
+    {
+      "command" : [
+        "Phase0Probe",
+        "sp5b",
+        "--environment",
+        "environment.json",
+        "--output",
+        "sp5b"
+      ],
+      "exitStatus" : 0,
+      "id" : "sp5b",
+      "policy" : "regenerated-canonical",
+      "stderr" : "",
+      "stdout" : "SP5B=BLOCKED pass=3 blocked=1 replayReports=6 transportCallsForRejected=0 liveCapture=false deviceAccess=false output=${OUTPUT_ROOT}/sp5b\n",
+      "verdict" : "BLOCKED"
+    },
+    {
+      "artifactSha256" : "dcb277b4c7dde8fa08ce02baa22fc823e35fe87cb20ffe716698a32378eb3388",
+      "command" : [
+        "preserve",
+        "evidence/phase0/sp6a",
+        "--by-manifest-hash"
+      ],
+      "exitStatus" : 0,
+      "id" : "sp6a",
+      "policy" : "preserved-nondeterministic-raw",
+      "stderr" : "",
+      "stdout" : "preserved canonical nondeterministic trace\n",
+      "verdict" : "BLOCKED"
+    },
+    {
+      "artifactSha256" : "0bee73b0de3d489b006ccde20abaf1968068c240e962bc72d10e2eaa183ad131",
+      "command" : [
+        "preserve",
+        "evidence/phase0/sp6b",
+        "--by-manifest-hash"
+      ],
+      "exitStatus" : 0,
+      "id" : "sp6b",
+      "policy" : "preserved-nondeterministic-raw",
+      "stderr" : "",
+      "stdout" : "preserved canonical nondeterministic trace\n",
+      "verdict" : "BLOCKED"
+    }
+  ],
+  "toolVersions" : [
+    {
+      "command" : [
+        "/usr/bin/xcrun",
+        "swift",
+        "--version"
+      ],
+      "exitStatus" : 0,
+      "stderr" : "swift-driver version: 1.148.6 ",
+      "stdout" : "Apple Swift version 6.3.3 (swiftlang-6.3.3.1.3 clang-2100.1.1.101)\nTarget: arm64-apple-macosx26.0\n",
+      "tool" : "swift"
+    },
+    {
+      "command" : [
+        "/usr/bin/xcodebuild",
+        "-version"
+      ],
+      "exitStatus" : 0,
+      "stderr" : "",
+      "stdout" : "Xcode 26.6\nBuild version 17F113\n",
+      "tool" : "xcode"
+    },
+    {
+      "command" : [
+        "/usr/bin/git",
+        "--version"
+      ],
+      "exitStatus" : 0,
+      "stderr" : "",
+      "stdout" : "git version 2.50.1 (Apple Git-155)\n",
+      "tool" : "git"
+    },
+    {
+      "command" : [
+        "/usr/bin/jq",
+        "--version"
+      ],
+      "exitStatus" : 0,
+      "stderr" : "",
+      "stdout" : "jq-1.7.1-apple\n",
+      "tool" : "jq"
+    },
+    {
+      "command" : [
+        "/usr/bin/shasum",
+        "--help"
+      ],
+      "exitStatus" : 0,
+      "stderr" : "",
+      "stdout" : "Usage: shasum [OPTION]... [FILE]...\nPrint or check SHA checksums.\nWith no FILE, or when FILE is -, read standard input.\n\n  -a, --algorithm   1 (default), 224, 256, 384, 512, 512224, 512256\n  -b, --binary      read in binary mode\n  -c, --check       read SHA sums from the FILEs and check them\n      --tag         create a BSD-style checksum\n  -t, --text        read in text mode (default)\n  -U, --UNIVERSAL   read in Universal Newlines mode\n                        produces same digest on Windows/Unix/Mac\n  -0, --01          read in BITS mode\n                        ASCII '0' interpreted as 0-bit,\n                        ASCII '1' interpreted as 1-bit,\n                        all other characters ignored\n\nThe following five options are useful only when verifying checksums:\n      --ignore-missing  don't fail or report status for missing files\n  -q, --quiet           don't print OK for each successfully verified file\n  -s, --status          don't output anything, status code shows success\n      --strict          exit non-zero for improperly formatted checksum lines\n  -w, --warn            warn about improperly formatted checksum lines\n\n  -h, --help        display this help and exit\n  -v, --version     output version information and exit\n\nWhen verifying SHA-512/224 or SHA-512/256 checksums, indicate the\nalgorithm explicitly using the -a option, e.g.\n\n  shasum -a 512224 -c checksumfile\n\nThe sums are computed as described in FIPS PUB 180-4.  When checking,\nthe input should be a former output of this program.  The default\nmode is to print a line with checksum, a character indicating type\n(`*' for binary, ` ' for text, `U' for UNIVERSAL, `^' for BITS),\nand name for each FILE.  The line starts with a `\\' character if the\nFILE name contains either newlines or backslashes, which are then\nreplaced by the two-character sequences `\\n' and `\\\\' respectively.\n\nReport shasum bugs to mshelor@cpan.org\n",
+      "tool" : "shasum"
+    }
+  ]
+}

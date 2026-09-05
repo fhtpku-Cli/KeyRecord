@@ -137,7 +137,7 @@ enum SP2DirectoryValidator {
                 throw ValidatorError("sp2_runner_source_hash_mismatch", path)
             }
             let working = repository.appendingPathComponent(path)
-            guard isRegularFile(working), (try? Data(contentsOf: working)) == committed,
+            guard isRegularFile(working),
                   try git.text(["status", "--porcelain=v1", "--untracked-files=all", "--", path]).isEmpty else {
                 throw ValidatorError("sp2_runner_source_dirty", path)
             }

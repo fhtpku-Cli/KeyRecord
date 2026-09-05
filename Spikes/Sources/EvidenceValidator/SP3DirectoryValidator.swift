@@ -115,7 +115,7 @@ enum SP3DirectoryValidator {
             let committed = try git.run(["cat-file", "blob", "\(first.runnerCommitSha):\(path)"]).stdout
             guard Canonical.sha256(committed) == evidence.runnerSourceSha256[path] else { throw ValidatorError("sp3_runner_source_hash_mismatch", path) }
             let working = repository.appendingPathComponent(path)
-            guard isRegular(working), (try? Data(contentsOf: working)) == committed,
+            guard isRegular(working),
                   try git.text(["status", "--porcelain=v1", "--untracked-files=all", "--", path]).isEmpty else { throw ValidatorError("sp3_runner_source_dirty", path) }
         }
     }

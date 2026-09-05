@@ -177,7 +177,7 @@ enum RunAllProbe {
     }
 
     static func sanitize(_ text: String) -> String {
-        var value = text
+        var value = text.replacingOccurrences(of: "/private/var/folders/", with: "/var/folders/")
         let repository = (try? repositoryRoot().path) ?? ""
         if !repository.isEmpty { value = value.replacingOccurrences(of: repository, with: "${REPOSITORY}") }
         value = value.replacingOccurrences(of: NSHomeDirectory(), with: "${HOME}")

@@ -32,6 +32,10 @@ trap 'interrupt 129' HUP
 script_dir="$(cd "$(dirname "$0")" && pwd)"
 source "$script_dir/task-2-qa-lib.sh"
 
+if [[ "${1:-}" == "11" ]]; then
+  exec bash "$script_dir/task-11-qa.sh" "${2:-}"
+fi
+
 qa_build_product() {
   local log_file="$1" product="$2" scratch="$tmp_dir/swift-build" bin_path
   task2_run_logged "$log_file" swift build --package-path Spikes --scratch-path "$scratch" --product "$product" || return 1

@@ -15,8 +15,8 @@
       "evidenceKind" : "fixture",
       "exitStatus" : 0,
       "legID" : "sp6a.atomicity",
-      "runnerCommitSha" : "a9c4441248ff13adc01e8a03879f039178a334af",
-      "runnerTreeSha" : "2e43e7422be60257eb7407adf15f5b3277f50d09",
+      "runnerCommitSha" : "b01a2ec7f88d882740123ce127b92eaceb7712fc",
+      "runnerTreeSha" : "8123d1bae997de2543d2ef60bcf3089a0fe77f31",
       "verdict" : "PASS"
     },
     {
@@ -34,8 +34,8 @@
       "evidenceKind" : "fixture",
       "exitStatus" : 0,
       "legID" : "sp6a.envelope",
-      "runnerCommitSha" : "a9c4441248ff13adc01e8a03879f039178a334af",
-      "runnerTreeSha" : "2e43e7422be60257eb7407adf15f5b3277f50d09",
+      "runnerCommitSha" : "b01a2ec7f88d882740123ce127b92eaceb7712fc",
+      "runnerTreeSha" : "8123d1bae997de2543d2ef60bcf3089a0fe77f31",
       "verdict" : "PASS"
     },
     {
@@ -53,8 +53,8 @@
       "evidenceKind" : "fixture",
       "exitStatus" : 0,
       "legID" : "sp6a.hkdfLocator",
-      "runnerCommitSha" : "a9c4441248ff13adc01e8a03879f039178a334af",
-      "runnerTreeSha" : "2e43e7422be60257eb7407adf15f5b3277f50d09",
+      "runnerCommitSha" : "b01a2ec7f88d882740123ce127b92eaceb7712fc",
+      "runnerTreeSha" : "8123d1bae997de2543d2ef60bcf3089a0fe77f31",
       "verdict" : "PASS"
     },
     {
@@ -76,8 +76,8 @@
       "environmentSha256" : "6b3288f5983cbce231295762d3f8381b8467d6dbe2e74fff0e17a1aebf7215f4",
       "evidenceKind" : "live",
       "legID" : "sp6a.keychainAfterFirstUnlock",
-      "runnerCommitSha" : "a9c4441248ff13adc01e8a03879f039178a334af",
-      "runnerTreeSha" : "2e43e7422be60257eb7407adf15f5b3277f50d09",
+      "runnerCommitSha" : "b01a2ec7f88d882740123ce127b92eaceb7712fc",
+      "runnerTreeSha" : "8123d1bae997de2543d2ef60bcf3089a0fe77f31",
       "verdict" : "BLOCKED"
     },
     {
@@ -99,8 +99,8 @@
       "environmentSha256" : "6b3288f5983cbce231295762d3f8381b8467d6dbe2e74fff0e17a1aebf7215f4",
       "evidenceKind" : "live",
       "legID" : "sp6a.keychainSelection",
-      "runnerCommitSha" : "a9c4441248ff13adc01e8a03879f039178a334af",
-      "runnerTreeSha" : "2e43e7422be60257eb7407adf15f5b3277f50d09",
+      "runnerCommitSha" : "b01a2ec7f88d882740123ce127b92eaceb7712fc",
+      "runnerTreeSha" : "8123d1bae997de2543d2ef60bcf3089a0fe77f31",
       "verdict" : "BLOCKED"
     },
     {
@@ -122,13 +122,13 @@
       "environmentSha256" : "6b3288f5983cbce231295762d3f8381b8467d6dbe2e74fff0e17a1aebf7215f4",
       "evidenceKind" : "live",
       "legID" : "sp6a.keychainWhenUnlocked",
-      "runnerCommitSha" : "a9c4441248ff13adc01e8a03879f039178a334af",
-      "runnerTreeSha" : "2e43e7422be60257eb7407adf15f5b3277f50d09",
+      "runnerCommitSha" : "b01a2ec7f88d882740123ce127b92eaceb7712fc",
+      "runnerTreeSha" : "8123d1bae997de2543d2ef60bcf3089a0fe77f31",
       "verdict" : "BLOCKED"
     },
     {
       "artifactPath" : "path-canary.json",
-      "artifactSha256" : "08044a33e0c8f511fadbdd1cca504dedfd7cdf1723eeeac6375fa9de5c59e989",
+      "artifactSha256" : "6b1b352959b338a518d04239d4d4e519f0e3ba87b9bf736297a9f8eac392de2f",
       "command" : [
         "Phase0Probe",
         "sp6a",
@@ -141,8 +141,8 @@
       "evidenceKind" : "fixture",
       "exitStatus" : 0,
       "legID" : "sp6a.pathCanary",
-      "runnerCommitSha" : "a9c4441248ff13adc01e8a03879f039178a334af",
-      "runnerTreeSha" : "2e43e7422be60257eb7407adf15f5b3277f50d09",
+      "runnerCommitSha" : "b01a2ec7f88d882740123ce127b92eaceb7712fc",
+      "runnerTreeSha" : "8123d1bae997de2543d2ef60bcf3089a0fe77f31",
       "verdict" : "PASS"
     },
     {
@@ -160,33 +160,35 @@
       "evidenceKind" : "source",
       "exitStatus" : 0,
       "legID" : "sp6a.securityAudit",
-      "runnerCommitSha" : "a9c4441248ff13adc01e8a03879f039178a334af",
-      "runnerTreeSha" : "2e43e7422be60257eb7407adf15f5b3277f50d09",
+      "runnerCommitSha" : "b01a2ec7f88d882740123ce127b92eaceb7712fc",
+      "runnerTreeSha" : "8123d1bae997de2543d2ef60bcf3089a0fe77f31",
       "verdict" : "PASS"
     }
   ],
   "runnerSourceSha256" : {
     "Spikes/Scripts/audit-security.sh" : "990c8fa6d513627eb71e2db9b994f282d5f6636da2c52b9be388e5fdf37abfb2",
-    "Spikes/Scripts/run-task-qa.sh" : "1e047ac241caca6068395f112b7537ff7af2e02473800edea3902cc42d0ab8d3",
+    "Spikes/Scripts/run-task-qa.sh" : "4c42ba1495940cc1c830d2b1be98111f4b7a1f31a16dc3960941f33ca6c5bb71",
     "Spikes/Sources/EvidenceValidator/AtomicityHistoricalValidator.swift" : "de6d7857a2f4dbd52075f924d5b2d89fef53d12851500eb1cc55d831cf89d1c2",
     "Spikes/Sources/EvidenceValidator/Canonical.swift" : "ab34555220fea7b5fcbc667e6a082ac98d5de0820c06cdf45f400d559320b2d8",
     "Spikes/Sources/EvidenceValidator/EvidenceValidatorCommand.swift" : "ad475e046b8639ec1a16664f3fac828877b8327088e2cb9d0a5687347ae0524c",
     "Spikes/Sources/EvidenceValidator/GitRunner.swift" : "ca3f1ba4a52173c54e45aaccbcf453e989a368da83e0c6f452373e8a0feffafb",
-    "Spikes/Sources/EvidenceValidator/SP6ADirectoryValidator.swift" : "2b1e5ae4361bd467dfa14dfcc5687cf2df21ac791163ec39b90ed27cf29f5a33",
-    "Spikes/Sources/EvidenceValidator/SP6ANamespaceValidator.swift" : "beddf447be945d3353ceefa1c45b4c958d4fec75f584466fea0b64182e958e09",
+    "Spikes/Sources/EvidenceValidator/SP6ADirectoryValidator.swift" : "262ceafa3dc6059db1fae98126c6337ca00ba4ebea4a5e80bed37662cc7cf21e",
+    "Spikes/Sources/EvidenceValidator/SP6AHistoryAnchorValidator.swift" : "7d30595e568d6cd3183eb7f1831c8924c5d70bcdf78da56037b937ebaf792a40",
+    "Spikes/Sources/EvidenceValidator/SP6ANamespaceValidator.swift" : "aa44dd2dd153444c4a8f2fa4618dd06c4e0c76bd52fc9cb4a76ecc5558e9acb1",
     "Spikes/Sources/EvidenceValidator/ValidatorError.swift" : "93bb3aee3aac5fa3322fdf8ff04743eb275bbac228ce60f72e3bdc071da4e06e",
-    "Spikes/Sources/Phase0Probe/AtomicityRunnerIdentity.swift" : "e4f42429273aab519df207a9c1a269238e34e87f685e70e4a7342dad27391c13",
-    "Spikes/Sources/Phase0Probe/SP6AKeychainProbe.swift" : "fe4e02a139220f0073ccbf900112621d20389e9076c96e7d3600513af817f664",
-    "Spikes/Sources/Phase0Probe/SP6AProbe.swift" : "91e858e5514c6e3ec0428ec1ed434dbdbdecd6fb8869554bd555601cbda1b248",
-    "Spikes/Sources/Phase0Probe/main.swift" : "911975ead8289e93f36b317525b2ecbf72cbafbba14c3d125af242bdc6d0a8d9",
+    "Spikes/Sources/Phase0Probe/AtomicityRunnerIdentity.swift" : "0361abc7f0ae4111d345a74614e41ba671790e25396d6ac341831ff018b3c495",
+    "Spikes/Sources/Phase0Probe/SP6AHistoryAnchorProbe.swift" : "ae8810ad1383f86b82fff24afa395116ccfa70880351d18d5b64c5e491e09c55",
+    "Spikes/Sources/Phase0Probe/SP6AKeychainProbe.swift" : "e83422621db6b22e4afeff82f94d6f610e19b2476f82f2dc7008781ba10f5377",
+    "Spikes/Sources/Phase0Probe/SP6AProbe.swift" : "00cf5ec987dd3d807eeb03586a38872b3fbfbf69a4562dd04978f82321aa49a0",
+    "Spikes/Sources/Phase0Probe/main.swift" : "a8b4953733b09fdbc35525cc50cce4eb2515643fde509e6ff14c2399592e06d5",
     "Spikes/Sources/Phase0Support/AuthenticatedStorage.swift" : "3770862e01a7af157acb35d5dd2c43b7d6f72925d76e84c7b5ba4d9c96f85e16",
     "Spikes/Sources/Phase0Support/Registries.swift" : "7b3bcb90f3f96ec5c0aea80acf45a16008e6cf5fc0b6b79a9ad0be0900c057fa",
-    "Spikes/Sources/Phase0Support/SP6AArtifacts.swift" : "79dc2150af63a10aa254a11f4d81eb7542adf8e8f3089932e4d0e12d29c60bd8",
-    "Spikes/Sources/Phase0Support/SP6AEvidence.swift" : "22b950126ba761d9d460cedcb5778b63fe1a9f5ba19eb59fa0a3a0607b429d2f",
-    "Spikes/Sources/Phase0Support/SP6ANamespaceEvidence.swift" : "09d3e809d2d205760ba3e946a57c8ea80c60ae8a051bf6e54d05fcd2b0d1bc58",
-    "Spikes/Tests/EvidenceValidatorTests/SP6ANamespaceValidatorTests.swift" : "1cc66887dec037248d16dfd0576d224169608fcf61211c1987a1719d76262ebf",
-    "Spikes/Tests/EvidenceValidatorTests/SP6AValidatorTests.swift" : "c487ee68807d75d12e1986ba9297ae3192251527c3be406389e4a400a0159769",
-    "Spikes/Tests/Phase0ProbeTests/Phase0ProbeTests.swift" : "a3052a69cbaafe0b5f821384caa0e1b2999fbe197a53192bb6d0e0f488da6091",
+    "Spikes/Sources/Phase0Support/SP6AArtifacts.swift" : "894e0ad10cde42ecd056e3b64dac0fbed34b653452d437c6c6160cf082702b2c",
+    "Spikes/Sources/Phase0Support/SP6AEvidence.swift" : "07672d9737335095f69da9f401dec196b94b7c81825f7875695e03cceec2b8d3",
+    "Spikes/Sources/Phase0Support/SP6ANamespaceEvidence.swift" : "55072cfe69a08e05a5a29bae8cc81f8378ff1a68a990b38f777bf0c560dfcacf",
+    "Spikes/Tests/EvidenceValidatorTests/SP6ANamespaceValidatorTests.swift" : "eb33687dbd45d3c0fb04d6b34939e5a133a42105310aaba7f594ca4968a72229",
+    "Spikes/Tests/EvidenceValidatorTests/SP6AValidatorTests.swift" : "25a1294f61d4f18f25c1abd4ed328be8ca78034098ce8dd2dd3ed34f9444490c",
+    "Spikes/Tests/Phase0ProbeTests/Phase0ProbeTests.swift" : "9ca56c986906fc38a092447e7df8ec4fa4d715c4b27f9172fefc039372972a61",
     "Spikes/Tests/Phase0SupportTests/StorageSecurityTests.swift" : "019dcc49914b348cdebe0aaa96b948e9f12cade4eb790a9cf7710359e387c7de"
   },
   "schemaVersion" : 1,

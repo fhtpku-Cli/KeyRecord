@@ -1,0 +1,9 @@
+{
+  "anchorBlobSha1" : "ccf0ab07c4e5589d49f273ff0f38fab0283cf71a",
+  "anchorCommitSha" : "7127feb057d8e6f3a549835af401a2e17b451244",
+  "anchorFileSha256" : "3680237e591e4bc702dbd9e08de3839221fc8b483767c3659f1ad19e9b845995",
+  "anchorPath" : "evidence/phase0/sp6a/namespace-attempt-history.json",
+  "anchorTreeSha" : "98dd0414a50cf7c7e1cddec0997757a9920e8c76",
+  "schemaVersion" : 1,
+  "sourceCommitSha" : "b01a2ec7f88d882740123ce127b92eaceb7712fc"
+}

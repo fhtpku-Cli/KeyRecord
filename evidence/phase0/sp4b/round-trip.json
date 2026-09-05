@@ -1,0 +1,24 @@
+{
+  "afterValue" : "KC_ESC",
+  "beforeValue" : "KC_B",
+  "bytesOutsideSelectedSlotIdentical" : true,
+  "fixtureByteCount" : 124,
+  "fixtureKind" : "synthetic",
+  "fixturePath" : "evidence/phase0/fixtures/synthetic/via-layout.json",
+  "fixtureSha256" : "4f08c8457b0bbf7001e2245a7b139cf0f225f6e9e8ecf210e23c5c6c45b55800",
+  "noTrailingNewline" : true,
+  "nonSelectedContentPreserved" : true,
+  "opaqueSha256After" : {
+    "encoders" : "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "macros" : "055539df4a0b804c58caf46c0cd2941af10d64c1395ddd8e50b5f55d945841e6"
+  },
+  "opaqueSha256Before" : {
+    "encoders" : "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "macros" : "055539df4a0b804c58caf46c0cd2941af10d64c1395ddd8e50b5f55d945841e6"
+  },
+  "outputSha256" : "5b90b160f0cfdd810551d94c8fc6d514f3c144e738ecd13d60dfb9399b929a7e",
+  "selectedSlot" : [
+    0,
+    1
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "countingRule" : "root container depth is 1; every object member and array element counts toward one aggregate collection limit; scalar bytes exclude JSON string quotes",
+  "results" : [
+    {
+      "exactAccepted" : true,
+      "limit" : "inputBytes",
+      "maximum" : 8388608,
+      "plusOneError" : "inputTooLarge"
+    },
+    {
+      "exactAccepted" : true,
+      "limit" : "depth",
+      "maximum" : 64,
+      "plusOneError" : "depthExceeded"
+    },
+    {
+      "exactAccepted" : true,
+      "limit" : "collectionElements",
+      "maximum" : 100000,
+      "plusOneError" : "collectionElementsExceeded"
+    },
+    {
+      "exactAccepted" : true,
+      "limit" : "scalarBytes",
+      "maximum" : 1048576,
+      "plusOneError" : "scalarTooLarge"
+    }
+  ]
+}

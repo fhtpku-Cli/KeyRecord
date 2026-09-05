@@ -1,0 +1,26 @@
+{
+  "citations" : [
+    {
+      "path" : "evidence/phase0/sources/repos/via-app/files/src/components/panes/configure-panes/save-load.tsx",
+      "sha256" : "b2b37026eff7dba3011305613858b00d64d0f3075909b5b80f06b7904550c7b2"
+    },
+    {
+      "path" : "evidence/phase0/sources/repos/qmk/files/quantum/via.h",
+      "sha256" : "fdf2231eb0ba8699019b973ba68b685a9782b2fff87be6827bd899e299b76b1a"
+    },
+    {
+      "path" : "evidence/phase0/sources/repos/vial-gui/files/src/main/python/protocol/keyboard_comm.py",
+      "sha256" : "d71b73a6217c5d12a05ff0cd3c85ea06b8f9df798cfb5f1a783207af4623ecdb"
+    }
+  ],
+  "excludedClaims" : [
+    "stable interchange standard",
+    "official importer compatibility",
+    "device compatibility",
+    "device behavior",
+    "deployment export"
+  ],
+  "layoutContract" : "Pinned VIA app saves an unversioned .layout.json object with name, vendorProductId, layers, optional macros, and optional encoders; it checks keyboard ID and layer/macro shapes before device writes.",
+  "protocolAndKeycodeContract" : "Protocol and keycode dictionaries are firmware-dependent; protocol 13 selects a per-device QMK keycode dictionary.",
+  "vialCompatibility" : "QMK VIA_PROTOCOL_VERSION 0x000D is protocol 13; pinned Vial GUI accepts only VIA protocols -1 and 9, so VIA protocol 13 is not Vial-GUI compatible."
+}

@@ -1,0 +1,63 @@
+{
+  "axes" : [
+    {
+      "axisID" : "definitionSchema",
+      "evidence" : {
+        "artifactPath" : "evidence/phase0/sp4a/evidence.json",
+        "artifactSha256" : "941ba206aaf673500dc5147ba7f55bf04eb7c87a944ca73b88f8a855d1c88560",
+        "claim" : "SP-4A independently characterizes V2/V3 definition schema only"
+      },
+      "verdict" : "PASS"
+    },
+    {
+      "axisID" : "deviceProtocol",
+      "blocker" : {
+        "blocked_by" : "approved_via_device_absent",
+        "detect_command" : [
+          "environment-inventory",
+          "approved-via-device"
+        ],
+        "prerequisite" : "an explicitly approved VIA-capable keyboard and separately authorized non-mutating protocol procedure",
+        "unblock_action" : "Inventory and approve a VIA keyboard, then capture protocol and firmware-selected keycode dictionary without writing the device"
+      },
+      "verdict" : "BLOCKED"
+    },
+    {
+      "axisID" : "layoutFormat",
+      "evidence" : {
+        "artifactPath" : "evidence/phase0/fixtures/synthetic/via-layout.json",
+        "artifactSha256" : "4f08c8457b0bbf7001e2245a7b139cf0f225f6e9e8ecf210e23c5c6c45b55800",
+        "claim" : "exact deterministic synthetic layout exercises the unversioned layout shape only"
+      },
+      "verdict" : "PASS"
+    },
+    {
+      "axisID" : "keycodeDialect",
+      "blocker" : {
+        "blocked_by" : "approved_via_device_absent",
+        "detect_command" : [
+          "environment-inventory",
+          "approved-via-device"
+        ],
+        "prerequisite" : "an explicitly approved VIA-capable keyboard and separately authorized non-mutating protocol procedure",
+        "unblock_action" : "Inventory and approve a VIA keyboard, then capture protocol and firmware-selected keycode dictionary without writing the device"
+      },
+      "verdict" : "BLOCKED"
+    },
+    {
+      "axisID" : "officialImporterCompatibility",
+      "blocker" : {
+        "blocked_by" : "via_app_absent_and_approved_device_absent",
+        "detect_command" : [
+          "environment-inventory",
+          "VIA"
+        ],
+        "prerequisite" : "official VIA app installed plus an explicitly approved matching keyboard under a separate import procedure",
+        "unblock_action" : "Install official VIA and approve a matching device, then test import separately without exporting a deployment"
+      },
+      "verdict" : "BLOCKED"
+    }
+  ],
+  "firmwareDependentProtocolAndKeycodeDictionaries" : true,
+  "viaProtocol13VialGUICompatible" : false
+}

@@ -38,6 +38,9 @@ build_product() {
 remanifest() {
   (cd "$1" && shasum -a 256 SP-5B-CONCLUSION.md deny-mutation.json evidence.json replay.json source-facts.json >manifest.sha256)
 }
+replace_scalar() {
+  OLD_VALUE="$2" NEW_VALUE="$3" perl -0pi -e 's/\Q$ENV{OLD_VALUE}\E/$ENV{NEW_VALUE}/g' "$1"
+}
 probe="$(build_product Phase0Probe)"
 validator="$(build_product EvidenceValidator)"
 output="$tmp_dir/sp5b"
@@ -65,6 +68,7 @@ if [[ "$mode" == "happy" ]]; then
     ' "$output/source-facts.json" \
     && task2_run_logged "$tmp_dir/qa.log" jq -e --arg fixture '5e6b307c5436e05c72da2a9f94317610c97f8477b8baac0331f034adf3128789' --arg definition 'a30cd98ff62e19bbc530d870edd6a64496e1db3b36822065da9cdde77fe4860d' '
       .fixtureKind == "synthetic-recorded-response" and .fixtureSha256 == $fixture and .protocolVersion == 6 and
+      (.fixtureSequenceNote | contains("FE/00 is sent twice only")) and (.fixtureSequenceNote | contains("canonical source workflow")) and
       .uid == "0102030405060708" and .definitionByteCount == 42 and .definitionSha256 == $definition and
       .keymapHex == "0004000500280029" and .keymapKeycodes == [4,5,40,41] and .reportCount == 6 and
       (.reportHex | length) == 6 and (.responseSha256 | length) == 6 and .timeoutMilliseconds == 250 and
@@ -77,7 +81,7 @@ if [[ "$mode" == "happy" ]]; then
     && task2_run_logged "$tmp_dir/qa.log" task2_privacy_scan "$output/evidence.json"; then
     {
       printf 'TASK_13_HAPPY=PASS\n'
-      printf 'OBSERVABLE=closed protocolVersion/UID/definition/keymap query API, exact pinned opcodes/layouts/source+license anchors, six ordered 32-byte reports, deterministic identity/42-byte definition/four-key keymap reconstruction, 19 deny-all operations with zero transport calls, bounds, source/fixture provenance, canonical manifest, and honest D8 BLOCKED live capture verified\n'
+      printf 'OBSERVABLE=closed protocolVersion/UID/definition/keymap query API, exact pinned opcodes/layouts/source+license anchors, six ordered 32-byte fixture reports (FE/00 twice only for conceptual public cases, not canonical workflow), deterministic identity/42-byte definition/four-key keymap reconstruction, 19 deny-all operations through authorization with zero transport calls, bounds, source/fixture provenance, canonical manifest, and honest D8 BLOCKED live capture verified\n'
       printf 'CLEANUP=temporary build/probe directories removed; no IOHID call, device enumeration/open, Vial GUI, network, real HID report, unlock, or device write used\n'
       cat "$tmp_dir/qa.log"
     } >"$publish_temp"
@@ -89,8 +93,9 @@ else
   task2_run_logged "$tmp_dir/qa.log" swift test --package-path Spikes --filter 'VialQueryWhitelistTests|VialReplayTests|SP5BEvidenceTests|SP5BProbeTests|SP5BValidatorTests' || failures=$((failures + 1))
   run_probe || failures=$((failures + 1))
 
-  for mutation in source-hash source-case source-anchor-revision source-anchor-tree source-anchor-blob source-anchor-lines source-anchor-snippet source-license fixture-hash response-hash report-order report-count bounds uid deny-missing deny-accepted deny-transport live-pass partial-blocker misleading-pass manifest-extra manifest-missing historical-runner-hash; do
+  for mutation in source-hash source-case source-anchor-revision source-anchor-tree source-anchor-blob source-anchor-lines source-anchor-snippet source-license fixture-hash response-hash report-order report-count bounds uid deny-missing deny-accepted deny-transport live-pass partial-blocker misleading-pass manifest-extra manifest-missing runner-commit runner-tree runner-source-hash; do
     forged="$tmp_dir/forged-$mutation"; cp -R "$output" "$forged"
+    expected_error=""
     case "$mutation" in
       source-hash) jq '.reportSourceSha256 = ("f" * 64)' "$forged/source-facts.json" >"$tmp_dir/value"; mv "$tmp_dir/value" "$forged/source-facts.json" ;;
       source-case) jq '.publicCases[0] = "write"' "$forged/source-facts.json" >"$tmp_dir/value"; mv "$tmp_dir/value" "$forged/source-facts.json" ;;
@@ -114,13 +119,34 @@ else
       misleading-pass) printf '# SP-5B conclusion\n\nVerdict: **PASS**\n\nLive capture PASS; device compatibility verified.\n' >"$forged/SP-5B-CONCLUSION.md" ;;
       manifest-extra) printf 'forged\n' >"$forged/extra.txt" ;;
       manifest-missing) rm "$forged/replay.json" ;;
-      historical-runner-hash) jq '.runnerSourceSha256["Spikes/Scripts/task-13-qa.sh"] = ("f" * 64)' "$forged/evidence.json" >"$tmp_dir/value"; mv "$tmp_dir/value" "$forged/evidence.json" ;;
+      runner-commit) old="$(jq -r '.legs[0].runnerCommitSha' "$forged/evidence.json")"; replace_scalar "$forged/evidence.json" "$old" "$(printf 'f%.0s' {1..40})"; expected_error="sp5b_runner_commit_missing" ;;
+      runner-tree) old="$(jq -r '.legs[0].runnerTreeSha' "$forged/evidence.json")"; replace_scalar "$forged/evidence.json" "$old" "$(printf 'f%.0s' {1..40})"; expected_error="sp5b_runner_tree_mismatch" ;;
+      runner-source-hash) old="$(jq -r '.runnerSourceSha256["Spikes/Scripts/task-13-qa.sh"]' "$forged/evidence.json")"; replace_scalar "$forged/evidence.json" "$old" "$(printf 'f%.0s' {1..64})"; expected_error="sp5b_runner_source_hash_mismatch" ;;
     esac
     if [[ "$mutation" != "manifest-missing" ]]; then remanifest "$forged"; fi
     set +e; "$validator" "$forged" >>"$tmp_dir/qa.log" 2>&1; status=$?; set -e
     printf 'attack=%s exit_status=%s\n' "$mutation" "$status" >>"$tmp_dir/qa.log"
     [[ "$status" -ne 0 ]] || failures=$((failures + 1))
+    [[ -z "$expected_error" ]] || grep -q "ERROR $expected_error" "$tmp_dir/qa.log" || failures=$((failures + 1))
   done
+
+  attack_repo="$tmp_dir/provenance-repo"
+  GIT_MASTER=1 git clone -q --no-hardlinks . "$attack_repo"
+  attack_output="$tmp_dir/provenance-output"
+  (cd "$attack_repo" && "$probe" sp5b --environment evidence/phase0/environment.json --output "$attack_output") >>"$tmp_dir/qa.log" 2>&1
+  source_provenance="$attack_repo/evidence/phase0/sources/repos/vial-qmk/provenance.json"
+  cp "$source_provenance" "$tmp_dir/source-provenance.json"
+  jq '.files |= .[:-1]' "$source_provenance" >"$tmp_dir/value"; mv "$tmp_dir/value" "$source_provenance"
+  (cd "$(dirname "$source_provenance")" && shasum -a 256 files/quantum/vial.c files/quantum/vial.h files/util/vial_generate_definition.py files/util/ci_vial_verify_uid.py files/keyboards/vial_example/vial_rp2040/keymaps/vial/vial.json license/LICENSE provenance.json >manifest.sha256)
+  set +e; (cd "$attack_repo" && "$validator" "$attack_output") >>"$tmp_dir/qa.log" 2>&1; status=$?; set -e
+  [[ "$status" -ne 0 ]] && grep -q 'ERROR sp5b_source_provenance_mismatch' "$tmp_dir/qa.log" || failures=$((failures + 1))
+  cp "$tmp_dir/source-provenance.json" "$source_provenance"
+  fixture_provenance="$attack_repo/evidence/phase0/fixtures/synthetic/provenance.json"
+  jq '.files += [{"path":"forged.json","sha256":("f" * 64)}]' "$fixture_provenance" >"$tmp_dir/value"; mv "$tmp_dir/value" "$fixture_provenance"
+  printf 'forged\n' >"$(dirname "$fixture_provenance")/forged.json"
+  (cd "$(dirname "$fixture_provenance")" && shasum -a 256 README.md phase0.vil provenance.json via-layout.json vial-query-replay.json forged.json >manifest.sha256)
+  set +e; (cd "$attack_repo" && "$validator" "$attack_output") >>"$tmp_dir/qa.log" 2>&1; status=$?; set -e
+  [[ "$status" -ne 0 ]] && grep -q 'ERROR sp5b_fixture_provenance_mismatch' "$tmp_dir/qa.log" || failures=$((failures + 1))
 
   jq '(.hidSummary.devices[0].product) = "Vial-approved forged device"' evidence/phase0/environment.json >"$tmp_dir/device-present.json"
   set +e; "$probe" sp5b --environment "$tmp_dir/device-present.json" --output "$tmp_dir/device-output" >>"$tmp_dir/qa.log" 2>&1; status=$?; set -e

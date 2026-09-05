@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-09-05T07:37:50Z",
+  "generatedAt": "2026-09-05T07:42:06Z",
   "spikeID": "SP-6B",
   "dependencyFrozen": false,
   "recommendedCandidate": "phc",
@@ -11,8 +11,8 @@
       "detectorID": "D12",
       "detectorAvailable": true,
       "verdict": "PASS",
-      "runnerCommitSha": "e560cdeb9e60d0925ce445fe20094f9226ab2166",
-      "runnerTreeSha": "5ed9113d385a4f7b1a3005e922075525cb94e906",
+      "runnerCommitSha": "fff155adad81ef2816224e59cfc001536909f08d",
+      "runnerTreeSha": "5ab6ec4b0cef262a5723d879bb20099fa4ed13e7",
       "environmentSha256": "6b3288f5983cbce231295762d3f8381b8467d6dbe2e74fff0e17a1aebf7215f4",
       "command": [
         "Phase0Probe",
@@ -29,8 +29,8 @@
       "detectorID": "D12",
       "detectorAvailable": true,
       "verdict": "PASS",
-      "runnerCommitSha": "e560cdeb9e60d0925ce445fe20094f9226ab2166",
-      "runnerTreeSha": "5ed9113d385a4f7b1a3005e922075525cb94e906",
+      "runnerCommitSha": "fff155adad81ef2816224e59cfc001536909f08d",
+      "runnerTreeSha": "5ab6ec4b0cef262a5723d879bb20099fa4ed13e7",
       "environmentSha256": "6b3288f5983cbce231295762d3f8381b8467d6dbe2e74fff0e17a1aebf7215f4",
       "command": [
         "Phase0Probe",
@@ -47,8 +47,8 @@
       "detectorID": "D0",
       "detectorAvailable": true,
       "verdict": "PASS",
-      "runnerCommitSha": "e560cdeb9e60d0925ce445fe20094f9226ab2166",
-      "runnerTreeSha": "5ed9113d385a4f7b1a3005e922075525cb94e906",
+      "runnerCommitSha": "fff155adad81ef2816224e59cfc001536909f08d",
+      "runnerTreeSha": "5ab6ec4b0cef262a5723d879bb20099fa4ed13e7",
       "environmentSha256": "6b3288f5983cbce231295762d3f8381b8467d6dbe2e74fff0e17a1aebf7215f4",
       "command": [
         "Phase0Probe",
@@ -57,7 +57,7 @@
       ],
       "exitStatus": 0,
       "artifactPath": "build/build.json",
-      "artifactSha256": "668cca7e2818c5945a0579503afe735e376ca6b64f566e0b0dd72a5668168d3d"
+      "artifactSha256": "3a3e4b25b7b662107071d954844a6559f23a2a47df86492e0220590a4b1f55bf"
     },
     {
       "legID": "sp6b.universalBuild",
@@ -65,8 +65,8 @@
       "detectorID": "D10",
       "detectorAvailable": true,
       "verdict": "PASS",
-      "runnerCommitSha": "e560cdeb9e60d0925ce445fe20094f9226ab2166",
-      "runnerTreeSha": "5ed9113d385a4f7b1a3005e922075525cb94e906",
+      "runnerCommitSha": "fff155adad81ef2816224e59cfc001536909f08d",
+      "runnerTreeSha": "5ab6ec4b0cef262a5723d879bb20099fa4ed13e7",
       "environmentSha256": "6b3288f5983cbce231295762d3f8381b8467d6dbe2e74fff0e17a1aebf7215f4",
       "command": [
         "Phase0Probe",
@@ -83,8 +83,8 @@
       "detectorID": "D0",
       "detectorAvailable": true,
       "verdict": "PASS",
-      "runnerCommitSha": "e560cdeb9e60d0925ce445fe20094f9226ab2166",
-      "runnerTreeSha": "5ed9113d385a4f7b1a3005e922075525cb94e906",
+      "runnerCommitSha": "fff155adad81ef2816224e59cfc001536909f08d",
+      "runnerTreeSha": "5ab6ec4b0cef262a5723d879bb20099fa4ed13e7",
       "environmentSha256": "6b3288f5983cbce231295762d3f8381b8467d6dbe2e74fff0e17a1aebf7215f4",
       "command": [
         "Phase0Probe",
@@ -93,7 +93,7 @@
       ],
       "exitStatus": 0,
       "artifactPath": "arm-benchmark.json",
-      "artifactSha256": "f22513cb2a86ab8720a521c994c692a8b8c285215a26db87b2cdee874337d172"
+      "artifactSha256": "e995f8c16f368077dc5a45f972540f7f47783f1614644a4333892e80d28bcbbd"
     },
     {
       "legID": "sp6b.securityAudit",
@@ -101,8 +101,8 @@
       "detectorID": "D12",
       "detectorAvailable": true,
       "verdict": "PASS",
-      "runnerCommitSha": "e560cdeb9e60d0925ce445fe20094f9226ab2166",
-      "runnerTreeSha": "5ed9113d385a4f7b1a3005e922075525cb94e906",
+      "runnerCommitSha": "fff155adad81ef2816224e59cfc001536909f08d",
+      "runnerTreeSha": "5ab6ec4b0cef262a5723d879bb20099fa4ed13e7",
       "environmentSha256": "6b3288f5983cbce231295762d3f8381b8467d6dbe2e74fff0e17a1aebf7215f4",
       "command": [
         "Phase0Probe",
@@ -128,8 +128,8 @@
         "prerequisite": "physical x86_64 Mac running macOS 14 or later",
         "unblock_action": "Run the bound benchmark with frozen recommended parameters on a physical Intel macOS 14+ host"
       },
-      "runnerCommitSha": "e560cdeb9e60d0925ce445fe20094f9226ab2166",
-      "runnerTreeSha": "5ed9113d385a4f7b1a3005e922075525cb94e906",
+      "runnerCommitSha": "fff155adad81ef2816224e59cfc001536909f08d",
+      "runnerTreeSha": "5ab6ec4b0cef262a5723d879bb20099fa4ed13e7",
       "environmentSha256": "6b3288f5983cbce231295762d3f8381b8467d6dbe2e74fff0e17a1aebf7215f4",
       "command": [],
       "exitStatus": null,
@@ -164,7 +164,7 @@
     "Spikes/Sources/Phase0Support/D12Fixture.swift": "7c0bcad43ab0a93cf61e86a254a48a447a25272b3122933125711e575c4873d4",
     "Spikes/Sources/Phase0Support/D12Snapshot.swift": "ad02c830e0809ae9483526aa113d14c3b1a98520dec17c766871c1afdbdd5400",
     "Spikes/Sources/Phase0Support/SP6BEvidence.swift": "8ae8a2cb285dc99ccc939d2f934bc3d3668b9a146c72948b23adbb41ba47ed88",
-    "Spikes/Tests/EvidenceValidatorTests/SP6BValidatorTests.swift": "d10a4d12f60f0162296fe2f68f3a1eccf77c505c321a8386f066b5212a19e713",
+    "Spikes/Tests/EvidenceValidatorTests/SP6BValidatorTests.swift": "b893e3ce67bc58cdef0b5e6eabce3e81a025dd3289bf8fdf6c7be99dd1049941",
     "Spikes/Tests/Phase0SupportTests/Argon2AuditTests.swift": "d54413bcdf4a3fd02d59c9fb65b1b44d6fca3788a9aa0ae516dcca94af4b9111"
   }
 }

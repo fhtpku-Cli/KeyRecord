@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-09-05T07:37:50Z",
+  "generatedAt": "2026-09-05T07:42:06Z",
   "recommendedCandidate": "phc",
   "commit": "f57e61e19229e23c4445b85494dbf7c07de721cb",
   "tree": "ac3dc753ff75ce5a0f243cba1d94582bafe09409",
@@ -31,66 +31,66 @@
   },
   "sampleReceipts": [
     {
-      "startNanoseconds": 2117422866959916,
-      "endNanoseconds": 2117423317318791,
-      "milliseconds": 450.359,
+      "startNanoseconds": 2117667520900166,
+      "endNanoseconds": 2117668035166958,
+      "milliseconds": 514.267,
       "observedTag": "f7f82701fc9e868fa4e4b28b882039ccbe3d5b44460f9115ff4e19a4b0eae4e1",
       "index": 0
     },
     {
-      "startNanoseconds": 2117423384069625,
-      "endNanoseconds": 2117423830941416,
-      "milliseconds": 446.872,
+      "startNanoseconds": 2117668097162333,
+      "endNanoseconds": 2117668535012833,
+      "milliseconds": 437.851,
       "observedTag": "f7f82701fc9e868fa4e4b28b882039ccbe3d5b44460f9115ff4e19a4b0eae4e1",
       "index": 1
     },
     {
-      "startNanoseconds": 2117423890204666,
-      "endNanoseconds": 2117424289840541,
-      "milliseconds": 399.636,
+      "startNanoseconds": 2117668597422250,
+      "endNanoseconds": 2117668945993916,
+      "milliseconds": 348.572,
       "observedTag": "f7f82701fc9e868fa4e4b28b882039ccbe3d5b44460f9115ff4e19a4b0eae4e1",
       "index": 2
     },
     {
-      "startNanoseconds": 2117424330487416,
-      "endNanoseconds": 2117424721527625,
-      "milliseconds": 391.040,
+      "startNanoseconds": 2117668997573583,
+      "endNanoseconds": 2117669357076958,
+      "milliseconds": 359.503,
       "observedTag": "f7f82701fc9e868fa4e4b28b882039ccbe3d5b44460f9115ff4e19a4b0eae4e1",
       "index": 3
     },
     {
-      "startNanoseconds": 2117424774114708,
-      "endNanoseconds": 2117425137257416,
-      "milliseconds": 363.143,
+      "startNanoseconds": 2117669413229625,
+      "endNanoseconds": 2117669794709916,
+      "milliseconds": 381.480,
       "observedTag": "f7f82701fc9e868fa4e4b28b882039ccbe3d5b44460f9115ff4e19a4b0eae4e1",
       "index": 4
     },
     {
-      "startNanoseconds": 2117425192174708,
-      "endNanoseconds": 2117425582636166,
-      "milliseconds": 390.461,
+      "startNanoseconds": 2117669843228166,
+      "endNanoseconds": 2117670625603291,
+      "milliseconds": 782.375,
       "observedTag": "f7f82701fc9e868fa4e4b28b882039ccbe3d5b44460f9115ff4e19a4b0eae4e1",
       "index": 5
     },
     {
-      "startNanoseconds": 2117425636868083,
-      "endNanoseconds": 2117426080488083,
-      "milliseconds": 443.620,
+      "startNanoseconds": 2117670698071625,
+      "endNanoseconds": 2117671051355583,
+      "milliseconds": 353.284,
       "observedTag": "f7f82701fc9e868fa4e4b28b882039ccbe3d5b44460f9115ff4e19a4b0eae4e1",
       "index": 6
     }
   ],
   "samplesMilliseconds": [
-    450.359,
-    446.872,
-    399.636,
-    391.040,
-    363.143,
-    390.461,
-    443.620
+    514.267,
+    437.851,
+    348.572,
+    359.503,
+    381.480,
+    782.375,
+    353.284
   ],
-  "medianMilliseconds": 399.636,
-  "p95Milliseconds": 450.359,
+  "medianMilliseconds": 381.480,
+  "p95Milliseconds": 782.375,
   "memoryKiB": 524288,
   "iterations": 5,
   "parallelism": 4,

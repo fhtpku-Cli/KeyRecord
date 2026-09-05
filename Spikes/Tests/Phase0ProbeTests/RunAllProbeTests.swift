@@ -57,4 +57,13 @@ final class RunAllProbeTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: output.path))
     }
 
+    func testCapturedOutputRedactsRandomPublicationPath() {
+        let repository = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent().deletingLastPathComponent()
+            .deletingLastPathComponent().deletingLastPathComponent()
+        let raw = repository.appendingPathComponent("evidence/.phase0.RANDOM.tmp/sp1").path
+
+        XCTAssertEqual(RunAllProbe.sanitize("output=\(raw)\n"), "output=${OUTPUT_ROOT}/sp1\n")
+    }
+
 }

@@ -44,7 +44,11 @@ enum RunAllProbe {
             ))
             let observedHash = AtomicityDigest.sha256(try Data(contentsOf: atomicity))
             try FileManager.default.removeItem(at: atomicity)
-            stages[stages.count - 1] = preserving(stages.last!, hash: observedHash)
+            let preservedManifest = try Data(contentsOf: temporary.appendingPathComponent("shared-atomicity/manifest.sha256"))
+            stages[stages.count - 1] = preserving(
+                stages.last!, hash: AtomicityDigest.sha256(preservedManifest),
+                note: "observed_result_sha256=\(observedHash)\n"
+            )
             for spike in Array(Phase0RunLayout.spikeDirectories.prefix(7)) {
                 let destination = temporary.appendingPathComponent(spike, isDirectory: true)
                 stages.append(try execute(
@@ -115,8 +119,8 @@ enum RunAllProbe {
         )
     }
 
-    private static func preserving(_ stage: Phase0RunStage, hash: String) -> Phase0RunStage {
-        Phase0RunStage(id: stage.id, command: stage.command, exitStatus: stage.exitStatus, stdout: stage.stdout,
+    private static func preserving(_ stage: Phase0RunStage, hash: String, note: String) -> Phase0RunStage {
+        Phase0RunStage(id: stage.id, command: stage.command, exitStatus: stage.exitStatus, stdout: stage.stdout + note,
                        stderr: stage.stderr, verdict: stage.verdict, policy: stage.policy, artifactSha256: hash)
     }
 
@@ -167,11 +171,15 @@ enum RunAllProbe {
         return result
     }
 
-    private static func sanitize(_ text: String) -> String {
+    static func sanitize(_ text: String) -> String {
         var value = text
         let repository = (try? repositoryRoot().path) ?? ""
         if !repository.isEmpty { value = value.replacingOccurrences(of: repository, with: "${REPOSITORY}") }
         value = value.replacingOccurrences(of: NSHomeDirectory(), with: "${HOME}")
+        value = value.replacingOccurrences(
+            of: #"\$\{REPOSITORY\}/evidence/\.phase0\.[^/\s]+\.tmp"#,
+            with: "${OUTPUT_ROOT}", options: .regularExpression
+        )
         return value.replacingOccurrences(of: #"/var/folders/[^\s]+"#, with: "${TEMP}", options: .regularExpression)
     }
 

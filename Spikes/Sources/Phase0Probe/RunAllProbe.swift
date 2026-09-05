@@ -21,11 +21,12 @@ enum RunAllProbe {
         let cleanup = RunAllSignalCleanup(paths: [temporary, output])
         do {
             let environmentData = try bounded(environment)
-            try seed(temporary, from: canonical)
+            try seed(temporary, from: canonical, cleanup: cleanup)
             try cleanStale(parent: parent, preserving: temporary)
             if let raw = ProcessInfo.processInfo.environment["KEYRECORD_RUN_ALL_TEST_DELAY_AFTER_TEMP"], let delay = Double(raw) {
                 Thread.sleep(forTimeInterval: min(max(delay, 0), 5))
             }
+            try cleanup.throwIfInterrupted()
             try PrivacySafeEnvironmentValidator.validateJSON(environmentData)
             _ = try JSONDecoder().decode(EnvironmentEvidence.self, from: environmentData)
             try environmentData.write(to: temporary.appendingPathComponent("environment.json"))
@@ -71,25 +72,30 @@ enum RunAllProbe {
             let privacy = try Phase0PrivacyAudit.scan(root: temporary, excluding: exclusions)
             try encoded(privacy).write(to: temporary.appendingPathComponent("privacy-audit.json"))
             try writeRootManifest(temporary)
+            try cleanup.throwIfInterrupted()
             if FileManager.default.fileExists(atPath: output.path) { try FileManager.default.removeItem(at: output) }
             try FileManager.default.moveItem(at: temporary, to: output)
+            try cleanup.throwIfInterrupted()
             cleanup.complete()
             print("RUN_ALL=PASS spikes=9 blocked_allowed=true privacy_hits=0 output=\(output.path)")
         } catch {
             try? FileManager.default.removeItem(at: temporary)
             try? FileManager.default.removeItem(at: output)
+            let interruption = error as? RunAllInterruption
             cleanup.complete()
+            if let interruption { Foundation.exit(interruption.status) }
             throw error
         }
     }
 
-    private static func seed(_ destination: URL, from source: URL) throws {
+    private static func seed(_ destination: URL, from source: URL, cleanup: RunAllSignalCleanup) throws {
         try FileManager.default.createDirectory(at: destination, withIntermediateDirectories: false)
         for name in ["README.md", "fixtures", "sources", "shared-atomicity", "sp6a", "sp6b"] {
             let input = source.appendingPathComponent(name)
             let values = try input.resourceValues(forKeys: [.isSymbolicLinkKey])
             guard values.isSymbolicLink != true else { throw Phase0RunError.symlink(name) }
             try FileManager.default.copyItem(at: input, to: destination.appendingPathComponent(name))
+            try cleanup.throwIfInterrupted()
         }
     }
 
@@ -164,6 +170,7 @@ enum RunAllProbe {
         while process.isRunning, Date() < deadline { Thread.sleep(forTimeInterval: 0.02) }
         if process.isRunning { process.terminate(); process.waitUntilExit(); throw Phase0RunError.timeout(arguments.first ?? executable) }
         cleanup.setChild(nil)
+        try cleanup.throwIfInterrupted()
         return (process.terminationStatus,
                 String(decoding: stdout.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self),
                 String(decoding: stderr.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self))
@@ -226,18 +233,4 @@ enum RunAllProbe {
 private enum Phase0RunError: Error {
     case failedVerdict(String), invalidEnvironment, invalidEvidence(String), repositoryNotFound
     case stageFailed(String, Int32), symlink(String), timeout(String), toolFailed(String)
-}
-
-private final class RunAllSignalCleanup: @unchecked Sendable {
-    private let paths: [URL], lock = NSLock(); private var child: Int32?; private var sources: [DispatchSourceSignal] = []
-    init(paths: [URL]) {
-        self.paths = paths
-        for item in [(SIGINT, 130), (SIGTERM, 143), (SIGHUP, 129)] {
-            signal(item.0, SIG_IGN); let source = DispatchSource.makeSignalSource(signal: item.0, queue: .global())
-            source.setEventHandler { [weak self] in self?.interrupt(status: Int32(item.1)) }; source.resume(); sources.append(source)
-        }
-    }
-    func setChild(_ pid: Int32?) { lock.lock(); child = pid; lock.unlock() }
-    func complete() { sources.forEach { $0.cancel() }; sources.removeAll(); signal(SIGINT, SIG_DFL); signal(SIGTERM, SIG_DFL); signal(SIGHUP, SIG_DFL) }
-    private func interrupt(status: Int32) { lock.lock(); let pid = child; lock.unlock(); if let pid { Darwin.kill(pid, SIGTERM) }; paths.forEach { try? FileManager.default.removeItem(at: $0) }; Foundation.exit(status) }
 }

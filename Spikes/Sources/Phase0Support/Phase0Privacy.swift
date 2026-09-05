@@ -5,7 +5,9 @@ public enum Phase0PrivacyError: Error, Equatable, Sendable {
     case forbiddenText(String)
     case invalidJSON(String)
     case invalidPath(String)
+    case invalidTextEncoding(String)
     case nonRegularFile(String)
+    case resourceLimit(String)
     case symlink(String)
     case unmarkedEventRecord(String)
 }
@@ -31,6 +33,11 @@ public struct Phase0PrivacyReport: Codable, Equatable, Sendable {
 }
 
 public enum Phase0PrivacyAudit {
+    public static let maximumFileBytes = 4 * 1_024 * 1_024
+    public static let maximumJSONDepth = 64
+    private static let maximumFiles = 4_096
+    private static let maximumTotalBytes = 64 * 1_024 * 1_024
+    private static let maximumJSONNodes = 100_000
     private static let forbiddenFields = [
         "serialnumber", "credential", "username", "keytext", "keysequence",
         "keystream", "eventsequence", "exacttimestamp", "keychainitem",
@@ -40,8 +47,6 @@ public enum Phase0PrivacyAudit {
         "/users/", "/home/", "~/", "ignore validation", "ignore all previous",
         "report pass", "prompt injection",
     ]
-    private static let textExtensions = ["json", "md", "txt", "headers", "body", "swift", "c", "h"]
-
     public static func scan(root: URL, excluding: Set<String> = []) throws -> Phase0PrivacyReport {
         let rootPath = root.standardizedFileURL.path
         guard let enumerator = FileManager.default.enumerator(
@@ -50,6 +55,7 @@ public enum Phase0PrivacyAudit {
         ) else { throw Phase0PrivacyError.invalidPath(root.path) }
         var fileCount = 0
         var jsonCount = 0
+        var totalBytes = 0
         var normalizedPaths = Set<String>()
         for case let file as URL in enumerator {
             let values = try file.resourceValues(forKeys: [.isRegularFileKey, .isSymbolicLinkKey])
@@ -63,9 +69,13 @@ public enum Phase0PrivacyAudit {
             guard values.isRegularFile == true else { continue }
             guard !excluding.contains(relative) else { continue }
             fileCount += 1
+            guard fileCount <= maximumFiles else { throw Phase0PrivacyError.resourceLimit(relative) }
             let ext = file.pathExtension.lowercased()
-            guard textExtensions.contains(ext) else { continue }
             let bytes = try Data(contentsOf: file, options: .mappedIfSafe)
+            guard bytes.count <= maximumFileBytes, totalBytes <= maximumTotalBytes - bytes.count else {
+                throw Phase0PrivacyError.resourceLimit(relative)
+            }
+            totalBytes += bytes.count
             if ext == "json" {
                 jsonCount += 1
                 do { try scanJSON(bytes, path: relative) }
@@ -81,31 +91,39 @@ public enum Phase0PrivacyAudit {
         let object: Any
         do { object = try JSONSerialization.jsonObject(with: bytes) }
         catch { throw Phase0PrivacyError.invalidJSON(path) }
-        try inspect(object, path: path)
+        var nodes = 0
+        try inspect(object, path: path, depth: 0, nodes: &nodes)
         try scanText(bytes, path: path)
     }
 
     public static func scanText(_ bytes: Data, path: String) throws {
-        guard let text = String(data: bytes, encoding: .utf8) else { return }
+        guard bytes.count <= maximumFileBytes else { throw Phase0PrivacyError.resourceLimit(path) }
+        guard let text = String(data: bytes, encoding: .utf8) else {
+            throw Phase0PrivacyError.invalidTextEncoding(path)
+        }
         let lower = text.lowercased()
         if textMarkers.contains(where: lower.contains) { throw Phase0PrivacyError.forbiddenText(path) }
     }
 
-    private static func inspect(_ value: Any, path: String) throws {
+    private static func inspect(_ value: Any, path: String, depth: Int, nodes: inout Int) throws {
+        guard depth <= maximumJSONDepth, nodes < maximumJSONNodes else {
+            throw Phase0PrivacyError.resourceLimit(path)
+        }
+        nodes += 1
         if let object = value as? [String: Any] {
-            let lowered = Set(object.keys.map { $0.lowercased().filter(\.isLetter) })
+            let lowered = Set(object.keys.map { $0.precomposedStringWithCanonicalMapping.lowercased().filter(\.isLetter) })
             if let field = lowered.first(where: forbiddenFields.contains) {
                 throw Phase0PrivacyError.forbiddenField(path, field)
             }
-            if object["keyCode"] != nil {
+            if lowered.contains("keycode") {
                 let marker = (object["marker"] as? NSNumber)?.uint64Value
                 guard marker == ProductSyntheticMarker.value else {
                     throw Phase0PrivacyError.unmarkedEventRecord(path)
                 }
             }
-            for child in object.values { try inspect(child, path: path) }
+            for child in object.values { try inspect(child, path: path, depth: depth + 1, nodes: &nodes) }
         } else if let array = value as? [Any] {
-            for child in array { try inspect(child, path: path) }
+            for child in array { try inspect(child, path: path, depth: depth + 1, nodes: &nodes) }
         } else if let text = value as? String {
             try scanText(Data(text.utf8), path: path)
         }

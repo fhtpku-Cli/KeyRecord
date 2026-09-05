@@ -5,7 +5,8 @@ import Phase0Support
 enum SP4ADirectoryValidator {
     static func validate(
         directory: URL,
-        repository: URL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+        repository: URL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath),
+        gitRepository: URL? = nil
     ) throws -> GateValidationReport {
         let evidence: SP4AEvidence = try exactDecode(directory, "evidence.json", code: "malformed_sp4a_evidence")
         do { try evidence.validate() } catch let error as SP4AValidationError { throw ValidatorError("sp4a_\(error.rawValue)") }
@@ -13,7 +14,7 @@ enum SP4ADirectoryValidator {
         try validateArtifacts(directory, repository: repository)
         try validateBindings(evidence, directory: directory, repository: repository)
         try validateConclusion(directory, evidence: evidence)
-        try validateRunner(evidence, repository: repository)
+        try validateRunner(evidence, repository: gitRepository ?? repository)
         return GateValidationReport(legCount: evidence.legs.count, o4RowCount: 0, g0Status: .open)
     }
 

@@ -10,12 +10,15 @@ rm -rf "$output"
 jq -e 'has("macOS") and .architecture == "arm64" and has("swift") and has("xcode")' "$environment" >/dev/null
 environment_hash="$(shasum -a 256 "$environment" | cut -d' ' -f1)"
 runner_commit="$(git rev-parse HEAD)"; runner_tree="$(git rev-parse 'HEAD^{tree}')"
+generated_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 runner_paths=(
-  Spikes/Scripts/argon-bench.c Spikes/Scripts/argon-vector.c Spikes/Scripts/audit-security.sh
+  Spikes/Scripts/argon-bench.c Spikes/Scripts/argon-swift-vector.swift Spikes/Scripts/argon-vector.c Spikes/Scripts/audit-argon-sources.sh Spikes/Scripts/audit-security.sh
   Spikes/Scripts/benchmark-argon-arm.sh Spikes/Scripts/build-argon-universal.sh Spikes/Scripts/capture-argon-advisories.sh
-  Spikes/Scripts/run-sp6b.sh Spikes/Scripts/run-task-qa.sh Spikes/Scripts/task-11-qa.sh Spikes/Sources/EvidenceValidator/EvidenceValidatorCommand.swift
-  Spikes/Sources/EvidenceValidator/SP6BDirectoryValidator.swift Spikes/Sources/Phase0Probe/SP6BProbe.swift Spikes/Sources/Phase0Probe/main.swift
-  Spikes/Sources/Phase0Support/Argon2Candidate.swift Spikes/Sources/Phase0Support/D12Snapshot.swift
+  Spikes/Scripts/run-sp6b.sh Spikes/Scripts/run-task-qa.sh Spikes/Scripts/sp6b-nvd-review.json Spikes/Scripts/sp6b-source-contract.json Spikes/Scripts/task-11-qa.sh Spikes/Sources/EvidenceValidator/EvidenceValidatorCommand.swift
+  Spikes/Sources/EvidenceValidator/SP6BBenchmarkValidator.swift Spikes/Sources/EvidenceValidator/SP6BBuildValidator.swift
+  Spikes/Sources/EvidenceValidator/SP6BDirectoryValidator.swift Spikes/Sources/EvidenceValidator/SP6BNVDValidator.swift Spikes/Sources/EvidenceValidator/SP6BSourceValidator.swift
+  Spikes/Sources/Phase0Probe/SP6BProbe.swift Spikes/Sources/Phase0Probe/main.swift
+  Spikes/Sources/Phase0Support/Argon2Candidate.swift Spikes/Sources/Phase0Support/D12Fixture.swift Spikes/Sources/Phase0Support/D12Snapshot.swift
   Spikes/Sources/Phase0Support/SP6BEvidence.swift Spikes/Tests/EvidenceValidatorTests/SP6BValidatorTests.swift
   Spikes/Tests/Phase0SupportTests/Argon2AuditTests.swift
 )
@@ -27,14 +30,16 @@ for path in "${runner_paths[@]}"; do
 done
 
 work="$tmp_dir/result"; mkdir -p "$work"
-bash "$script_dir/capture-argon-advisories.sh" "$work/d12"
-KEYRECORD_ARGON_OUTPUT_DIR="$work/build" bash "$script_dir/build-argon-universal.sh"
-bash "$script_dir/benchmark-argon-arm.sh" "$work/arm-benchmark.json"
-generated_at="$(jq -r .generatedAt "$work/d12/snapshot.json")"
+KEYRECORD_SP6B_GENERATED_AT="$generated_at" bash "$script_dir/capture-argon-advisories.sh" "$work/d12"
+KEYRECORD_SP6B_GENERATED_AT="$generated_at" KEYRECORD_ARGON_OUTPUT_DIR="$work/build" bash "$script_dir/build-argon-universal.sh"
+KEYRECORD_SP6B_GENERATED_AT="$generated_at" bash "$script_dir/audit-argon-sources.sh" "$work/source-audit.json"
+archive_sha="$(shasum -a 256 "$work/build/argon2-universal.a"|cut -d' ' -f1)"
+KEYRECORD_SP6B_GENERATED_AT="$generated_at" KEYRECORD_SP6B_ENVIRONMENT_SHA256="$environment_hash" KEYRECORD_SP6B_ARCHIVE_SHA256="$archive_sha" \
+  bash "$script_dir/benchmark-argon-arm.sh" "$work/arm-benchmark.json"
 
 jq -n --arg generatedAt "$generated_at" '{schemaVersion:1,generatedAt:$generatedAt,dependencyFrozen:false,recommendation:"phc",eligibleCandidateIDs:["phc","swift"],candidates:[
- {id:"phc",canonicalURL:"https://github.com/P-H-C/phc-winner-argon2.git",commit:"f57e61e19229e23c4445b85494dbf7c07de721cb",tree:"ac3dc753ff75ce5a0f243cba1d94582bafe09409",latestCommitDate:"2021-06-25T08:21:15Z",pedigree:"phcReference",runtimeDependencyCount:0,sourceLOC:2988,licenseApproved:true,vectorsPassed:true,dualArchMacOS14Build:true,minimumMacOSMajor:10,unresolvedSignificantFindings:0},
- {id:"swift",canonicalURL:"https://github.com/MarlonJD/argon2id-swift-native.git",commit:"14d47de1914ac63b368ddb2cfe0f47ffe25f04cf",tree:"4bb860f4c47b4b327ea207da3fe7a007a05c7b81",latestCommitDate:"2026-05-25T11:13:33Z",pedigree:"independent",runtimeDependencyCount:0,sourceLOC:558,licenseApproved:true,vectorsPassed:true,dualArchMacOS14Build:true,minimumMacOSMajor:10,unresolvedSignificantFindings:0}],scores:{phc:{pedigree:3,dependencies:2,maintenance:0,dualArchBuild:2,sourceSize:1},swift:{pedigree:1,dependencies:2,maintenance:2,dualArchBuild:2,sourceSize:1}}}' >"$work/candidate-evaluation.json"
+  {id:"phc",canonicalURL:"https://github.com/P-H-C/phc-winner-argon2.git",commit:"f57e61e19229e23c4445b85494dbf7c07de721cb",tree:"ac3dc753ff75ce5a0f243cba1d94582bafe09409",latestCommitDate:"2021-06-25T08:21:15Z",pedigree:"phcReference",runtimeDependencyCount:0,sourceLOC:3294,licenseApproved:true,vectorsPassed:true,dualArchMacOS14Build:true,minimumMacOSMajor:10,unresolvedSignificantFindings:0},
+  {id:"swift",canonicalURL:"https://github.com/MarlonJD/argon2id-swift-native.git",commit:"14d47de1914ac63b368ddb2cfe0f47ffe25f04cf",tree:"4bb860f4c47b4b327ea207da3fe7a007a05c7b81",latestCommitDate:"2026-05-25T11:13:33Z",pedigree:"independent",runtimeDependencyCount:0,sourceLOC:631,licenseApproved:true,vectorsPassed:true,dualArchMacOS14Build:true,minimumMacOSMajor:10,unresolvedSignificantFindings:0}],scores:{phc:{pedigree:3,dependencies:2,maintenance:0,dualArchBuild:2,sourceSize:1},swift:{pedigree:1,dependencies:2,maintenance:2,dualArchBuild:2,sourceSize:1}}}' >"$work/candidate-evaluation.json"
 
 cat >"$work/dependency-audit.md" <<'AUDIT'
 # SP-6B Argon2id dependency audit
@@ -53,7 +58,7 @@ Scope: full pinned implementations and manifests. PHC `f57e61e19229e23c4445b8549
 | 9 | allocation-errors | PASS | High | allocation callbacks and error codes in `src/core.c` | checked parameter domain and Swift allocation | PHC propagates allocation failures; fixed 512 MiB reviewed Swift/C parameters avoid attacker-controlled allocation. |
 | 10 | vectors | PASS | Critical | RFC 9106 section 5.3 through `argon2id_ctx` | upstream RFC 9106 test | Both candidates independently produce `0d640d...e659`. |
 | 11 | universal-build | PASS | High | six reference C sources | package source | macOS 14 arm64 and x86_64 builds pass; PHC archive contains both slices. |
-| 12 | source-loc | PASS | Low | 2,988 non-generated C/header LOC | 558 non-generated Swift LOC | Both are below 10,000 LOC and were reviewed in full. |
+| 12 | source-loc | PASS | Low | 3,294 audited C/header LOC | 631 audited Swift LOC | Exact included/excluded paths are fixed by the immutable source contract; both reviewed scopes are below 10,000 LOC. |
 
 Unresolved severity totals: Critical: 0; High: 0; Medium: 0; Low: 2.
 
@@ -73,7 +78,7 @@ for spec in 'sp6b.phcAudit|source|D12|dependency-audit.md' 'sp6b.swiftAudit|sour
 done
 intel="$(jq -cn --arg commit "$runner_commit" --arg tree "$runner_tree" --arg env "$environment_hash" '{legID:"sp6b.intelTiming",evidenceKind:"live",detectorID:"D11",detectorAvailable:false,verdict:"BLOCKED",blocker:{blocked_by:"physical_intel_macos14_host_unavailable",detect_command:["uname","-m"],prerequisite:"physical x86_64 Mac running macOS 14 or later",unblock_action:"Run the bound benchmark with frozen recommended parameters on a physical Intel macOS 14+ host"},runnerCommitSha:$commit,runnerTreeSha:$tree,environmentSha256:$env,command:[],exitStatus:null,artifactPath:null,artifactSha256:null}')"
 legs="$(jq -cn --argjson legs "$legs" --argjson leg "$intel" '$legs + [$leg]')"
-jq -n --argjson legs "$legs" --argjson sources "$runner_sources" '{schemaVersion:1,spikeID:"SP-6B",dependencyFrozen:false,recommendedCandidate:"phc",legs:$legs,verdict:"BLOCKED",runnerSourceSha256:$sources}' >"$work/evidence.json"
+jq -n --arg generatedAt "$generated_at" --argjson legs "$legs" --argjson sources "$runner_sources" '{schemaVersion:2,generatedAt:$generatedAt,spikeID:"SP-6B",dependencyFrozen:false,recommendedCandidate:"phc",legs:$legs,verdict:"BLOCKED",runnerSourceSha256:$sources}' >"$work/evidence.json"
 
 cat >"$work/SP-6B-CONCLUSION.md" <<'CONCLUSION'
 # SP-6B conclusion

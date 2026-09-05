@@ -20,12 +20,12 @@ enum RunAllProbe {
         let temporary = parent.appendingPathComponent(".phase0.\(UUID().uuidString).tmp", isDirectory: true)
         let cleanup = RunAllSignalCleanup(paths: [temporary, output])
         do {
+            let environmentData = try bounded(environment)
             try seed(temporary, from: canonical)
             try invalidate(output, parent: parent)
             if let raw = ProcessInfo.processInfo.environment["KEYRECORD_RUN_ALL_TEST_DELAY_AFTER_TEMP"], let delay = Double(raw) {
                 Thread.sleep(forTimeInterval: min(max(delay, 0), 5))
             }
-            let environmentData = try bounded(environment)
             try PrivacySafeEnvironmentValidator.validateJSON(environmentData)
             _ = try JSONDecoder().decode(EnvironmentEvidence.self, from: environmentData)
             try environmentData.write(to: temporary.appendingPathComponent("environment.json"))

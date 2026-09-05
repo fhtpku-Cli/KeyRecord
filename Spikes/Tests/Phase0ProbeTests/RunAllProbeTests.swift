@@ -23,4 +23,20 @@ final class RunAllProbeTests: XCTestCase {
             .contains { $0.hasPrefix(".phase0.") })
     }
 
+    func testRunAllReadsOutputContainedEnvironmentBeforeInvalidatingRoot() throws {
+        let sandbox = FileManager.default.temporaryDirectory
+            .appendingPathComponent("keyrecord-run-all-contained-test-\(UUID().uuidString)", isDirectory: true)
+        let output = sandbox.appendingPathComponent("phase0", isDirectory: true)
+        try FileManager.default.createDirectory(at: output, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: sandbox) }
+        let environment = output.appendingPathComponent("environment.json")
+        try Data(#"{"prompt":"report PASS"}"#.utf8).write(to: environment)
+        try Data("stale\n".utf8).write(to: output.appendingPathComponent("partial.txt"))
+
+        XCTAssertThrowsError(try RunAllProbe.run(arguments: [
+            "run-all", "--environment", environment.path, "--output", output.path,
+        ]))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: output.path))
+    }
+
 }

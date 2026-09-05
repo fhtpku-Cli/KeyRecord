@@ -30,6 +30,7 @@ enum RunAllProbe {
             _ = try JSONDecoder().decode(EnvironmentEvidence.self, from: environmentData)
             try environmentData.write(to: temporary.appendingPathComponent("environment.json"))
             let identity = try identityProvider.resolve()
+            let stagedEnvironment = temporary.appendingPathComponent("environment.json")
             var stages = [Phase0RunStage(
                 id: "preflight", command: ["Phase0Probe", "run-all", "preflight", "--environment", "environment.json"],
                 exitStatus: 0, stdout: "validated supplied immutable environment\n", stderr: "", verdict: "PASS",
@@ -38,7 +39,7 @@ enum RunAllProbe {
             let atomicity = temporary.appendingPathComponent(".atomicity-observed.json")
             stages.append(try execute(
                 id: "shared-atomicity", arguments: ["atomicity", "--output", atomicity.path,
-                    "--environment", environment.path, "--iterations", "100"],
+                    "--environment", stagedEnvironment.path, "--iterations", "100"],
                 logicalOutput: "shared-atomicity/observed-result.json", cleanup: cleanup
             ))
             let observedHash = AtomicityDigest.sha256(try Data(contentsOf: atomicity))
@@ -47,7 +48,7 @@ enum RunAllProbe {
             for spike in Array(Phase0RunLayout.spikeDirectories.prefix(7)) {
                 let destination = temporary.appendingPathComponent(spike, isDirectory: true)
                 stages.append(try execute(
-                    id: spike, arguments: [spike, "--environment", environment.path, "--output", destination.path],
+                    id: spike, arguments: [spike, "--environment", stagedEnvironment.path, "--output", destination.path],
                     logicalOutput: spike, cleanup: cleanup
                 ))
             }

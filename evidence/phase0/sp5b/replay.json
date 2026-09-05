@@ -3,6 +3,7 @@
   "definitionSha256" : "a30cd98ff62e19bbc530d870edd6a64496e1db3b36822065da9cdde77fe4860d",
   "fixtureKind" : "synthetic-recorded-response",
   "fixturePath" : "evidence/phase0/fixtures/synthetic/vial-query-replay.json",
+  "fixtureSequenceNote" : "FE/00 is sent twice only to exercise conceptual protocolVersion and uid public cases; the canonical source workflow reads both values from one FE/00 response.",
   "fixtureSha256" : "5e6b307c5436e05c72da2a9f94317610c97f8477b8baac0331f034adf3128789",
   "keymapHex" : "0004000500280029",
   "keymapKeycodes" : [

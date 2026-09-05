@@ -30,7 +30,7 @@
   ],
   "reportDescription" : "Outbound HID reports are whitelist-constrained non-changing queries; sending a report is not literally read-only and device-side behavior remains unverified without approved capture.",
   "reportSourcePath" : "Spikes/Sources/Phase0Support/VialQuery.swift",
-  "reportSourceSha256" : "e48a657f42095ea7acf30afacdd1aa38cb5839bcdd41fc075f25e2b33e0897b3",
+  "reportSourceSha256" : "4b90171d6c665cdacf0c94f483455b6245055fc19fefd1f4df42b90f547a8c8d",
   "whitelist" : [
     {
       "anchors" : [

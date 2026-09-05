@@ -15,10 +15,18 @@ if [[ -d "$root/sources" ]]; then
   printf '%s\n' fixtures shared-atomicity sources sp1 sp2 sp3 sp4a sp4b sp5a sp5b sp6a sp6b | LC_ALL=C sort >"$tmp_dir/expected-directories"
   find "$root" -mindepth 1 -maxdepth 1 -type d -print | while IFS= read -r directory; do basename "$directory"; done | LC_ALL=C sort >"$tmp_dir/actual-directories"
   cmp -s "$tmp_dir/expected-directories" "$tmp_dir/actual-directories" || { printf 'phase0 directory membership drift\n' >&2; exit 1; }
-  printf '%s\n' README.md environment.json manifest.sha256 privacy-audit.json run-all.json | LC_ALL=C sort >"$tmp_dir/expected-root-files"
+  if [[ -f "$root/conclusions.json" ]]; then
+    { printf '%s\n' README.md environment.json manifest.sha256 privacy-audit.json run-all.json conclusions.json; printf 'SP-%s-CONCLUSION.md\n' 1 2 3 4A 4B 5A 5B 6A 6B; } | LC_ALL=C sort >"$tmp_dir/expected-root-files"
+  else
+    printf '%s\n' README.md environment.json manifest.sha256 privacy-audit.json run-all.json | LC_ALL=C sort >"$tmp_dir/expected-root-files"
+  fi
   find "$root" -mindepth 1 -maxdepth 1 -type f -print | while IFS= read -r file; do basename "$file"; done | LC_ALL=C sort >"$tmp_dir/actual-root-files"
   cmp -s "$tmp_dir/expected-root-files" "$tmp_dir/actual-root-files" || { printf 'phase0 root file membership drift\n' >&2; exit 1; }
   (cd "$root" && shasum -a 256 -c manifest.sha256 >/dev/null)
+  manifest_names="$tmp_dir/root-manifest-names"
+  cut -d ' ' -f 3- "$root/manifest.sha256" | LC_ALL=C sort >"$manifest_names"
+  comm -23 "$tmp_dir/expected-root-files" <(printf 'manifest.sha256\n' | LC_ALL=C sort) >"$tmp_dir/expected-manifest-names"
+  cmp -s "$tmp_dir/expected-manifest-names" "$manifest_names" || { printf 'phase0 root manifest membership drift\n' >&2; exit 1; }
   for child in shared-atomicity sp1 sp2 sp3 sp4a sp4b sp5a sp5b sp6a sp6b fixtures/synthetic; do
     [[ -f "$root/$child/manifest.sha256" ]] || { printf 'missing child manifest: %s\n' "$child" >&2; exit 1; }
     (cd "$root/$child" && shasum -a 256 -c manifest.sha256 >/dev/null)

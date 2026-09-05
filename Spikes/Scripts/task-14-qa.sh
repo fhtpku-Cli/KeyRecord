@@ -102,6 +102,16 @@ else
   source_environment="$PWD/evidence/phase0/environment.json"
   set +e; (cd "$dirty_repo" && "$dirty_bin" run-all --environment "$source_environment" --output "$tmp_dir/dirty") >>"$log" 2>&1; status=$?; set -e
   [[ "$status" -ne 0 && ! -e "$tmp_dir/dirty" ]] || failures=$((failures + 1))
+
+  package_repo="$tmp_dir/package-repo"; git clone -q --no-hardlinks . "$package_repo"
+  printf '\n// dirty-package-manifest-attack\n' >>"$package_repo/Spikes/Package.swift"
+  package_scratch="$tmp_dir/package-build"
+  task2_run_logged "$log" swift build --package-path "$package_repo/Spikes" --scratch-path "$package_scratch" --product Phase0Probe >/dev/null
+  task2_run_logged "$log" swift build --package-path "$package_repo/Spikes" --scratch-path "$package_scratch" --product EvidenceValidator >/dev/null
+  package_bin="$(swift build --package-path "$package_repo/Spikes" --scratch-path "$package_scratch" --show-bin-path)"
+  set +e; (cd "$package_repo" && "$package_bin/Phase0Probe" run-all --environment "$source_environment" --output "$tmp_dir/package-dirty") >>"$log" 2>&1; status=$?; set -e
+  printf 'attack=dirty-package-rebuild exit_status=%s\n' "$status" >>"$log"
+  [[ "$status" -ne 0 && ! -e "$tmp_dir/package-dirty" ]] || failures=$((failures + 1))
   for signal_name in INT TERM HUP; do
     for phase in early child final; do
       signal_output="$tmp_dir/signal-${signal_name}-${phase}"

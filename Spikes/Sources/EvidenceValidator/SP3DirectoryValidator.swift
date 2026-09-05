@@ -4,7 +4,8 @@ import Phase0Support
 enum SP3DirectoryValidator {
     static func validate(
         directory: URL,
-        repository: URL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+        repository: URL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath),
+        gitRepository: URL? = nil
     ) throws -> GateValidationReport {
         let evidenceURL = directory.appendingPathComponent("evidence.json")
         guard isRegular(evidenceURL), let data = try? Data(contentsOf: evidenceURL) else { throw ValidatorError("missing_evidence_document") }
@@ -14,10 +15,10 @@ enum SP3DirectoryValidator {
         try validateShape(data)
         do { try evidence.validate() } catch let error as SP3ValidationError { throw ValidatorError("sp3_\(error.rawValue)") }
         try verifyManifest(directory)
-        try validateArtifacts(directory, repository: repository)
+        try validateArtifacts(directory, repository: repository, gitRepository: gitRepository ?? repository)
         try validateBindings(evidence, directory: directory, repository: repository)
         try validateConclusion(directory, evidence: evidence)
-        try validateRunner(evidence, repository: repository)
+        try validateRunner(evidence, repository: gitRepository ?? repository)
         return GateValidationReport(legCount: evidence.legs.count, o4RowCount: 0, g0Status: .open)
     }
 
@@ -39,7 +40,7 @@ enum SP3DirectoryValidator {
         guard names == SP3DirectoryLayout.artifactNames, actual == SP3DirectoryLayout.artifactNames else { throw ValidatorError("sp3_manifest_membership_mismatch") }
     }
 
-    static func validateArtifacts(_ directory: URL, repository: URL) throws {
+    static func validateArtifacts(_ directory: URL, repository: URL, gitRepository: URL? = nil) throws {
         try requireKeys(directory, "managed-block.json", ["upstreamFixturePath", "upstreamFixtureSha256", "insertPreservedOutsideBytes", "updatePreservedOutsideBytes", "clearPreservedOutsideBytes", "restorePreservedOutsideBytes", "threeRuleBatchCount", "malformedRejected", "duplicateRejected", "baselineMismatchRejected", "externalEditRefused", "maximumBytes", "maximumDepth"])
         try requireKeys(directory, "recovery.json", ["hExpect", "hBase", "external", "crashBoundaries", "automaticExternalWrite"])
         try requireKeys(directory, "format-facts.json", ["upstreamRepository", "upstreamCommit", "upstreamTree", "lintSourcePath", "fixtureSourcePath", "currentFormat", "descriptionNotesMinimumVersion", "descriptionNotesSourceURL", "supportMatrixStatus", "limitation"])
@@ -61,11 +62,11 @@ enum SP3DirectoryValidator {
             guard lint.cliPath == nil, lint.version == nil, lint.validAccepted.isEmpty, lint.invalidRejected.isEmpty,
                   lint.blockedBy == "supported_karabiner_cli_absent" else { throw ValidatorError("sp3_lint_artifact_invalid") }
         }
-        try validateAtomicityCitation(directory, repository: repository)
+        try validateAtomicityCitation(directory, repository: repository, gitRepository: gitRepository ?? repository)
         for name in SP3DirectoryLayout.artifactNames where name.hasSuffix(".json") { try privacySafe(directory.appendingPathComponent(name)) }
     }
 
-    static func validateAtomicityCitation(_ directory: URL, repository: URL) throws {
+    static func validateAtomicityCitation(_ directory: URL, repository: URL, gitRepository: URL? = nil) throws {
         let citation: SP3AtomicityCitation = try decode(directory, "atomicity-citation.json", code: "sp3_atomicity_citation_mismatch")
         guard citation.artifactPath == "evidence/phase0/shared-atomicity/result.json",
               citation.manifestPath == "evidence/phase0/shared-atomicity/manifest.sha256",
@@ -79,7 +80,7 @@ enum SP3DirectoryValidator {
         do { try atomicity.validate() } catch { throw ValidatorError("sp3_atomicity_citation_mismatch") }
         _ = try AtomicityHistoricalValidator.validate(
             directory: resultURL.deletingLastPathComponent(),
-            repository: repository
+            repository: gitRepository ?? repository
         )
     }
 

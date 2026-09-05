@@ -4,7 +4,8 @@ import Phase0Support
 enum SP2DirectoryValidator {
     static func validate(
         directory: URL,
-        repository: URL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+        repository: URL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath),
+        gitRepository: URL? = nil
     ) throws -> GateValidationReport {
         let evidenceURL = directory.appendingPathComponent("evidence.json")
         guard isRegularFile(evidenceURL) else { throw ValidatorError("missing_evidence_document") }
@@ -18,7 +19,7 @@ enum SP2DirectoryValidator {
         try validateArtifacts(directory)
         try validateArtifactBindings(evidence, directory: directory, repository: repository)
         try validateConclusion(directory, evidence: evidence)
-        try validateRunnerBinding(evidence, repository: repository)
+        try validateRunnerBinding(evidence, repository: gitRepository ?? repository)
         return GateValidationReport(legCount: evidence.legs.count, o4RowCount: 0, g0Status: evidence.g0Status)
     }
 

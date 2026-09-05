@@ -30,7 +30,15 @@ scratch="$tmp_dir/build"
 run swift build --package-path Spikes --scratch-path "$scratch" --product EvidenceValidator
 bin="$(swift build --package-path Spikes --scratch-path "$scratch" --show-bin-path)/EvidenceValidator"
 
-generate() { "$bin" generate-conclusions --source evidence/phase0 --output "$1"; }
+source_root="evidence/phase0"
+if [[ -f "$source_root/conclusions.json" ]]; then
+  source_commit="$(jq -r '.source_evidence_commit_sha' "$source_root/conclusions.json")"
+  mkdir -p "$tmp_dir/raw-source"
+  GIT_MASTER=1 git archive "$source_commit" evidence/phase0 | tar -x -C "$tmp_dir/raw-source"
+  source_root="$tmp_dir/raw-source/evidence/phase0"
+fi
+
+generate() { "$bin" generate-conclusions --source "$source_root" --output "$1"; }
 validate() { "$bin" "$1"; }
 
 if [[ "$mode" == happy ]]; then
@@ -93,7 +101,7 @@ else
     for attempt in 1 2; do
       output="$tmp_dir/signal-$signal_name-$attempt"
       ready="$tmp_dir/ready-$signal_name-$attempt"
-      KEYRECORD_CONCLUSION_TEST_DELAY=30 KEYRECORD_CONCLUSION_TEST_READY_FILE="$ready" "$bin" generate-conclusions --source evidence/phase0 --output "$output" >>"$log" 2>&1 & child=$!
+      KEYRECORD_CONCLUSION_TEST_DELAY=30 KEYRECORD_CONCLUSION_TEST_READY_FILE="$ready" "$bin" generate-conclusions --source "$source_root" --output "$output" >>"$log" 2>&1 & child=$!
       observed=false
       for _ in {1..200}; do [[ -f "$ready" ]] && { observed=true; break; }; sleep 0.05; done
       [[ "$observed" == true ]] || failures=$((failures + 1))

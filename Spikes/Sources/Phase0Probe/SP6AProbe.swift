@@ -5,30 +5,49 @@ import Phase0Support
 enum SP6AProbe {
     static func run(
         arguments: [String],
-        identityProvider: any AtomicityRunnerIdentityProviding = GitAtomicityRunnerIdentityProvider(sourcePaths: SP6ARunnerBinding.sourcePaths.sorted())
+        identityProvider: (any AtomicityRunnerIdentityProviding)? = nil
     ) throws {
-        guard arguments.count == 5, arguments[0] == "sp6a", arguments[1] == "--environment", arguments[3] == "--output" else {
+        let anchored = arguments.count == 7 && arguments[5] == "--history-anchor"
+        guard (arguments.count == 5 || anchored), arguments[0] == "sp6a", arguments[1] == "--environment", arguments[3] == "--output" else {
             throw ProbeError.usage
         }
         let environmentURL = URL(fileURLWithPath: arguments[2]), output = URL(fileURLWithPath: arguments[4])
+        let anchorURL = anchored ? URL(fileURLWithPath: arguments[6]) : nil
+        let anchorBytes = try anchorURL.map(boundedFile)
         try invalidate(output)
         let environmentData = try boundedFile(environmentURL)
         _ = try JSONDecoder().decode(EnvironmentEvidence.self, from: environmentData)
-        let identity = try identityProvider.resolve()
+        let anchoredHistory = try anchorBytes.map { try JSONDecoder().decode(SP6ANamespaceAttemptHistory.self, from: $0) }
+        let provider = identityProvider ?? GitAtomicityRunnerIdentityProvider(
+            sourcePaths: SP6ARunnerBinding.sourcePaths.sorted(), revision: anchored ? "HEAD^1" : "HEAD"
+        )
+        let identity = try provider.resolve()
+        let historyAnchor = try anchorURL.map(SP6AHistoryAnchorProbe.resolve) ?? unboundAnchor(identity: identity)
         let crypto = try SP6AScenarios.crypto(), locator = SP6AScenarios.locator(), pathCanary = try SP6AScenarios.pathCanary()
         guard SP6AScenarios.valid(crypto), SP6AScenarios.valid(locator), SP6AScenarios.valid(pathCanary) else { throw SP6AProbeError.fixtureFailure }
         let namespaceRunner = SP6ANamespaceRunnerIdentity(
             commitSha: identity.commitSha, treeSha: identity.treeSha,
             environmentSha256: ViaDefinitionDigest.sha256(environmentData)
         )
-        let historyURL = ProcessInfo.processInfo.environment["KEYRECORD_SP6A_ATTEMPT_HISTORY"].map(URL.init(fileURLWithPath:))
-        let keychain = try SP6AKeychainProbe.run(runner: namespaceRunner, historyURL: historyURL)
+        let keychain: SP6AKeychainArtifact
+        if let anchoredHistory {
+            keychain = try SP6AKeychainProbe.runAnchored(
+                runner: namespaceRunner, history: anchoredHistory, historyAnchor: historyAnchor
+            )
+        } else {
+            let historyURL = ProcessInfo.processInfo.environment["KEYRECORD_SP6A_ATTEMPT_HISTORY"].map(URL.init(fileURLWithPath:))
+            keychain = try SP6AKeychainProbe.runGenerated(
+                runner: namespaceRunner, historyURL: historyURL, historyAnchor: historyAnchor
+            )
+        }
         let citation = SP6AAtomicityCitation.expected
         let audit = SecurityAuditFixture.valid
         try SecurityAuditValidator.validate(audit)
         let artifacts: [String: Data] = [
             "crypto.json": try encoded(crypto), "locator.json": try encoded(locator), "path-canary.json": try encoded(pathCanary),
             "keychain.json": try encoded(keychain), "atomicity-citation.json": try encoded(citation), "security-audit.md": Data(audit.utf8),
+            SP6ANamespaceHistoryContract.anchorArtifactName: try (anchorBytes ?? encoded(keychain.attemptHistory)),
+            SP6ANamespaceHistoryContract.metadataArtifactName: try encoded(historyAnchor),
         ]
         let hashes = artifacts.mapValues(ViaDefinitionDigest.sha256), environmentHash = ViaDefinitionDigest.sha256(environmentData)
         let d9Available = keychain.candidates.count == 2 && keychain.candidates.allSatisfy(SP6AKeychainProbe.candidatePassed)
@@ -101,6 +120,14 @@ enum SP6AProbe {
         evidence.verdict == .blocked
             ? "The bound runner recorded successful SecRandomCopyBytes input, recomputable RFC 4122 UUIDv4 transformation, nonsentinel entropy, and no namespace reuse in the defined captured attempt scope. Its exact Keychain namespace pre-cleanup returned missing-entitlement, so candidate add/read/attribute/delete assertions did not execute; a residue query found zero items. This does not prove mathematical unpredictability from output alone."
             : "The bound runner recorded successful SecRandomCopyBytes input, recomputable RFC 4122 UUIDv4 transformation, nonsentinel entropy, and no namespace reuse in the defined captured attempt scope. Both isolated ThisDeviceOnly Keychain candidates passed unlocked add/read/attribute/delete checks with synchronizable=false and left zero items. This does not prove mathematical unpredictability from output alone."
+    }
+
+    private static func unboundAnchor(identity: AtomicityRunnerIdentity) -> SP6ANamespaceHistoryAnchor {
+        SP6ANamespaceHistoryAnchor(
+            sourceCommitSha: identity.commitSha, anchorCommitSha: String(repeating: "0", count: 40),
+            anchorTreeSha: String(repeating: "0", count: 40), anchorPath: SP6ANamespaceHistoryContract.anchorPath,
+            anchorBlobSha1: String(repeating: "0", count: 40), anchorFileSha256: String(repeating: "0", count: 64)
+        )
     }
 
     private static func encoded<T: Encodable>(_ value: T) throws -> Data {

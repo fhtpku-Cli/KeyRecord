@@ -56,19 +56,21 @@ struct GitAtomicityRunnerIdentityProvider: AtomicityRunnerIdentityProviding {
     private let currentDirectory: URL
     private let timeout: TimeInterval
     private let sourcePaths: [String]
+    private let revision: String
 
     init(currentDirectory: URL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath), timeout: TimeInterval = 5,
-         sourcePaths: [String] = Self.runnerSourcePaths) {
+         sourcePaths: [String] = Self.runnerSourcePaths, revision: String = "HEAD") {
         self.currentDirectory = currentDirectory
         self.timeout = timeout
         self.sourcePaths = sourcePaths
+        self.revision = revision
     }
 
     func resolve() throws -> AtomicityRunnerIdentity {
         let rootText = try gitText(["rev-parse", "--show-toplevel"], in: currentDirectory)
         let root = URL(fileURLWithPath: rootText, isDirectory: true).standardizedFileURL
-        let commit = try gitText(["rev-parse", "--verify", "HEAD^{commit}"], in: root)
-        let tree = try gitText(["rev-parse", "--verify", "HEAD^{tree}"], in: root)
+        let commit = try gitText(["rev-parse", "--verify", "\(revision)^{commit}"], in: root)
+        let tree = try gitText(["rev-parse", "--verify", "\(revision)^{tree}"], in: root)
         guard Self.isGitSHA1(commit) else { throw AtomicityRunnerIdentityError.invalidGitIdentity("HEAD") }
         guard Self.isGitSHA1(tree) else { throw AtomicityRunnerIdentityError.invalidGitIdentity("HEAD^{tree}") }
 

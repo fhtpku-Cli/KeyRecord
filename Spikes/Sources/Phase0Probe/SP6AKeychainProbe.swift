@@ -25,12 +25,36 @@ enum SP6AKeychainProbe {
         }
     }
 
-    static func run(
+    static func runGenerated(
         runner: SP6ANamespaceRunnerIdentity,
-        historyURL: URL? = nil
+        historyURL: URL? = nil,
+        historyAnchor: SP6ANamespaceHistoryAnchor
     ) throws -> SP6AKeychainArtifact {
         let receipt = try generationReceipt(runner: runner)
         let history = try append(receipt: receipt, to: historyURL)
+        return try run(receipt: receipt, history: history, historyAnchor: historyAnchor)
+    }
+
+    static func runAnchored(
+        runner: SP6ANamespaceRunnerIdentity, history: SP6ANamespaceAttemptHistory,
+        historyAnchor: SP6ANamespaceHistoryAnchor
+    ) throws -> SP6AKeychainArtifact {
+        guard let receipt = history.attempts.last, receipt.runner == runner else {
+            throw SP6AKeychainError.attemptHistoryConflict
+        }
+        return try run(receipt: receipt, history: history, historyAnchor: historyAnchor)
+    }
+
+    static func reserve(
+        runner: SP6ANamespaceRunnerIdentity, historyURL: URL
+    ) throws -> SP6ANamespaceAttemptHistory {
+        try append(receipt: generationReceipt(runner: runner), to: historyURL)
+    }
+
+    private static func run(
+        receipt: SP6ANamespaceGenerationReceipt, history: SP6ANamespaceAttemptHistory,
+        historyAnchor: SP6ANamespaceHistoryAnchor
+    ) throws -> SP6AKeychainArtifact {
         let service = receipt.service
         let cleanup = SP6AKeychainSignalCleanup(service: service)
         if let path = ProcessInfo.processInfo.environment["KEYRECORD_SP6A_TEST_READY_FILE"] {
@@ -53,7 +77,7 @@ enum SP6AKeychainProbe {
                     service: service, preCleanupStatus: preCleanup, postCleanupStatus: errSecMissingEntitlement,
                     residueQueryStatus: residue.status, residueCount: residue.count
                 ),
-                generationReceipt: receipt, attemptHistory: history,
+                generationReceipt: receipt, attemptHistory: history, historyAnchor: historyAnchor,
                 keyBytesPersistedOutsideKeychain: false
             )
         }
@@ -80,7 +104,7 @@ enum SP6AKeychainProbe {
                 service: service, preCleanupStatus: preCleanup, postCleanupStatus: postCleanup,
                 residueQueryStatus: residue.status, residueCount: residue.count
             ),
-            generationReceipt: receipt, attemptHistory: history,
+            generationReceipt: receipt, attemptHistory: history, historyAnchor: historyAnchor,
             keyBytesPersistedOutsideKeychain: false
         )
     }

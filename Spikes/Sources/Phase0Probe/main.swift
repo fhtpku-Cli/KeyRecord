@@ -40,6 +40,10 @@ public enum Phase0ProbeCommand {
                 try SP6AProbe.run(arguments: arguments)
                 return
             }
+            if arguments.first == "sp6a-history-anchor" {
+                try SP6AHistoryAnchorProbe.reserve(arguments: arguments)
+                return
+            }
             if arguments.first == "sp6a-keychain" {
                 try SP6AKeychainProbe.command(arguments: arguments)
                 return

@@ -268,7 +268,12 @@ final class Phase0ProbeTests: XCTestCase {
             commitSha: String(repeating: "a", count: 40), treeSha: String(repeating: "b", count: 40),
             environmentSha256: String(repeating: "c", count: 64)
         )
-        let artifact = try SP6AKeychainProbe.run(runner: runner)
+        let anchor = SP6ANamespaceHistoryAnchor(
+            sourceCommitSha: runner.commitSha, anchorCommitSha: String(repeating: "0", count: 40),
+            anchorTreeSha: String(repeating: "0", count: 40), anchorPath: SP6ANamespaceHistoryContract.anchorPath,
+            anchorBlobSha1: String(repeating: "0", count: 40), anchorFileSha256: String(repeating: "0", count: 64)
+        )
+        let artifact = try SP6AKeychainProbe.runGenerated(runner: runner, historyAnchor: anchor)
         let service = artifact.service
         defer { _ = SP6AKeychainProbe.deleteNamespace(service) }
 

@@ -127,6 +127,7 @@ public struct SP6AKeychainArtifact: Codable, Equatable, Sendable {
     public let cleanupReceipt: SP6AKeychainCleanupReceipt
     public let generationReceipt: SP6ANamespaceGenerationReceipt
     public let attemptHistory: SP6ANamespaceAttemptHistory
+    public let historyAnchor: SP6ANamespaceHistoryAnchor
     public let keyBytesPersistedOutsideKeychain: Bool
 
     public var preCleanupStatus: Int32 { cleanupReceipt.preCleanupStatus }
@@ -139,7 +140,8 @@ public struct SP6AKeychainArtifact: Codable, Equatable, Sendable {
         selection: String?, selectionVerdict: Verdict, selectionReason: String, hostLockAttempted: Bool,
         restartAttempted: Bool, crossDeviceRestoreVerdict: Verdict, crossDeviceRestoreReason: String,
         cleanupReceipt: SP6AKeychainCleanupReceipt, generationReceipt: SP6ANamespaceGenerationReceipt,
-        attemptHistory: SP6ANamespaceAttemptHistory, keyBytesPersistedOutsideKeychain: Bool
+        attemptHistory: SP6ANamespaceAttemptHistory, historyAnchor: SP6ANamespaceHistoryAnchor,
+        keyBytesPersistedOutsideKeychain: Bool
     ) {
         self.service = service; self.dataProtectionKeychain = dataProtectionKeychain
         self.candidates = candidates; self.selection = selection; self.selectionVerdict = selectionVerdict; self.selectionReason = selectionReason
@@ -148,6 +150,7 @@ public struct SP6AKeychainArtifact: Codable, Equatable, Sendable {
         self.cleanupReceipt = cleanupReceipt
         self.generationReceipt = generationReceipt
         self.attemptHistory = attemptHistory
+        self.historyAnchor = historyAnchor
         self.keyBytesPersistedOutsideKeychain = keyBytesPersistedOutsideKeychain
     }
 }

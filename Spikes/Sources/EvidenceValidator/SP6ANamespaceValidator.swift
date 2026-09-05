@@ -47,6 +47,15 @@ enum SP6ANamespaceValidator {
         }
     }
 
+    static func validateHistoryContract(_ artifact: SP6AKeychainArtifact) throws {
+        let timestamps = artifact.attemptHistory.attempts.map(\.generatedAtUTC)
+        guard artifact.attemptHistory.attempts.count == SP6ANamespaceHistoryContract.expectedAttemptCount,
+              timestamps == timestamps.sorted(),
+              artifact.attemptHistory.attempts.last == artifact.generationReceipt else {
+            throw ValidatorError("sp6a_keychain_attempt_history_anchor_mismatch")
+        }
+    }
+
     private static func validate(_ receipt: SP6ANamespaceGenerationReceipt) throws {
         guard receipt.schemaVersion == 1,
               receipt.transformation == .rfc4122UUIDv4,

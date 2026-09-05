@@ -4,6 +4,71 @@ import XCTest
 @testable import Phase0Support
 
 final class SP6ANamespaceValidatorTests: XCTestCase {
+    func testHistoryAnchorMetadataAndBlobForgeriesReject() throws {
+        let cases: [(String, (SP6ANamespaceHistoryAnchor) -> SP6ANamespaceHistoryAnchor)] = [
+            ("sp6a_history_anchor_contract_invalid", { copyAnchor($0, anchorPath: "evidence/phase0/sp6a/wrong.json") }),
+            ("sp6a_history_anchor_commit_missing", { copyAnchor($0, anchorCommitSha: String(repeating: "f", count: 40)) }),
+            ("sp6a_history_anchor_tree_mismatch", { copyAnchor($0, anchorTreeSha: String(repeating: "e", count: 40)) }),
+            ("sp6a_history_anchor_source_parent_mismatch", { copyAnchor($0, sourceCommitSha: String(repeating: "d", count: 40)) }),
+            ("sp6a_history_anchor_blob_mismatch", { copyAnchor($0, anchorBlobSha1: String(repeating: "c", count: 40)) }),
+            ("sp6a_history_anchor_hash_mismatch", { copyAnchor($0, anchorFileSha256: String(repeating: "b", count: 64)) }),
+        ]
+        for (expected, mutate) in cases {
+            let fixture = try SP6ATestDirectory.make()
+            defer { fixture.remove() }
+            let artifact = try fixture.keychain()
+            let anchor = mutate(artifact.historyAnchor)
+            try fixture.writeKeychain(
+                artifact, receipt: artifact.generationReceipt, history: artifact.attemptHistory,
+                historyAnchor: anchor
+            )
+            try fixture.writeHistoryAnchor(anchor)
+            try fixture.rebindArtifact("keychain.json")
+
+            XCTAssertEqual(errorCode(fixture), expected)
+        }
+    }
+
+    func testHistoryAnchorWorkingBytesAndAttemptOrderReject() throws {
+        let bytesFixture = try SP6ATestDirectory.make()
+        defer { bytesFixture.remove() }
+        try bytesFixture.rewrite(
+            SP6ANamespaceHistoryContract.anchorArtifactName,
+            replacing: "\"schemaVersion\" : 1", with: "\"schemaVersion\" : 2", remanifest: true
+        )
+        XCTAssertEqual(errorCode(bytesFixture), "sp6a_keychain_attempt_history_anchor_mismatch")
+
+        let orderFixture = try SP6ATestDirectory.make()
+        defer { orderFixture.remove() }
+        let artifact = try orderFixture.keychain()
+        var attempts = artifact.attemptHistory.attempts
+        attempts.swapAt(0, 1)
+        try orderFixture.writeKeychain(artifact, receipt: artifact.generationReceipt, history: .init(attempts: attempts))
+        try orderFixture.rebindArtifact("keychain.json")
+        XCTAssertEqual(errorCode(orderFixture), "sp6a_keychain_attempt_history_anchor_mismatch")
+    }
+
+    func testRemovingNonCurrentHistoryReceiptRejectsAfterCanonicalRebinding() throws {
+        let fixture = try SP6ATestDirectory.make()
+        defer { fixture.remove() }
+        let artifact = try fixture.keychain()
+        var attempts = (0..<10).map { index in
+            var bytes = artifact.generationReceipt.inputBytes
+            bytes[0] = UInt8(index + 1)
+            return receiptCopy(
+                artifact.generationReceipt, inputBytes: bytes,
+                generatedAtUTC: String(format: "2026-09-05T00:00:%02d.000Z", index + 1),
+                recomputeUUID: true, recomputeAttemptID: true
+            )
+        }
+        attempts.append(artifact.generationReceipt)
+        attempts.removeFirst()
+        try fixture.writeKeychain(artifact, receipt: artifact.generationReceipt, history: .init(attempts: attempts))
+        try fixture.rebindArtifact("keychain.json")
+
+        XCTAssertEqual(errorCode(fixture), "sp6a_keychain_attempt_history_anchor_mismatch")
+    }
+
     func testGenerationReceiptAndHistoryOmissionRejectWithTypedErrors() throws {
         for field in ["generationReceipt", "attemptHistory"] {
             let fixture = try SP6ATestDirectory.make()
@@ -136,4 +201,20 @@ final class SP6ANamespaceValidatorTests: XCTestCase {
             return "unexpected"
         }
     }
+}
+
+private func copyAnchor(
+    _ value: SP6ANamespaceHistoryAnchor,
+    sourceCommitSha: String? = nil, anchorCommitSha: String? = nil,
+    anchorTreeSha: String? = nil, anchorPath: String? = nil,
+    anchorBlobSha1: String? = nil, anchorFileSha256: String? = nil
+) -> SP6ANamespaceHistoryAnchor {
+    SP6ANamespaceHistoryAnchor(
+        sourceCommitSha: sourceCommitSha ?? value.sourceCommitSha,
+        anchorCommitSha: anchorCommitSha ?? value.anchorCommitSha,
+        anchorTreeSha: anchorTreeSha ?? value.anchorTreeSha,
+        anchorPath: anchorPath ?? value.anchorPath,
+        anchorBlobSha1: anchorBlobSha1 ?? value.anchorBlobSha1,
+        anchorFileSha256: anchorFileSha256 ?? value.anchorFileSha256
+    )
 }

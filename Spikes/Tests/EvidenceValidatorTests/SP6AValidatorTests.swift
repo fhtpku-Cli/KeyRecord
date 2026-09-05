@@ -296,11 +296,40 @@ struct SP6ATestDirectory {
             environmentSha256: Canonical.sha256(try Data(contentsOf: repository.appendingPathComponent("evidence/phase0/environment.json")))
         )
         let inputBytes: [UInt8] = [0x8f, 0x4e, 0x6b, 0x6a, 0x0b, 0xd1, 0x4a, 0xcd, 0x8e, 0x58, 0x4a, 0x86, 0x42, 0x95, 0xd1, 0xf7]
-        let generatedAtUTC = "2026-09-05T00:00:00.000Z"
+        let generatedAtUTC = "2026-09-05T00:00:10.000Z"
         let generationReceipt = SP6ANamespaceGenerationReceipt(
             attemptID: SP6ANamespaceDerivation.attemptID(inputBytes: inputBytes, runner: runner, generatedAtUTC: generatedAtUTC),
             inputBytes: inputBytes, randomStatus: 0, uuid: String(service.dropFirst(SP6AKeychainNamespace.prefix.count)),
             service: service, runner: runner, generatedAtUTC: generatedAtUTC, cleanupService: service
+        )
+        var attempts: [SP6ANamespaceGenerationReceipt] = []
+        for index in 0..<10 {
+            var bytes = inputBytes
+            bytes[0] = UInt8(index)
+            let attemptService = SP6AKeychainNamespace.prefix + (SP6ANamespaceDerivation.uuid(inputBytes: bytes) ?? "")
+            let timestamp = String(format: "2026-09-05T00:00:%02d.000Z", index)
+            attempts.append(SP6ANamespaceGenerationReceipt(
+                attemptID: SP6ANamespaceDerivation.attemptID(inputBytes: bytes, runner: runner, generatedAtUTC: timestamp),
+                inputBytes: bytes, randomStatus: 0,
+                uuid: String(attemptService.dropFirst(SP6AKeychainNamespace.prefix.count)), service: attemptService,
+                runner: runner, generatedAtUTC: timestamp, cleanupService: attemptService
+            ))
+        }
+        attempts.append(generationReceipt)
+        let history = SP6ANamespaceAttemptHistory(attempts: attempts)
+        let historyData = try pretty(history)
+        let anchorInRepository = repository.appendingPathComponent(SP6ANamespaceHistoryContract.anchorPath)
+        try FileManager.default.createDirectory(at: anchorInRepository.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try historyData.write(to: anchorInRepository)
+        try runGit(["add", SP6ANamespaceHistoryContract.anchorPath], repository)
+        try runGit(["-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "commit", "-q", "-m", "fixture sp6a anchor"], repository)
+        let anchorCommit = try gitOutput(["rev-parse", "HEAD"], repository)
+        let historyAnchor = SP6ANamespaceHistoryAnchor(
+            sourceCommitSha: commit, anchorCommitSha: anchorCommit,
+            anchorTreeSha: try gitOutput(["rev-parse", "HEAD^{tree}"], repository),
+            anchorPath: SP6ANamespaceHistoryContract.anchorPath,
+            anchorBlobSha1: try gitOutput(["rev-parse", "HEAD:\(SP6ANamespaceHistoryContract.anchorPath)"], repository),
+            anchorFileSha256: Canonical.sha256(historyData)
         )
         let keychain = SP6AKeychainArtifact(
             service: service, dataProtectionKeychain: true,
@@ -316,13 +345,15 @@ struct SP6ATestDirectory {
                 preCleanupStatus: -25300, postCleanupStatus: -25300, residueQueryStatus: -25300, residueCount: 0
             ),
             generationReceipt: generationReceipt,
-            attemptHistory: SP6ANamespaceAttemptHistory(attempts: [generationReceipt]),
+            attemptHistory: history, historyAnchor: historyAnchor,
             keyBytesPersistedOutsideKeychain: false
         )
         let artifacts: [String: Data] = [
             "crypto.json": try pretty(SP6AScenarios.crypto()), "locator.json": try pretty(SP6AScenarios.locator()),
             "path-canary.json": try pretty(SP6AScenarios.pathCanary()), "keychain.json": try pretty(keychain),
             "atomicity-citation.json": try pretty(SP6AAtomicityCitation.expected), "security-audit.md": Data(SecurityAuditFixture.valid.utf8),
+            SP6ANamespaceHistoryContract.anchorArtifactName: historyData,
+            SP6ANamespaceHistoryContract.metadataArtifactName: try pretty(historyAnchor),
         ]
         try FileManager.default.createDirectory(at: output, withIntermediateDirectories: true)
         for (name, data) in artifacts { try data.write(to: output.appendingPathComponent(name)) }
@@ -379,7 +410,8 @@ struct SP6ATestDirectory {
     }
     func writeKeychain(
         _ value: SP6AKeychainArtifact, receipt: SP6ANamespaceGenerationReceipt,
-        history: SP6ANamespaceAttemptHistory, cleanupService: String? = nil
+        history: SP6ANamespaceAttemptHistory, cleanupService: String? = nil,
+        historyAnchor: SP6ANamespaceHistoryAnchor? = nil
     ) throws {
         let changed = SP6AKeychainArtifact(
             service: receipt.service, dataProtectionKeychain: value.dataProtectionKeychain, candidates: value.candidates,
@@ -390,10 +422,13 @@ struct SP6ATestDirectory {
                 service: cleanupService ?? receipt.cleanupService, preCleanupStatus: value.preCleanupStatus, postCleanupStatus: value.postCleanupStatus,
                 residueQueryStatus: value.residueQueryStatus, residueCount: value.residueCount
             ),
-            generationReceipt: receipt, attemptHistory: history,
+            generationReceipt: receipt, attemptHistory: history, historyAnchor: historyAnchor ?? value.historyAnchor,
             keyBytesPersistedOutsideKeychain: value.keyBytesPersistedOutsideKeychain
         )
         try Self.pretty(changed).write(to: output.appendingPathComponent("keychain.json"))
+    }
+    func writeHistoryAnchor(_ value: SP6ANamespaceHistoryAnchor) throws {
+        try Self.pretty(value).write(to: output.appendingPathComponent(SP6ANamespaceHistoryContract.metadataArtifactName))
     }
     func removeKeychainField(_ field: String) throws {
         let url = output.appendingPathComponent("keychain.json")

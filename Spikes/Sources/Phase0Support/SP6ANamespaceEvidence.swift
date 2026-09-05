@@ -71,6 +71,36 @@ public struct SP6ANamespaceAttemptHistory: Codable, Equatable, Sendable {
     }
 }
 
+public struct SP6ANamespaceHistoryAnchor: Codable, Equatable, Sendable {
+    public let schemaVersion: Int
+    public let sourceCommitSha: String
+    public let anchorCommitSha: String
+    public let anchorTreeSha: String
+    public let anchorPath: String
+    public let anchorBlobSha1: String
+    public let anchorFileSha256: String
+
+    public init(
+        sourceCommitSha: String, anchorCommitSha: String, anchorTreeSha: String,
+        anchorPath: String, anchorBlobSha1: String, anchorFileSha256: String
+    ) {
+        self.schemaVersion = 1
+        self.sourceCommitSha = sourceCommitSha
+        self.anchorCommitSha = anchorCommitSha
+        self.anchorTreeSha = anchorTreeSha
+        self.anchorPath = anchorPath
+        self.anchorBlobSha1 = anchorBlobSha1
+        self.anchorFileSha256 = anchorFileSha256
+    }
+}
+
+public enum SP6ANamespaceHistoryContract {
+    public static let expectedAttemptCount = 11
+    public static let anchorPath = "evidence/phase0/sp6a/namespace-attempt-history.json"
+    public static let anchorArtifactName = "namespace-attempt-history.json"
+    public static let metadataArtifactName = "history-anchor.json"
+}
+
 public enum SP6ANamespaceDerivation {
     public static let rejectedServices: Set<String> = [
         SP6AKeychainNamespace.prefix + "00000000-0000-4000-8000-000000000000",

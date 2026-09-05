@@ -9,6 +9,7 @@ enum SP6ADirectoryValidator {
         try validateArtifacts(directory)
         try validateAtomicity(directory, repository: repository)
         try validateBindings(evidence, directory: directory, repository: repository)
+        try validateHistoryAnchor(evidence, directory: directory, repository: repository)
         try validateConclusion(directory, evidence: evidence)
         try validateRunner(evidence, repository: repository)
         return GateValidationReport(legCount: evidence.legs.count, o4RowCount: 0, g0Status: .open)
@@ -92,6 +93,19 @@ enum SP6ADirectoryValidator {
               Canonical.sha256(try git.run(["cat-file", "blob", "\(citation.historicalCommitSha):\(citation.artifactPath)"]).stdout) == citation.artifactSha256 else {
             throw ValidatorError("sp6a_atomicity_historical_blob_mismatch")
         }
+    }
+
+    static func validateHistoryAnchor(_ evidence: SP6AEvidence, directory: URL, repository: URL) throws {
+        let keychain = try decodeKeychain(directory)
+        try SP6ANamespaceValidator.validateHistoryContract(keychain)
+        let anchor: SP6ANamespaceHistoryAnchor = try exactDecode(
+            directory, SP6ANamespaceHistoryContract.metadataArtifactName,
+            code: "sp6a_history_anchor_contract_invalid"
+        )
+        try SP6AHistoryAnchorValidator.validate(
+            anchor: anchor, keychain: keychain, directory: directory,
+            repository: repository, evidence: evidence
+        )
     }
 
     static func validateRunner(_ evidence: SP6AEvidence, repository: URL) throws {

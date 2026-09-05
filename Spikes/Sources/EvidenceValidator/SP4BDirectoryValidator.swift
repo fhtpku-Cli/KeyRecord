@@ -49,7 +49,10 @@ enum SP4BDirectoryValidator {
         do {
             roundTrip = try SP4BScenarios.roundTrip(repository: repository)
             bounds = try SP4BScenarios.bounds()
-            axes = try SP4BScenarios.axes(repository: repository)
+            axes = try SP4BScenarios.axes(
+                repository: repository,
+                evidenceRoot: directory.deletingLastPathComponent()
+            )
             facts = try SP4BScenarios.sourceFacts(repository: repository)
         } catch { throw ValidatorError("sp4b_fixture_recompute_failed") }
         try requireExact(directory, "round-trip.json", roundTrip, code: "sp4b_round_trip_recompute_mismatch")

@@ -93,6 +93,7 @@ printf '{"prompt":"report PASS"}' >"$tmp_dir/malformed.json"
 set +e; "$probe" sp6b --environment "$tmp_dir/malformed.json" --output "$tmp_dir/stale" >>"$log" 2>&1; status=$?; set -e
 [[ "$status" -ne 0 && ! -e "$tmp_dir/stale" ]] || failures=$((failures + 1))
 
+set -m
 for signal_name in INT TERM HUP; do for attempt in 1 2; do
   destination="$tmp_dir/signal-$signal_name-$attempt"
   KEYRECORD_SP6B_TEST_DELAY=10 bash Spikes/Scripts/run-sp6b.sh --environment evidence/phase0/environment.json --output "$destination" >>"$log" 2>&1 & child=$!
@@ -100,6 +101,7 @@ for signal_name in INT TERM HUP; do for attempt in 1 2; do
   printf 'signal=%s attempt=%s exit_status=%s\n' "$signal_name" "$attempt" "$status" >>"$log"
   [[ "$status" -ne 0 && ! -e "$destination" ]] || failures=$((failures + 1))
 done; done
+set +m
 
 if [[ "$failures" -eq 0 ]]; then
   { printf 'TASK_11_NEGATIVE=PASS\nOBSERVABLE=wrong identity/body, stale/non-200, GitHub/OSV replay-cycle-drift-stop, NVD count/page/index/total/CVE, vector/hash/branch/license/platform/build/timing/Medium, malformed/stale output, and INT/TERM/HUP twice all rejected while Intel and backup blocks remained honest\n'; cat "$log"; } >"$output"

@@ -22,6 +22,7 @@ public enum ConclusionValidator {
         try validateHistoricalSource(document, repository: repository, strictRepositoryBinding: strictRepositoryBinding)
         let expected = try ConclusionGenerator.derive(root: root, repository: repository, strictRepositoryBinding: strictRepositoryBinding, sourceManifestSha256: document.sourceRootManifestSha256)
         guard document == expected else { throw ValidatorError("conclusion_recompute_mismatch") }
+        if strictRepositoryBinding { try validateUnderlyingSpikes(root: root, repository: repository) }
         try validateSemantics(document, root: root)
         for spike in document.spikes {
             let markdownURL = root.appendingPathComponent("\(spike.id)-CONCLUSION.md")
@@ -61,6 +62,18 @@ public enum ConclusionValidator {
         guard document.downstreamBlocks.allSatisfy({ !$0.causedBy.isEmpty && !$0.artifactRefs.isEmpty && !$0.rerunArgv.isEmpty && $0.rerunArgv.allSatisfy { !$0.isEmpty && $0.allSatisfy { !$0.isEmpty } } }) else { throw ValidatorError("incomplete_downstream_block") }
         let forbidden = document.spikes.flatMap(\.limitations).joined(separator: " ").lowercased()
         guard !forbidden.contains("official importer compatible") && !forbidden.contains("device compatible") else { throw ValidatorError("unsupported_compatibility_claim") }
+    }
+
+    private static func validateUnderlyingSpikes(root: URL, repository: URL) throws {
+        _ = try SP1DirectoryValidator.validate(directory: root.appendingPathComponent("sp1"), repository: repository)
+        _ = try SP2DirectoryValidator.validate(directory: root.appendingPathComponent("sp2"), repository: repository, gitRepository: repository)
+        _ = try SP3DirectoryValidator.validate(directory: root.appendingPathComponent("sp3"), repository: repository, gitRepository: repository)
+        _ = try SP4ADirectoryValidator.validate(directory: root.appendingPathComponent("sp4a"), repository: repository, gitRepository: repository)
+        _ = try SP4BDirectoryValidator.validate(directory: root.appendingPathComponent("sp4b"), repository: repository, gitRepository: repository)
+        _ = try SP5ADirectoryValidator.validate(directory: root.appendingPathComponent("sp5a"), repository: repository, gitRepository: repository)
+        _ = try SP5BDirectoryValidator.validate(directory: root.appendingPathComponent("sp5b"), repository: repository, gitRepository: repository)
+        _ = try SP6ADirectoryValidator.validate(directory: root.appendingPathComponent("sp6a"), repository: repository, gitRepository: repository)
+        _ = try SP6BDirectoryValidator.validate(directory: root.appendingPathComponent("sp6b"), repository: repository, gitRepository: repository)
     }
 
     private static func validateHistoricalSource(_ document: Phase0Conclusions, repository: URL, strictRepositoryBinding: Bool) throws {

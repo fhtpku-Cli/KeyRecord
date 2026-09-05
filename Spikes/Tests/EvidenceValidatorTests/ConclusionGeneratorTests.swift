@@ -26,7 +26,8 @@ final class ConclusionGeneratorTests: XCTestCase {
             try? FileManager.default.removeItem(at: second)
         }
 
-        let source = repository.appendingPathComponent("evidence/phase0")
+        let source = try rawEvidenceRoot(repository: repository)
+        defer { if source != repository.appendingPathComponent("evidence/phase0") { try? FileManager.default.removeItem(at: source) } }
         do { try ConclusionGenerator.generate(sourceRoot: source, outputRoot: first, repository: repository) }
         catch { XCTFail("first generation: \(error)"); return }
         do { try ConclusionGenerator.generate(sourceRoot: source, outputRoot: second, repository: repository) }
@@ -56,5 +57,29 @@ final class ConclusionGeneratorTests: XCTestCase {
             candidate.deleteLastPathComponent()
         }
         throw CocoaError(.fileNoSuchFile)
+    }
+
+    private func rawEvidenceRoot(repository: URL) throws -> URL {
+        let canonical = repository.appendingPathComponent("evidence/phase0")
+        let conclusions = canonical.appendingPathComponent("conclusions.json")
+        guard FileManager.default.fileExists(atPath: conclusions.path) else { return canonical }
+        let document = try JSONDecoder().decode(Phase0Conclusions.self, from: Data(contentsOf: conclusions))
+        let raw = temporaryURL("raw-evidence")
+        try FileManager.default.copyItem(at: canonical, to: raw)
+        for name in ["conclusions.json"] + ConclusionContract.spikeIDs.map({ "\($0)-CONCLUSION.md" }) {
+            try FileManager.default.removeItem(at: raw.appendingPathComponent(name))
+        }
+        for name in ["manifest.sha256", "privacy-audit.json", "run-all.json"] {
+            let process = Process(), output = Pipe()
+            process.executableURL = URL(fileURLWithPath: "/usr/bin/git")
+            process.arguments = ["cat-file", "blob", "\(document.sourceEvidenceCommitSha):evidence/phase0/\(name)"]
+            process.currentDirectoryURL = repository
+            process.standardOutput = output
+            try process.run()
+            process.waitUntilExit()
+            guard process.terminationStatus == 0 else { throw CocoaError(.fileReadCorruptFile) }
+            try output.fileHandleForReading.readDataToEndOfFile().write(to: raw.appendingPathComponent(name))
+        }
+        return raw
     }
 }

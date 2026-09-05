@@ -40,7 +40,11 @@ final class SP6BValidatorTests: XCTestCase {
     func testArbitraryNVDDispositionRejects() throws {
         let fixture = try SP6BIntegrityFixture.make()
         defer { fixture.remove() }
-        try fixture.replace(in: "d12/snapshot.json", "neither exact pinned repository is affected", "arbitrary reviewed-looking rationale")
+        try fixture.replace(
+            in: "d12/snapshot.json",
+            "Directus authorization flaw exposes stored hashes; its Directus CPE and code are outside both pinned candidate trees.",
+            "arbitrary reviewed-looking rationale"
+        )
         try fixture.remanifest()
         try assertRejects(fixture, code: "sp6b_nvd_disposition_rationale")
     }

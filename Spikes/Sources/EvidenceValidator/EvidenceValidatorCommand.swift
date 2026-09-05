@@ -101,6 +101,7 @@ public enum EvidenceValidatorCommand {
         if let data = try? Data(contentsOf: evidence),
            let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
            object["runnerSourceSha256"] != nil {
+            if object["spikeID"] as? String == "SP-6B" { return try SP6BDirectoryValidator.validate(directory: directory) }
             if object["spikeID"] as? String == "SP-6A" { return try SP6ADirectoryValidator.validate(directory: directory) }
             if object["spikeID"] as? String == "SP-5A" { return try SP5ADirectoryValidator.validate(directory: directory) }
             if object["spikeID"] as? String == "SP-4A" { return try SP4ADirectoryValidator.validate(directory: directory) }

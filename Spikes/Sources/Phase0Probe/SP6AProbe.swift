@@ -21,7 +21,8 @@ enum SP6AProbe {
         let anchoredHistory = try anchorBytes.map { try JSONDecoder().decode(SP6ANamespaceAttemptHistory.self, from: $0) }
         let provider = identityProvider ?? GitAtomicityRunnerIdentityProvider(
             sourcePaths: SP6ARunnerBinding.sourcePaths.sorted(),
-            revision: resolvedHistoryAnchor?.sourceCommitSha ?? "HEAD"
+            revision: resolvedHistoryAnchor?.sourceCommitSha ?? "HEAD",
+            requiresCurrentBytesMatch: resolvedHistoryAnchor == nil
         )
         let identity = try provider.resolve()
         let historyAnchor = resolvedHistoryAnchor ?? unboundAnchor(identity: identity)

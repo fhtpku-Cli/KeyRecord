@@ -57,13 +57,16 @@ struct GitAtomicityRunnerIdentityProvider: AtomicityRunnerIdentityProviding {
     private let timeout: TimeInterval
     private let sourcePaths: [String]
     private let revision: String
+    private let requiresCurrentBytesMatch: Bool
 
     init(currentDirectory: URL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath), timeout: TimeInterval = 5,
-         sourcePaths: [String] = Self.runnerSourcePaths, revision: String = "HEAD") {
+         sourcePaths: [String] = Self.runnerSourcePaths, revision: String = "HEAD",
+         requiresCurrentBytesMatch: Bool = true) {
         self.currentDirectory = currentDirectory
         self.timeout = timeout
         self.sourcePaths = sourcePaths
         self.revision = revision
+        self.requiresCurrentBytesMatch = requiresCurrentBytesMatch
     }
 
     func resolve() throws -> AtomicityRunnerIdentity {
@@ -89,8 +92,10 @@ struct GitAtomicityRunnerIdentityProvider: AtomicityRunnerIdentityProviding {
                 in: root,
                 maximumBytes: 1_048_576
             )
-            guard workingBytes == committedBytes else { throw AtomicityRunnerIdentityError.sourceMismatch(path) }
-            sourceSha256[path] = AtomicityDigest.sha256(workingBytes)
+            if requiresCurrentBytesMatch, workingBytes != committedBytes {
+                throw AtomicityRunnerIdentityError.sourceMismatch(path)
+            }
+            sourceSha256[path] = AtomicityDigest.sha256(committedBytes)
         }
         return AtomicityRunnerIdentity(commitSha: commit, treeSha: tree, sourceSha256: sourceSha256)
     }

@@ -76,7 +76,7 @@ public enum Phase0RunLayout {
 
 public enum Phase0RunBinding {
     public static let task15SourcePaths: Set<String> = [
-        "Spikes/Scripts/task-15-qa.sh", "Spikes/Scripts/verify-manifests.sh",
+        "Spikes/Scripts/task-15-qa.sh",
         "Spikes/Sources/EvidenceValidator/ConclusionGenerator.swift", "Spikes/Sources/EvidenceValidator/ConclusionValidator.swift",
         "Spikes/Sources/Phase0Support/ConclusionModels.swift", "Spikes/Sources/Phase0Support/ConclusionStrictCoding.swift",
         "Spikes/Tests/EvidenceValidatorTests/ConclusionGeneratorTests.swift",

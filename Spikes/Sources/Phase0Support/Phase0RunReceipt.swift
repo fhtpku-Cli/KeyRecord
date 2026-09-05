@@ -75,6 +75,12 @@ public enum Phase0RunLayout {
 }
 
 public enum Phase0RunBinding {
+    public static let task15SourcePaths: Set<String> = [
+        "Spikes/Scripts/task-15-qa.sh", "Spikes/Scripts/verify-manifests.sh",
+        "Spikes/Sources/EvidenceValidator/ConclusionGenerator.swift", "Spikes/Sources/EvidenceValidator/ConclusionValidator.swift",
+        "Spikes/Sources/Phase0Support/ConclusionModels.swift", "Spikes/Sources/Phase0Support/ConclusionStrictCoding.swift",
+        "Spikes/Tests/EvidenceValidatorTests/ConclusionGeneratorTests.swift",
+    ]
     public static let sourcePaths: Set<String> = AtomicityRunnerBinding.sourcePaths
         .union(SP1RunnerBinding.sourcePaths).union(SP2RunnerBinding.sourcePaths)
         .union(SP3RunnerBinding.sourcePaths).union(SP4ARunnerBinding.sourcePaths)
@@ -105,5 +111,5 @@ public enum Phase0RunBinding {
         "Spikes/Sources/Phase0Support/StrictCoding.swift", "Spikes/Sources/Phase0Support/ValidationContracts.swift",
         "Spikes/Tests/EvidenceValidatorTests/Phase0RootValidatorTests.swift",
         "Spikes/Tests/Phase0ProbeTests/RunAllProbeTests.swift"
-    ])
+    ]).union(task15SourcePaths)
 }

@@ -33,6 +33,31 @@ final class SP5BValidatorTests: XCTestCase {
         XCTAssertEqual(errorCode { try SP5BDirectoryValidator.validateConclusion(fixture.output, evidence: fixture.evidence) }, "sp5b_misleading_conclusion")
     }
 
+    func testSourceAndFixtureProvenanceRequireExactFileEntrySets() throws {
+        var fixture = try SP5BValidatorFixture.make()
+        defer { fixture.remove() }
+        try fixture.mutateRepositoryJSON("evidence/phase0/sources/repos/vial-qmk/provenance.json") { root in
+            var files = root["files"] as! [[String: Any]]
+            files.removeLast()
+            root["files"] = files
+        }
+        XCTAssertEqual(
+            errorCode { try SP5BDirectoryValidator.validateArtifacts(fixture.output, repository: fixture.repository) },
+            "sp5b_source_provenance_mismatch"
+        )
+
+        fixture.remove(); fixture = try SP5BValidatorFixture.make()
+        try fixture.mutateRepositoryJSON("evidence/phase0/fixtures/synthetic/provenance.json") { root in
+            var files = root["files"] as! [[String: Any]]
+            files.append(["path": "forged.json", "sha256": String(repeating: "f", count: 64)])
+            root["files"] = files
+        }
+        XCTAssertEqual(
+            errorCode { try SP5BDirectoryValidator.validateArtifacts(fixture.output, repository: fixture.repository) },
+            "sp5b_fixture_provenance_mismatch"
+        )
+    }
+
     private func errorCode(_ body: () throws -> Void) -> String? {
         do { try body(); return nil } catch let error as ValidatorError { return error.code } catch { return "unexpected" }
     }
@@ -51,8 +76,7 @@ private struct SP5BValidatorFixture {
         let repository = container.appendingPathComponent("repo"), output = repository.appendingPathComponent("sp5b")
         try FileManager.default.createDirectory(at: repository, withIntermediateDirectories: true)
         let copied = [
-            "evidence/phase0/environment.json", VialRecordedFixture.fixturePath,
-            "evidence/phase0/fixtures/synthetic/provenance.json", "evidence/phase0/fixtures/synthetic/manifest.sha256",
+            "evidence/phase0/environment.json", "evidence/phase0/fixtures/synthetic",
             "evidence/phase0/sources/repos/vial-qmk", "evidence/phase0/sources/repos/vial-gui",
             "evidence/phase0/sources/repos/qmk", "Spikes/Sources/Phase0Support/VialQuery.swift",
         ]
@@ -93,6 +117,12 @@ private struct SP5BValidatorFixture {
     func writeManifest() throws {
         let rows = try SP5BDirectoryLayout.artifactNames.sorted().map { "\(Canonical.sha256(try Data(contentsOf: output.appendingPathComponent($0))))  \($0)" }
         try Data((rows.joined(separator: "\n") + "\n").utf8).write(to: output.appendingPathComponent("manifest.sha256"))
+    }
+    func mutateRepositoryJSON(_ path: String, body: (inout [String: Any]) throws -> Void) throws {
+        let url = repository.appendingPathComponent(path)
+        var root = try JSONSerialization.jsonObject(with: Data(contentsOf: url)) as! [String: Any]
+        try body(&root)
+        try JSONSerialization.data(withJSONObject: root, options: [.prettyPrinted, .sortedKeys]).write(to: url)
     }
     func remove() { try? FileManager.default.removeItem(at: container) }
 

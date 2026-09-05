@@ -120,6 +120,9 @@ enum SP5BDirectoryValidator {
             guard try git.run(["cat-file", "-e", "\(first.runnerCommitSha):\(path)"], acceptedStatuses: [0, 1, 128]).status == 0 else {
                 throw ValidatorError("sp5b_runner_source_missing", path)
             }
+            guard try git.text(["cat-file", "-t", "\(first.runnerCommitSha):\(path)"]) == "blob" else {
+                throw ValidatorError("sp5b_runner_source_not_blob", path)
+            }
             let committed = try git.run(["cat-file", "blob", "\(first.runnerCommitSha):\(path)"]).stdout
             guard Canonical.sha256(committed) == evidence.runnerSourceSha256[path] else {
                 throw ValidatorError("sp5b_runner_source_hash_mismatch", path)
@@ -134,33 +137,73 @@ enum SP5BDirectoryValidator {
         let provenance = repository.appendingPathComponent("evidence/phase0/fixtures/synthetic/provenance.json")
         let manifest = repository.appendingPathComponent("evidence/phase0/fixtures/synthetic/manifest.sha256")
         guard isRegular(provenance), isRegular(manifest), let data = try? Data(contentsOf: provenance),
-              let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              root["evidenceKind"] as? String == "synthetic",
-              root["generator"] as? String == "Spikes/Scripts/generate-synthetic-fixtures.sh",
-              let files = root["files"] as? [[String: String]],
-              files.contains(where: { $0 == ["path": "vial-query-replay.json", "sha256": VialRecordedFixture.fixtureSha256] }),
-              let fixture = try? Data(contentsOf: repository.appendingPathComponent(VialRecordedFixture.fixturePath)),
-              Canonical.sha256(fixture) == VialRecordedFixture.fixtureSha256,
+              let document = try? JSONDecoder().decode(SP5BSyntheticProvenance.self, from: data),
+              document == SP5BProvenanceLedger.synthetic,
+              document.files.allSatisfy({ entry in
+                  let url = provenance.deletingLastPathComponent().appendingPathComponent(entry.path)
+                  return isRegular(url) && (try? Data(contentsOf: url)).map(Canonical.sha256) == entry.sha256
+              }),
               let text = try? String(contentsOf: manifest, encoding: .utf8),
-              text.split(separator: "\n").contains("\(VialRecordedFixture.fixtureSha256)  vial-query-replay.json") else {
+              let expectedManifest = try? fixtureManifest(at: provenance.deletingLastPathComponent()),
+              parseManifest(text) == expectedManifest else {
             throw ValidatorError("sp5b_fixture_provenance_mismatch")
         }
     }
 
     private static func validateSourceProvenance(_ repository: URL, facts: SP5BSourceFactsArtifact) throws {
-        for name in Set(facts.whitelist.flatMap(\.anchors).map(\.repository)) {
+        let anchoredNames = Set(facts.whitelist.flatMap(\.anchors).map(\.repository))
+        guard anchoredNames == Set(SP5BProvenanceLedger.repositories.keys) else {
+            throw ValidatorError("sp5b_source_provenance_mismatch")
+        }
+        for name in anchoredNames {
             let anchors = facts.whitelist.flatMap(\.anchors).filter { $0.repository == name }
             let url = repository.appendingPathComponent("evidence/phase0/sources/repos/\(name)/provenance.json")
             guard isRegular(url), let data = try? Data(contentsOf: url),
-                  let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                  root["name"] as? String == name, root["upstream_ref"] as? String == anchors[0].revision,
-                  root["tree"] as? String == anchors[0].tree, let license = root["license"] as? [String: Any],
-                  license["path"] as? String == anchors[0].licensePath,
-                  license["git_blob"] as? String == anchors[0].licenseGitBlob,
-                  license["sha256"] as? String == anchors[0].licenseSha256 else {
+                  let actual = try? JSONDecoder().decode(SP5BRepositoryProvenance.self, from: data),
+                  let expected = SP5BProvenanceLedger.repositories[name], actual == expected,
+                  PinnedSourceLedger.entries.contains(where: {
+                      $0.name == name && $0.commit == actual.upstreamRef && $0.tree == actual.tree
+                  }),
+                  anchors.allSatisfy({ anchor in
+                      anchor.revision == actual.upstreamRef && anchor.tree == actual.tree
+                          && actual.files.contains(where: {
+                              $0.path == anchor.path && $0.gitBlob == anchor.gitBlob && $0.sha256 == anchor.fileSha256
+                          })
+                          && anchor.licensePath == actual.license.path
+                          && anchor.licenseGitBlob == actual.license.gitBlob
+                          && anchor.licenseSha256 == actual.license.sha256
+                  }), try validateHistoricalBytes(actual, base: url.deletingLastPathComponent()) else {
                 throw ValidatorError("sp5b_source_provenance_mismatch", name)
             }
         }
+    }
+
+    private static func validateHistoricalBytes(_ document: SP5BRepositoryProvenance, base: URL) throws -> Bool {
+        for file in document.files {
+            let bytes = try Data(contentsOf: base.appendingPathComponent(file.copiedPath))
+            try ProvenanceValidator.validate(bytes, expected: .init(sha256: file.sha256, gitBlob: file.gitBlob))
+        }
+        let license = try Data(contentsOf: base.appendingPathComponent(document.license.copiedPath))
+        try ProvenanceValidator.validate(
+            license, expected: .init(sha256: document.license.sha256, gitBlob: document.license.gitBlob)
+        )
+        return true
+    }
+
+    private static func parseManifest(_ text: String) -> [String: String]? {
+        var values: [String: String] = [:]
+        for line in text.split(separator: "\n") {
+            let fields = line.split(separator: " ", omittingEmptySubsequences: true)
+            guard fields.count == 2, values.updateValue(String(fields[0]), forKey: String(fields[1])) == nil else { return nil }
+        }
+        return values
+    }
+
+    private static func fixtureManifest(at directory: URL) throws -> [String: String] {
+        let names = Set(["README.md", "phase0.vil", "provenance.json", "via-layout.json", "vial-query-replay.json"])
+        return try Dictionary(uniqueKeysWithValues: names.map { name in
+            (name, Canonical.sha256(try Data(contentsOf: directory.appendingPathComponent(name))))
+        })
     }
 
     private static func requireExact<T: Codable & Equatable>(_ directory: URL, _ name: String, _ expected: T, code: String) throws {

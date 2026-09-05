@@ -38,11 +38,11 @@ final class Phase0RootValidatorTests: XCTestCase {
     }
 
     func testRemanifestedFixtureMutationRejects() throws {
-        try assertCandidateMutation(code: "sp5a_fixture_provenance_mismatch") { root in
+        try assertCandidateMutation(code: "sp4b_fixture_provenance_mismatch") { root in
             let fixtures = root.appendingPathComponent("fixtures/synthetic")
-            let artifact = fixtures.appendingPathComponent("phase0.vil")
+            let artifact = fixtures.appendingPathComponent("via-layout.json")
             try appendSpace(to: artifact)
-            try refreshManifest(fixtures, artifact: artifact, path: "phase0.vil")
+            try refreshManifest(fixtures, artifact: artifact, path: "via-layout.json")
         }
     }
 
@@ -78,6 +78,7 @@ final class Phase0RootValidatorTests: XCTestCase {
         try FileManager.default.copyItem(at: repository.appendingPathComponent("evidence/phase0"), to: candidate)
         defer { try? FileManager.default.removeItem(at: candidate) }
         try upgradeSP1Binding(candidate, repository: repository)
+        try upgradeEarlyBindings(candidate, repository: repository)
         try mutation(candidate)
         XCTAssertThrowsError(try Phase0RootValidator.validate(candidate, repository: repository)) { error in
             XCTAssertEqual((error as? ValidatorError)?.code, expected)
@@ -103,6 +104,55 @@ final class Phase0RootValidatorTests: XCTestCase {
         data.append(10)
         try data.write(to: url)
         try refreshManifest(directory, artifact: url, path: "evidence.json")
+    }
+
+    private func upgradeEarlyBindings(_ root: URL, repository: URL) throws {
+        let commit = try gitText(["rev-parse", "HEAD"], repository: repository)
+        let tree = try gitText(["rev-parse", "HEAD^{tree}"], repository: repository)
+
+        let sp2URL = root.appendingPathComponent("sp2/evidence.json")
+        var sp2 = try JSONDecoder().decode(SP2Evidence.self, from: Data(contentsOf: sp2URL))
+        for index in sp2.legs.indices {
+            sp2.legs[index].runnerCommitSha = commit
+            sp2.legs[index].runnerTreeSha = tree
+        }
+        sp2.runnerSourceSha256 = try sourceHashes(SP2RunnerBinding.sourcePaths, commit: commit, repository: repository)
+        try write(sp2, to: sp2URL)
+        try refreshManifest(sp2URL.deletingLastPathComponent(), artifact: sp2URL, path: "evidence.json")
+
+        let sp3URL = root.appendingPathComponent("sp3/evidence.json")
+        var sp3 = try JSONDecoder().decode(SP3Evidence.self, from: Data(contentsOf: sp3URL))
+        for index in sp3.legs.indices {
+            sp3.legs[index].runnerCommitSha = commit
+            sp3.legs[index].runnerTreeSha = tree
+        }
+        sp3.runnerSourceSha256 = try sourceHashes(SP3RunnerBinding.sourcePaths, commit: commit, repository: repository)
+        try write(sp3, to: sp3URL)
+        try refreshManifest(sp3URL.deletingLastPathComponent(), artifact: sp3URL, path: "evidence.json")
+
+        let sp4aURL = root.appendingPathComponent("sp4a/evidence.json")
+        var sp4a = try JSONDecoder().decode(SP4AEvidence.self, from: Data(contentsOf: sp4aURL))
+        for index in sp4a.legs.indices {
+            sp4a.legs[index].runnerCommitSha = commit
+            sp4a.legs[index].runnerTreeSha = tree
+        }
+        sp4a.runnerSourceSha256 = try sourceHashes(SP4ARunnerBinding.sourcePaths, commit: commit, repository: repository)
+        try write(sp4a, to: sp4aURL)
+        try refreshManifest(sp4aURL.deletingLastPathComponent(), artifact: sp4aURL, path: "evidence.json")
+    }
+
+    private func sourceHashes(_ paths: Set<String>, commit: String, repository: URL) throws -> [String: String] {
+        try Dictionary(uniqueKeysWithValues: paths.map { path in
+            (path, Canonical.sha256(try gitBlob(commit: commit, path: path, repository: repository)))
+        })
+    }
+
+    private func write<T: Encodable>(_ value: T, to url: URL) throws {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
+        var data = try encoder.encode(value)
+        data.append(10)
+        try data.write(to: url)
     }
 
     private func gitBlob(commit: String, path: String, repository: URL) throws -> Data {

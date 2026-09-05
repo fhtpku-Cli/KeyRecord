@@ -1,0 +1,94 @@
+{
+  "schemaVersion": 1,
+  "compilerIdentitySha256": "a27c50660f01ac4d5dd9e84a96fbee710f2f554b24f272071eabc46fd3ee03f4",
+  "benchmarkExpectedTag": "f7f82701fc9e868fa4e4b28b882039ccbe3d5b44460f9115ff4e19a4b0eae4e1",
+  "deterministicBuild": {
+    "archiveSha256": "95497a26d620d235fd8c1da64dcd6cd08830a5090c9c0266b33af22ad899b110",
+    "slices": [
+      {
+        "architecture": "x86_64",
+        "sliceSha256": "73ad3c60f125d6757d66853472a9c7dc7dedce7566f5d4f08e92b2f2b1ad9605",
+        "objects": {
+          "argon2.o": "7fa6ad2a0fd5df7893cef4422193ba3b69b389188f980b9fe52a7ae27ab3a298",
+          "core.o": "7fa9529d9b0e2a98b347950ab11f6582e7867da6fd430c18e03a2003ae14c544",
+          "blake2b.o": "447fe1724559e2779929cc1b088a2ada2aba66fe0015a19a30c796733a5f6045",
+          "thread.o": "ca6d5bd3a96ee622cbed80b2fd3c3bc6e65b9d634ac63ea45726ca69c26f1d6b",
+          "encoding.o": "89a42e084bbf26bd728c8be24d7aab29a0987dc00c039fd9bbc15e744c63f0c5",
+          "ref.o": "37bd89649d6e3d47d440600dd1d8d93bc3d20efe1701cc787e7e25bd27c98399"
+        }
+      },
+      {
+        "architecture": "arm64",
+        "sliceSha256": "62af537f7c21ba045f66ca4a1815fe9c45f1e3a7b554bad49b049fb0358395f1",
+        "objects": {
+          "argon2.o": "4264274a26376792e9203aa332f835b75e8a8d0085c223f502efcb8f20884fde",
+          "core.o": "9b8170a68ff9a669750b99205be8b2f4139fb49f0c53b047b763a4b1af488175",
+          "blake2b.o": "8df7d7817650d247d0abfc50a9ca849ae426b3548737199222075ee11f9c7246",
+          "thread.o": "3ab43ccc86ec5d03f4fe3d7d94802c89d5fb94727455cfb9ce4697a8e9537bc8",
+          "encoding.o": "ddb2449b5818cb44343d1bdaf76c13ff6da6b68fa2b3b14e3c26489af8708ec8",
+          "ref.o": "402368f2564dd0d940e1767955179b26bc0ae18c9cfe051a36b03064c6d59bcd"
+        }
+      }
+    ]
+  },
+  "candidates": [
+    {
+      "id": "phc",
+      "name": "phc-argon2",
+      "canonicalURL": "https://github.com/P-H-C/phc-winner-argon2.git",
+      "ownerRepo": "P-H-C/phc-winner-argon2",
+      "commit": "f57e61e19229e23c4445b85494dbf7c07de721cb",
+      "tree": "ac3dc753ff75ce5a0f243cba1d94582bafe09409",
+      "latestCommitDate": "2021-06-25T08:21:15Z",
+      "licenseBlob": "a16d6d2ffee94866a0fb5ce3ab08a5b9c49967af",
+      "licenseSha256": "ac36638bcfcedb75441a5daeeaf4ef75b565911712583c272830e9fa7fddb590",
+      "packageBlob": "d3d9c83c63a92d579d32b531b19d569180655f48",
+      "provenancePath": "evidence/phase0/sources/repos/phc-argon2/provenance.json",
+      "provenanceBlob": "cea628908cf0c7c1c1812632c31d71d0c1440791",
+      "provenanceSha256": "b590be920a57aafa7e7cb4372363c3ba3ec2bc3d3a62fb91072c3642f985df96",
+      "treeListingSha256": "546d7a6ef13052eef69a55980f104ac4bcad039ac5c5aed9de1aa5259e31bfcf",
+      "runtimeDependencyCount": 0,
+      "minimumMacOSMajor": 10,
+      "sourceLOC": 3294,
+      "includedFiles": [
+        {"path":"include/argon2.h","blob":"3980bb352f2312520c9be0fb3f739ced75e2cd33","sha256":"25ed629feca91ca9d361441160c6fbc10318bb0fb3757555b418ed47b705b35b","lineCount":437},
+        {"path":"src/argon2.c","blob":"34da3d6b4acf9f018c65c5b4835f6632708a3833","sha256":"b1289ec7134e8502e9113396fdac89402bf2575ee1b35e33fb7410f2fb63bb6d","lineCount":452},
+        {"path":"src/blake2/blake2-impl.h","blob":"86d0d5cfa9b354a369d78748046e66e2f14a7441","sha256":"ec9884fe834c30eb362f0cef3432a43a5c496b0d6d1d637a5a590a45bec4d79c","lineCount":156},
+        {"path":"src/blake2/blake2.h","blob":"501c6a3186d861631c1ee8c3bb882de023404358","sha256":"196cd9adf0660474ea04cb686c122f3ca8c758445c5ff0806f438e6412ac8423","lineCount":89},
+        {"path":"src/blake2/blake2b.c","blob":"3b519ddb4d0754bc9f51d1380bffdb556ad7565b","sha256":"7eb2f3faac14c532fb75f645f518686f3ef0db4c7b9849a1ffc73d262b596281","lineCount":390},
+        {"path":"src/blake2/blamka-round-ref.h","blob":"16cfc1c74af8e6b0d1504e8ccb86c532f0816640","sha256":"8d5fc886bbc0b55af10ac6f1e9a5995a4e8d4abace46642fb1832c84d38c3007","lineCount":56},
+        {"path":"src/core.c","blob":"e697882eb96dff757b0b64e9f990c4e740899562","sha256":"d6ddc9e28c51d2c3b0d542c0c4678c4d9d788da048e4f557166030d0ef62618b","lineCount":648},
+        {"path":"src/core.h","blob":"59e25646cbc827d51269f679ac59a8098f25f079","sha256":"32f6ab8c0c313d9336d2731a001426b68d246bba5b362fabeaf593c333da7d37","lineCount":228},
+        {"path":"src/encoding.c","blob":"771a4409d571163f2535dbd5d0cd1f0cd8cbfc48","sha256":"7b9a0c019abc6fca7e6e0a9abd2f7b22a885f8831827cfbd4bfd4502dd9f7806","lineCount":463},
+        {"path":"src/encoding.h","blob":"5b8b2ddb45529fccd60e4abbc02461206ecd17af","sha256":"a4e0681ef4b0eb229a35760b603b7a32e9019cfe98c31732f747f087e5e39828","lineCount":57},
+        {"path":"src/ref.c","blob":"10e45eba64eddd6ae0a8608438d414345a6aff9b","sha256":"9ac347fd8dc737af69bbb93d56ac8b4ab5488152f606880c8d7fc4592e207647","lineCount":194},
+        {"path":"src/thread.c","blob":"3ae2fb233289737c8bdaec564bc1f43d1fd3797c","sha256":"af2ab481fcf5ef00f1b2deb346bda3642797b417fc0ed98bfb7ae80e716f90d1","lineCount":57},
+        {"path":"src/thread.h","blob":"d4ca10c15087d805561a23cd7426338ad9c0c623","sha256":"650e713fb584de2e6aeb307e64228f95cef733ea667faa0bb111960aaace30ef","lineCount":67}
+      ],
+      "excludedSourcePaths": ["src/bench.c","src/blake2/blamka-round-opt.h","src/genkat.c","src/genkat.h","src/opt.c","src/run.c","src/test.c"]
+    },
+    {
+      "id": "swift",
+      "name": "swift-argon2id",
+      "canonicalURL": "https://github.com/MarlonJD/argon2id-swift-native.git",
+      "ownerRepo": "MarlonJD/argon2id-swift-native",
+      "commit": "14d47de1914ac63b368ddb2cfe0f47ffe25f04cf",
+      "tree": "4bb860f4c47b4b327ea207da3fe7a007a05c7b81",
+      "latestCommitDate": "2026-05-25T11:13:33Z",
+      "licenseBlob": "4184b3c65a47bddfbd807eed1a4939a69d8d7535",
+      "licenseSha256": "80d77711eb91e9e3a3f9f055cdb2757d753516b8e0c03a733bc052469511b1a6",
+      "packageBlob": "f7e79e9a71d9d1b8038075acdc38329fa239c87a",
+      "provenancePath": "evidence/phase0/sources/repos/swift-argon2id/provenance.json",
+      "provenanceBlob": "d95d810c67721a4dc85da4923be04a36a1ebc331",
+      "provenanceSha256": "ac7ba4e689bc78e98129feef5b956167238af9c281ee6610cde96c3b3dcf3cfe",
+      "treeListingSha256": "537c055d4e190e909f7759e102d4d49586436f8ac9a42965a33c4144a57c8f88",
+      "runtimeDependencyCount": 0,
+      "minimumMacOSMajor": 10,
+      "sourceLOC": 631,
+      "includedFiles": [
+        {"path":"Sources/Argon2idSwiftNative/Argon2id.swift","blob":"1b786556c1720b9150064cbf1424533db24dce4e","sha256":"1e61d33a541766098afdb665aa017d6e8ec1becbac605ae16f2ab6ffb7bd42ad","lineCount":631}
+      ],
+      "excludedSourcePaths": ["Tests/Argon2idSwiftNativeTests/Argon2idSwiftNativeTests.swift"]
+    }
+  ]
+}

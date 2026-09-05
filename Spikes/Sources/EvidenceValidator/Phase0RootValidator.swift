@@ -21,9 +21,13 @@ enum Phase0RootValidator {
         _ = try AtomicityHistoricalValidator.validate(
             directory: root.appendingPathComponent("shared-atomicity"), repository: repository
         )
+        let candidateRepository = try candidateRepositoryView(root: root, repository: repository)
+        defer { try? FileManager.default.removeItem(at: candidateRepository) }
         for name in Phase0RunLayout.spikeDirectories {
             let directory = root.appendingPathComponent(name)
-            _ = try validateSpike(directory, name: name, repository: repository)
+            _ = try validateSpike(
+                directory, name: name, repository: candidateRepository, gitRepository: repository
+            )
         }
     }
 
@@ -92,6 +96,10 @@ enum Phase0RootValidator {
               receipt.stages.first(where: { $0.id == "sp6b" })?.policy == "preserved-nondeterministic-raw" else {
             throw ValidatorError("phase0_preservation_policy_mismatch")
         }
+        guard let preflight = receipt.stages.first, preflight.id == "preflight",
+              preflight.artifactSha256 == receipt.environmentSha256 else {
+            throw ValidatorError("phase0_preflight_hash_mismatch")
+        }
         for stage in receipt.stages where Phase0RunLayout.spikeDirectories.contains(stage.id) {
             let evidence: VerdictView = try decode(
                 root.appendingPathComponent(stage.id).appendingPathComponent("evidence.json"),
@@ -135,19 +143,34 @@ enum Phase0RootValidator {
         }
     }
 
-    private static func validateSpike(_ directory: URL, name: String, repository: URL) throws -> GateValidationReport {
+    private static func validateSpike(
+        _ directory: URL, name: String, repository: URL, gitRepository: URL
+    ) throws -> GateValidationReport {
         switch name {
-        case "sp1": try SP1DirectoryValidator.validate(directory: directory, repository: repository)
-        case "sp2": try SP2DirectoryValidator.validate(directory: directory, repository: repository)
-        case "sp3": try SP3DirectoryValidator.validate(directory: directory, repository: repository)
-        case "sp4a": try SP4ADirectoryValidator.validate(directory: directory, repository: repository)
-        case "sp4b": try SP4BDirectoryValidator.validate(directory: directory, repository: repository)
-        case "sp5a": try SP5ADirectoryValidator.validate(directory: directory, repository: repository)
-        case "sp5b": try SP5BDirectoryValidator.validate(directory: directory, repository: repository)
-        case "sp6a": try SP6ADirectoryValidator.validate(directory: directory, repository: repository)
-        case "sp6b": try SP6BDirectoryValidator.validate(directory: directory, repository: repository)
+        case "sp1": try SP1DirectoryValidator.validate(directory: directory, repository: gitRepository)
+        case "sp2": try SP2DirectoryValidator.validate(directory: directory, repository: repository, gitRepository: gitRepository)
+        case "sp3": try SP3DirectoryValidator.validate(directory: directory, repository: repository, gitRepository: gitRepository)
+        case "sp4a": try SP4ADirectoryValidator.validate(directory: directory, repository: repository, gitRepository: gitRepository)
+        case "sp4b": try SP4BDirectoryValidator.validate(directory: directory, repository: repository, gitRepository: gitRepository)
+        case "sp5a": try SP5ADirectoryValidator.validate(directory: directory, repository: repository, gitRepository: gitRepository)
+        case "sp5b": try SP5BDirectoryValidator.validate(directory: directory, repository: repository, gitRepository: gitRepository)
+        case "sp6a": try SP6ADirectoryValidator.validate(directory: directory, repository: repository, gitRepository: gitRepository)
+        case "sp6b": try SP6BDirectoryValidator.validate(directory: directory, repository: repository, gitRepository: gitRepository)
         default: throw ValidatorError("phase0_root_directory_set_mismatch")
         }
+    }
+
+    private static func candidateRepositoryView(root: URL, repository: URL) throws -> URL {
+        let view = FileManager.default.temporaryDirectory
+            .appendingPathComponent("keyrecord-candidate-\(UUID().uuidString)", isDirectory: true)
+        let evidenceParent = view.appendingPathComponent("evidence", isDirectory: true)
+        try FileManager.default.createDirectory(at: evidenceParent, withIntermediateDirectories: true)
+        try FileManager.default.copyItem(at: root, to: evidenceParent.appendingPathComponent("phase0"))
+        let source = repository.appendingPathComponent("Spikes/Sources/Phase0Support/VialQuery.swift")
+        let destination = view.appendingPathComponent("Spikes/Sources/Phase0Support", isDirectory: true)
+        try FileManager.default.createDirectory(at: destination, withIntermediateDirectories: true)
+        try FileManager.default.copyItem(at: source, to: destination.appendingPathComponent("VialQuery.swift"))
+        return view
     }
 
     private static func decode<T: Decodable>(_ url: URL, code: String) throws -> T {

@@ -1,9 +1,9 @@
 {
-  "anchorBlobSha1" : "ccf0ab07c4e5589d49f273ff0f38fab0283cf71a",
-  "anchorCommitSha" : "7127feb057d8e6f3a549835af401a2e17b451244",
-  "anchorFileSha256" : "3680237e591e4bc702dbd9e08de3839221fc8b483767c3659f1ad19e9b845995",
-  "anchorPath" : "evidence/phase0/sp6a/namespace-attempt-history.json",
-  "anchorTreeSha" : "98dd0414a50cf7c7e1cddec0997757a9920e8c76",
+  "anchorBlobSha1" : "ad8d2c3d40d8215518cfac7a141e5601da1e84c3",
+  "anchorCommitSha" : "090e2eb55e44763dbf4a31c30ee3a9e59cb59212",
+  "anchorFileSha256" : "c944feb30eeede44d807f7e9d617e144eb50d6b7b59ff1b067b020296eab8833",
+  "anchorPath" : "evidence/phase0/sp6a/namespace-attempt-history-v2.json",
+  "anchorTreeSha" : "9a6400040668a0d59bf485c2a6884807e6b19d56",
   "schemaVersion" : 1,
-  "sourceCommitSha" : "b01a2ec7f88d882740123ce127b92eaceb7712fc"
+  "sourceCommitSha" : "4c16b0f961f5f1734ab74f098445292332b0c3a0"
 }

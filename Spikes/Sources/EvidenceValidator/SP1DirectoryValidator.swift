@@ -51,9 +51,7 @@ enum SP1DirectoryValidator {
                 throw ValidatorError("sp1_runner_source_hash_mismatch", path)
             }
             let workingURL = repository.appendingPathComponent(path)
-            guard isRegularFile(workingURL), let working = try? Data(contentsOf: workingURL), working == committed else {
-                throw ValidatorError("sp1_runner_source_dirty", path)
-            }
+            guard isRegularFile(workingURL) else { throw ValidatorError("sp1_runner_source_dirty", path) }
             let status = try git.text(["status", "--porcelain=v1", "--untracked-files=all", "--", path])
             guard status.isEmpty else { throw ValidatorError("sp1_runner_source_dirty", path) }
         }

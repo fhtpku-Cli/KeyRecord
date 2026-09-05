@@ -32,6 +32,10 @@ trap 'interrupt 129' HUP
 script_dir="$(cd "$(dirname "$0")" && pwd)"
 source "$script_dir/task-2-qa-lib.sh"
 
+if [[ "${1:-}" == "13" ]]; then
+  exec bash "$script_dir/task-13-qa.sh" "${2:-}"
+fi
+
 if [[ "${1:-}" == "12" ]]; then
   exec bash "$script_dir/task-12-qa.sh" "${2:-}"
 fi

@@ -14,15 +14,17 @@ enum SP6AProbe {
         let environmentURL = URL(fileURLWithPath: arguments[2]), output = URL(fileURLWithPath: arguments[4])
         let anchorURL = anchored ? URL(fileURLWithPath: arguments[6]) : nil
         let anchorBytes = try anchorURL.map(boundedFile)
+        let resolvedHistoryAnchor = try anchorURL.map(SP6AHistoryAnchorProbe.resolve)
         try invalidate(output)
         let environmentData = try boundedFile(environmentURL)
         _ = try JSONDecoder().decode(EnvironmentEvidence.self, from: environmentData)
         let anchoredHistory = try anchorBytes.map { try JSONDecoder().decode(SP6ANamespaceAttemptHistory.self, from: $0) }
         let provider = identityProvider ?? GitAtomicityRunnerIdentityProvider(
-            sourcePaths: SP6ARunnerBinding.sourcePaths.sorted(), revision: anchored ? "HEAD^1" : "HEAD"
+            sourcePaths: SP6ARunnerBinding.sourcePaths.sorted(),
+            revision: resolvedHistoryAnchor?.sourceCommitSha ?? "HEAD"
         )
         let identity = try provider.resolve()
-        let historyAnchor = try anchorURL.map(SP6AHistoryAnchorProbe.resolve) ?? unboundAnchor(identity: identity)
+        let historyAnchor = resolvedHistoryAnchor ?? unboundAnchor(identity: identity)
         let crypto = try SP6AScenarios.crypto(), locator = SP6AScenarios.locator(), pathCanary = try SP6AScenarios.pathCanary()
         guard SP6AScenarios.valid(crypto), SP6AScenarios.valid(locator), SP6AScenarios.valid(pathCanary) else { throw SP6AProbeError.fixtureFailure }
         let namespaceRunner = SP6ANamespaceRunnerIdentity(

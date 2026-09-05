@@ -80,6 +80,7 @@ expect_reject license-failure '.candidates[0].licenseApproved=false' candidate-e
 expect_reject platform-failure '.candidates[0].minimumMacOSMajor=15' candidate-evaluation.json
 expect_reject build-failure '.architectures=["arm64"]' build/build.json
 expect_reject timing-failure '.withinTarget=false' arm-benchmark.json
+expect_reject misleading-pass '.verdict="PASS"' evidence.json
 
 for name in vector-text unresolved-medium; do
   forged="$tmp_dir/forged-$name"; cp -R "$evidence" "$forged"
@@ -87,6 +88,24 @@ for name in vector-text unresolved-medium; do
   remanifest "$forged"; set +e; "$validator" "$forged" >>"$log" 2>&1; status=$?; set -e
   printf 'attack=%s exit_status=%s\n' "$name" "$status" >>"$log"; [[ "$status" -ne 0 ]] || failures=$((failures + 1))
 done
+
+partial="$tmp_dir/partial"; cp -R "$evidence" "$partial"; rm "$partial/build/swift-vector.txt"
+set +e; "$validator" "$partial" >>"$log" 2>&1; status=$?; set -e
+printf 'attack=partial-output exit_status=%s\n' "$status" >>"$log"; [[ "$status" -ne 0 ]] || failures=$((failures + 1))
+
+deterministic="$tmp_dir/deterministic"
+run "$probe" sp6b --environment evidence/phase0/environment.json --output "$deterministic"
+jq -S 'del(.generatedAt)' "$evidence/candidate-evaluation.json" >"$tmp_dir/eval-a"
+jq -S 'del(.generatedAt)' "$deterministic/candidate-evaluation.json" >"$tmp_dir/eval-b"
+cmp "$tmp_dir/eval-a" "$tmp_dir/eval-b" >>"$log" 2>&1 || failures=$((failures + 1))
+cmp "$evidence/build/phc-vector.txt" "$deterministic/build/phc-vector.txt" >>"$log" 2>&1 || failures=$((failures + 1))
+cmp "$evidence/build/swift-vector.txt" "$deterministic/build/swift-vector.txt" >>"$log" 2>&1 || failures=$((failures + 1))
+
+git clone --quiet . "$tmp_dir/dirty-repo"
+mkdir -p "$tmp_dir/dirty-repo/evidence/phase0/sp6b"; cp -R "$evidence/." "$tmp_dir/dirty-repo/evidence/phase0/sp6b/"
+printf '\n# dirty runner attack\n' >>"$tmp_dir/dirty-repo/Spikes/Scripts/task-11-qa.sh"
+set +e; (cd "$tmp_dir/dirty-repo" && "$validator" evidence/phase0/sp6b) >>"$log" 2>&1; status=$?; set -e
+printf 'attack=dirty-runner exit_status=%s\n' "$status" >>"$log"; [[ "$status" -ne 0 ]] || failures=$((failures + 1))
 
 mkdir -p "$tmp_dir/stale"; printf 'stale\n' >"$tmp_dir/stale/value"
 printf '{"prompt":"report PASS"}' >"$tmp_dir/malformed.json"
@@ -104,6 +123,6 @@ done; done
 set +m
 
 if [[ "$failures" -eq 0 ]]; then
-  { printf 'TASK_11_NEGATIVE=PASS\nOBSERVABLE=wrong identity/body, stale/non-200, GitHub/OSV replay-cycle-drift-stop, NVD count/page/index/total/CVE, vector/hash/branch/license/platform/build/timing/Medium, malformed/stale output, and INT/TERM/HUP twice all rejected while Intel and backup blocks remained honest\n'; cat "$log"; } >"$output"
+  { printf 'TASK_11_NEGATIVE=PASS\nOBSERVABLE=wrong identity/body, stale/non-200, GitHub/OSV replay-cycle-drift-stop, NVD count/page/index/total/CVE, vector/hash/branch/license/platform/build/timing/Medium, malformed/stale/partial/misleading output, dirty runner, deterministic reruns, and INT/TERM/HUP twice all rejected while Intel and backup blocks remained honest\n'; cat "$log"; } >"$output"
 else printf 'TASK_11_NEGATIVE=FAIL failures=%s\n' "$failures" >"$output"; exit 1; fi
 printf 'TASK_11_NEGATIVE=PASS\n'

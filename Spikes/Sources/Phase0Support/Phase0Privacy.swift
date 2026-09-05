@@ -68,7 +68,8 @@ public enum Phase0PrivacyAudit {
             let bytes = try Data(contentsOf: file, options: .mappedIfSafe)
             if ext == "json" {
                 jsonCount += 1
-                try scanJSON(bytes, path: relative)
+                do { try scanJSON(bytes, path: relative) }
+                catch Phase0PrivacyError.invalidJSON { try scanText(bytes, path: relative) }
             } else {
                 try scanText(bytes, path: relative)
             }

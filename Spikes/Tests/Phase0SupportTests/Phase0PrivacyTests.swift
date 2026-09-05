@@ -17,4 +17,18 @@ final class Phase0PrivacyTests: XCTestCase {
             path: "forged.txt"
         ))
     }
+
+    func testRootAuditTextScansPinnedMalformedJSONFixtures() throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("keyrecord-privacy-test-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: false)
+        defer { try? FileManager.default.removeItem(at: root) }
+        try Data("{intentionally-malformed-fixture\n".utf8).write(to: root.appendingPathComponent("broken.json"))
+
+        let report = try Phase0PrivacyAudit.scan(root: root)
+
+        XCTAssertEqual(report.filesScanned, 1)
+        XCTAssertEqual(report.jsonFilesScanned, 1)
+        XCTAssertEqual(report.forbiddenHitCount, 0)
+    }
 }

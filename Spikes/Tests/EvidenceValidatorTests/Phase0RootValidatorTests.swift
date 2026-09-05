@@ -1,6 +1,7 @@
 import Foundation
 import XCTest
 @testable import EvidenceValidator
+@testable import Phase0Support
 
 final class Phase0RootValidatorTests: XCTestCase {
     func testRootValidatorRejectsUnexpectedDirectoryBeforeConclusionGeneration() throws {
@@ -73,10 +74,40 @@ final class Phase0RootValidatorTests: XCTestCase {
             .appendingPathComponent("phase0-candidate-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.copyItem(at: repository.appendingPathComponent("evidence/phase0"), to: candidate)
         defer { try? FileManager.default.removeItem(at: candidate) }
+        try upgradeSP1Binding(candidate, repository: repository)
         try mutation(candidate)
         XCTAssertThrowsError(try Phase0RootValidator.validate(candidate, repository: repository)) { error in
             XCTAssertEqual((error as? ValidatorError)?.code, expected)
         }
+    }
+
+    private func upgradeSP1Binding(_ root: URL, repository: URL) throws {
+        let directory = root.appendingPathComponent("sp1")
+        let url = directory.appendingPathComponent("evidence.json")
+        var evidence = try JSONDecoder().decode(SP1Evidence.self, from: Data(contentsOf: url))
+        guard let commit = evidence.legs.first?.runnerCommitSha else { throw CocoaError(.fileReadCorruptFile) }
+        evidence.runnerSourceSha256 = try Dictionary(uniqueKeysWithValues: SP1RunnerBinding.sourcePaths.map { path in
+            (path, Canonical.sha256(try gitBlob(commit: commit, path: path, repository: repository)))
+        })
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
+        var data = try encoder.encode(evidence)
+        data.append(10)
+        try data.write(to: url)
+        try writeManifest(directory)
+    }
+
+    private func gitBlob(commit: String, path: String, repository: URL) throws -> Data {
+        let process = Process(), output = Pipe(), errors = Pipe()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/git")
+        process.arguments = ["cat-file", "blob", "\(commit):\(path)"]
+        process.currentDirectoryURL = repository
+        process.standardOutput = output
+        process.standardError = errors
+        try process.run()
+        process.waitUntilExit()
+        guard process.terminationStatus == 0 else { throw CocoaError(.fileReadCorruptFile) }
+        return output.fileHandleForReading.readDataToEndOfFile()
     }
 
     private func repositoryRoot() throws -> URL {

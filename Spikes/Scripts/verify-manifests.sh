@@ -10,6 +10,24 @@ cleanup() { rm -rf "$tmp_dir"; }
 trap cleanup EXIT INT TERM HUP
 
 [[ -d "$root" && -f "$root/manifest.sha256" ]] || { printf 'source manifest root is missing: %s\n' "$root" >&2; exit 1; }
+
+if [[ -d "$root/sources" ]]; then
+  printf '%s\n' fixtures shared-atomicity sources sp1 sp2 sp3 sp4a sp4b sp5a sp5b sp6a sp6b | LC_ALL=C sort >"$tmp_dir/expected-directories"
+  find "$root" -mindepth 1 -maxdepth 1 -type d -print | while IFS= read -r directory; do basename "$directory"; done | LC_ALL=C sort >"$tmp_dir/actual-directories"
+  cmp -s "$tmp_dir/expected-directories" "$tmp_dir/actual-directories" || { printf 'phase0 directory membership drift\n' >&2; exit 1; }
+  printf '%s\n' README.md environment.json manifest.sha256 privacy-audit.json run-all.json | LC_ALL=C sort >"$tmp_dir/expected-root-files"
+  find "$root" -mindepth 1 -maxdepth 1 -type f -print | while IFS= read -r file; do basename "$file"; done | LC_ALL=C sort >"$tmp_dir/actual-root-files"
+  cmp -s "$tmp_dir/expected-root-files" "$tmp_dir/actual-root-files" || { printf 'phase0 root file membership drift\n' >&2; exit 1; }
+  (cd "$root" && shasum -a 256 -c manifest.sha256 >/dev/null)
+  for child in shared-atomicity sp1 sp2 sp3 sp4a sp4b sp5a sp5b sp6a sp6b fixtures/synthetic; do
+    [[ -f "$root/$child/manifest.sha256" ]] || { printf 'missing child manifest: %s\n' "$child" >&2; exit 1; }
+    (cd "$root/$child" && shasum -a 256 -c manifest.sha256 >/dev/null)
+  done
+  bash "$0" "$root/sources" >/dev/null
+  printf 'MANIFEST_VERIFICATION=PASS hierarchy=phase0 root=%s\n' "$root"
+  exit 0
+fi
+
 (cd "$root" && shasum -a 256 -c manifest.sha256 >/dev/null)
 (cd "$root" && find . -type f ! -name manifest.sha256 -print | LC_ALL=C sort | while IFS= read -r file; do shasum -a 256 "$file"; done) >"$tmp_dir/actual-manifest.sha256"
 cmp -s "$root/manifest.sha256" "$tmp_dir/actual-manifest.sha256" || { printf 'manifest membership or hash drift\n' >&2; exit 1; }

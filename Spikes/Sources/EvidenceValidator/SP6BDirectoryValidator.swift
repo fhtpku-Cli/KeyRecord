@@ -3,6 +3,7 @@ import Phase0Support
 
 enum SP6BDirectoryValidator {
     static func validate(directory: URL, repository: URL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath), gitRepository: URL? = nil) throws -> GateValidationReport {
+        let gitRoot = gitRepository ?? repository
         let evidence: SP6BEvidence = try decode(directory.appendingPathComponent("evidence.json"), code: "malformed_sp6b_evidence")
         do { try evidence.validate() } catch let error as SP6BValidationError { throw ValidatorError("sp6b_\(error.rawValue)") }
         let snapshot: D12Snapshot = try decode(directory.appendingPathComponent("d12/snapshot.json"), code: "sp6b_d12_malformed")
@@ -10,21 +11,21 @@ enum SP6BDirectoryValidator {
         let evaluation: SP6BCandidateEvaluation = try decode(directory.appendingPathComponent("candidate-evaluation.json"), code: "sp6b_candidate_invalid")
         do { try evaluation.validate() } catch { throw ValidatorError("sp6b_candidate_invalid") }
         let sourceAudit: SP6BSourceAuditReceipt = try decode(directory.appendingPathComponent("source-audit.json"), code: "sp6b_source_audit")
-        try validateRunner(evidence, repository: gitRepository ?? repository)
+        try validateRunner(evidence, repository: gitRoot)
         let contract = try SP6BSourceValidator.validate(
             evidence: evidence, evaluation: evaluation, snapshot: snapshot, sourceAudit: sourceAudit,
-            generatedTimes: [], directory: directory, repository: repository
+            generatedTimes: [], directory: directory, repository: gitRoot
         )
         try validateD12(snapshot, directory: directory)
-        try SP6BNVDValidator.validate(snapshot: snapshot, directory: directory, evidence: evidence, repository: repository)
+        try SP6BNVDValidator.validate(snapshot: snapshot, directory: directory, evidence: evidence, repository: gitRoot)
         try validateManifest(directory, snapshot: snapshot)
-        let build = try SP6BBuildValidator.validate(directory: directory, repository: repository, evidence: evidence, contract: contract)
-        let arm = try SP6BBenchmarkValidator.validate(directory: directory, repository: repository, evidence: evidence, contract: contract, build: build)
+        let build = try SP6BBuildValidator.validate(directory: directory, repository: gitRoot, evidence: evidence, contract: contract)
+        let arm = try SP6BBenchmarkValidator.validate(directory: directory, repository: gitRoot, evidence: evidence, contract: contract, build: build)
         guard evaluation.generatedAt == build.generatedAt, build.generatedAt == arm.generatedAt else { throw ValidatorError("sp6b_generated_at") }
         try validateAudit(directory)
         try validateBindings(evidence, directory: directory, repository: repository)
         try validateConclusion(directory)
-        try SP6BSourceValidator.validateHistory(evidence: evidence, generatedAt: evidence.generatedAt, directory: directory, repository: repository)
+        try SP6BSourceValidator.validateHistory(evidence: evidence, generatedAt: evidence.generatedAt, directory: directory, repository: gitRoot)
         return GateValidationReport(legCount: evidence.legs.count, o4RowCount: 0, g0Status: .open)
     }
 

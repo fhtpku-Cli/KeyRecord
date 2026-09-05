@@ -1,15 +1,15 @@
 import Foundation
 
 extension D12Snapshot {
-    public static let fixture = D12Snapshot(schemaVersion: 1, generatedAt: "2026-09-05T00:00:00Z", candidates: [
+    public static let fixture = D12Snapshot(schemaVersion: 2, generatedAt: "2026-09-05T00:00:00Z", candidates: [
         candidate(id: "phc", repo: "P-H-C/phc-winner-argon2", commit: "f57e61e19229e23c4445b85494dbf7c07de721cb"),
         candidate(id: "swift", repo: "MarlonJD/argon2id-swift-native", commit: "14d47de1914ac63b368ddb2cfe0f47ffe25f04cf"),
-    ], nvd: D12NVD(pages: [D12NVDPage(
+    ], nvd: D12NVD(auditRevision: "fixture", pages: [D12NVDPage(
         request: page(url: "https://services.nvd.nist.gov/rest/json/cves/2.0?keywordSearch=argon2&resultsPerPage=2000"),
         startIndex: 0, resultsPerPage: 10, totalResults: 2,
         vulnerabilities: [
-            NVDVulnerability(cveID: "CVE-2024-0001", impact: .phc, rationale: "PHC implementation named"),
-            NVDVulnerability(cveID: "CVE-2024-0002", impact: .none, rationale: "unrelated product keyword match"),
+            vulnerability("CVE-2024-0001", .phc, "PHC implementation named"),
+            vulnerability("CVE-2024-0002", .none, "unrelated product keyword match"),
         ]
     )]))
 
@@ -25,6 +25,13 @@ extension D12Snapshot {
         D12HTTPPage(url: url, requestBody: body, status: 200, retrievedAt: "2026-09-04T12:00:00Z",
                     headersSha256: String(repeating: "a", count: 64), rawBodySha256: String(repeating: "b", count: 64),
                     headersPath: "raw/headers", rawBodyPath: "raw/body", next: nil)
+    }
+
+    private static func vulnerability(_ id: String, _ impact: NVDImpact, _ rationale: String) -> NVDVulnerability {
+        NVDVulnerability(cveID: id, impact: impact, category: "fixture", rationale: rationale,
+                         descriptionSha256: String(repeating: "c", count: 64),
+                         configurationSha256: String(repeating: "d", count: 64),
+                         referencesSha256: String(repeating: "e", count: 64))
     }
 
     public func replacing(githubStatus: Int) -> Self { mapFirstCandidate { candidate in
@@ -53,7 +60,7 @@ extension D12Snapshot {
         Self(schemaVersion: schemaVersion, generatedAt: generatedAt, candidates: candidates.enumerated().map { $0.offset == 0 ? transform($0.element) : $0.element }, nvd: nvd)
     }
     private func mapNVD(_ transform: (D12NVDPage) -> D12NVDPage) -> Self {
-        Self(schemaVersion: schemaVersion, generatedAt: generatedAt, candidates: candidates, nvd: D12NVD(pages: nvd.pages.map(transform)))
+        Self(schemaVersion: schemaVersion, generatedAt: generatedAt, candidates: candidates, nvd: D12NVD(auditRevision: nvd.auditRevision, pages: nvd.pages.map(transform)))
     }
 }
 

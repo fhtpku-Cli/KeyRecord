@@ -54,7 +54,7 @@ public struct Argon2Candidate: Codable, Equatable, Sendable {
         id: "phc", canonicalURL: "https://github.com/P-H-C/phc-winner-argon2.git",
         commit: "f57e61e19229e23c4445b85494dbf7c07de721cb", tree: "ac3dc753ff75ce5a0f243cba1d94582bafe09409",
         latestCommitDate: "2021-06-25T08:21:15Z", pedigree: .phcReference, runtimeDependencyCount: 0,
-        sourceLOC: 6_842, licenseApproved: true, vectorsPassed: true, dualArchMacOS14Build: true,
+        sourceLOC: 3_294, licenseApproved: true, vectorsPassed: true, dualArchMacOS14Build: true,
         minimumMacOSMajor: 10, unresolvedSignificantFindings: 0
     )
 

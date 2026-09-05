@@ -30,6 +30,7 @@ public enum SP6BValidationError: String, Error {
 
 public struct SP6BEvidence: Codable, Equatable, Sendable {
     public let schemaVersion: Int
+    public let generatedAt: String
     public let spikeID: String
     public let dependencyFrozen: Bool
     public let recommendedCandidate: String
@@ -41,7 +42,8 @@ public struct SP6BEvidence: Codable, Equatable, Sendable {
         let grouped = Dictionary(grouping: legs, by: \.legID)
         guard grouped.values.allSatisfy({ $0.count == 1 }) else { throw SP6BValidationError.duplicateLeg }
         guard Set(grouped.keys) == Self.requiredLegIDs else { throw SP6BValidationError.legSet }
-        guard schemaVersion == 1, spikeID == "SP-6B", !dependencyFrozen, recommendedCandidate == "phc",
+        guard schemaVersion == 2, ISO8601DateFormatter().date(from: generatedAt) != nil,
+              spikeID == "SP-6B", !dependencyFrozen, recommendedCandidate == "phc",
               let first = legs.first else { throw SP6BValidationError.provenance }
         guard Set(runnerSourceSha256.keys) == SP6BRunnerBinding.sourcePaths,
               runnerSourceSha256.values.allSatisfy(\.isLowercaseSHA256) else { throw SP6BValidationError.runnerSourceSet }
@@ -88,13 +90,16 @@ public struct SP6BCandidateEvaluation: Codable, Equatable, Sendable {
 
 public enum SP6BRunnerBinding {
     public static let sourcePaths: Set<String> = [
-        "Spikes/Scripts/argon-bench.c", "Spikes/Scripts/argon-vector.c", "Spikes/Scripts/audit-security.sh",
+        "Spikes/Scripts/argon-bench.c", "Spikes/Scripts/argon-swift-vector.swift", "Spikes/Scripts/argon-vector.c",
+        "Spikes/Scripts/audit-argon-sources.sh", "Spikes/Scripts/audit-security.sh",
         "Spikes/Scripts/benchmark-argon-arm.sh", "Spikes/Scripts/build-argon-universal.sh",
         "Spikes/Scripts/capture-argon-advisories.sh", "Spikes/Scripts/run-sp6b.sh", "Spikes/Scripts/run-task-qa.sh",
-        "Spikes/Scripts/task-11-qa.sh",
-        "Spikes/Sources/EvidenceValidator/EvidenceValidatorCommand.swift", "Spikes/Sources/EvidenceValidator/SP6BDirectoryValidator.swift",
+        "Spikes/Scripts/sp6b-nvd-review.json", "Spikes/Scripts/sp6b-source-contract.json", "Spikes/Scripts/task-11-qa.sh",
+        "Spikes/Sources/EvidenceValidator/EvidenceValidatorCommand.swift", "Spikes/Sources/EvidenceValidator/SP6BBenchmarkValidator.swift",
+        "Spikes/Sources/EvidenceValidator/SP6BBuildValidator.swift", "Spikes/Sources/EvidenceValidator/SP6BDirectoryValidator.swift",
+        "Spikes/Sources/EvidenceValidator/SP6BNVDValidator.swift", "Spikes/Sources/EvidenceValidator/SP6BSourceValidator.swift",
         "Spikes/Sources/Phase0Probe/SP6BProbe.swift", "Spikes/Sources/Phase0Probe/main.swift",
-        "Spikes/Sources/Phase0Support/Argon2Candidate.swift", "Spikes/Sources/Phase0Support/D12Snapshot.swift",
+        "Spikes/Sources/Phase0Support/Argon2Candidate.swift", "Spikes/Sources/Phase0Support/D12Fixture.swift", "Spikes/Sources/Phase0Support/D12Snapshot.swift",
         "Spikes/Sources/Phase0Support/SP6BEvidence.swift", "Spikes/Tests/EvidenceValidatorTests/SP6BValidatorTests.swift",
         "Spikes/Tests/Phase0SupportTests/Argon2AuditTests.swift",
     ]
@@ -104,7 +109,7 @@ public enum SP6BDirectoryLayout {
     public static let fixedArtifactNames: Set<String> = [
         "SP-6B-CONCLUSION.md", "arm-benchmark.json", "build/argon2-universal.a", "build/build.json",
         "build/phc-vector.txt", "build/swift-vector.txt", "candidate-evaluation.json", "d12/snapshot.json",
-        "dependency-audit.md", "evidence.json", "intel-blocker.json",
+        "dependency-audit.md", "evidence.json", "intel-blocker.json", "source-audit.json",
     ]
     public static let legArtifacts = [
         "sp6b.phcAudit": "dependency-audit.md", "sp6b.swiftAudit": "dependency-audit.md",

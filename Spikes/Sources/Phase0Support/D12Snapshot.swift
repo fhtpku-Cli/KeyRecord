@@ -30,7 +30,11 @@ public struct D12CandidateSnapshot: Codable, Equatable, Sendable {
 public struct NVDVulnerability: Codable, Equatable, Sendable {
     public let cveID: String
     public let impact: NVDImpact
+    public let category: String
     public let rationale: String
+    public let descriptionSha256: String
+    public let configurationSha256: String
+    public let referencesSha256: String
 }
 
 public struct D12NVDPage: Codable, Equatable, Sendable {
@@ -41,7 +45,7 @@ public struct D12NVDPage: Codable, Equatable, Sendable {
     public let vulnerabilities: [NVDVulnerability]
 }
 
-public struct D12NVD: Codable, Equatable, Sendable { public let pages: [D12NVDPage] }
+public struct D12NVD: Codable, Equatable, Sendable { public let auditRevision: String; public let pages: [D12NVDPage] }
 
 public enum D12ValidationError: String, Error {
     case candidateSet, duplicate, freshness, githubIdentity, http, nvdPagination, osvIdentity, osvPagination, rawHash
@@ -54,7 +58,7 @@ public struct D12Snapshot: Codable, Equatable, Sendable {
     public let nvd: D12NVD
 
     public func validate(generatedAt: String) throws {
-        guard self.generatedAt == generatedAt, schemaVersion == 1, Set(candidates.map(\.id)) == ["phc", "swift"], candidates.count == 2 else { throw D12ValidationError.candidateSet }
+        guard self.generatedAt == generatedAt, schemaVersion == 2, Set(candidates.map(\.id)) == ["phc", "swift"], candidates.count == 2 else { throw D12ValidationError.candidateSet }
         guard let auditDate = ISO8601DateFormatter().date(from: generatedAt) else { throw D12ValidationError.freshness }
         for candidate in candidates {
             try validateGitHub(candidate, auditDate: auditDate)
@@ -109,7 +113,11 @@ public struct D12Snapshot: Codable, Equatable, Sendable {
             total = page.totalResults
             expectedStart += page.resultsPerPage
             for vulnerability in page.vulnerabilities {
-                guard !vulnerability.rationale.isEmpty, cves.insert(vulnerability.cveID).inserted else { throw D12ValidationError.duplicate }
+                guard !vulnerability.category.isEmpty, !vulnerability.rationale.isEmpty,
+                      vulnerability.descriptionSha256.isLowercaseSHA256,
+                      vulnerability.configurationSha256.isLowercaseSHA256,
+                      vulnerability.referencesSha256.isLowercaseSHA256,
+                      cves.insert(vulnerability.cveID).inserted else { throw D12ValidationError.duplicate }
             }
         }
         guard cves.count == total else { throw D12ValidationError.nvdPagination }

@@ -20,6 +20,6 @@ let package = Package(
             resources: [.copy("Fixtures")]
         ),
         .testTarget(name: "Phase0ProbeTests", dependencies: ["Phase0Probe"]),
-        .testTarget(name: "EvidenceValidatorTests", dependencies: ["EvidenceValidator"]),
+        .testTarget(name: "EvidenceValidatorTests", dependencies: ["EvidenceValidator", "Phase0Probe"]),
     ]
 )

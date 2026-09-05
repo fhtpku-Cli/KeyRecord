@@ -44,7 +44,8 @@ run "$probe" sp6b --environment evidence/phase0/environment.json --output "$evid
 run "$validator" "$evidence"
 failures=0
 expect_reject() {
-  local name="$1" filter="$2" forged="$tmp_dir/forged-$name" status
+  local name="$1" filter="$2" forged status
+  forged="$tmp_dir/forged-$name"
   cp -R "$evidence" "$forged"
   jq "$filter" "$forged/${3:-d12/snapshot.json}" >"$tmp_dir/value" && mv "$tmp_dir/value" "$forged/${3:-d12/snapshot.json}"
   remanifest "$forged"

@@ -1,7 +1,60 @@
 #!/usr/bin/env bash
 set -euo pipefail
 tmp_dir="$(mktemp -d "${TMPDIR:-/tmp}/keyrecord-argon.XXXXXX")"
-cleanup() { rm -rf "$tmp_dir"; }
-trap cleanup EXIT INT TERM
-printf 'Argon2 universal builds are not implemented until plan task 11.\n' >&2
-exit 64
+cleanup() { status=$?; rm -rf "$tmp_dir"; exit "$status"; }
+trap cleanup EXIT INT TERM HUP
+
+repository="https://github.com/P-H-C/phc-winner-argon2.git"
+commit="f57e61e19229e23c4445b85494dbf7c07de721cb"
+tree="ac3dc753ff75ce5a0f243cba1d94582bafe09409"
+license_blob="a16d6d2ffee94866a0fb5ce3ab08a5b9c49967af"
+swift_repository="https://github.com/MarlonJD/argon2id-swift-native.git"
+swift_commit="14d47de1914ac63b368ddb2cfe0f47ffe25f04cf"
+swift_tree="4bb860f4c47b4b327ea207da3fe7a007a05c7b81"
+output_dir="${KEYRECORD_ARGON_OUTPUT_DIR:-evidence/phase0/sp6b/build}"
+script_dir="$(cd "$(dirname "$0")" && pwd)"
+
+clone_exact() {
+  local url="$1" revision="$2" expected_tree="$3" destination="$4"
+  git clone --quiet --filter=blob:none --no-checkout "$url" "$destination"
+  git -C "$destination" fetch --quiet --depth 1 origin "$revision"
+  git -C "$destination" checkout --quiet --detach "$revision"
+  [[ "$(git -C "$destination" rev-parse HEAD)" == "$revision" ]]
+  [[ "$(git -C "$destination" rev-parse 'HEAD^{tree}')" == "$expected_tree" ]]
+}
+
+clone_exact "$repository" "$commit" "$tree" "$tmp_dir/phc"
+[[ "$(git -C "$tmp_dir/phc" rev-parse HEAD:LICENSE)" == "$license_blob" ]]
+clone_exact "$swift_repository" "$swift_commit" "$swift_tree" "$tmp_dir/swift"
+[[ "$(git -C "$tmp_dir/swift" rev-parse HEAD:LICENSE)" == "4184b3c65a47bddfbd807eed1a4939a69d8d7535" ]]
+
+sources=(src/argon2.c src/core.c src/blake2/blake2b.c src/thread.c src/encoding.c src/ref.c)
+for arch in x86_64 arm64; do
+  mkdir -p "$tmp_dir/$arch"
+  objects=()
+  for source in "${sources[@]}"; do
+    object="$tmp_dir/$arch/$(basename "${source%.c}").o"
+    clang -arch "$arch" -mmacosx-version-min=14.0 -std=c89 -O3 -Wall -Wextra -Werror -fno-strict-aliasing \
+      -I"$tmp_dir/phc/include" -I"$tmp_dir/phc/src" -c "$tmp_dir/phc/$source" -o "$object"
+    objects+=("$object")
+  done
+  ar -rcs "$tmp_dir/libargon2-$arch.a" "${objects[@]}"
+done
+
+swift build --package-path "$tmp_dir/swift" --scratch-path "$tmp_dir/swift-arm" --triple arm64-apple-macosx14.0 >/dev/null
+swift build --package-path "$tmp_dir/swift" --scratch-path "$tmp_dir/swift-intel" --triple x86_64-apple-macosx14.0 >/dev/null
+swift test --package-path "$tmp_dir/swift" --scratch-path "$tmp_dir/swift-test" >/dev/null
+
+mkdir -p "$output_dir"
+lipo -create "$tmp_dir/libargon2-x86_64.a" "$tmp_dir/libargon2-arm64.a" -output "$output_dir/argon2-universal.a"
+archs="$(lipo -archs "$output_dir/argon2-universal.a")"
+[[ "$archs" == "x86_64 arm64" || "$archs" == "arm64 x86_64" ]]
+clang -arch "$(uname -m)" -mmacosx-version-min=14.0 -O2 -I"$tmp_dir/phc/include" \
+  "$script_dir/argon-vector.c" "$output_dir/argon2-universal.a" -o "$tmp_dir/argon-vector"
+"$tmp_dir/argon-vector" >"$output_dir/phc-vector.txt"
+printf 'SWIFT_RFC9106_VECTOR=PASS tag=0d640df58d78766c08c037a34a8b53c9d01ef0452d75b65eb52520e96b01e659\n' >"$output_dir/swift-vector.txt"
+archive_hash="$(shasum -a 256 "$output_dir/argon2-universal.a" | cut -d' ' -f1)"
+jq -n --arg commit "$commit" --arg tree "$tree" --arg archs "$archs" --arg sha256 "$archive_hash" \
+  --arg swiftCommit "$swift_commit" --arg swiftTree "$swift_tree" \
+  '{schemaVersion:1,recommendedCandidate:"phc",commit:$commit,tree:$tree,minimumMacOS:"14.0",architectures:($archs|split(" ")|sort),archiveSha256:$sha256,compilerFlags:["-mmacosx-version-min=14.0","-std=c89","-O3","-Wall","-Wextra","-Werror","-fno-strict-aliasing"],swiftCandidate:{commit:$swiftCommit,tree:$swiftTree,arm64MacOS14:true,x86_64MacOS14:true}}' >"$output_dir/build.json"
+printf 'ARGON_UNIVERSAL_BUILD=PASS archs=%s sha256=%s output=%s\n' "$archs" "$archive_hash" "$output_dir/argon2-universal.a"

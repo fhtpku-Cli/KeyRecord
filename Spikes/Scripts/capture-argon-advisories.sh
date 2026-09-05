@@ -12,6 +12,7 @@ sanitize_response_headers() {
   local path="$1" sanitized="$1.sanitized" line
   : >"$sanitized"
   while IFS= read -r line || [[ -n "$line" ]]; do
+    line="${line%$'\r'}"
     case "$line" in
       [Ss][Ee][Tt]-[Cc][Oo][Oo][Kk][Ii][Ee]:*|[Aa][Uu][Tt][Hh][Oo][Rr][Ii][Zz][Aa][Tt][Ii][Oo][Nn]:*|[Pp][Rr][Oo][Xx][Yy]-[Aa][Uu][Tt][Hh][Oo][Rr][Ii][Zz][Aa][Tt][Ii][Oo][Nn]:*|[Xx]-[Aa][Pp][Ii]-[Kk][Ee][Yy]:*|[Aa][Pp][Ii]-[Kk][Ee][Yy]:*|[Aa][Uu][Tt][Hh][Ee][Nn][Tt][Ii][Cc][Aa][Tt][Ii][Oo][Nn]-[Ii][Nn][Ff][Oo]:*) ;;
       *) printf '%s\n' "$line" >>"$sanitized" ;;

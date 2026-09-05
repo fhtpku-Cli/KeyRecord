@@ -8,6 +8,18 @@ mkdir -p "$tmp_dir/result/raw"
 retrieved_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 zero="$(printf '[]')"
 
+sanitize_response_headers() {
+  local path="$1" sanitized="$1.sanitized" line
+  : >"$sanitized"
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    case "$line" in
+      [Ss][Ee][Tt]-[Cc][Oo][Oo][Kk][Ii][Ee]:*|[Aa][Uu][Tt][Hh][Oo][Rr][Ii][Zz][Aa][Tt][Ii][Oo][Nn]:*|[Pp][Rr][Oo][Xx][Yy]-[Aa][Uu][Tt][Hh][Oo][Rr][Ii][Zz][Aa][Tt][Ii][Oo][Nn]:*|[Xx]-[Aa][Pp][Ii]-[Kk][Ee][Yy]:*|[Aa][Pp][Ii]-[Kk][Ee][Yy]:*|[Aa][Uu][Tt][Hh][Ee][Nn][Tt][Ii][Cc][Aa][Tt][Ii][Oo][Nn]-[Ii][Nn][Ff][Oo]:*) ;;
+      *) printf '%s\n' "$line" >>"$sanitized" ;;
+    esac
+  done <"$path"
+  mv "$sanitized" "$path"
+}
+
 page_json() {
   local url="$1" body="$2" status="$3" headers="$4" raw="$5" next="$6"
   local headers_hash raw_hash
@@ -25,6 +37,7 @@ github_pages() {
   while [[ -n "$url" ]]; do
     local headers="raw/github-$id-$page.headers" raw="raw/github-$id-$page.json" status next=""
     status="$(curl --silent --show-error --location --dump-header "$tmp_dir/result/$headers" --output "$tmp_dir/result/$raw" --write-out '%{http_code}' -H 'Accept: application/vnd.github+json' "$url")"
+    sanitize_response_headers "$tmp_dir/result/$headers"
     [[ "$status" == 200 ]] && jq -e 'type == "array"' "$tmp_dir/result/$raw" >/dev/null
     while IFS= read -r line; do
       if [[ "$line" =~ \<([^\>]*)\>\;[[:space:]]*rel=\"next\" ]]; then next="${BASH_REMATCH[1]}"; fi
@@ -41,6 +54,7 @@ osv_pages() {
     local body headers="raw/osv-$id-$page.headers" raw="raw/osv-$id-$page.json" status next
     if [[ -z "$token" ]]; then body="{\"commit\":\"$commit\"}"; else body="{\"commit\":\"$commit\",\"page_token\":\"$token\"}"; fi
     status="$(curl --silent --show-error --dump-header "$tmp_dir/result/$headers" --output "$tmp_dir/result/$raw" --write-out '%{http_code}' -H 'Content-Type: application/json' --data-binary "$body" https://api.osv.dev/v1/query)"
+    sanitize_response_headers "$tmp_dir/result/$headers"
     [[ "$status" == 200 ]] && jq -e 'type == "object"' "$tmp_dir/result/$raw" >/dev/null
     next="$(jq -r '.next_page_token // ""' "$tmp_dir/result/$raw")"
     request="$(page_json "https://api.osv.dev/v1/query" "$body" "$status" "$headers" "$raw" "")"
@@ -62,6 +76,7 @@ while true; do
   if [[ "$start" -eq 0 ]]; then url="$base"; else url="$base&startIndex=$start"; fi
   headers="raw/nvd-$page.headers"; raw="raw/nvd-$page.json"
   status="$(curl --silent --show-error --location --dump-header "$tmp_dir/result/$headers" --output "$tmp_dir/result/$raw" --write-out '%{http_code}' "$url")"
+  sanitize_response_headers "$tmp_dir/result/$headers"
   [[ "$status" == 200 ]]
   total="$(jq -r '.totalResults' "$tmp_dir/result/$raw")"; results="$(jq -r '.resultsPerPage' "$tmp_dir/result/$raw")"
   response_start="$(jq -r '.startIndex' "$tmp_dir/result/$raw")"; [[ "$response_start" == "$start" ]]

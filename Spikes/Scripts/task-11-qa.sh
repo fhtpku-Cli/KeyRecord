@@ -29,6 +29,7 @@ if [[ "$mode" == happy ]]; then
     && run "$validator" "$evidence" \
     && run bash Spikes/Scripts/audit-security.sh sp6b "$evidence/dependency-audit.md" \
     && run bash -c 'cd "$1" && shasum -a 256 -c manifest.sha256' _ "$evidence" \
+    && run bash -c '! /usr/bin/grep -R -E -i "^(set-cookie|authorization|proxy-authorization|x-api-key|api-key|authentication-info):" "$1/d12/raw/"*.headers' _ "$evidence" \
     && run lipo -archs "$evidence/build/argon2-universal.a" \
     && run jq -e '.verdict=="BLOCKED" and .dependencyFrozen==false and ([.legs[]|select(.verdict=="PASS")]|length)==6 and ([.legs[]|select(.verdict=="BLOCKED")|.legID])==["sp6b.intelTiming"]' "$evidence/evidence.json" \
     && run jq -e '.recommendation=="phc" and .dependencyFrozen==false and .scores.phc.total==null and (.scores.phc|[.pedigree,.dependencies,.maintenance,.dualArchBuild,.sourceSize]|add)==8 and (.scores.swift|[.pedigree,.dependencies,.maintenance,.dualArchBuild,.sourceSize]|add)==8' "$evidence/candidate-evaluation.json" \

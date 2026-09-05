@@ -10,11 +10,10 @@ esac
 script_dir="$(cd "$(dirname "$0")" && pwd)"
 source "$script_dir/task-2-qa-lib.sh"
 tmp_dir="$(mktemp -d "${TMPDIR:-/tmp}/keyrecord-task14.XXXXXX")"
-publish_temp=""; runner_backup=""
+publish_temp=""
 cleanup() {
   status=$?; trap - EXIT INT TERM HUP
   children="$(jobs -pr)"; [[ -z "$children" ]] || { kill $children 2>/dev/null || true; wait $children 2>/dev/null || true; }
-  [[ -z "$runner_backup" || ! -f "$runner_backup" ]] || cp "$runner_backup" "$script_dir/task-14-qa.sh"
   [[ "$status" -eq 0 ]] || rm -f "$final_output"
   [[ -z "$publish_temp" ]] || rm -f "$publish_temp"
   rm -rf "$tmp_dir"; exit "$status"
@@ -37,7 +36,7 @@ validate_all() {
   for spike in sp1 sp2 sp3 sp4a sp4b sp5a sp5b sp6a sp6b; do task2_run_logged "$log" "$validator" "$root/$spike"; done
   task2_run_logged "$log" "$validator" audit-privacy "$root"
   task2_run_logged "$log" bash -c 'cd "$1" && exec shasum -a 256 -c manifest.sha256' _ "$root"
-  task2_run_logged "$log" bash Spikes/Scripts/verify-manifests.sh "$root/sources"
+  task2_run_logged "$log" bash Spikes/Scripts/verify-manifests.sh "$root"
   task2_run_logged "$log" bash -c 'cd "$1" && exec shasum -a 256 -c manifest.sha256' _ "$root/fixtures/synthetic"
 }
 remanifest_root() {
@@ -46,7 +45,7 @@ remanifest_root() {
 
 if [[ "$mode" == happy ]]; then
   output="$tmp_dir/phase0"
-  if task2_run_logged "$log" swift test --package-path Spikes --scratch-path "$tmp_dir/test-build" --filter 'RunAllProbeTests|Phase0RootValidatorTests' \
+  if task2_run_logged "$log" swift test --package-path Spikes \
     && run_all evidence/phase0/environment.json "$output" && validate_all "$output" \
     && task2_run_logged "$log" jq -e '.directories == ["fixtures","shared-atomicity","sources","sp1","sp2","sp3","sp4a","sp4b","sp5a","sp5b","sp6a","sp6b"] and ([.stages[].id] == ["preflight","shared-atomicity","sp1","sp2","sp3","sp4a","sp4b","sp5a","sp5b","sp6a","sp6b"]) and all(.stages[]; .exitStatus == 0 and .verdict != "FAIL") and (.conclusionGenerated|not)' "$output/run-all.json" \
     && task2_run_logged "$log" jq -e '.forbiddenHitCount==0 and .symlinkCount==0 and .unmarkedEventRecordCount==0 and (.conclusionGenerated|not)' "$output/privacy-audit.json"; then
@@ -88,17 +87,22 @@ else
   run_all evidence/phase0/environment.json "$tmp_dir/model-b" || failures=$((failures + 1))
   for name in sp1 sp2 sp3 sp4a sp4b sp5a sp5b; do diff -qr "$tmp_dir/model-a/$name" "$tmp_dir/model-b/$name" >>"$log" 2>&1 || failures=$((failures + 1)); done
 
-  runner_backup="$tmp_dir/task-14-qa.sh.backup"; cp "$script_dir/task-14-qa.sh" "$runner_backup"; printf '\n# dirty-runner-attack\n' >>"$script_dir/task-14-qa.sh"
-  set +e; run_all evidence/phase0/environment.json "$tmp_dir/dirty"; status=$?; set -e
-  [[ "$status" -ne 0 && ! -e "$tmp_dir/dirty" ]] || failures=$((failures + 1)); cp "$runner_backup" "$script_dir/task-14-qa.sh"; runner_backup=""
+  dirty_repo="$tmp_dir/dirty-repo"; git clone -q --no-hardlinks . "$dirty_repo"
+  printf '\n# dirty-runner-attack\n' >>"$dirty_repo/Spikes/Scripts/task-14-qa.sh"
+  task2_run_logged "$log" swift build --package-path "$dirty_repo/Spikes" --product Phase0Probe >/dev/null
+  dirty_bin="$(swift build --package-path "$dirty_repo/Spikes" --show-bin-path)/Phase0Probe"
+  set +e; "$dirty_bin" run-all --environment "$PWD/evidence/phase0/environment.json" --output "$tmp_dir/dirty" >>"$log" 2>&1; status=$?; set -e
+  [[ "$status" -ne 0 && ! -e "$tmp_dir/dirty" ]] || failures=$((failures + 1))
   for signal_name in INT TERM HUP; do
-    for attempt in 1 2; do
-      signal_output="$tmp_dir/signal-${signal_name}-${attempt}"
-      KEYRECORD_RUN_ALL_TEST_DELAY_AFTER_TEMP=3 "$probe" run-all --environment evidence/phase0/environment.json --output "$signal_output" >>"$log" 2>&1 & child=$!
+    for phase in early child; do
+      signal_output="$tmp_dir/signal-${signal_name}-${phase}"
+      if [[ "$phase" == early ]]; then delay_env="KEYRECORD_RUN_ALL_TEST_DELAY_AFTER_TEMP=3"; else delay_env="KEYRECORD_RUN_ALL_TEST_DELAY_DURING_CHILD=3"; fi
+      env "$delay_env" "$probe" run-all --environment evidence/phase0/environment.json --output "$signal_output" >>"$log" 2>&1 & child=$!
       ready=false; for _ in {1..100}; do compgen -G "$tmp_dir/.phase0.*.tmp" >/dev/null && { ready=true; break; }; sleep 0.05; done
+      [[ "$phase" == early ]] || sleep 0.25
       [[ "$ready" == true ]] || failures=$((failures + 1)); kill -s "$signal_name" "$child" 2>/dev/null || failures=$((failures + 1))
       set +e; wait "$child"; status=$?; set -e
-      printf 'signal=%s attempt=%s exit_status=%s\n' "$signal_name" "$attempt" "$status" >>"$log"
+      printf 'signal=%s phase=%s exit_status=%s\n' "$signal_name" "$phase" "$status" >>"$log"
       [[ "$status" -ne 0 && ! -e "$signal_output" ]] || failures=$((failures + 1)); compgen -G "$tmp_dir/.phase0.*.tmp" >/dev/null && failures=$((failures + 1))
     done
   done

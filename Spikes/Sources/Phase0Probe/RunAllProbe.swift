@@ -167,6 +167,11 @@ enum RunAllProbe {
         }
         process.standardOutput = stdout; process.standardError = stderr
         try process.run(); cleanup.setChild(process.processIdentifier)
+        if let raw = ProcessInfo.processInfo.environment["KEYRECORD_RUN_ALL_TEST_DELAY_DURING_CHILD"],
+           let delay = Double(raw) {
+            Thread.sleep(forTimeInterval: min(max(delay, 0), 5))
+            try cleanup.throwIfInterrupted()
+        }
         let deadline = Date().addingTimeInterval(timeout)
         while process.isRunning, Date() < deadline { Thread.sleep(forTimeInterval: 0.02) }
         if process.isRunning { process.terminate(); process.waitUntilExit(); throw Phase0RunError.timeout(arguments.first ?? executable) }

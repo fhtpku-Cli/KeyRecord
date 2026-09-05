@@ -19,6 +19,7 @@ enum RunAllProbe {
         try FileManager.default.createDirectory(at: parent, withIntermediateDirectories: true)
         let temporary = parent.appendingPathComponent(".phase0.\(UUID().uuidString).tmp", isDirectory: true)
         let cleanup = RunAllSignalCleanup(paths: [temporary, output])
+        var publicationStarted = false
         do {
             let environmentData = try bounded(environment)
             try seed(temporary, from: canonical, cleanup: cleanup)
@@ -73,14 +74,14 @@ enum RunAllProbe {
             try encoded(privacy).write(to: temporary.appendingPathComponent("privacy-audit.json"))
             try writeRootManifest(temporary)
             try cleanup.throwIfInterrupted()
-            if FileManager.default.fileExists(atPath: output.path) { try FileManager.default.removeItem(at: output) }
-            try FileManager.default.moveItem(at: temporary, to: output)
+            publicationStarted = true
+            try RunAllPublication.replace(staged: temporary, output: output)
             try cleanup.throwIfInterrupted()
             cleanup.complete()
             print("RUN_ALL=PASS spikes=9 blocked_allowed=true privacy_hits=0 output=\(output.path)")
         } catch {
             try? FileManager.default.removeItem(at: temporary)
-            try? FileManager.default.removeItem(at: output)
+            if !publicationStarted { try? FileManager.default.removeItem(at: output) }
             let interruption = error as? RunAllInterruption
             cleanup.complete()
             if let interruption { Foundation.exit(interruption.status) }

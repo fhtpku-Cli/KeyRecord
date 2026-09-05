@@ -66,4 +66,22 @@ final class RunAllProbeTests: XCTestCase {
         XCTAssertEqual(RunAllProbe.sanitize("output=\(raw)\n"), "output=${OUTPUT_ROOT}/sp1\n")
     }
 
+    func testPublicationCrashBoundariesPreserveCompleteRoot() throws {
+        for boundary in RunAllPublicationBoundary.allCases {
+            let sandbox = FileManager.default.temporaryDirectory
+                .appendingPathComponent("keyrecord-publication-\(UUID().uuidString)", isDirectory: true)
+            let output = sandbox.appendingPathComponent("phase0", isDirectory: true)
+            let staged = sandbox.appendingPathComponent(".phase0.new.tmp", isDirectory: true)
+            try FileManager.default.createDirectory(at: output, withIntermediateDirectories: true)
+            try FileManager.default.createDirectory(at: staged, withIntermediateDirectories: false)
+            defer { try? FileManager.default.removeItem(at: sandbox) }
+            try Data("old\n".utf8).write(to: output.appendingPathComponent("complete"))
+            try Data("new\n".utf8).write(to: staged.appendingPathComponent("complete"))
+
+            XCTAssertThrowsError(try RunAllPublication.replace(staged: staged, output: output, crashAt: boundary))
+            let visible = try String(contentsOf: output.appendingPathComponent("complete"), encoding: .utf8)
+            XCTAssertEqual(visible, boundary == .beforeReplace ? "old\n" : "new\n")
+        }
+    }
+
 }

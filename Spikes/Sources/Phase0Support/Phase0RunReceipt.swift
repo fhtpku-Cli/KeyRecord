@@ -83,7 +83,8 @@ public enum Phase0RunBinding {
         .union(SP6BRunnerBinding.sourcePaths).union([
         "Spikes/Scripts/run-task-qa.sh", "Spikes/Scripts/task-14-qa.sh", "Spikes/Scripts/verify-manifests.sh",
         "Spikes/Sources/EvidenceValidator/AtomicityHistoricalValidator.swift",
-        "Spikes/Sources/EvidenceValidator/Canonical.swift", "Spikes/Sources/EvidenceValidator/GitRunner.swift",
+        "Spikes/Sources/EvidenceValidator/CandidateBinder.swift", "Spikes/Sources/EvidenceValidator/Canonical.swift",
+        "Spikes/Sources/EvidenceValidator/GateValidator.swift", "Spikes/Sources/EvidenceValidator/GitRunner.swift",
         "Spikes/Sources/EvidenceValidator/EvidenceValidatorCommand.swift",
         "Spikes/Sources/EvidenceValidator/Phase0RootValidator.swift",
         "Spikes/Sources/EvidenceValidator/SP1DirectoryValidator.swift", "Spikes/Sources/EvidenceValidator/SP2DirectoryValidator.swift",
@@ -93,11 +94,14 @@ public enum Phase0RunBinding {
         "Spikes/Sources/EvidenceValidator/SP6AHistoryAnchorValidator.swift", "Spikes/Sources/EvidenceValidator/SP6ANamespaceValidator.swift",
         "Spikes/Sources/EvidenceValidator/SP6BDirectoryValidator.swift", "Spikes/Sources/EvidenceValidator/SP6BBenchmarkValidator.swift",
         "Spikes/Sources/EvidenceValidator/SP6BBuildValidator.swift", "Spikes/Sources/EvidenceValidator/SP6BNVDValidator.swift",
-        "Spikes/Sources/EvidenceValidator/SP6BSourceValidator.swift", "Spikes/Sources/EvidenceValidator/ValidatorError.swift",
+        "Spikes/Sources/EvidenceValidator/ReceiptValidator.swift", "Spikes/Sources/EvidenceValidator/SP6BSourceValidator.swift",
+        "Spikes/Sources/EvidenceValidator/ValidatorError.swift",
         "Spikes/Sources/Phase0Probe/AtomicityRunnerIdentity.swift", "Spikes/Sources/Phase0Probe/RunAllProbe.swift",
         "Spikes/Sources/Phase0Probe/RunAllPublication.swift", "Spikes/Sources/Phase0Probe/RunAllSignalCleanup.swift",
         "Spikes/Sources/Phase0Probe/RunAllTestDelay.swift", "Spikes/Sources/Phase0Probe/main.swift",
-        "Spikes/Sources/Phase0Support/Phase0Privacy.swift", "Spikes/Sources/Phase0Support/Phase0RunReceipt.swift",
+        "Spikes/Sources/Phase0Support/FinalReviewCommands.swift", "Spikes/Sources/Phase0Support/Phase0Privacy.swift",
+        "Spikes/Sources/Phase0Support/Phase0RunReceipt.swift", "Spikes/Sources/Phase0Support/SourceLedger.swift",
+        "Spikes/Sources/Phase0Support/StrictCoding.swift", "Spikes/Sources/Phase0Support/ValidationContracts.swift",
         "Spikes/Tests/EvidenceValidatorTests/Phase0RootValidatorTests.swift",
         "Spikes/Tests/Phase0ProbeTests/RunAllProbeTests.swift"
     ])

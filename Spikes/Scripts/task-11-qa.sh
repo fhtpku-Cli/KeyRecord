@@ -16,7 +16,13 @@ run() { printf 'COMMAND=' >>"$log"; printf ' %q' "$@" >>"$log"; printf '\n' >>"$
 run swift build --package-path Spikes --scratch-path "$scratch" --product Phase0Probe
 run swift build --package-path Spikes --scratch-path "$scratch" --product EvidenceValidator
 bin="$(swift build --package-path Spikes --scratch-path "$scratch" --show-bin-path)"
-probe="$bin/Phase0Probe"; validator="$bin/EvidenceValidator"; evidence="$tmp_dir/sp6b"
+probe="$bin/Phase0Probe"; validator="$bin/EvidenceValidator"
+qa_repo="$tmp_dir/repository"; git clone --quiet . "$qa_repo"
+evidence="$qa_repo/evidence/phase0/sp6b"
+run bash -c 'cd "$1" && "$2" sp6b --environment evidence/phase0/environment.json --output evidence/phase0/sp6b' _ "$qa_repo" "$probe"
+run git -C "$qa_repo" add evidence/phase0/sp6b
+run git -C "$qa_repo" -c user.name=Task11QA -c user.email=task11@example.invalid commit --quiet -m 'task11 evidence fixture'
+validate() { run bash -c 'cd "$1" && "$2" "$3"' _ "$qa_repo" "$validator" "$3"; }
 
 remanifest() {
   local directory="$1"
@@ -25,25 +31,25 @@ remanifest() {
 
 if [[ "$mode" == happy ]]; then
   if run swift test --package-path Spikes --filter 'Argon2AuditTests|SP6BValidatorTests' \
-    && run "$probe" sp6b --environment evidence/phase0/environment.json --output "$evidence" \
-    && run "$validator" "$evidence" \
+    && validate "$evidence" \
     && run bash Spikes/Scripts/audit-security.sh sp6b "$evidence/dependency-audit.md" \
     && run bash -c 'cd "$1" && shasum -a 256 -c manifest.sha256' _ "$evidence" \
     && run bash -c '! /usr/bin/grep -R -E -i "^(set-cookie|authorization|proxy-authorization|x-api-key|api-key|authentication-info):" "$1/d12/raw/"*.headers' _ "$evidence" \
     && run perl -0777 -ne 'exit 1 if /\r|[ \t](?:\n|\z)|\n\n\z/' "$evidence"/d12/raw/*.headers \
     && run lipo -archs "$evidence/build/argon2-universal.a" \
     && run jq -e '.verdict=="BLOCKED" and .dependencyFrozen==false and ([.legs[]|select(.verdict=="PASS")]|length)==6 and ([.legs[]|select(.verdict=="BLOCKED")|.legID])==["sp6b.intelTiming"]' "$evidence/evidence.json" \
-    && run jq -e '.recommendation=="phc" and .dependencyFrozen==false and .scores.phc.total==null and (.scores.phc|[.pedigree,.dependencies,.maintenance,.dualArchBuild,.sourceSize]|add)==8 and (.scores.swift|[.pedigree,.dependencies,.maintenance,.dualArchBuild,.sourceSize]|add)==8' "$evidence/candidate-evaluation.json" \
-    && run jq -e '.recommendedCandidate=="phc" and .sampleCount>=5 and .sampleCount<=15 and .medianMilliseconds>=300 and .medianMilliseconds<=500 and .withinTarget and .memoryKiB==524288 and .iterations==5 and .parallelism==4 and .saltLength==16' "$evidence/arm-benchmark.json" \
-    && run jq -e '([.candidates[].github[]]|length)==2 and ([.candidates[].osv[]]|length)==2 and (.nvd.pages|length)==1 and ([.nvd.pages[].vulnerabilities[]]|length)==10 and all(.nvd.pages[].vulnerabilities[];.impact=="none" and (.rationale|length)>0)' "$evidence/d12/snapshot.json"; then
+    && run jq -e '.recommendation=="phc" and .dependencyFrozen==false and (.candidates|map(.sourceLOC))==[3294,631] and (.scores.phc|[.pedigree,.dependencies,.maintenance,.dualArchBuild,.sourceSize]|add)==8 and (.scores.swift|[.pedigree,.dependencies,.maintenance,.dualArchBuild,.sourceSize]|add)==8' "$evidence/candidate-evaluation.json" \
+    && run jq -e '.recommendedCandidate=="phc" and .sampleCount>=5 and .sampleCount<=15 and .medianMilliseconds>=300 and .medianMilliseconds<=500 and .withinTarget and .memoryKiB==524288 and .iterations==5 and .parallelism==4 and .saltLength==16 and (.sampleReceipts|length)==.sampleCount and .archiveSha256 and .environmentSha256' "$evidence/arm-benchmark.json" \
+    && run jq -e '.schemaVersion==2 and ([.vectors[]|select(.expectedTag==.observedTag and .exitStatus==0)]|length)==2 and ([.slices[].members[]]|length)==12' "$evidence/build/build.json" \
+    && run jq -e '.schemaVersion==1 and (.candidates|map(.sourceLOC))==[3294,631] and ([.candidates[].includedFiles[]]|length)==14' "$evidence/source-audit.json" \
+    && run jq -e '([.candidates[].github[]]|length)==2 and ([.candidates[].osv[]]|length)==2 and (.nvd.pages|length)==1 and ([.nvd.pages[].vulnerabilities[]]|length)==10 and all(.nvd.pages[].vulnerabilities[];.impact=="none" and (.category|length)>0 and (.rationale|length)>0 and (.descriptionSha256|length)==64 and (.configurationSha256|length)==64 and (.referencesSha256|length)==64)' "$evidence/d12/snapshot.json"; then
     { printf 'TASK_11_HAPPY=PASS\nOBSERVABLE=exact pins/licenses, both independent RFC vectors, complete D12 identities/pages/raw hashes, deterministic 8/8 ranking with PHC pedigree tie-break, genuine x86_64+arm64 archive, bounded ARM tuning, 12-row audit, and honest Intel BLOCKED verified\n'; cat "$log"; } >"$output"
   else exit 1; fi
   printf 'TASK_11_HAPPY=PASS\n'; exit 0
 fi
 
 run swift test --package-path Spikes --filter 'Argon2AuditTests|SP6BValidatorTests'
-run "$probe" sp6b --environment evidence/phase0/environment.json --output "$evidence"
-run "$validator" "$evidence"
+validate "$evidence"
 failures=0
 expect_reject() {
   local name="$1" filter="$2" forged status
@@ -51,10 +57,41 @@ expect_reject() {
   cp -R "$evidence" "$forged"
   jq "$filter" "$forged/${3:-d12/snapshot.json}" >"$tmp_dir/value" && mv "$tmp_dir/value" "$forged/${3:-d12/snapshot.json}"
   remanifest "$forged"
-  set +e; "$validator" "$forged" >>"$log" 2>&1; status=$?; set -e
+  set +e; (cd "$qa_repo" && "$validator" "$forged") >>"$log" 2>&1; status=$?; set -e
   printf 'attack=%s exit_status=%s\n' "$name" "$status" >>"$log"
   [[ "$status" -ne 0 ]] || failures=$((failures + 1))
   jq -e '.dependencyFrozen==false and ([.legs[]|select(.legID=="sp6b.intelTiming" and .verdict=="BLOCKED")]|length)==1' "$forged/evidence.json" >/dev/null || failures=$((failures + 1))
+}
+
+expect_typed() {
+  local name="$1" expected="$2" forged="$3" result="$tmp_dir/result-$1" status
+  set +e; (cd "$qa_repo" && "$validator" "$forged") >"$result" 2>&1; status=$?; set -e
+  cat "$result" >>"$log"; printf 'attack=%s exit_status=%s expected=%s\n' "$name" "$status" "$expected" >>"$log"
+  [[ "$status" -ne 0 ]] || failures=$((failures + 1))
+  grep -F "$expected" "$result" >/dev/null || failures=$((failures + 1))
+}
+
+edit_json() {
+  local file="$1" filter="$2"
+  jq "$filter" "$file" >"$tmp_dir/value" && mv "$tmp_dir/value" "$file"
+}
+
+rebind_build() {
+  local forged="$1" build_hash archive_hash
+  build_hash="$(shasum -a 256 "$forged/build/build.json"|cut -d' ' -f1)"
+  archive_hash="$(shasum -a 256 "$forged/build/argon2-universal.a"|cut -d' ' -f1)"
+  jq --arg build "$build_hash" --arg archive "$archive_hash" '
+    .legs |= map(if .legID=="sp6b.vectors" then .artifactSha256=$build
+      elif .legID=="sp6b.universalBuild" then .artifactSha256=$archive else . end)
+  ' "$forged/evidence.json" >"$tmp_dir/value" && mv "$tmp_dir/value" "$forged/evidence.json"
+  remanifest "$forged"
+}
+
+rebind_nvd_raw() {
+  local forged="$1" raw="$forged/d12/raw/nvd-0.json" hash
+  hash="$(shasum -a 256 "$raw"|cut -d' ' -f1)"
+  jq --arg hash "$hash" '.nvd.pages[0].request.rawBodySha256=$hash' "$forged/d12/snapshot.json" >"$tmp_dir/value"
+  mv "$tmp_dir/value" "$forged/d12/snapshot.json"; remanifest "$forged"
 }
 
 expect_reject wrong-candidate '.recommendation="swift"' candidate-evaluation.json
@@ -84,26 +121,124 @@ expect_reject build-failure '.architectures=["arm64"]' build/build.json
 expect_reject timing-failure '.withinTarget=false' arm-benchmark.json
 expect_reject misleading-pass '.verdict="PASS"' evidence.json
 
+forged="$tmp_dir/forged-coordinated-candidate"; cp -R "$evidence" "$forged"
+edit_json "$forged/candidate-evaluation.json" '.candidates[0].commit=("a"*40) | .candidates[0].tree=("b"*40)'
+edit_json "$forged/d12/snapshot.json" '.candidates[0].commit=("a"*40)'
+remanifest "$forged"; expect_typed coordinated-candidate sp6b_candidate_provenance "$forged"
+
 for name in vector-text unresolved-medium; do
   forged="$tmp_dir/forged-$name"; cp -R "$evidence" "$forged"
   if [[ "$name" == vector-text ]]; then printf 'SWIFT_RFC9106_VECTOR=FAIL\n' >"$forged/build/swift-vector.txt"; else perl -0pi -e 's/Medium: 0/Medium: 1/' "$forged/dependency-audit.md"; fi
-  remanifest "$forged"; set +e; "$validator" "$forged" >>"$log" 2>&1; status=$?; set -e
+  remanifest "$forged"; set +e; (cd "$qa_repo" && "$validator" "$forged") >>"$log" 2>&1; status=$?; set -e
   printf 'attack=%s exit_status=%s\n' "$name" "$status" >>"$log"; [[ "$status" -ne 0 ]] || failures=$((failures + 1))
 done
 
+for field in impact category rationale descriptionSha256 configurationSha256 referencesSha256; do
+  forged="$tmp_dir/forged-nvd-$field"; cp -R "$evidence" "$forged"
+  case "$field" in
+    impact) edit_json "$forged/d12/snapshot.json" '.nvd.pages[0].vulnerabilities[0].impact="phc"'; code=sp6b_nvd_disposition_impact;;
+    category) edit_json "$forged/d12/snapshot.json" '.nvd.pages[0].vulnerabilities[0].category="invented"'; code=sp6b_nvd_disposition_category;;
+    rationale) edit_json "$forged/d12/snapshot.json" '.nvd.pages[0].vulnerabilities[0].rationale="invented"'; code=sp6b_nvd_disposition_rationale;;
+    *) edit_json "$forged/d12/snapshot.json" ".nvd.pages[0].vulnerabilities[0].$field=(\"f\"*64)"; code=sp6b_nvd_disposition_hash;;
+  esac
+  remanifest "$forged"; expect_typed "nvd-$field" "$code" "$forged"
+done
+
+for raw_field in description configurations references; do
+  forged="$tmp_dir/forged-raw-$raw_field"; cp -R "$evidence" "$forged"
+  case "$raw_field" in
+    description) edit_json "$forged/d12/raw/nvd-0.json" '.vulnerabilities[0].cve.descriptions[0].value="changed description"'; code=sp6b_nvd_description;;
+    configurations) edit_json "$forged/d12/raw/nvd-0.json" '.vulnerabilities[0].cve.configurations=[]'; code=sp6b_nvd_configuration;;
+    references) edit_json "$forged/d12/raw/nvd-0.json" '.vulnerabilities[0].cve.references=[]'; code=sp6b_nvd_references;;
+  esac
+  rebind_nvd_raw "$forged"; expect_typed "raw-$raw_field" "$code" "$forged"
+done
+
+for set_attack in unknown omitted; do
+  forged="$tmp_dir/forged-nvd-$set_attack"; cp -R "$evidence" "$forged"
+  if [[ "$set_attack" == unknown ]]; then
+    edit_json "$forged/d12/raw/nvd-0.json" '.vulnerabilities += [(.vulnerabilities[0]|.cve.id="CVE-2099-0001")] | .totalResults+=1 | .resultsPerPage+=1'
+    edit_json "$forged/d12/snapshot.json" '.nvd.pages[0].vulnerabilities += [(.nvd.pages[0].vulnerabilities[0]|.cveID="CVE-2099-0001")] | .nvd.pages[0].totalResults+=1 | .nvd.pages[0].resultsPerPage+=1'
+  else
+    edit_json "$forged/d12/raw/nvd-0.json" '.vulnerabilities=.vulnerabilities[1:] | .totalResults-=1 | .resultsPerPage-=1'
+    edit_json "$forged/d12/snapshot.json" '.nvd.pages[0].vulnerabilities=.nvd.pages[0].vulnerabilities[1:] | .nvd.pages[0].totalResults-=1 | .nvd.pages[0].resultsPerPage-=1'
+  fi
+  rebind_nvd_raw "$forged"; expect_typed "nvd-$set_attack" sp6b_nvd_review_set "$forged"
+done
+
+for vector_attack in expected observed command harness source exit; do
+  forged="$tmp_dir/forged-vector-$vector_attack"; cp -R "$evidence" "$forged"
+  case "$vector_attack" in
+    expected) filter='.vectors[1].expectedTag=("f"*64)'; code=sp6b_vector_receipt;;
+    observed) filter='.vectors[1].observedTag=("f"*64)'; code=sp6b_vector_receipt;;
+    command) filter='.vectors[1].command=["printf","PASS"]'; code=sp6b_vector_source;;
+    harness) filter='.vectors[1].harnessSourceSha256=("f"*64)'; code=sp6b_vector_harness;;
+    source) filter='.vectors[1].candidateSourceSha256=("f"*64)'; code=sp6b_vector_source;;
+    exit) filter='.vectors[1].exitStatus=1'; code=sp6b_vector_receipt;;
+  esac
+  edit_json "$forged/build/build.json" "$filter"; rebind_build "$forged"
+  expect_typed "vector-$vector_attack" "$code" "$forged"
+done
+
+for build_attack in member source blob slice flags compiler; do
+  forged="$tmp_dir/forged-build-$build_attack"; cp -R "$evidence" "$forged"
+  case "$build_attack" in
+    member) filter='.slices[0].members[0].member="unrelated.o"'; code=sp6b_build_slice;;
+    source) filter='.slices[0].members[0].sourcePath="src/run.c"'; code=sp6b_build_member_source;;
+    blob) filter='.slices[0].members[0].sourceBlob=("f"*40)'; code=sp6b_build_member_source;;
+    slice) filter='.slices[0].sliceSha256=("f"*64)'; code=sp6b_build_slice;;
+    flags) filter='.compilerFlags=["-O0"]'; code=sp6b_build_receipt;;
+    compiler) filter='.compilerIdentity="untrusted compiler"'; code=sp6b_build_receipt;;
+  esac
+  edit_json "$forged/build/build.json" "$filter"; rebind_build "$forged"
+  expect_typed "build-$build_attack" "$code" "$forged"
+done
+
+for bench_attack in tag duration ordering statistics archive environment; do
+  forged="$tmp_dir/forged-bench-$bench_attack"; cp -R "$evidence" "$forged"
+  case "$bench_attack" in
+    tag) filter='.sampleReceipts[0].observedTag=("f"*64)'; code=sp6b_arm_sample;;
+    duration) filter='.sampleReceipts[0].milliseconds+=10 | .samplesMilliseconds[0]+=10'; code=sp6b_arm_sample;;
+    ordering) filter='.sampleReceipts[1].startNanoseconds=.sampleReceipts[0].startNanoseconds'; code=sp6b_arm_sample;;
+    statistics) filter='.medianMilliseconds+=1'; code=sp6b_arm_statistics;;
+    archive) filter='.archiveSha256=("f"*64)'; code=sp6b_arm_receipt;;
+    environment) filter='.environmentSha256=("f"*64)'; code=sp6b_arm_receipt;;
+  esac
+  edit_json "$forged/arm-benchmark.json" "$filter"; remanifest "$forged"
+  expect_typed "bench-$bench_attack" "$code" "$forged"
+done
+
+forged="$tmp_dir/forged-unrelated-archive"; cp -R "$evidence" "$forged"
+printf 'int unrelated(void) { return 7; }\n' >"$tmp_dir/unrelated.c"
+for arch in x86_64 arm64; do
+  clang -arch "$arch" -c "$tmp_dir/unrelated.c" -o "$tmp_dir/unrelated-$arch.o"
+  ZERO_AR_DATE=1 ar -rcs "$tmp_dir/unrelated-$arch.a" "$tmp_dir/unrelated-$arch.o"
+done
+lipo -create "$tmp_dir/unrelated-x86_64.a" "$tmp_dir/unrelated-arm64.a" -output "$forged/build/argon2-universal.a"
+edit_json "$forged/build/build.json" ".archiveSha256=\"$(shasum -a 256 "$forged/build/argon2-universal.a"|cut -d' ' -f1)\""
+rebind_build "$forged"; expect_typed unrelated-archive sp6b_build_archive_hash "$forged"
+
+forged="$tmp_dir/forged-later-generated-at"; cp -R "$evidence" "$forged"
+later="2099-01-01T00:00:00Z"
+for file in evidence.json candidate-evaluation.json source-audit.json build/build.json arm-benchmark.json d12/snapshot.json; do
+  edit_json "$forged/$file" ".generatedAt=\"$later\""
+done
+edit_json "$forged/d12/snapshot.json" ".candidates[].github[].retrievedAt=\"$later\" | .candidates[].osv[].request.retrievedAt=\"$later\" | .nvd.pages[].request.retrievedAt=\"$later\""
+rebind_build "$forged"; expect_typed later-generated-at sp6b_evidence_history_blob "$forged"
+
 partial="$tmp_dir/partial"; cp -R "$evidence" "$partial"; rm "$partial/build/swift-vector.txt"
-set +e; "$validator" "$partial" >>"$log" 2>&1; status=$?; set -e
+set +e; (cd "$qa_repo" && "$validator" "$partial") >>"$log" 2>&1; status=$?; set -e
 printf 'attack=partial-output exit_status=%s\n' "$status" >>"$log"; [[ "$status" -ne 0 ]] || failures=$((failures + 1))
 
 deterministic="$tmp_dir/deterministic"
-run "$probe" sp6b --environment evidence/phase0/environment.json --output "$deterministic"
+run bash -c 'cd "$1" && "$2" sp6b --environment evidence/phase0/environment.json --output "$3"' _ "$qa_repo" "$probe" "$deterministic"
 jq -S 'del(.generatedAt)' "$evidence/candidate-evaluation.json" >"$tmp_dir/eval-a"
 jq -S 'del(.generatedAt)' "$deterministic/candidate-evaluation.json" >"$tmp_dir/eval-b"
 cmp "$tmp_dir/eval-a" "$tmp_dir/eval-b" >>"$log" 2>&1 || failures=$((failures + 1))
 cmp "$evidence/build/phc-vector.txt" "$deterministic/build/phc-vector.txt" >>"$log" 2>&1 || failures=$((failures + 1))
 cmp "$evidence/build/swift-vector.txt" "$deterministic/build/swift-vector.txt" >>"$log" 2>&1 || failures=$((failures + 1))
 
-git clone --quiet . "$tmp_dir/dirty-repo"
+git clone --quiet "$qa_repo" "$tmp_dir/dirty-repo"
 mkdir -p "$tmp_dir/dirty-repo/evidence/phase0/sp6b"; cp -R "$evidence/." "$tmp_dir/dirty-repo/evidence/phase0/sp6b/"
 printf '\n# dirty runner attack\n' >>"$tmp_dir/dirty-repo/Spikes/Scripts/task-11-qa.sh"
 set +e; (cd "$tmp_dir/dirty-repo" && "$validator" evidence/phase0/sp6b) >>"$log" 2>&1; status=$?; set -e

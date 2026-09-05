@@ -96,7 +96,7 @@ public enum Phase0RunBinding {
         "Spikes/Sources/EvidenceValidator/SP6BSourceValidator.swift", "Spikes/Sources/EvidenceValidator/ValidatorError.swift",
         "Spikes/Sources/Phase0Probe/AtomicityRunnerIdentity.swift", "Spikes/Sources/Phase0Probe/RunAllProbe.swift",
         "Spikes/Sources/Phase0Probe/RunAllPublication.swift", "Spikes/Sources/Phase0Probe/RunAllSignalCleanup.swift",
-        "Spikes/Sources/Phase0Probe/main.swift",
+        "Spikes/Sources/Phase0Probe/RunAllTestDelay.swift", "Spikes/Sources/Phase0Probe/main.swift",
         "Spikes/Sources/Phase0Support/Phase0Privacy.swift", "Spikes/Sources/Phase0Support/Phase0RunReceipt.swift",
         "Spikes/Tests/EvidenceValidatorTests/Phase0RootValidatorTests.swift",
         "Spikes/Tests/Phase0ProbeTests/RunAllProbeTests.swift"

@@ -24,9 +24,7 @@ enum RunAllProbe {
             let environmentData = try bounded(environment)
             try seed(temporary, from: canonical, cleanup: cleanup)
             try cleanStale(parent: parent, preserving: temporary)
-            if let raw = ProcessInfo.processInfo.environment["KEYRECORD_RUN_ALL_TEST_DELAY_AFTER_TEMP"], let delay = Double(raw) {
-                Thread.sleep(forTimeInterval: min(max(delay, 0), 5))
-            }
+            try RunAllTestDelay.wait(environmentKey: "KEYRECORD_RUN_ALL_TEST_DELAY_AFTER_TEMP", cleanup: cleanup)
             try cleanup.throwIfInterrupted()
             try PrivacySafeEnvironmentValidator.validateJSON(environmentData)
             _ = try JSONDecoder().decode(EnvironmentEvidence.self, from: environmentData)
@@ -75,6 +73,7 @@ enum RunAllProbe {
             try writeRootManifest(temporary)
             try cleanup.throwIfInterrupted()
             publicationStarted = true
+            try RunAllTestDelay.wait(environmentKey: "KEYRECORD_RUN_ALL_TEST_DELAY_BEFORE_PUBLISH", cleanup: cleanup)
             try RunAllPublication.replace(staged: temporary, output: output)
             try cleanup.throwIfInterrupted()
             cleanup.complete()
@@ -167,11 +166,7 @@ enum RunAllProbe {
         }
         process.standardOutput = stdout; process.standardError = stderr
         try process.run(); cleanup.setChild(process.processIdentifier)
-        if let raw = ProcessInfo.processInfo.environment["KEYRECORD_RUN_ALL_TEST_DELAY_DURING_CHILD"],
-           let delay = Double(raw) {
-            Thread.sleep(forTimeInterval: min(max(delay, 0), 5))
-            try cleanup.throwIfInterrupted()
-        }
+        try RunAllTestDelay.wait(environmentKey: "KEYRECORD_RUN_ALL_TEST_DELAY_DURING_CHILD", cleanup: cleanup)
         let deadline = Date().addingTimeInterval(timeout)
         while process.isRunning, Date() < deadline { Thread.sleep(forTimeInterval: 0.02) }
         if process.isRunning { process.terminate(); process.waitUntilExit(); throw Phase0RunError.timeout(arguments.first ?? executable) }

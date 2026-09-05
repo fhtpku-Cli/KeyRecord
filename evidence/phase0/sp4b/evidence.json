@@ -15,8 +15,8 @@
       "evidenceKind" : "fixture",
       "exitStatus" : 0,
       "legID" : "sp4b.bounds",
-      "runnerCommitSha" : "958d3d275e08bd302fa3a24d22af3e9c242e3409",
-      "runnerTreeSha" : "a09c3cf977f3491acc0359ecebf0892b5cbce042",
+      "runnerCommitSha" : "820821202ce2649fc2ce753f8853e60c00f29eff",
+      "runnerTreeSha" : "3719f3e154232d055edfce60a6cf295a8396562e",
       "verdict" : "PASS"
     },
     {
@@ -37,8 +37,8 @@
       "environmentSha256" : "6b3288f5983cbce231295762d3f8381b8467d6dbe2e74fff0e17a1aebf7215f4",
       "evidenceKind" : "source",
       "legID" : "sp4b.deviceProtocol",
-      "runnerCommitSha" : "958d3d275e08bd302fa3a24d22af3e9c242e3409",
-      "runnerTreeSha" : "a09c3cf977f3491acc0359ecebf0892b5cbce042",
+      "runnerCommitSha" : "820821202ce2649fc2ce753f8853e60c00f29eff",
+      "runnerTreeSha" : "3719f3e154232d055edfce60a6cf295a8396562e",
       "verdict" : "BLOCKED"
     },
     {
@@ -59,8 +59,8 @@
       "environmentSha256" : "6b3288f5983cbce231295762d3f8381b8467d6dbe2e74fff0e17a1aebf7215f4",
       "evidenceKind" : "live",
       "legID" : "sp4b.importer",
-      "runnerCommitSha" : "958d3d275e08bd302fa3a24d22af3e9c242e3409",
-      "runnerTreeSha" : "a09c3cf977f3491acc0359ecebf0892b5cbce042",
+      "runnerCommitSha" : "820821202ce2649fc2ce753f8853e60c00f29eff",
+      "runnerTreeSha" : "3719f3e154232d055edfce60a6cf295a8396562e",
       "verdict" : "BLOCKED"
     },
     {
@@ -81,8 +81,8 @@
       "environmentSha256" : "6b3288f5983cbce231295762d3f8381b8467d6dbe2e74fff0e17a1aebf7215f4",
       "evidenceKind" : "source",
       "legID" : "sp4b.keycodeDialect",
-      "runnerCommitSha" : "958d3d275e08bd302fa3a24d22af3e9c242e3409",
-      "runnerTreeSha" : "a09c3cf977f3491acc0359ecebf0892b5cbce042",
+      "runnerCommitSha" : "820821202ce2649fc2ce753f8853e60c00f29eff",
+      "runnerTreeSha" : "3719f3e154232d055edfce60a6cf295a8396562e",
       "verdict" : "BLOCKED"
     },
     {
@@ -100,8 +100,8 @@
       "evidenceKind" : "synthetic",
       "exitStatus" : 0,
       "legID" : "sp4b.layoutRoundTrip",
-      "runnerCommitSha" : "958d3d275e08bd302fa3a24d22af3e9c242e3409",
-      "runnerTreeSha" : "a09c3cf977f3491acc0359ecebf0892b5cbce042",
+      "runnerCommitSha" : "820821202ce2649fc2ce753f8853e60c00f29eff",
+      "runnerTreeSha" : "3719f3e154232d055edfce60a6cf295a8396562e",
       "verdict" : "PASS"
     }
   ],
@@ -111,7 +111,7 @@
     "Spikes/Sources/EvidenceValidator/Canonical.swift" : "ab34555220fea7b5fcbc667e6a082ac98d5de0820c06cdf45f400d559320b2d8",
     "Spikes/Sources/EvidenceValidator/EvidenceValidatorCommand.swift" : "bad4d3113ca2fdff9e99b051fbfe6d42fc8d406c71b3b23df17f5dc1436ce30b",
     "Spikes/Sources/EvidenceValidator/GitRunner.swift" : "ca3f1ba4a52173c54e45aaccbcf453e989a368da83e0c6f452373e8a0feffafb",
-    "Spikes/Sources/EvidenceValidator/SP4BDirectoryValidator.swift" : "4188d1697a9b6db2b7daf258a211c3ead0913f3753d9fb8bbc5c9439eb08f694",
+    "Spikes/Sources/EvidenceValidator/SP4BDirectoryValidator.swift" : "ee339d323579f9156bee8f4a70c7cc39e7c183840a1dc9299647be13f9fab70f",
     "Spikes/Sources/EvidenceValidator/ValidatorError.swift" : "93bb3aee3aac5fa3322fdf8ff04743eb275bbac228ce60f72e3bdc071da4e06e",
     "Spikes/Sources/Phase0Probe/AtomicityRunnerIdentity.swift" : "4c618386923dd3ca544d7e1ebe54f107f04eed771c923d53e1b5f6550e556901",
     "Spikes/Sources/Phase0Probe/SP4BProbe.swift" : "bf94ce8204724eef5e5307b728cd9b4efe63bb2c83cba5ca7c9aae5ab5318e02",

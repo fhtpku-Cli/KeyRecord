@@ -14,8 +14,8 @@
       "detectorAvailable" : false,
       "environmentSha256" : "6b3288f5983cbce231295762d3f8381b8467d6dbe2e74fff0e17a1aebf7215f4",
       "legID" : "sp1.autoRepeat",
-      "runnerCommitSha" : "958d3d275e08bd302fa3a24d22af3e9c242e3409",
-      "runnerTreeSha" : "a09c3cf977f3491acc0359ecebf0892b5cbce042",
+      "runnerCommitSha" : "820821202ce2649fc2ce753f8853e60c00f29eff",
+      "runnerTreeSha" : "3719f3e154232d055edfce60a6cf295a8396562e",
       "verdict" : "BLOCKED"
     },
     {
@@ -31,8 +31,8 @@
       "detectorAvailable" : false,
       "environmentSha256" : "6b3288f5983cbce231295762d3f8381b8467d6dbe2e74fff0e17a1aebf7215f4",
       "legID" : "sp1.o7Boundary",
-      "runnerCommitSha" : "958d3d275e08bd302fa3a24d22af3e9c242e3409",
-      "runnerTreeSha" : "a09c3cf977f3491acc0359ecebf0892b5cbce042",
+      "runnerCommitSha" : "820821202ce2649fc2ce753f8853e60c00f29eff",
+      "runnerTreeSha" : "3719f3e154232d055edfce60a6cf295a8396562e",
       "verdict" : "BLOCKED"
     },
     {
@@ -48,8 +48,8 @@
       "detectorAvailable" : false,
       "environmentSha256" : "6b3288f5983cbce231295762d3f8381b8467d6dbe2e74fff0e17a1aebf7215f4",
       "legID" : "sp1.productStampedDrop",
-      "runnerCommitSha" : "958d3d275e08bd302fa3a24d22af3e9c242e3409",
-      "runnerTreeSha" : "a09c3cf977f3491acc0359ecebf0892b5cbce042",
+      "runnerCommitSha" : "820821202ce2649fc2ce753f8853e60c00f29eff",
+      "runnerTreeSha" : "3719f3e154232d055edfce60a6cf295a8396562e",
       "verdict" : "BLOCKED"
     },
     {
@@ -65,8 +65,8 @@
       "detectorAvailable" : false,
       "environmentSha256" : "6b3288f5983cbce231295762d3f8381b8467d6dbe2e74fff0e17a1aebf7215f4",
       "legID" : "sp1.systemShortcut",
-      "runnerCommitSha" : "958d3d275e08bd302fa3a24d22af3e9c242e3409",
-      "runnerTreeSha" : "a09c3cf977f3491acc0359ecebf0892b5cbce042",
+      "runnerCommitSha" : "820821202ce2649fc2ce753f8853e60c00f29eff",
+      "runnerTreeSha" : "3719f3e154232d055edfce60a6cf295a8396562e",
       "verdict" : "BLOCKED"
     },
     {
@@ -82,8 +82,8 @@
       "detectorAvailable" : false,
       "environmentSha256" : "6b3288f5983cbce231295762d3f8381b8467d6dbe2e74fff0e17a1aebf7215f4",
       "legID" : "sp1.tap.annotated.matrix",
-      "runnerCommitSha" : "958d3d275e08bd302fa3a24d22af3e9c242e3409",
-      "runnerTreeSha" : "a09c3cf977f3491acc0359ecebf0892b5cbce042",
+      "runnerCommitSha" : "820821202ce2649fc2ce753f8853e60c00f29eff",
+      "runnerTreeSha" : "3719f3e154232d055edfce60a6cf295a8396562e",
       "verdict" : "BLOCKED"
     },
     {
@@ -99,8 +99,8 @@
       "detectorAvailable" : false,
       "environmentSha256" : "6b3288f5983cbce231295762d3f8381b8467d6dbe2e74fff0e17a1aebf7215f4",
       "legID" : "sp1.tap.session.matrix",
-      "runnerCommitSha" : "958d3d275e08bd302fa3a24d22af3e9c242e3409",
-      "runnerTreeSha" : "a09c3cf977f3491acc0359ecebf0892b5cbce042",
+      "runnerCommitSha" : "820821202ce2649fc2ce753f8853e60c00f29eff",
+      "runnerTreeSha" : "3719f3e154232d055edfce60a6cf295a8396562e",
       "verdict" : "BLOCKED"
     },
     {
@@ -116,18 +116,21 @@
       "detectorAvailable" : false,
       "environmentSha256" : "6b3288f5983cbce231295762d3f8381b8467d6dbe2e74fff0e17a1aebf7215f4",
       "legID" : "sp1.tapReset",
-      "runnerCommitSha" : "958d3d275e08bd302fa3a24d22af3e9c242e3409",
-      "runnerTreeSha" : "a09c3cf977f3491acc0359ecebf0892b5cbce042",
+      "runnerCommitSha" : "820821202ce2649fc2ce753f8853e60c00f29eff",
+      "runnerTreeSha" : "3719f3e154232d055edfce60a6cf295a8396562e",
       "verdict" : "BLOCKED"
     }
   ],
   "o7Guarantee" : "only product-stamped synthetic events are guaranteed excluded; unmarked injection indicators remain suspected, never proven, and no source-field exclusion is claimed.",
   "runnerSourceSha256" : {
+    "Spikes/Scripts/run-task-qa.sh" : "bcea44c9434fba8b6189344f0b983590cb8566ab85956e8c25d95ae058ae8a78",
     "Spikes/Sources/Phase0Probe/AtomicityProbe.swift" : "06f3044bf870bcb0057242681f64fd8c4d8c967adea917ae82d7a14abb198546",
     "Spikes/Sources/Phase0Probe/AtomicityRunnerIdentity.swift" : "4c618386923dd3ca544d7e1ebe54f107f04eed771c923d53e1b5f6550e556901",
+    "Spikes/Sources/Phase0Probe/SP1Probe.swift" : "224fb0a682c936bc0689ca1dad69741251402743aac85d301a796b04814643e0",
     "Spikes/Sources/Phase0Probe/main.swift" : "4f12c425094d0e4516a5bad751cda12f24fee482ca63213904bbfb36f391e0c4",
     "Spikes/Sources/Phase0Support/AtomicReplacement.swift" : "2b41ebb3195e28a094dc70407456cb51e757245286f7c963d0deeb0a1537be9b",
-    "Spikes/Sources/Phase0Support/AtomicityEvidence.swift" : "9b40d0c7f07df767c93d90580a61b68c12cf97c32e916d7cba60f6e892127bf8"
+    "Spikes/Sources/Phase0Support/AtomicityEvidence.swift" : "9b40d0c7f07df767c93d90580a61b68c12cf97c32e916d7cba60f6e892127bf8",
+    "Spikes/Sources/Phase0Support/InputObservation.swift" : "500e95601f9b9b4767ae4678a81d85d62a594e9fddcf4a062bef1c02986ecfa7"
   },
   "schemaVersion" : 1,
   "verdict" : "BLOCKED"

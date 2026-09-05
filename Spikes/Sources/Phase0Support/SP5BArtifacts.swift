@@ -38,6 +38,7 @@ public struct SP5BReplayArtifact: Codable, Equatable, Sendable {
     public let fixtureKind: String
     public let fixturePath: String
     public let fixtureSha256: String
+    public let fixtureSequenceNote: String
     public let protocolVersion: UInt32
     public let uid: String
     public let definitionByteCount: Int

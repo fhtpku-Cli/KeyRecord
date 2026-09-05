@@ -39,11 +39,14 @@ public enum SP5BScenarios {
         let transport = RecordedVialTransport(exchanges: fixture.exchanges)
         let result = try VialQueryReplay.run(
             transport: transport, expectedUID: fixture.expectedUID,
-            keymapByteCount: fixture.expectedKeymap.count, timeoutMilliseconds: 250
+            expectedDefinition: fixture.expectedDefinition, expectedKeymap: fixture.expectedKeymap,
+            timeoutMilliseconds: 250
         )
         return SP5BReplayArtifact(
             fixtureKind: "synthetic-recorded-response", fixturePath: VialRecordedFixture.fixturePath,
-            fixtureSha256: VialRecordedFixture.fixtureSha256, protocolVersion: result.protocolVersion,
+            fixtureSha256: VialRecordedFixture.fixtureSha256,
+            fixtureSequenceNote: "FE/00 is sent twice only to exercise conceptual protocolVersion and uid public cases; the canonical source workflow reads both values from one FE/00 response.",
+            protocolVersion: result.protocolVersion,
             uid: result.uid, definitionByteCount: result.definition.count,
             definitionSha256: result.definitionSha256, keymapHex: hex(result.keymap),
             keymapKeycodes: result.keymapKeycodes, reportHex: transport.reports.map { hex($0.bytes) },
@@ -66,10 +69,15 @@ public enum SP5BScenarios {
             ("qmk-settings-write", 0xFE, [0x0B]), ("qmk-settings-reset", 0xFE, [0x0C]),
             ("dynamic-entry-operation", 0xFE, [0x0D]),
         ]
-        let transport = RecordedVialTransport(exchanges: [])
         let results = attempts.map { item -> SP5BDeniedAttempt in
+            let transport = RecordedVialTransport(exchanges: [])
             let rejected: Bool
-            do { _ = try VialOpcodeGate.authorize(opcode: item.1, payload: item.2); rejected = false }
+            do {
+                _ = try VialOpcodeGate.execute(
+                    opcode: item.1, payload: item.2, through: transport, timeoutMilliseconds: 250
+                )
+                rejected = false
+            }
             catch { rejected = true }
             return .init(name: item.0, opcode: opcode(item.1, item.2), rejected: rejected, transportCallCount: transport.callCount)
         }
@@ -89,6 +97,7 @@ public enum SP5BScenarios {
     }
     public static func validates(_ value: SP5BReplayArtifact) -> Bool {
         value.fixtureSha256 == VialRecordedFixture.fixtureSha256 && value.protocolVersion == 6
+            && value.fixtureSequenceNote == "FE/00 is sent twice only to exercise conceptual protocolVersion and uid public cases; the canonical source workflow reads both values from one FE/00 response."
             && value.uid == "0102030405060708" && value.definitionByteCount == 42
             && value.definitionSha256 == "a30cd98ff62e19bbc530d870edd6a64496e1db3b36822065da9cdde77fe4860d"
             && value.keymapKeycodes == [4, 5, 40, 41] && value.reportCount == 6 && value.reportHex.count == 6

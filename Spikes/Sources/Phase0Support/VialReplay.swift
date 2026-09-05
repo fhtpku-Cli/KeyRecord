@@ -22,9 +22,11 @@ public enum VialQueryReplay {
     public static func run(
         transport: any VialQueryTransport,
         expectedUID: String,
-        keymapByteCount: Int,
+        expectedDefinition: [UInt8],
+        expectedKeymap: [UInt8],
         timeoutMilliseconds: Int
     ) throws -> VialReplayResult {
+        let keymapByteCount = expectedKeymap.count
         guard (1...VialQueryLimits.maximumKeymapBytes).contains(keymapByteCount) else {
             throw VialQueryError.keymapTooLarge
         }
@@ -46,12 +48,16 @@ public enum VialQueryReplay {
         guard definitionSize <= VialQueryLimits.maximumDefinitionBytes else {
             throw VialQueryError.definitionTooLarge
         }
+        guard definitionSize == expectedDefinition.count else { throw VialQueryError.unexpectedResponse }
         var definition: [UInt8] = []
         for page in 0..<((definitionSize + 31) / 32) {
             guard let pageValue = UInt16(exactly: page) else { throw VialQueryError.definitionTooLarge }
             let response = try request(.definition(.page(pageValue)), through: transport, timeout: timeoutMilliseconds)
             count += 1
-            definition.append(contentsOf: response.prefix(min(32, definitionSize - definition.count)))
+            let length = min(32, definitionSize - definition.count)
+            let expected = expectedDefinition[definition.count..<(definition.count + length)]
+            guard response.prefix(length).elementsEqual(expected) else { throw VialQueryError.unexpectedResponse }
+            definition.append(contentsOf: response.prefix(length))
         }
 
         var keymap: [UInt8] = []
@@ -63,6 +69,10 @@ public enum VialQueryReplay {
                 timeout: timeoutMilliseconds
             )
             count += 1
+            let expected = expectedKeymap[keymap.count..<(keymap.count + length)]
+            guard response[4..<(4 + length)].elementsEqual(expected) else {
+                throw VialQueryError.unexpectedResponse
+            }
             keymap.append(contentsOf: response[4..<(4 + length)])
         }
         if let checking = transport as? any VialReplayExhaustionChecking { try checking.assertExhausted() }

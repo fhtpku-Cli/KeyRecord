@@ -128,12 +128,13 @@ public enum Phase0PrivacyAudit {
             if let field = fieldKeys.first(where: forbiddenFields.contains) {
                 throw Phase0PrivacyError.forbiddenField(path, field)
             }
-            if normalizedKeys.contains("keycode") {
+            if fieldKeys.contains("keycode") {
                 let marker = (object["marker"] as? NSNumber)?.uint64Value
                 guard marker == ProductSyntheticMarker.value else {
                     throw Phase0PrivacyError.unmarkedEventRecord(path)
                 }
             }
+            for key in object.keys { try scanText(Data(key.utf8), path: path) }
             for child in object.values { try inspect(child, path: path, depth: depth + 1, nodes: &nodes) }
         } else if let array = value as? [Any] {
             guard array.count <= maximumJSONCollection else { throw Phase0PrivacyError.resourceLimit(path) }

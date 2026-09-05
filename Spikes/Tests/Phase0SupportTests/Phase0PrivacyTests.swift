@@ -42,9 +42,19 @@ final class Phase0PrivacyTests: XCTestCase {
     }
 
     func testNormalizedEventKeyCannotBypassMarkerRequirement() {
-        let bytes = Data(#"{"event":{"KEYCODE":4}}"#.utf8)
-        XCTAssertThrowsError(try Phase0PrivacyAudit.scanJSON(bytes, path: "event.json")) { error in
-            XCTAssertEqual(error as? Phase0PrivacyError, .unmarkedEventRecord("event.json"))
+        for key in ["key-code", "key_code", "KEY-CODE"] {
+            let bytes = Data("{\"event\":{\"\(key)\":4}}".utf8)
+            XCTAssertThrowsError(try Phase0PrivacyAudit.scanJSON(bytes, path: "event.json"), key) { error in
+                XCTAssertEqual(error as? Phase0PrivacyError, .unmarkedEventRecord("event.json"))
+            }
+        }
+    }
+
+    func testDecodedJSONKeyCannotHidePrivateUserPath() {
+        let bytes = Data(#"{"\/Users\/alice\/secret":"value"}"#.utf8)
+
+        XCTAssertThrowsError(try Phase0PrivacyAudit.scanJSON(bytes, path: "private-key.json")) { error in
+            XCTAssertEqual(error as? Phase0PrivacyError, .forbiddenText("private-key.json"))
         }
     }
 

@@ -185,7 +185,7 @@ enum RunAllProbe {
             of: #"\$\{REPOSITORY\}/evidence/\.phase0\.[^/\s]+\.tmp"#,
             with: "${OUTPUT_ROOT}", options: .regularExpression
         )
-        return value.replacingOccurrences(of: #"/var/folders/[^\s]+"#, with: "${TEMP}", options: .regularExpression)
+        return value.replacingOccurrences(of: #"(?:/private)?/var/folders/[^\s]+"#, with: "${TEMP}", options: .regularExpression)
     }
 
     private static func encoded<T: Encodable>(_ value: T) throws -> Data {

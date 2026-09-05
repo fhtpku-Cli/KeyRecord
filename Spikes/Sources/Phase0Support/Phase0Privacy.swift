@@ -1,0 +1,112 @@
+import Foundation
+
+public enum Phase0PrivacyError: Error, Equatable, Sendable {
+    case forbiddenField(String, String)
+    case forbiddenText(String)
+    case invalidJSON(String)
+    case invalidPath(String)
+    case nonRegularFile(String)
+    case symlink(String)
+    case unmarkedEventRecord(String)
+}
+
+public struct Phase0PrivacyReport: Codable, Equatable, Sendable {
+    public let schemaVersion: Int
+    public let filesScanned: Int
+    public let jsonFilesScanned: Int
+    public let forbiddenHitCount: Int
+    public let symlinkCount: Int
+    public let unmarkedEventRecordCount: Int
+    public let conclusionGenerated: Bool
+
+    public init(filesScanned: Int, jsonFilesScanned: Int) {
+        schemaVersion = 1
+        self.filesScanned = filesScanned
+        self.jsonFilesScanned = jsonFilesScanned
+        forbiddenHitCount = 0
+        symlinkCount = 0
+        unmarkedEventRecordCount = 0
+        conclusionGenerated = false
+    }
+}
+
+public enum Phase0PrivacyAudit {
+    private static let forbiddenFields = [
+        "serialnumber", "credential", "username", "keytext", "keysequence",
+        "keystream", "eventsequence", "exacttimestamp", "keychainitem",
+        "password", "accesstoken", "apikey", "authorization",
+    ]
+    private static let textMarkers = [
+        "/users/", "/home/", "~/", "ignore validation", "ignore all previous",
+        "report pass", "prompt injection",
+    ]
+    private static let textExtensions = ["json", "md", "txt", "headers", "body", "swift", "c", "h"]
+
+    public static func scan(root: URL, excluding: Set<String> = []) throws -> Phase0PrivacyReport {
+        let rootPath = root.standardizedFileURL.path
+        guard let enumerator = FileManager.default.enumerator(
+            at: root, includingPropertiesForKeys: [.isRegularFileKey, .isSymbolicLinkKey],
+            options: [], errorHandler: nil
+        ) else { throw Phase0PrivacyError.invalidPath(root.path) }
+        var fileCount = 0
+        var jsonCount = 0
+        var normalizedPaths = Set<String>()
+        for case let file as URL in enumerator {
+            let values = try file.resourceValues(forKeys: [.isRegularFileKey, .isSymbolicLinkKey])
+            let relative = String(file.standardizedFileURL.path.dropFirst(rootPath.count + 1))
+            guard !relative.isEmpty, !relative.hasPrefix("/"), !relative.split(separator: "/").contains("..") else {
+                throw Phase0PrivacyError.invalidPath(relative)
+            }
+            let normalized = relative.precomposedStringWithCanonicalMapping
+            guard normalizedPaths.insert(normalized).inserted else { throw Phase0PrivacyError.invalidPath(relative) }
+            if values.isSymbolicLink == true { throw Phase0PrivacyError.symlink(relative) }
+            guard values.isRegularFile == true else { continue }
+            guard !excluding.contains(relative) else { continue }
+            fileCount += 1
+            let ext = file.pathExtension.lowercased()
+            guard textExtensions.contains(ext) else { continue }
+            let bytes = try Data(contentsOf: file, options: .mappedIfSafe)
+            if ext == "json" {
+                jsonCount += 1
+                try scanJSON(bytes, path: relative)
+            } else {
+                try scanText(bytes, path: relative)
+            }
+        }
+        return Phase0PrivacyReport(filesScanned: fileCount, jsonFilesScanned: jsonCount)
+    }
+
+    public static func scanJSON(_ bytes: Data, path: String) throws {
+        let object: Any
+        do { object = try JSONSerialization.jsonObject(with: bytes) }
+        catch { throw Phase0PrivacyError.invalidJSON(path) }
+        try inspect(object, path: path)
+        try scanText(bytes, path: path)
+    }
+
+    public static func scanText(_ bytes: Data, path: String) throws {
+        guard let text = String(data: bytes, encoding: .utf8) else { return }
+        let lower = text.lowercased()
+        if textMarkers.contains(where: lower.contains) { throw Phase0PrivacyError.forbiddenText(path) }
+    }
+
+    private static func inspect(_ value: Any, path: String) throws {
+        if let object = value as? [String: Any] {
+            let lowered = Set(object.keys.map { $0.lowercased().filter(\.isLetter) })
+            if let field = lowered.first(where: forbiddenFields.contains) {
+                throw Phase0PrivacyError.forbiddenField(path, field)
+            }
+            if object["keyCode"] != nil {
+                let marker = (object["marker"] as? NSNumber)?.uint64Value
+                guard marker == ProductSyntheticMarker.value else {
+                    throw Phase0PrivacyError.unmarkedEventRecord(path)
+                }
+            }
+            for child in object.values { try inspect(child, path: path) }
+        } else if let array = value as? [Any] {
+            for child in array { try inspect(child, path: path) }
+        } else if let text = value as? String {
+            try scanText(Data(text.utf8), path: path)
+        }
+    }
+}

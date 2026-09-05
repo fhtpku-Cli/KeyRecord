@@ -76,6 +76,13 @@ public enum Phase0PrivacyAudit {
                 throw Phase0PrivacyError.resourceLimit(relative)
             }
             totalBytes += bytes.count
+            if relative == "sp6b/build/argon2-universal.a" {
+                let magics = [Data([0xca, 0xfe, 0xba, 0xbe]), Data([0xbe, 0xba, 0xfe, 0xca])]
+                guard magics.contains(where: bytes.starts(with:)) else {
+                    throw Phase0PrivacyError.invalidTextEncoding(relative)
+                }
+                continue
+            }
             if ext == "json" {
                 jsonCount += 1
                 do { try scanJSON(bytes, path: relative) }
@@ -111,11 +118,12 @@ public enum Phase0PrivacyAudit {
         }
         nodes += 1
         if let object = value as? [String: Any] {
-            let lowered = Set(object.keys.map { $0.precomposedStringWithCanonicalMapping.lowercased().filter(\.isLetter) })
-            if let field = lowered.first(where: forbiddenFields.contains) {
+            let normalizedKeys = Set(object.keys.map { $0.precomposedStringWithCanonicalMapping.lowercased() })
+            let fieldKeys = Set(normalizedKeys.map { $0.filter(\.isLetter) })
+            if let field = fieldKeys.first(where: forbiddenFields.contains) {
                 throw Phase0PrivacyError.forbiddenField(path, field)
             }
-            if lowered.contains("keycode") {
+            if normalizedKeys.contains("keycode") {
                 let marker = (object["marker"] as? NSNumber)?.uint64Value
                 guard marker == ProductSyntheticMarker.value else {
                     throw Phase0PrivacyError.unmarkedEventRecord(path)

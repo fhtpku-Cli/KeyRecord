@@ -24,23 +24,25 @@ final class Phase0RootValidatorTests: XCTestCase {
         try assertCandidateMutation(code: "phase0_run_receipt_mismatch") { root in
             let url = root.appendingPathComponent("environment.json")
             try appendSpace(to: url)
-            try writeManifest(root)
+            try refreshManifest(root, artifact: url, path: "environment.json")
         }
     }
 
     func testRemanifestedSourceMutationRejects() throws {
         try assertCandidateMutation(code: "sp4a_source_provenance_mismatch") { root in
             let sources = root.appendingPathComponent("sources")
-            try appendSpace(to: sources.appendingPathComponent("repos/via-app/files/src/utils/test-keyboard-definition.json"))
-            try writeManifest(sources, recursive: true)
+            let artifact = sources.appendingPathComponent("repos/via-app/files/src/utils/test-keyboard-definition.json")
+            try appendSpace(to: artifact)
+            try refreshManifest(sources, artifact: artifact, path: "./repos/via-app/files/src/utils/test-keyboard-definition.json")
         }
     }
 
     func testRemanifestedFixtureMutationRejects() throws {
         try assertCandidateMutation(code: "sp5a_fixture_provenance_mismatch") { root in
             let fixtures = root.appendingPathComponent("fixtures/synthetic")
-            try appendSpace(to: fixtures.appendingPathComponent("phase0.vil"))
-            try writeManifest(fixtures)
+            let artifact = fixtures.appendingPathComponent("phase0.vil")
+            try appendSpace(to: artifact)
+            try refreshManifest(fixtures, artifact: artifact, path: "phase0.vil")
         }
     }
 
@@ -61,7 +63,7 @@ final class Phase0RootValidatorTests: XCTestCase {
             object["stages"] = stages
             try JSONSerialization.data(withJSONObject: object, options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]).write(to: url)
             try appendNewline(to: url)
-            try writeManifest(root)
+            try refreshManifest(root, artifact: url, path: "run-all.json")
         }
     }
 
@@ -132,6 +134,17 @@ final class Phase0RootValidatorTests: XCTestCase {
         defer { try? handle.close() }
         try handle.seekToEnd()
         try handle.write(contentsOf: Data("\n".utf8))
+    }
+
+    private func refreshManifest(_ directory: URL, artifact: URL, path: String) throws {
+        let manifest = directory.appendingPathComponent("manifest.sha256")
+        let replacement = "\(Canonical.sha256(try Data(contentsOf: artifact)))  \(path)"
+        var lines = try String(contentsOf: manifest, encoding: .utf8).split(separator: "\n").map(String.init)
+        guard let index = lines.firstIndex(where: { $0.hasSuffix("  \(path)") }) else {
+            throw CocoaError(.fileReadCorruptFile)
+        }
+        lines[index] = replacement
+        try Data((lines.joined(separator: "\n") + "\n").utf8).write(to: manifest)
     }
 
     private func writeManifest(_ directory: URL, recursive: Bool = false) throws {

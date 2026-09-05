@@ -104,6 +104,7 @@ public enum EvidenceValidatorCommand {
             if object["spikeID"] as? String == "SP-6B" { return try SP6BDirectoryValidator.validate(directory: directory) }
             if object["spikeID"] as? String == "SP-6A" { return try SP6ADirectoryValidator.validate(directory: directory) }
             if object["spikeID"] as? String == "SP-5A" { return try SP5ADirectoryValidator.validate(directory: directory) }
+            if object["spikeID"] as? String == "SP-4B" { return try SP4BDirectoryValidator.validate(directory: directory) }
             if object["spikeID"] as? String == "SP-4A" { return try SP4ADirectoryValidator.validate(directory: directory) }
             if object["spikeID"] as? String == "SP-3" { return try SP3DirectoryValidator.validate(directory: directory) }
             if object["spikeID"] as? String == "SP-2" { return try SP2DirectoryValidator.validate(directory: directory) }

@@ -25,6 +25,7 @@ public enum VialQueryError: String, Error, Codable, Equatable, Sendable {
     case truncatedResponse
     case oversizedResponse
     case unexpectedRequest
+    case unexpectedResponse
     case extraResponse
     case uidMismatch
     case definitionTooLarge
@@ -47,12 +48,18 @@ public struct VialQueryReport: Equatable, Sendable {
             bytes[0] = 0xFE
             bytes[1] = 0x01
         case let .definition(.page(page)):
+            guard Int(page) <= (VialQueryLimits.maximumDefinitionBytes - 1) / VialQueryLimits.reportBytes else {
+                throw VialQueryError.invalidQuery
+            }
             bytes[0] = 0xFE
             bytes[1] = 0x02
             bytes[2] = UInt8(page & 0xFF)
             bytes[3] = UInt8(page >> 8)
         case let .keymapRead(offset, length):
             guard length > 0, length <= VialQueryLimits.maximumKeymapChunkBytes else {
+                throw VialQueryError.invalidQuery
+            }
+            guard Int(offset) <= VialQueryLimits.maximumKeymapBytes - Int(length) else {
                 throw VialQueryError.invalidQuery
             }
             bytes[0] = 0x12
@@ -80,5 +87,15 @@ enum VialOpcodeGate {
             return .definition(.page(UInt16(payload[1]) | UInt16(payload[2]) << 8))
         default: throw VialQueryError.invalidQuery
         }
+    }
+
+    @discardableResult
+    static func execute(
+        opcode: UInt8, payload: [UInt8], through transport: any VialQueryTransport,
+        timeoutMilliseconds: Int
+    ) throws -> [UInt8] {
+        let query = try authorize(opcode: opcode, payload: payload)
+        let report = try VialQueryReport.make(query)
+        return try transport.exchange(report, timeoutMilliseconds: timeoutMilliseconds)
     }
 }

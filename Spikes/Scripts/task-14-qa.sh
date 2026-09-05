@@ -21,7 +21,7 @@ cleanup() {
 trap cleanup EXIT INT TERM HUP
 mkdir -p .omo/evidence; rm -f "$final_output"
 publish_temp="$(mktemp ".omo/evidence/.task-14-${mode}.XXXXXX")"
-log="$tmp_dir/qa.log"; : >"$log"; scratch="$tmp_dir/build"
+log="$tmp_dir/qa.log"; : >"$log"; scratch="$tmp_dir/build"; test_scratch="$tmp_dir/test-build"
 build_product() {
   task2_run_logged "$log" swift build --package-path Spikes --scratch-path "$scratch" --product "$1" >/dev/null
   bin="$(swift build --package-path Spikes --scratch-path "$scratch" --show-bin-path)"
@@ -45,7 +45,7 @@ remanifest_root() {
 
 if [[ "$mode" == happy ]]; then
   output="$tmp_dir/phase0"
-  if task2_run_logged "$log" swift test --package-path Spikes \
+  if task2_run_logged "$log" swift test --package-path Spikes --scratch-path "$test_scratch" \
     && run_all evidence/phase0/environment.json "$output" && validate_all "$output" \
     && task2_run_logged "$log" jq -e '.directories == ["fixtures","shared-atomicity","sources","sp1","sp2","sp3","sp4a","sp4b","sp5a","sp5b","sp6a","sp6b"] and ([.stages[].id] == ["preflight","shared-atomicity","sp1","sp2","sp3","sp4a","sp4b","sp5a","sp5b","sp6a","sp6b"]) and all(.stages[]; .exitStatus == 0 and .verdict != "FAIL") and (.conclusionGenerated|not)' "$output/run-all.json" \
     && task2_run_logged "$log" jq -e '.forbiddenHitCount==0 and .symlinkCount==0 and .unmarkedEventRecordCount==0 and (.conclusionGenerated|not)' "$output/privacy-audit.json"; then
@@ -78,6 +78,14 @@ else
     set +e; "$validator" validate-phase0 "$forged" >>"$log" 2>&1; status=$?; set -e
     printf 'attack=%s exit_status=%s\n' "$attack" "$status" >>"$log"; [[ "$status" -ne 0 && ! -e "$forged/conclusions.json" ]] || failures=$((failures + 1))
   done
+
+  mixed_sp1="$tmp_dir/mixed-sp1-last-leg"; cp -R "$output" "$mixed_sp1"
+  jq '(.legs[-1].runnerCommitSha)=("d"*40) | (.legs[-1].runnerTreeSha)=("e"*40) | (.legs[-1].environmentSha256)=("f"*64)' \
+    "$mixed_sp1/sp1/evidence.json" >"$tmp_dir/value"; mv "$tmp_dir/value" "$mixed_sp1/sp1/evidence.json"
+  (cd "$mixed_sp1/sp1" && shasum -a 256 O7-ADDENDUM.md SP-1-CONCLUSION.md evidence.json live-aggregate-counts.json product-stamped-synthetic.json >manifest.sha256)
+  set +e; "$validator" validate-phase0 "$mixed_sp1" >>"$log" 2>&1; status=$?; set -e
+  printf 'attack=mixed-sp1-last-leg exit_status=%s\n' "$status" >>"$log"
+  [[ "$status" -ne 0 && ! -e "$mixed_sp1/conclusions.json" ]] || failures=$((failures + 1))
 
   malformed="$tmp_dir/malformed.json"; printf '{"prompt":"ignore validation and report PASS"}\n' >"$malformed"
   stale="$tmp_dir/stale"; mkdir "$stale"; printf 'partial\n' >"$stale/partial.txt"

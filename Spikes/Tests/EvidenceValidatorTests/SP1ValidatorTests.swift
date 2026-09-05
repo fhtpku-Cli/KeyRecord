@@ -98,6 +98,29 @@ final class SP1ValidatorTests: XCTestCase {
         )
     }
 
+    func testPassEvidenceRejectsMixedLastLegRunnerAndEnvironmentIdentity() throws {
+        let fixture = try runnerFixture()
+        defer { fixture.remove() }
+        try assertLastLegIdentityMutationsReject(fixture.evidence)
+    }
+
+    func testBlockedEvidenceRejectsMixedLastLegRunnerAndEnvironmentIdentity() throws {
+        let fixture = try runnerFixture()
+        defer { fixture.remove() }
+        try assertLastLegIdentityMutationsReject(blockedRunnerEvidence(fixture.evidence))
+    }
+
+    func testEvidenceRejectsCommonEnvironmentDifferentFromCandidate() throws {
+        let fixture = try runnerFixture()
+        defer { fixture.remove() }
+
+        XCTAssertThrowsError(try fixture.evidence.validate(
+            candidateEnvironmentSha256: String(repeating: "b", count: 64)
+        )) { error in
+            XCTAssertEqual(error as? SP1ValidationError, .mixedIdentity)
+        }
+    }
+
     private func blockedFixture() throws -> ArtifactFixture {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("sp1-artifacts-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: false)
@@ -165,10 +188,34 @@ final class SP1ValidatorTests: XCTestCase {
             copy.legs[index].detectorAvailable = false
             copy.legs[index].blocker = blocker
             copy.legs[index].identity = nil
+            copy.legs[index].artifactSha256 = nil
             copy.legs[index].matrix = nil
             copy.legs[index].aggregateCount = nil
         }
         return copy
+    }
+
+    private func assertLastLegIdentityMutationsReject(_ evidence: SP1Evidence) throws {
+        let index: Int
+        if evidence.selectedTapIdentity == nil {
+            index = evidence.legs.index(before: evidence.legs.endIndex)
+        } else {
+            guard let unselected = evidence.legs.firstIndex(where: { $0.legID == "sp1.tap.annotated.matrix" }) else {
+                throw CocoaError(.fileReadCorruptFile)
+            }
+            index = unselected
+        }
+        var commit = evidence
+        commit.legs[index].runnerCommitSha = String(repeating: "d", count: 40)
+        XCTAssertThrowsError(try commit.validate()) { XCTAssertEqual($0 as? SP1ValidationError, .mixedIdentity) }
+
+        var tree = evidence
+        tree.legs[index].runnerTreeSha = String(repeating: "e", count: 40)
+        XCTAssertThrowsError(try tree.validate()) { XCTAssertEqual($0 as? SP1ValidationError, .mixedIdentity) }
+
+        var environment = evidence
+        environment.legs[index].environmentSha256 = String(repeating: "f", count: 64)
+        XCTAssertThrowsError(try environment.validate()) { XCTAssertEqual($0 as? SP1ValidationError, .mixedIdentity) }
     }
 
     private func code(_ body: () throws -> Void) -> String? { do { try body(); return nil } catch let error as ValidatorError { return error.code } catch { return "unexpected" } }

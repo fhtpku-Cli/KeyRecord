@@ -16,7 +16,11 @@ enum SP1DirectoryValidator {
         let evidence: SP1Evidence
         do { evidence = try JSONDecoder().decode(SP1Evidence.self, from: Data(contentsOf: evidenceURL)) }
         catch { throw ValidatorError("malformed_sp1_evidence", String(describing: error)) }
-        do { try evidence.validate() }
+        let environment = directory.deletingLastPathComponent().appendingPathComponent("environment.json")
+        let candidateEnvironmentSha256 = isRegularFile(environment)
+            ? try Canonical.sha256(Data(contentsOf: environment))
+            : nil
+        do { try evidence.validate(candidateEnvironmentSha256: candidateEnvironmentSha256) }
         catch let error as SP1ValidationError { throw ValidatorError("sp1_\(error.rawValue)") }
         try verifyManifest(directory)
         try validateArtifacts(directory)

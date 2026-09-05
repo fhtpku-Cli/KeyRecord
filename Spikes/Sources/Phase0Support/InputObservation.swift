@@ -159,12 +159,18 @@ public struct SP1Evidence: Codable, Equatable, Sendable {
         self.o7Guarantee = o7Guarantee; self.runnerSourceSha256 = runnerSourceSha256
     }
 
-    public func validate() throws {
+    public func validate(candidateEnvironmentSha256: String? = nil) throws {
         let grouped = Dictionary(grouping: legs, by: \.legID)
         if grouped.values.contains(where: { $0.count != 1 }) { throw SP1ValidationError.duplicateLeg }
         guard Set(grouped.keys) == Self.requiredLegIDs else { throw SP1ValidationError.missingLeg }
         guard schemaVersion == 1, g0Status == .open, o7Guarantee == O7Boundary.guarantee else { throw SP1ValidationError.invalidO7 }
         guard !runnerSourceSha256.isEmpty, runnerSourceSha256.values.allSatisfy(\.isLowercaseSHA256) else { throw SP1ValidationError.invalidProvenance }
+        guard Set(legs.map(\.runnerCommitSha)).count == 1,
+              Set(legs.map(\.runnerTreeSha)).count == 1,
+              Set(legs.map(\.environmentSha256)).count == 1 else { throw SP1ValidationError.mixedIdentity }
+        if let candidateEnvironmentSha256 {
+            guard legs.first?.environmentSha256 == candidateEnvironmentSha256 else { throw SP1ValidationError.mixedIdentity }
+        }
         for leg in legs {
             guard leg.runnerCommitSha.isLowercaseGitSHA1, leg.runnerTreeSha.isLowercaseGitSHA1, leg.environmentSha256.isLowercaseSHA256 else { throw SP1ValidationError.invalidProvenance }
             if leg.verdict == .blocked {

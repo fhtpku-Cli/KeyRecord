@@ -22,7 +22,7 @@ evidence="$qa_repo/evidence/phase0/sp6b"
 run bash -c 'cd "$1" && "$2" sp6b --environment evidence/phase0/environment.json --output evidence/phase0/sp6b' _ "$qa_repo" "$probe"
 run git -C "$qa_repo" add evidence/phase0/sp6b
 run git -C "$qa_repo" -c user.name=Task11QA -c user.email=task11@example.invalid commit --quiet -m 'task11 evidence fixture'
-validate() { run bash -c 'cd "$1" && "$2" "$3"' _ "$qa_repo" "$validator" "$3"; }
+validate() { run bash -c 'cd "$1" && "$2" "$3"' _ "$qa_repo" "$validator" "$1"; }
 
 remanifest() {
   local directory="$1"

@@ -32,10 +32,12 @@ enum SP6AHistoryAnchorProbe {
         let repository = path.split(separator: "/").reduce(anchorURL) { result, _ in
             result.deletingLastPathComponent()
         }
-        let anchorCommit = try gitText(["rev-parse", "HEAD^{commit}"], repository: repository)
-        let anchorTree = try gitText(["rev-parse", "HEAD^{tree}"], repository: repository)
-        let sourceCommit = try gitText(["rev-parse", "HEAD^1^{commit}"], repository: repository)
-        let blob = try gitText(["rev-parse", "HEAD:\(path)"], repository: repository)
+        let anchorCommit = try gitText(
+            ["log", "-1", "--format=%H", "--", path], repository: repository
+        )
+        let anchorTree = try gitText(["rev-parse", "\(anchorCommit)^{tree}"], repository: repository)
+        let sourceCommit = try gitText(["rev-parse", "\(anchorCommit)^1^{commit}"], repository: repository)
+        let blob = try gitText(["rev-parse", "\(anchorCommit):\(path)"], repository: repository)
         return SP6ANamespaceHistoryAnchor(
             sourceCommitSha: sourceCommit, anchorCommitSha: anchorCommit, anchorTreeSha: anchorTree,
             anchorPath: path, anchorBlobSha1: blob, anchorFileSha256: ViaDefinitionDigest.sha256(bytes)

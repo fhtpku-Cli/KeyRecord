@@ -88,7 +88,12 @@ final class Phase0RootValidatorTests: XCTestCase {
         let directory = root.appendingPathComponent("sp1")
         let url = directory.appendingPathComponent("evidence.json")
         var evidence = try JSONDecoder().decode(SP1Evidence.self, from: Data(contentsOf: url))
-        guard let commit = evidence.legs.first?.runnerCommitSha else { throw CocoaError(.fileReadCorruptFile) }
+        let commit = try gitText(["rev-parse", "HEAD"], repository: repository)
+        let tree = try gitText(["rev-parse", "HEAD^{tree}"], repository: repository)
+        for index in evidence.legs.indices {
+            evidence.legs[index].runnerCommitSha = commit
+            evidence.legs[index].runnerTreeSha = tree
+        }
         evidence.runnerSourceSha256 = try Dictionary(uniqueKeysWithValues: SP1RunnerBinding.sourcePaths.map { path in
             (path, Canonical.sha256(try gitBlob(commit: commit, path: path, repository: repository)))
         })
@@ -101,9 +106,18 @@ final class Phase0RootValidatorTests: XCTestCase {
     }
 
     private func gitBlob(commit: String, path: String, repository: URL) throws -> Data {
+        try gitData(["cat-file", "blob", "\(commit):\(path)"], repository: repository)
+    }
+
+    private func gitText(_ arguments: [String], repository: URL) throws -> String {
+        String(decoding: try gitData(arguments, repository: repository), as: UTF8.self)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private func gitData(_ arguments: [String], repository: URL) throws -> Data {
         let process = Process(), output = Pipe(), errors = Pipe()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/git")
-        process.arguments = ["cat-file", "blob", "\(commit):\(path)"]
+        process.arguments = arguments
         process.currentDirectoryURL = repository
         process.standardOutput = output
         process.standardError = errors

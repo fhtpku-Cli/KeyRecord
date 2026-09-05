@@ -4,7 +4,7 @@ import Foundation
 import Phase0Support
 
 enum SP1Probe {
-    static func run(arguments: [String], identityProvider: any AtomicityRunnerIdentityProviding = GitAtomicityRunnerIdentityProvider()) throws {
+    static func run(arguments: [String], identityProvider: any AtomicityRunnerIdentityProviding = GitAtomicityRunnerIdentityProvider(sourcePaths: SP1RunnerBinding.sourcePaths.sorted())) throws {
         guard arguments.count == 5, arguments[0] == "sp1", arguments[1] == "--environment", arguments[3] == "--output" else { throw ProbeError.usage }
         let environmentURL = URL(fileURLWithPath: arguments[2])
         let output = URL(fileURLWithPath: arguments[4])

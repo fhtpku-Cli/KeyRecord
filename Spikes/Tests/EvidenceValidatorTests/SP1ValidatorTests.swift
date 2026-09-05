@@ -84,6 +84,20 @@ final class SP1ValidatorTests: XCTestCase {
         XCTAssertNoThrow(try SP1DirectoryValidator.validateRunnerBinding(fixture.evidence, repository: fixture.root))
     }
 
+    func testBlockedEvidenceStillRequiresHistoricalRunnerSources() throws {
+        let fixture = try runnerFixture()
+        defer { fixture.remove() }
+        let evidence = blockedRunnerEvidence(fixture.evidence)
+        XCTAssertNoThrow(try SP1DirectoryValidator.validateRunnerBinding(evidence, repository: fixture.root))
+
+        let path = SP1RunnerBinding.sourcePaths.sorted()[0]
+        try FileManager.default.removeItem(at: fixture.root.appendingPathComponent(path))
+        XCTAssertEqual(
+            code { try SP1DirectoryValidator.validateRunnerBinding(evidence, repository: fixture.root) },
+            "sp1_runner_source_dirty"
+        )
+    }
+
     private func blockedFixture() throws -> ArtifactFixture {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("sp1-artifacts-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: false)
@@ -132,6 +146,27 @@ final class SP1ValidatorTests: XCTestCase {
         copy.selectedTapIdentity = identity
         for index in copy.legs.indices where copy.legs[index].identity != nil {
             copy.legs[index].identity = identity; copy.legs[index].runnerCommitSha = identity.runnerCommitSha; copy.legs[index].runnerTreeSha = identity.runnerTreeSha
+        }
+        return copy
+    }
+
+    private func blockedRunnerEvidence(_ evidence: SP1Evidence) -> SP1Evidence {
+        var copy = evidence
+        let blocker = SP1Blocker(
+            blockedBy: "input_monitoring_denied",
+            detectCommand: ["preflight"],
+            prerequisite: "Input Monitoring",
+            unblockAction: "Grant separately"
+        )
+        copy.selectedTapIdentity = nil
+        copy.verdict = .blocked
+        for index in copy.legs.indices {
+            copy.legs[index].verdict = .blocked
+            copy.legs[index].detectorAvailable = false
+            copy.legs[index].blocker = blocker
+            copy.legs[index].identity = nil
+            copy.legs[index].matrix = nil
+            copy.legs[index].aggregateCount = nil
         }
         return copy
     }

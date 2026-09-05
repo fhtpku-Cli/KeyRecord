@@ -20,29 +20,29 @@ enum SP1DirectoryValidator {
         catch let error as SP1ValidationError { throw ValidatorError("sp1_\(error.rawValue)") }
         try verifyManifest(directory)
         try validateArtifacts(directory)
-        if evidence.selectedTapIdentity != nil {
-            try validateRunnerBinding(evidence, repository: repository)
-        }
+        try validateRunnerBinding(evidence, repository: repository)
         return GateValidationReport(legCount: evidence.legs.count, o4RowCount: 0, g0Status: evidence.g0Status)
     }
 
     static func validateRunnerBinding(_ evidence: SP1Evidence, repository: URL) throws {
-        guard let selected = evidence.selectedTapIdentity else { return }
+        guard let first = evidence.legs.first else { throw ValidatorError("sp1_runner_identity_missing") }
+        let commitSha = evidence.selectedTapIdentity?.runnerCommitSha ?? first.runnerCommitSha
+        let treeSha = evidence.selectedTapIdentity?.runnerTreeSha ?? first.runnerTreeSha
         guard Set(evidence.runnerSourceSha256.keys) == SP1RunnerBinding.sourcePaths else {
             throw ValidatorError("sp1_runner_source_set_mismatch")
         }
         let git = GitRunner(repository: repository, timeout: 5, executable: URL(fileURLWithPath: "/usr/bin/git"))
-        let commitCheck = try git.run(["cat-file", "-e", "\(selected.runnerCommitSha)^{commit}"], acceptedStatuses: [0, 1, 128])
+        let commitCheck = try git.run(["cat-file", "-e", "\(commitSha)^{commit}"], acceptedStatuses: [0, 1, 128])
         guard commitCheck.status == 0 else { throw ValidatorError("sp1_runner_commit_missing") }
-        let actualTree = try git.text(["rev-parse", "\(selected.runnerCommitSha)^{tree}"])
-        guard actualTree == selected.runnerTreeSha else { throw ValidatorError("sp1_runner_tree_mismatch") }
-        let ancestor = try git.run(["merge-base", "--is-ancestor", selected.runnerCommitSha, "HEAD"], acceptedStatuses: [0, 1])
+        let actualTree = try git.text(["rev-parse", "\(commitSha)^{tree}"])
+        guard actualTree == treeSha else { throw ValidatorError("sp1_runner_tree_mismatch") }
+        let ancestor = try git.run(["merge-base", "--is-ancestor", commitSha, "HEAD"], acceptedStatuses: [0, 1])
         guard ancestor.status == 0 else { throw ValidatorError("sp1_runner_not_ancestor") }
 
         for path in SP1RunnerBinding.sourcePaths.sorted() {
-            let object = try git.run(["cat-file", "-e", "\(selected.runnerCommitSha):\(path)"], acceptedStatuses: [0, 1, 128])
+            let object = try git.run(["cat-file", "-e", "\(commitSha):\(path)"], acceptedStatuses: [0, 1, 128])
             guard object.status == 0 else { throw ValidatorError("sp1_runner_source_missing", path) }
-            let committed = try git.run(["cat-file", "blob", "\(selected.runnerCommitSha):\(path)"]).stdout
+            let committed = try git.run(["cat-file", "blob", "\(commitSha):\(path)"]).stdout
             guard Canonical.sha256(committed) == evidence.runnerSourceSha256[path] else {
                 throw ValidatorError("sp1_runner_source_hash_mismatch", path)
             }

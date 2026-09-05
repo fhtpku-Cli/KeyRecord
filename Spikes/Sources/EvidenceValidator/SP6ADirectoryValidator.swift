@@ -2,16 +2,16 @@ import Foundation
 import Phase0Support
 
 enum SP6ADirectoryValidator {
-    static func validate(directory: URL, repository: URL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)) throws -> GateValidationReport {
+    static func validate(directory: URL, repository: URL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath), gitRepository: URL? = nil) throws -> GateValidationReport {
         let evidence: SP6AEvidence = try exactDecode(directory, "evidence.json", code: "malformed_sp6a_evidence")
         do { try evidence.validate() } catch let error as SP6AValidationError { throw ValidatorError("sp6a_\(error.rawValue)") }
         try verifyManifest(directory)
         try validateArtifacts(directory)
-        try validateAtomicity(directory, repository: repository)
+        try validateAtomicity(directory, repository: repository, gitRepository: gitRepository ?? repository)
         try validateBindings(evidence, directory: directory, repository: repository)
-        try validateHistoryAnchor(evidence, directory: directory, repository: repository)
+        try validateHistoryAnchor(evidence, directory: directory, repository: gitRepository ?? repository)
         try validateConclusion(directory, evidence: evidence)
-        try validateRunner(evidence, repository: repository)
+        try validateRunner(evidence, repository: gitRepository ?? repository)
         return GateValidationReport(legCount: evidence.legs.count, o4RowCount: 0, g0Status: .open)
     }
 
@@ -78,16 +78,16 @@ enum SP6ADirectoryValidator {
         }
     }
 
-    static func validateAtomicity(_ directory: URL, repository: URL) throws {
+    static func validateAtomicity(_ directory: URL, repository: URL, gitRepository: URL? = nil) throws {
         let citation: SP6AAtomicityCitation = try exactDecode(directory, "atomicity-citation.json", code: "sp6a_atomicity_citation_mismatch")
         guard citation == .expected else { throw ValidatorError("sp6a_atomicity_citation_mismatch") }
         let atomicityDirectory = repository.appendingPathComponent("evidence/phase0/shared-atomicity")
-        let result = try AtomicityHistoricalValidator.validate(directory: atomicityDirectory, repository: repository)
+        let result = try AtomicityHistoricalValidator.validate(directory: atomicityDirectory, repository: gitRepository ?? repository)
         guard result.verdict == .pass, result.runnerCommitSha == citation.resultRunnerCommitSha, result.runnerTreeSha == citation.resultRunnerTreeSha,
               let bytes = try? Data(contentsOf: repository.appendingPathComponent(citation.artifactPath)), Canonical.sha256(bytes) == citation.artifactSha256 else {
             throw ValidatorError("sp6a_atomicity_citation_mismatch")
         }
-        let git = GitRunner(repository: repository, timeout: 5, executable: URL(fileURLWithPath: "/usr/bin/git"))
+        let git = GitRunner(repository: gitRepository ?? repository, timeout: 5, executable: URL(fileURLWithPath: "/usr/bin/git"))
         guard try git.text(["rev-parse", "\(citation.historicalCommitSha):\(citation.artifactPath)"]) == citation.historicalArtifactBlobSha,
               try git.text(["rev-parse", "\(citation.historicalCommitSha):\(citation.manifestPath)"]) == citation.historicalManifestBlobSha,
               Canonical.sha256(try git.run(["cat-file", "blob", "\(citation.historicalCommitSha):\(citation.artifactPath)"]).stdout) == citation.artifactSha256 else {

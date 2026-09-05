@@ -2,7 +2,7 @@ import Foundation
 import Phase0Support
 
 enum SP6BDirectoryValidator {
-    static func validate(directory: URL, repository: URL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)) throws -> GateValidationReport {
+    static func validate(directory: URL, repository: URL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath), gitRepository: URL? = nil) throws -> GateValidationReport {
         let evidence: SP6BEvidence = try decode(directory.appendingPathComponent("evidence.json"), code: "malformed_sp6b_evidence")
         do { try evidence.validate() } catch let error as SP6BValidationError { throw ValidatorError("sp6b_\(error.rawValue)") }
         let snapshot: D12Snapshot = try decode(directory.appendingPathComponent("d12/snapshot.json"), code: "sp6b_d12_malformed")
@@ -10,7 +10,7 @@ enum SP6BDirectoryValidator {
         let evaluation: SP6BCandidateEvaluation = try decode(directory.appendingPathComponent("candidate-evaluation.json"), code: "sp6b_candidate_invalid")
         do { try evaluation.validate() } catch { throw ValidatorError("sp6b_candidate_invalid") }
         let sourceAudit: SP6BSourceAuditReceipt = try decode(directory.appendingPathComponent("source-audit.json"), code: "sp6b_source_audit")
-        try validateRunner(evidence, repository: repository)
+        try validateRunner(evidence, repository: gitRepository ?? repository)
         let contract = try SP6BSourceValidator.validate(
             evidence: evidence, evaluation: evaluation, snapshot: snapshot, sourceAudit: sourceAudit,
             generatedTimes: [], directory: directory, repository: repository

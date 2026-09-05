@@ -1,0 +1,446 @@
+{
+  "attempts" : [
+    {
+      "attemptID" : "bbd44937b0f755796bedf74c1c22ae7fec84d0b477f2c0c053ab9ba1144b0567",
+      "cleanupService" : "com.keyrecord.phase0.sp6a.5cacfb3a-a68c-4751-82bb-e5546a08db32",
+      "generatedAtUTC" : "2026-09-05T00:42:11.759Z",
+      "inputBytes" : [
+        92,
+        172,
+        251,
+        58,
+        166,
+        140,
+        215,
+        81,
+        66,
+        187,
+        229,
+        84,
+        106,
+        8,
+        219,
+        50
+      ],
+      "randomStatus" : 0,
+      "runner" : {
+        "commitSha" : "b01a2ec7f88d882740123ce127b92eaceb7712fc",
+        "environmentSha256" : "6b3288f5983cbce231295762d3f8381b8467d6dbe2e74fff0e17a1aebf7215f4",
+        "treeSha" : "8123d1bae997de2543d2ef60bcf3089a0fe77f31"
+      },
+      "schemaVersion" : 1,
+      "service" : "com.keyrecord.phase0.sp6a.5cacfb3a-a68c-4751-82bb-e5546a08db32",
+      "transformation" : {
+        "variantByteIndex" : 8,
+        "variantClearMask" : 63,
+        "variantSetBits" : 128,
+        "versionByteIndex" : 6,
+        "versionClearMask" : 15,
+        "versionSetBits" : 64
+      },
+      "uuid" : "5cacfb3a-a68c-4751-82bb-e5546a08db32"
+    },
+    {
+      "attemptID" : "1b65b5bf589c12f511c279088de96d3e81a78f7048932d09a7265128ff75b4ba",
+      "cleanupService" : "com.keyrecord.phase0.sp6a.6585f93e-f564-4727-b405-5f07eeadf7c8",
+      "generatedAtUTC" : "2026-09-05T00:42:13.047Z",
+      "inputBytes" : [
+        101,
+        133,
+        249,
+        62,
+        245,
+        100,
+        135,
+        39,
+        116,
+        5,
+        95,
+        7,
+        238,
+        173,
+        247,
+        200
+      ],
+      "randomStatus" : 0,
+      "runner" : {
+        "commitSha" : "b01a2ec7f88d882740123ce127b92eaceb7712fc",
+        "environmentSha256" : "6b3288f5983cbce231295762d3f8381b8467d6dbe2e74fff0e17a1aebf7215f4",
+        "treeSha" : "8123d1bae997de2543d2ef60bcf3089a0fe77f31"
+      },
+      "schemaVersion" : 1,
+      "service" : "com.keyrecord.phase0.sp6a.6585f93e-f564-4727-b405-5f07eeadf7c8",
+      "transformation" : {
+        "variantByteIndex" : 8,
+        "variantClearMask" : 63,
+        "variantSetBits" : 128,
+        "versionByteIndex" : 6,
+        "versionClearMask" : 15,
+        "versionSetBits" : 64
+      },
+      "uuid" : "6585f93e-f564-4727-b405-5f07eeadf7c8"
+    },
+    {
+      "attemptID" : "74ecb508d9fcdb669d1d276bc4d9079878512fadeebe3fffb2fad179a4a75579",
+      "cleanupService" : "com.keyrecord.phase0.sp6a.626deebd-701e-4b26-86e6-cf0934d921c5",
+      "generatedAtUTC" : "2026-09-05T00:42:14.813Z",
+      "inputBytes" : [
+        98,
+        109,
+        238,
+        189,
+        112,
+        30,
+        203,
+        38,
+        6,
+        230,
+        207,
+        9,
+        52,
+        217,
+        33,
+        197
+      ],
+      "randomStatus" : 0,
+      "runner" : {
+        "commitSha" : "b01a2ec7f88d882740123ce127b92eaceb7712fc",
+        "environmentSha256" : "6b3288f5983cbce231295762d3f8381b8467d6dbe2e74fff0e17a1aebf7215f4",
+        "treeSha" : "8123d1bae997de2543d2ef60bcf3089a0fe77f31"
+      },
+      "schemaVersion" : 1,
+      "service" : "com.keyrecord.phase0.sp6a.626deebd-701e-4b26-86e6-cf0934d921c5",
+      "transformation" : {
+        "variantByteIndex" : 8,
+        "variantClearMask" : 63,
+        "variantSetBits" : 128,
+        "versionByteIndex" : 6,
+        "versionClearMask" : 15,
+        "versionSetBits" : 64
+      },
+      "uuid" : "626deebd-701e-4b26-86e6-cf0934d921c5"
+    },
+    {
+      "attemptID" : "5051ca11664801e796f31f8524f32bba8e05cb810e82ab457a1f28c4ecd70e43",
+      "cleanupService" : "com.keyrecord.phase0.sp6a.2c149bda-757a-4fe1-9c5d-ee580583d032",
+      "generatedAtUTC" : "2026-09-05T00:42:16.119Z",
+      "inputBytes" : [
+        44,
+        20,
+        155,
+        218,
+        117,
+        122,
+        175,
+        225,
+        156,
+        93,
+        238,
+        88,
+        5,
+        131,
+        208,
+        50
+      ],
+      "randomStatus" : 0,
+      "runner" : {
+        "commitSha" : "b01a2ec7f88d882740123ce127b92eaceb7712fc",
+        "environmentSha256" : "6b3288f5983cbce231295762d3f8381b8467d6dbe2e74fff0e17a1aebf7215f4",
+        "treeSha" : "8123d1bae997de2543d2ef60bcf3089a0fe77f31"
+      },
+      "schemaVersion" : 1,
+      "service" : "com.keyrecord.phase0.sp6a.2c149bda-757a-4fe1-9c5d-ee580583d032",
+      "transformation" : {
+        "variantByteIndex" : 8,
+        "variantClearMask" : 63,
+        "variantSetBits" : 128,
+        "versionByteIndex" : 6,
+        "versionClearMask" : 15,
+        "versionSetBits" : 64
+      },
+      "uuid" : "2c149bda-757a-4fe1-9c5d-ee580583d032"
+    },
+    {
+      "attemptID" : "9c88b52d93c465c54998cf19e9577a41910de3a88c646bada6fe926ed65dce21",
+      "cleanupService" : "com.keyrecord.phase0.sp6a.778588db-c57c-4a96-9eb0-a25c205e5523",
+      "generatedAtUTC" : "2026-09-05T00:42:17.498Z",
+      "inputBytes" : [
+        119,
+        133,
+        136,
+        219,
+        197,
+        124,
+        138,
+        150,
+        158,
+        176,
+        162,
+        92,
+        32,
+        94,
+        85,
+        35
+      ],
+      "randomStatus" : 0,
+      "runner" : {
+        "commitSha" : "b01a2ec7f88d882740123ce127b92eaceb7712fc",
+        "environmentSha256" : "6b3288f5983cbce231295762d3f8381b8467d6dbe2e74fff0e17a1aebf7215f4",
+        "treeSha" : "8123d1bae997de2543d2ef60bcf3089a0fe77f31"
+      },
+      "schemaVersion" : 1,
+      "service" : "com.keyrecord.phase0.sp6a.778588db-c57c-4a96-9eb0-a25c205e5523",
+      "transformation" : {
+        "variantByteIndex" : 8,
+        "variantClearMask" : 63,
+        "variantSetBits" : 128,
+        "versionByteIndex" : 6,
+        "versionClearMask" : 15,
+        "versionSetBits" : 64
+      },
+      "uuid" : "778588db-c57c-4a96-9eb0-a25c205e5523"
+    },
+    {
+      "attemptID" : "ac84ddc5c01c0889d55a46c0969c78ec2e7a8e4636fdde7a21771b4c4034200b",
+      "cleanupService" : "com.keyrecord.phase0.sp6a.99a36836-97a8-4c65-b2e6-cf3c0123b31e",
+      "generatedAtUTC" : "2026-09-05T00:42:18.824Z",
+      "inputBytes" : [
+        153,
+        163,
+        104,
+        54,
+        151,
+        168,
+        108,
+        101,
+        50,
+        230,
+        207,
+        60,
+        1,
+        35,
+        179,
+        30
+      ],
+      "randomStatus" : 0,
+      "runner" : {
+        "commitSha" : "b01a2ec7f88d882740123ce127b92eaceb7712fc",
+        "environmentSha256" : "6b3288f5983cbce231295762d3f8381b8467d6dbe2e74fff0e17a1aebf7215f4",
+        "treeSha" : "8123d1bae997de2543d2ef60bcf3089a0fe77f31"
+      },
+      "schemaVersion" : 1,
+      "service" : "com.keyrecord.phase0.sp6a.99a36836-97a8-4c65-b2e6-cf3c0123b31e",
+      "transformation" : {
+        "variantByteIndex" : 8,
+        "variantClearMask" : 63,
+        "variantSetBits" : 128,
+        "versionByteIndex" : 6,
+        "versionClearMask" : 15,
+        "versionSetBits" : 64
+      },
+      "uuid" : "99a36836-97a8-4c65-b2e6-cf3c0123b31e"
+    },
+    {
+      "attemptID" : "9bc8e65d238f806fbe3a4c3819ab0bf5c76906aa0510f4dc7f204ac98ee7c4ff",
+      "cleanupService" : "com.keyrecord.phase0.sp6a.22e75e14-4e97-4607-94dd-fea44e74ff53",
+      "generatedAtUTC" : "2026-09-05T00:42:20.178Z",
+      "inputBytes" : [
+        34,
+        231,
+        94,
+        20,
+        78,
+        151,
+        70,
+        7,
+        20,
+        221,
+        254,
+        164,
+        78,
+        116,
+        255,
+        83
+      ],
+      "randomStatus" : 0,
+      "runner" : {
+        "commitSha" : "b01a2ec7f88d882740123ce127b92eaceb7712fc",
+        "environmentSha256" : "6b3288f5983cbce231295762d3f8381b8467d6dbe2e74fff0e17a1aebf7215f4",
+        "treeSha" : "8123d1bae997de2543d2ef60bcf3089a0fe77f31"
+      },
+      "schemaVersion" : 1,
+      "service" : "com.keyrecord.phase0.sp6a.22e75e14-4e97-4607-94dd-fea44e74ff53",
+      "transformation" : {
+        "variantByteIndex" : 8,
+        "variantClearMask" : 63,
+        "variantSetBits" : 128,
+        "versionByteIndex" : 6,
+        "versionClearMask" : 15,
+        "versionSetBits" : 64
+      },
+      "uuid" : "22e75e14-4e97-4607-94dd-fea44e74ff53"
+    },
+    {
+      "attemptID" : "f8bb200d935632071fe2a3aae68e925357ed19fc649a74f5ade83195a4387b60",
+      "cleanupService" : "com.keyrecord.phase0.sp6a.fa8d8b32-4f8b-419e-a10a-7f8a4dc85999",
+      "generatedAtUTC" : "2026-09-05T00:42:21.465Z",
+      "inputBytes" : [
+        250,
+        141,
+        139,
+        50,
+        79,
+        139,
+        33,
+        158,
+        33,
+        10,
+        127,
+        138,
+        77,
+        200,
+        89,
+        153
+      ],
+      "randomStatus" : 0,
+      "runner" : {
+        "commitSha" : "b01a2ec7f88d882740123ce127b92eaceb7712fc",
+        "environmentSha256" : "6b3288f5983cbce231295762d3f8381b8467d6dbe2e74fff0e17a1aebf7215f4",
+        "treeSha" : "8123d1bae997de2543d2ef60bcf3089a0fe77f31"
+      },
+      "schemaVersion" : 1,
+      "service" : "com.keyrecord.phase0.sp6a.fa8d8b32-4f8b-419e-a10a-7f8a4dc85999",
+      "transformation" : {
+        "variantByteIndex" : 8,
+        "variantClearMask" : 63,
+        "variantSetBits" : 128,
+        "versionByteIndex" : 6,
+        "versionClearMask" : 15,
+        "versionSetBits" : 64
+      },
+      "uuid" : "fa8d8b32-4f8b-419e-a10a-7f8a4dc85999"
+    },
+    {
+      "attemptID" : "547c2d1c2a93eb7d83e181d1407b6146cab04b76a765b85c1ac3f191e61bdd21",
+      "cleanupService" : "com.keyrecord.phase0.sp6a.9be67235-155e-4482-b6f3-8affe5d08d70",
+      "generatedAtUTC" : "2026-09-05T00:42:22.762Z",
+      "inputBytes" : [
+        155,
+        230,
+        114,
+        53,
+        21,
+        94,
+        68,
+        130,
+        182,
+        243,
+        138,
+        255,
+        229,
+        208,
+        141,
+        112
+      ],
+      "randomStatus" : 0,
+      "runner" : {
+        "commitSha" : "b01a2ec7f88d882740123ce127b92eaceb7712fc",
+        "environmentSha256" : "6b3288f5983cbce231295762d3f8381b8467d6dbe2e74fff0e17a1aebf7215f4",
+        "treeSha" : "8123d1bae997de2543d2ef60bcf3089a0fe77f31"
+      },
+      "schemaVersion" : 1,
+      "service" : "com.keyrecord.phase0.sp6a.9be67235-155e-4482-b6f3-8affe5d08d70",
+      "transformation" : {
+        "variantByteIndex" : 8,
+        "variantClearMask" : 63,
+        "variantSetBits" : 128,
+        "versionByteIndex" : 6,
+        "versionClearMask" : 15,
+        "versionSetBits" : 64
+      },
+      "uuid" : "9be67235-155e-4482-b6f3-8affe5d08d70"
+    },
+    {
+      "attemptID" : "32ed8a3f66332675a1d3f6f52dfcbcb16a01c89d71c9c4644572138cdf5daa4c",
+      "cleanupService" : "com.keyrecord.phase0.sp6a.d5a2b89a-700f-4f58-a04e-a3018aefd5c3",
+      "generatedAtUTC" : "2026-09-05T00:42:24.054Z",
+      "inputBytes" : [
+        213,
+        162,
+        184,
+        154,
+        112,
+        15,
+        175,
+        88,
+        160,
+        78,
+        163,
+        1,
+        138,
+        239,
+        213,
+        195
+      ],
+      "randomStatus" : 0,
+      "runner" : {
+        "commitSha" : "b01a2ec7f88d882740123ce127b92eaceb7712fc",
+        "environmentSha256" : "6b3288f5983cbce231295762d3f8381b8467d6dbe2e74fff0e17a1aebf7215f4",
+        "treeSha" : "8123d1bae997de2543d2ef60bcf3089a0fe77f31"
+      },
+      "schemaVersion" : 1,
+      "service" : "com.keyrecord.phase0.sp6a.d5a2b89a-700f-4f58-a04e-a3018aefd5c3",
+      "transformation" : {
+        "variantByteIndex" : 8,
+        "variantClearMask" : 63,
+        "variantSetBits" : 128,
+        "versionByteIndex" : 6,
+        "versionClearMask" : 15,
+        "versionSetBits" : 64
+      },
+      "uuid" : "d5a2b89a-700f-4f58-a04e-a3018aefd5c3"
+    },
+    {
+      "attemptID" : "55589ecefa30ee6c241d0e5f9ad5c8f1103cc06f9aae78f449661160ac194543",
+      "cleanupService" : "com.keyrecord.phase0.sp6a.4a4a51d1-834f-477b-9136-29b0db7a6f36",
+      "generatedAtUTC" : "2026-09-05T00:42:34.599Z",
+      "inputBytes" : [
+        74,
+        74,
+        81,
+        209,
+        131,
+        79,
+        39,
+        123,
+        81,
+        54,
+        41,
+        176,
+        219,
+        122,
+        111,
+        54
+      ],
+      "randomStatus" : 0,
+      "runner" : {
+        "commitSha" : "b01a2ec7f88d882740123ce127b92eaceb7712fc",
+        "environmentSha256" : "6b3288f5983cbce231295762d3f8381b8467d6dbe2e74fff0e17a1aebf7215f4",
+        "treeSha" : "8123d1bae997de2543d2ef60bcf3089a0fe77f31"
+      },
+      "schemaVersion" : 1,
+      "service" : "com.keyrecord.phase0.sp6a.4a4a51d1-834f-477b-9136-29b0db7a6f36",
+      "transformation" : {
+        "variantByteIndex" : 8,
+        "variantClearMask" : 63,
+        "variantSetBits" : 128,
+        "versionByteIndex" : 6,
+        "versionClearMask" : 15,
+        "versionSetBits" : 64
+      },
+      "uuid" : "4a4a51d1-834f-477b-9136-29b0db7a6f36"
+    }
+  ],
+  "schemaVersion" : 1,
+  "scope" : "All SP-6A task-10 QA, signal, deterministic-model, and canonical evidence attempts retained by this bound run. Uniqueness claims apply only to this captured history and the explicit regression denylist."
+}

@@ -49,8 +49,9 @@ final class Phase0RootValidatorTests: XCTestCase {
     func testRemanifestedCitationMutationRejects() throws {
         try assertCandidateMutation(code: "phase0_preserved_hash_mismatch") { root in
             let atomicity = root.appendingPathComponent("shared-atomicity")
-            try appendSpace(to: atomicity.appendingPathComponent("result.json"))
-            try writeManifest(atomicity)
+            let artifact = atomicity.appendingPathComponent("result.json")
+            try appendSpace(to: artifact)
+            try refreshManifest(atomicity, artifact: artifact, path: "result.json")
         }
     }
 

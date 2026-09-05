@@ -96,7 +96,7 @@ final class Phase0RootValidatorTests: XCTestCase {
         var data = try encoder.encode(evidence)
         data.append(10)
         try data.write(to: url)
-        try writeManifest(directory)
+        try refreshManifest(directory, artifact: url, path: "evidence.json")
     }
 
     private func gitBlob(commit: String, path: String, repository: URL) throws -> Data {
@@ -147,23 +147,4 @@ final class Phase0RootValidatorTests: XCTestCase {
         try Data((lines.joined(separator: "\n") + "\n").utf8).write(to: manifest)
     }
 
-    private func writeManifest(_ directory: URL, recursive: Bool = false) throws {
-        let manager = FileManager.default
-        let files: [URL]
-        if recursive {
-            let enumerator = manager.enumerator(at: directory, includingPropertiesForKeys: [.isRegularFileKey])!
-            files = enumerator.compactMap { $0 as? URL }.filter {
-                $0.lastPathComponent != "manifest.sha256" && (try? $0.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile) == true
-            }
-        } else {
-            files = try manager.contentsOfDirectory(at: directory, includingPropertiesForKeys: [.isRegularFileKey]).filter {
-                $0.lastPathComponent != "manifest.sha256" && (try? $0.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile) == true
-            }
-        }
-        let lines = try files.sorted { $0.path < $1.path }.map { url -> String in
-            let relative = String(url.path.dropFirst(directory.path.count + 1))
-            return "\(Canonical.sha256(try Data(contentsOf: url)))  \(relative)"
-        }.joined(separator: "\n") + "\n"
-        try Data(lines.utf8).write(to: directory.appendingPathComponent("manifest.sha256"))
-    }
 }

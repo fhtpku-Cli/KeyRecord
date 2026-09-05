@@ -75,7 +75,7 @@ final class Phase0RootValidatorTests: XCTestCase {
         let repository = try repositoryRoot()
         let candidate = FileManager.default.temporaryDirectory
             .appendingPathComponent("phase0-candidate-\(UUID().uuidString)", isDirectory: true)
-        try FileManager.default.copyItem(at: repository.appendingPathComponent("evidence/phase0"), to: candidate)
+        try copyRawEvidence(from: repository, to: candidate)
         defer { try? FileManager.default.removeItem(at: candidate) }
         try upgradeRootBinding(candidate, repository: repository)
         try upgradeSP1Binding(candidate, repository: repository)
@@ -195,6 +195,21 @@ final class Phase0RootValidatorTests: XCTestCase {
         process.waitUntilExit()
         guard process.terminationStatus == 0 else { throw CocoaError(.fileReadCorruptFile) }
         return output.fileHandleForReading.readDataToEndOfFile()
+    }
+
+    private func copyRawEvidence(from repository: URL, to destination: URL) throws {
+        let canonical = repository.appendingPathComponent("evidence/phase0")
+        try FileManager.default.copyItem(at: canonical, to: destination)
+        let conclusions = canonical.appendingPathComponent("conclusions.json")
+        guard FileManager.default.fileExists(atPath: conclusions.path) else { return }
+        let document = try JSONDecoder().decode(Phase0Conclusions.self, from: Data(contentsOf: conclusions))
+        for name in ["conclusions.json"] + ConclusionContract.spikeIDs.map({ "\($0)-CONCLUSION.md" }) {
+            try FileManager.default.removeItem(at: destination.appendingPathComponent(name))
+        }
+        for name in ["manifest.sha256", "privacy-audit.json", "run-all.json"] {
+            let data = try gitBlob(commit: document.sourceEvidenceCommitSha, path: "evidence/phase0/\(name)", repository: repository)
+            try data.write(to: destination.appendingPathComponent(name))
+        }
     }
 
     private func repositoryRoot() throws -> URL {

@@ -39,4 +39,22 @@ final class RunAllProbeTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: output.path))
     }
 
+    func testStaleCleanupPreservesActivePublicationRoot() throws {
+        let sandbox = FileManager.default.temporaryDirectory
+            .appendingPathComponent("keyrecord-run-all-cleanup-test-\(UUID().uuidString)", isDirectory: true)
+        let output = sandbox.appendingPathComponent("phase0", isDirectory: true)
+        let active = sandbox.appendingPathComponent(".phase0.active.tmp", isDirectory: true)
+        let stale = sandbox.appendingPathComponent(".phase0.stale.tmp", isDirectory: true)
+        try FileManager.default.createDirectory(at: output, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: active, withIntermediateDirectories: false)
+        try FileManager.default.createDirectory(at: stale, withIntermediateDirectories: false)
+        defer { try? FileManager.default.removeItem(at: sandbox) }
+
+        try RunAllProbe.invalidate(output, parent: sandbox, preserving: active)
+
+        XCTAssertTrue(FileManager.default.fileExists(atPath: active.path))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: stale.path))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: output.path))
+    }
+
 }

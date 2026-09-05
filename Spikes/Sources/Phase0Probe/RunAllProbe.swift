@@ -22,7 +22,7 @@ enum RunAllProbe {
         do {
             let environmentData = try bounded(environment)
             try seed(temporary, from: canonical)
-            try invalidate(output, parent: parent)
+            try invalidate(output, parent: parent, preserving: temporary)
             if let raw = ProcessInfo.processInfo.environment["KEYRECORD_RUN_ALL_TEST_DELAY_AFTER_TEMP"], let delay = Double(raw) {
                 Thread.sleep(forTimeInterval: min(max(delay, 0), 5))
             }
@@ -184,10 +184,13 @@ enum RunAllProbe {
         }
         return try Data(contentsOf: url, options: .mappedIfSafe)
     }
-    private static func invalidate(_ output: URL, parent: URL) throws {
+    static func invalidate(_ output: URL, parent: URL, preserving temporary: URL) throws {
         if FileManager.default.fileExists(atPath: output.path) { try FileManager.default.removeItem(at: output) }
         for name in try FileManager.default.contentsOfDirectory(atPath: parent.path)
-        where name.hasPrefix(".phase0.") && name.hasSuffix(".tmp") { try? FileManager.default.removeItem(at: parent.appendingPathComponent(name)) }
+        where name.hasPrefix(".phase0.") && name.hasSuffix(".tmp") {
+            let candidate = parent.appendingPathComponent(name).standardizedFileURL
+            if candidate != temporary.standardizedFileURL { try? FileManager.default.removeItem(at: candidate) }
+        }
     }
     private static func writeRootManifest(_ root: URL) throws {
         let lines = try Phase0RunLayout.rootArtifacts.sorted().map {

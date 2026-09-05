@@ -41,7 +41,8 @@ github_pages() {
     local headers="raw/github-$id-$page.headers" raw="raw/github-$id-$page.json" status next=""
     status="$(curl --silent --show-error --location --dump-header "$tmp_dir/result/$headers" --output "$tmp_dir/result/$raw" --write-out '%{http_code}' -H 'Accept: application/vnd.github+json' "$url")"
     sanitize_response_headers "$tmp_dir/result/$headers"
-    [[ "$status" == 200 ]] && jq -e 'type == "array"' "$tmp_dir/result/$raw" >/dev/null
+    [[ "$status" == 200 ]]
+    jq -e 'type == "array"' "$tmp_dir/result/$raw" >/dev/null
     while IFS= read -r line; do
       if [[ "$line" =~ \<([^\>]*)\>\;[[:space:]]*rel=\"next\" ]]; then next="${BASH_REMATCH[1]}"; fi
     done <"$tmp_dir/result/$headers"
@@ -58,7 +59,8 @@ osv_pages() {
     if [[ -z "$token" ]]; then body="{\"commit\":\"$commit\"}"; else body="{\"commit\":\"$commit\",\"page_token\":\"$token\"}"; fi
     status="$(curl --silent --show-error --dump-header "$tmp_dir/result/$headers" --output "$tmp_dir/result/$raw" --write-out '%{http_code}' -H 'Content-Type: application/json' --data-binary "$body" https://api.osv.dev/v1/query)"
     sanitize_response_headers "$tmp_dir/result/$headers"
-    [[ "$status" == 200 ]] && jq -e 'type == "object"' "$tmp_dir/result/$raw" >/dev/null
+    [[ "$status" == 200 ]]
+    jq -e 'type == "object"' "$tmp_dir/result/$raw" >/dev/null
     next="$(jq -r '.next_page_token // ""' "$tmp_dir/result/$raw")"
     request="$(page_json "https://api.osv.dev/v1/query" "$body" "$status" "$headers" "$raw" "")"
     pages="$(jq -cn --argjson pages "$pages" --argjson request "$request" --arg next "$next" '$pages + [{request:$request,responseNextPageToken:(if $next=="" then null else $next end)}]')"

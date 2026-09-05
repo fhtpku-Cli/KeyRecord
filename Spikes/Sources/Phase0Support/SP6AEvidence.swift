@@ -97,6 +97,7 @@ public struct SP6AEvidence: Codable, Equatable, Sendable {
 public enum SP6ARunnerBinding {
     public static let sourcePaths: Set<String> = [
         "Spikes/Scripts/audit-security.sh", "Spikes/Scripts/run-task-qa.sh",
+        "Spikes/Scripts/verify-sp6a-cold-happy.sh",
         "Spikes/Sources/Phase0Probe/AtomicityRunnerIdentity.swift", "Spikes/Sources/Phase0Probe/SP6AKeychainProbe.swift",
         "Spikes/Sources/Phase0Probe/SP6AHistoryAnchorProbe.swift", "Spikes/Sources/Phase0Probe/SP6AProbe.swift",
         "Spikes/Sources/Phase0Probe/main.swift",
@@ -118,7 +119,7 @@ public enum SP6ARunnerBinding {
 public enum SP6ADirectoryLayout {
     public static let artifactNames: Set<String> = [
         "SP-6A-CONCLUSION.md", "atomicity-citation.json", "crypto.json", "evidence.json", "history-anchor.json",
-        "keychain.json", "locator.json", "namespace-attempt-history.json", "path-canary.json", "security-audit.md",
+        "keychain.json", "locator.json", "namespace-attempt-history-v2.json", "path-canary.json", "security-audit.md",
     ]
     public static let allNames = artifactNames.union(["manifest.sha256"])
     public static let boundArtifactNames = artifactNames.subtracting(["SP-6A-CONCLUSION.md", "evidence.json"])

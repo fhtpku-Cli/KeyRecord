@@ -279,6 +279,12 @@ struct SP6ATestDirectory {
         let repository = container.appendingPathComponent("repo"), output = repository.appendingPathComponent("sp6a")
         try FileManager.default.createDirectory(at: container, withIntermediateDirectories: false)
         try runGit(["clone", "-q", source.path, repository.path], source)
+        let anchorAdds = try gitOutput([
+            "log", "--format=%H", "--diff-filter=A", "HEAD", "--", SP6ANamespaceHistoryContract.anchorPath,
+        ], repository).split(separator: "\n")
+        if let anchorAdd = anchorAdds.first {
+            try runGit(["checkout", "-q", "\(anchorAdd)^"], repository)
+        }
         for path in SP6ARunnerBinding.sourcePaths {
             let destination = repository.appendingPathComponent(path)
             try FileManager.default.createDirectory(at: destination.deletingLastPathComponent(), withIntermediateDirectories: true)
@@ -429,6 +435,52 @@ struct SP6ATestDirectory {
     }
     func writeHistoryAnchor(_ value: SP6ANamespaceHistoryAnchor) throws {
         try Self.pretty(value).write(to: output.appendingPathComponent(SP6ANamespaceHistoryContract.metadataArtifactName))
+    }
+    func commitAnchorAttack(_ scenario: SP6AAnchorAttackScenario) throws {
+        let path = SP6ANamespaceHistoryContract.anchorPath
+        let anchor = repository.appendingPathComponent(path)
+        let canonical = try Data(contentsOf: output.appendingPathComponent(SP6ANamespaceHistoryContract.anchorArtifactName))
+        func commit(_ message: String) throws {
+            try Self.runGit(["add", "-A"], repository)
+            try Self.runGit([
+                "-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid",
+                "commit", "-q", "-m", message,
+            ], repository)
+        }
+        switch scenario {
+        case .changedBytes:
+            try Data("descendant replacement\n".utf8).write(to: anchor)
+            try commit("descendant changes anchor")
+        case .restoredBytes:
+            try Data("temporary descendant replacement\n".utf8).write(to: anchor)
+            try commit("descendant changes anchor")
+            try canonical.write(to: anchor)
+            try commit("descendant restores anchor")
+        case .deleteAndReadd:
+            try FileManager.default.removeItem(at: anchor)
+            try commit("descendant deletes anchor")
+            try canonical.write(to: anchor)
+            try commit("descendant readds anchor")
+        case .renameCycle:
+            let moved = repository.appendingPathComponent("\(path).moved")
+            try FileManager.default.moveItem(at: anchor, to: moved)
+            try commit("descendant renames anchor")
+            try FileManager.default.moveItem(at: moved, to: anchor)
+            try commit("descendant restores anchor path")
+        }
+    }
+    func latestCommitAnchor(basedOn value: SP6ANamespaceHistoryAnchor) throws -> SP6ANamespaceHistoryAnchor {
+        let commit = try Self.gitOutput(["rev-parse", "HEAD"], repository)
+        return SP6ANamespaceHistoryAnchor(
+            sourceCommitSha: value.sourceCommitSha, anchorCommitSha: commit,
+            anchorTreeSha: try Self.gitOutput(["rev-parse", "HEAD^{tree}"], repository),
+            anchorPath: value.anchorPath, anchorBlobSha1: String(repeating: "a", count: 40),
+            anchorFileSha256: String(repeating: "b", count: 64)
+        )
+    }
+    func markRepositoryShallow() throws {
+        let commit = try Self.gitOutput(["rev-parse", "HEAD"], repository)
+        try Data("\(commit)\n".utf8).write(to: repository.appendingPathComponent(".git/shallow"))
     }
     func removeKeychainField(_ field: String) throws {
         let url = output.appendingPathComponent("keychain.json")

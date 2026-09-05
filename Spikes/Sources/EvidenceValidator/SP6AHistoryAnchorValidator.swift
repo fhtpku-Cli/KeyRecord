@@ -12,6 +12,9 @@ enum SP6AHistoryAnchorValidator {
             throw ValidatorError("sp6a_history_anchor_contract_invalid")
         }
         let git = GitRunner(repository: repository, timeout: 5, executable: URL(fileURLWithPath: "/usr/bin/git"))
+        guard try git.text(["rev-parse", "--is-shallow-repository"]) == "false" else {
+            throw ValidatorError("sp6a_history_anchor_history_incomplete")
+        }
         guard try git.run(["cat-file", "-e", "\(anchor.anchorCommitSha)^{commit}"], acceptedStatuses: [0, 1, 128]).status == 0 else {
             throw ValidatorError("sp6a_history_anchor_commit_missing")
         }
@@ -20,6 +23,17 @@ enum SP6AHistoryAnchorValidator {
         }
         guard try git.run(["merge-base", "--is-ancestor", anchor.anchorCommitSha, "HEAD"], acceptedStatuses: [0, 1]).status == 0 else {
             throw ValidatorError("sp6a_history_anchor_not_ancestor")
+        }
+        let descendantTouches = try git.text([
+            "log", "--format=%H", "\(anchor.anchorCommitSha)..HEAD", "--", anchor.anchorPath,
+        ]).split(separator: "\n")
+        guard descendantTouches.isEmpty else { throw ValidatorError("sp6a_history_anchor_descendant_touch") }
+        let candidates = try git.text([
+            "log", "--format=%H", "--diff-filter=A", "HEAD", "--", anchor.anchorPath,
+        ]).split(separator: "\n").map(String.init)
+        guard candidates.count == 1 else { throw ValidatorError("sp6a_history_anchor_candidate_set_invalid") }
+        guard candidates[0] == anchor.anchorCommitSha else {
+            throw ValidatorError("sp6a_history_anchor_commit_selection_mismatch")
         }
         let parent = try git.text(["rev-parse", "\(anchor.anchorCommitSha)^1^{commit}"])
         guard parent == anchor.sourceCommitSha,

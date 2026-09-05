@@ -96,8 +96,8 @@ public struct SP6ANamespaceHistoryAnchor: Codable, Equatable, Sendable {
 
 public enum SP6ANamespaceHistoryContract {
     public static let expectedAttemptCount = 11
-    public static let anchorPath = "evidence/phase0/sp6a/namespace-attempt-history.json"
-    public static let anchorArtifactName = "namespace-attempt-history.json"
+    public static let anchorPath = "evidence/phase0/sp6a/namespace-attempt-history-v2.json"
+    public static let anchorArtifactName = "namespace-attempt-history-v2.json"
     public static let metadataArtifactName = "history-anchor.json"
 }
 

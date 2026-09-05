@@ -4,6 +4,55 @@ import XCTest
 @testable import Phase0Support
 
 final class SP6ANamespaceValidatorTests: XCTestCase {
+    func testHistoryAnchorRejectsEveryDescendantPathTouch() throws {
+        for scenario in SP6AAnchorAttackScenario.allCases where scenario != .deleteAndReadd {
+            let fixture = try SP6ATestDirectory.make()
+            defer { fixture.remove() }
+            try fixture.commitAnchorAttack(scenario)
+
+            XCTAssertEqual(
+                errorCode(fixture), "sp6a_history_anchor_descendant_touch",
+                "descendant anchor attack unexpectedly validated: \(scenario.rawValue)"
+            )
+        }
+    }
+
+    func testHistoryAnchorRejectsAdditionalCreationCandidate() throws {
+        let fixture = try SP6ATestDirectory.make()
+        defer { fixture.remove() }
+        try fixture.commitAnchorAttack(.deleteAndReadd)
+
+        XCTAssertEqual(errorCode(fixture), "sp6a_history_anchor_descendant_touch")
+    }
+
+    func testHistoryAnchorRejectsForgedLatestRecordedSHAAndShallowHistory() throws {
+        let forgedFixture = try SP6ATestDirectory.make()
+        defer { forgedFixture.remove() }
+        try forgedFixture.commitAnchorAttack(.changedBytes)
+        let artifact = try forgedFixture.keychain()
+        let forged = try forgedFixture.latestCommitAnchor(basedOn: artifact.historyAnchor)
+        try forgedFixture.writeKeychain(
+            artifact, receipt: artifact.generationReceipt, history: artifact.attemptHistory,
+            historyAnchor: forged
+        )
+        try forgedFixture.writeHistoryAnchor(forged)
+        try forgedFixture.rebindArtifact("keychain.json")
+        XCTAssertEqual(errorCode(forgedFixture), "sp6a_history_anchor_commit_selection_mismatch")
+
+        let shallowFixture = try SP6ATestDirectory.make()
+        defer { shallowFixture.remove() }
+        try shallowFixture.markRepositoryShallow()
+        let evidence = try JSONDecoder().decode(
+            SP6AEvidence.self,
+            from: Data(contentsOf: shallowFixture.output.appendingPathComponent("evidence.json"))
+        )
+        XCTAssertEqual(errorCode {
+            try SP6ADirectoryValidator.validateHistoryAnchor(
+                evidence, directory: shallowFixture.output, repository: shallowFixture.repository
+            )
+        }, "sp6a_history_anchor_history_incomplete")
+    }
+
     func testHistoryAnchorMetadataAndBlobForgeriesReject() throws {
         let cases: [(String, (SP6ANamespaceHistoryAnchor) -> SP6ANamespaceHistoryAnchor)] = [
             ("sp6a_history_anchor_contract_invalid", { copyAnchor($0, anchorPath: "evidence/phase0/sp6a/wrong.json") }),
@@ -201,6 +250,24 @@ final class SP6ANamespaceValidatorTests: XCTestCase {
             return "unexpected"
         }
     }
+
+    private func errorCode(_ body: () throws -> Void) -> String? {
+        do {
+            try body()
+            return nil
+        } catch let error as ValidatorError {
+            return error.code
+        } catch {
+            return "unexpected"
+        }
+    }
+}
+
+enum SP6AAnchorAttackScenario: String, CaseIterable {
+    case changedBytes
+    case restoredBytes
+    case deleteAndReadd
+    case renameCycle
 }
 
 private func copyAnchor(

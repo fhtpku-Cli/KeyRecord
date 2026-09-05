@@ -32,9 +32,20 @@ enum SP6AHistoryAnchorProbe {
         let repository = path.split(separator: "/").reduce(anchorURL) { result, _ in
             result.deletingLastPathComponent()
         }
-        let anchorCommit = try gitText(
-            ["log", "-1", "--format=%H", "--", path], repository: repository
+        guard try gitText(["rev-parse", "--is-shallow-repository"], repository: repository) == "false" else {
+            throw SP6AHistoryAnchorError.incompleteHistory
+        }
+        let candidates = try gitLines(
+            ["log", "--format=%H", "--diff-filter=A", "HEAD", "--", path], repository: repository
         )
+        guard candidates.count == 1, isFullSHA(candidates[0]) else {
+            throw SP6AHistoryAnchorError.invalidCandidateSet
+        }
+        let anchorCommit = candidates[0]
+        let descendantTouches = try gitLines(
+            ["log", "--format=%H", "\(anchorCommit)..HEAD", "--", path], repository: repository
+        )
+        guard descendantTouches.isEmpty else { throw SP6AHistoryAnchorError.descendantTouch }
         let anchorTree = try gitText(["rev-parse", "\(anchorCommit)^{tree}"], repository: repository)
         let sourceCommit = try gitText(["rev-parse", "\(anchorCommit)^1^{commit}"], repository: repository)
         let blob = try gitText(["rev-parse", "\(anchorCommit):\(path)"], repository: repository)
@@ -65,4 +76,22 @@ enum SP6AHistoryAnchorProbe {
         return String(decoding: pipe.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
             .trimmingCharacters(in: .whitespacesAndNewlines)
     }
+
+    private static func gitLines(_ arguments: [String], repository: URL) throws -> [String] {
+        try gitText(arguments, repository: repository).split(separator: "\n").map(String.init)
+    }
+
+    private static func isFullSHA(_ value: String) -> Bool {
+        value.utf8.count == 40 && value.utf8.allSatisfy { byte in
+            (48...57).contains(byte) || (97...102).contains(byte)
+        }
+    }
+}
+
+enum SP6AHistoryAnchorError: String, Error, CustomStringConvertible {
+    case descendantTouch = "sp6a_history_anchor_descendant_touch"
+    case incompleteHistory = "sp6a_history_anchor_history_incomplete"
+    case invalidCandidateSet = "sp6a_history_anchor_candidate_set_invalid"
+
+    var description: String { rawValue }
 }

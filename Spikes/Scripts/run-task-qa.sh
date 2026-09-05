@@ -65,17 +65,12 @@ if [[ "$1" == "10" ]]; then
   probe="$(qa_build_product "$tmp_dir/qa.log" Phase0Probe)"
   validator="$(qa_build_product "$tmp_dir/qa.log" EvidenceValidator)"
   output="$tmp_dir/sp6a"
-  history="${KEYRECORD_SP6A_ATTEMPT_HISTORY:-$tmp_dir/sp6a-attempt-history.json}"
-  history_anchor="${KEYRECORD_SP6A_HISTORY_ANCHOR:-}"
+  history_anchor="evidence/phase0/sp6a/namespace-attempt-history-v2.json"
   unset KEYRECORD_SP6A_ATTEMPT_HISTORY
   unset KEYRECORD_SP6A_HISTORY_ANCHOR
   run_sp6a() {
     local log_file="$1" destination="$2"
-    if [[ -n "$history_anchor" ]]; then
-      task2_run_logged "$log_file" "$probe" sp6a --environment evidence/phase0/environment.json --output "$destination" --history-anchor "$history_anchor"
-    else
-      task2_run_logged "$log_file" env KEYRECORD_SP6A_ATTEMPT_HISTORY="$history" "$probe" sp6a --environment evidence/phase0/environment.json --output "$destination"
-    fi
+    task2_run_logged "$log_file" "$probe" sp6a --environment evidence/phase0/environment.json --output "$destination" --history-anchor "$history_anchor"
   }
   service=""
   if [[ "$mode" == "happy" ]]; then
@@ -87,7 +82,7 @@ if [[ "$1" == "10" ]]; then
       && task2_run_logged "$tmp_dir/qa.log" bash Spikes/Scripts/audit-security.sh sp6a "$output/security-audit.md" \
       && task2_run_logged "$tmp_dir/qa.log" "$validator" validate-atomicity evidence/phase0/shared-atomicity \
       && task2_run_logged "$tmp_dir/qa.log" jq -e '(.legs | length) == 8 and ((.verdict == "INCONCLUSIVE" and ([.legs[] | select(.verdict == "PASS")] | length) == 7 and ([.legs[] | select(.verdict == "INCONCLUSIVE") | .legID]) == ["sp6a.keychainSelection"]) or (.verdict == "BLOCKED" and ([.legs[] | select(.verdict == "PASS")] | length) == 5 and ([.legs[] | select(.verdict == "BLOCKED") | .legID] | sort) == ["sp6a.keychainAfterFirstUnlock","sp6a.keychainSelection","sp6a.keychainWhenUnlocked"]))' "$output/evidence.json" \
-      && task2_run_logged "$tmp_dir/qa.log" jq -e '.generationReceipt as $receipt | .dataProtectionKeychain and .selection == null and (.selectionReason | length) > 0 and (.crossDeviceRestoreReason | length) > 0 and (.hostLockAttempted | not) and (.restartAttempted | not) and .cleanupReceipt.service == .service and $receipt.service == .service and $receipt.cleanupService == .service and $receipt.randomStatus == 0 and ($receipt.inputBytes | length) == 16 and (.attemptHistory.attempts | length) == 11 and .attemptHistory.attempts[-1] == $receipt and ([.attemptHistory.attempts[] | select(.service == $receipt.service)] | length) == 1 and .historyAnchor.anchorPath == "evidence/phase0/sp6a/namespace-attempt-history.json" and .cleanupReceipt.residueCount == 0 and .cleanupReceipt.residueQueryStatus == -25300 and (.keyBytesPersistedOutsideKeychain | not) and (((.candidates | length) == 2 and .selectionVerdict == "INCONCLUSIVE" and all(.candidates[]; .addStatus == 0 and .readStatus == 0 and .attributesStatus == 0 and .deleteStatus == 0 and .valueMatched and .accessibilityMatched and .synchronizableMatched and (.synchronizable | not) and (.lifecycleEstablished | not))) or ((.candidates | length) == 0 and .selectionVerdict == "BLOCKED" and .cleanupReceipt.preCleanupStatus == -34018 and .cleanupReceipt.postCleanupStatus == -34018))' "$output/keychain.json" \
+      && task2_run_logged "$tmp_dir/qa.log" jq -e '.generationReceipt as $receipt | .dataProtectionKeychain and .selection == null and (.selectionReason | length) > 0 and (.crossDeviceRestoreReason | length) > 0 and (.hostLockAttempted | not) and (.restartAttempted | not) and .cleanupReceipt.service == .service and $receipt.service == .service and $receipt.cleanupService == .service and $receipt.randomStatus == 0 and ($receipt.inputBytes | length) == 16 and (.attemptHistory.attempts | length) == 11 and .attemptHistory.attempts[-1] == $receipt and ([.attemptHistory.attempts[] | select(.service == $receipt.service)] | length) == 1 and .historyAnchor.anchorPath == "evidence/phase0/sp6a/namespace-attempt-history-v2.json" and .cleanupReceipt.residueCount == 0 and .cleanupReceipt.residueQueryStatus == -25300 and (.keyBytesPersistedOutsideKeychain | not) and (((.candidates | length) == 2 and .selectionVerdict == "INCONCLUSIVE" and all(.candidates[]; .addStatus == 0 and .readStatus == 0 and .attributesStatus == 0 and .deleteStatus == 0 and .valueMatched and .accessibilityMatched and .synchronizableMatched and (.synchronizable | not) and (.lifecycleEstablished | not))) or ((.candidates | length) == 0 and .selectionVerdict == "BLOCKED" and .cleanupReceipt.preCleanupStatus == -34018 and .cleanupReceipt.postCleanupStatus == -34018))' "$output/keychain.json" \
       && task2_run_logged "$tmp_dir/qa.log" jq -e '.nonceByteCount == 12 and .uniqueNonceCount == 256 and .randomNonceSamples == 256 and .duplicateNonceRejected and .tamperRejected and (.tamperResults | map(.caseID)) == ["magic","formatVersion","algorithm","flags","keyVersion","locator","nonce","ciphertextLength","ciphertext","tag"] and all(.tamperResults[]; .rejected) and .wrongKeyRejected and .missingKeyRejected and .plaintextAbsentFromEnvelope and (.fallbackUsed | not)' "$output/crypto.json" \
       && task2_run_logged "$tmp_dir/qa.log" jq -e '.kdf == "HKDF-SHA256" and .hmac == "HMAC-SHA256" and .labelsDistinct and .derivedKeysDistinct and .expectedLocator == .observedLocator' "$output/locator.json" \
       && task2_run_logged "$tmp_dir/qa.log" jq -e '.semanticPathHits == 0 and .plaintextCanaryHits == 0 and .plaintextFileCount == 0 and .manifestEncrypted and .temporaryStorageRemoved' "$output/path-canary.json" \
@@ -133,13 +128,13 @@ if [[ "$1" == "10" ]]; then
         keychain-service-duplicate) jq '.attemptHistory.attempts += [(.generationReceipt | .inputBytes[6] = (if .inputBytes[6] < 16 then .inputBytes[6] + 16 else .inputBytes[6] % 16 end) | .generatedAtUTC = "2026-09-05T00:00:02.000Z")]' "$forged/keychain.json" >"$tmp_dir/value"; mv "$tmp_dir/value" "$forged/keychain.json";;
         keychain-entropy-duplicate) jq '.attemptHistory.attempts += [(.generationReceipt | .generatedAtUTC = "2026-09-05T00:00:01.000Z")]' "$forged/keychain.json" >"$tmp_dir/value"; mv "$tmp_dir/value" "$forged/keychain.json";;
         history-anchor-metadata) jq '.anchorFileSha256 = ("f" * 64)' "$forged/history-anchor.json" >"$tmp_dir/value"; mv "$tmp_dir/value" "$forged/history-anchor.json";;
-        history-anchor-bytes) jq '.schemaVersion = 2' "$forged/namespace-attempt-history.json" >"$tmp_dir/value"; mv "$tmp_dir/value" "$forged/namespace-attempt-history.json";;
+        history-anchor-bytes) jq '.schemaVersion = 2' "$forged/namespace-attempt-history-v2.json" >"$tmp_dir/value"; mv "$tmp_dir/value" "$forged/namespace-attempt-history-v2.json";;
         history-anchor-order) jq '.attemptHistory.attempts[0:2] |= reverse' "$forged/keychain.json" >"$tmp_dir/value"; mv "$tmp_dir/value" "$forged/keychain.json";;
         history-anchor-truncate) jq 'del(.attemptHistory.attempts[0])' "$forged/keychain.json" >"$tmp_dir/value"; mv "$tmp_dir/value" "$forged/keychain.json";;
         path) jq '.semanticPathHits = 1' "$forged/path-canary.json" >"$tmp_dir/value"; mv "$tmp_dir/value" "$forged/path-canary.json";;
         audit) perl -0pi -e 's/MED-1 \| RESOLVED/MED-1 | UNRESOLVED/' "$forged/security-audit.md";;
       esac
-      (cd "$forged" && shasum -a 256 SP-6A-CONCLUSION.md atomicity-citation.json crypto.json evidence.json history-anchor.json keychain.json locator.json namespace-attempt-history.json path-canary.json security-audit.md >manifest.sha256)
+      (cd "$forged" && shasum -a 256 SP-6A-CONCLUSION.md atomicity-citation.json crypto.json evidence.json history-anchor.json keychain.json locator.json namespace-attempt-history-v2.json path-canary.json security-audit.md >manifest.sha256)
       set +e; "$validator" "$forged" >>"$tmp_dir/qa.log" 2>&1; status=$?; set -e
       [[ "$status" -ne 0 ]] || failures=$((failures + 1))
     done
@@ -156,11 +151,7 @@ if [[ "$1" == "10" ]]; then
       for attempt in 1 2; do
         signal_output="$tmp_dir/signal-${signal_name}-${attempt}"
         ready_file="$tmp_dir/ready-${signal_name}-${attempt}"
-        if [[ -n "$history_anchor" ]]; then
-          KEYRECORD_SP6A_TEST_READY_FILE="$ready_file" KEYRECORD_SP6A_TEST_DELAY_WITH_KEYS=2 "$probe" sp6a --environment evidence/phase0/environment.json --output "$signal_output" --history-anchor "$history_anchor" >>"$tmp_dir/qa.log" 2>&1 &
-        else
-          KEYRECORD_SP6A_ATTEMPT_HISTORY="$history" KEYRECORD_SP6A_TEST_READY_FILE="$ready_file" KEYRECORD_SP6A_TEST_DELAY_WITH_KEYS=2 "$probe" sp6a --environment evidence/phase0/environment.json --output "$signal_output" >>"$tmp_dir/qa.log" 2>&1 &
-        fi
+        KEYRECORD_SP6A_TEST_READY_FILE="$ready_file" KEYRECORD_SP6A_TEST_DELAY_WITH_KEYS=2 "$probe" sp6a --environment evidence/phase0/environment.json --output "$signal_output" --history-anchor "$history_anchor" >>"$tmp_dir/qa.log" 2>&1 &
         child=$!; ready=false
         for _ in {1..100}; do if [[ -e "$ready_file" ]]; then ready=true; break; fi; sleep 0.05; done
         [[ "$ready" == true ]] || failures=$((failures + 1))

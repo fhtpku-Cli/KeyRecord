@@ -302,6 +302,28 @@ final class Phase0ProbeTests: XCTestCase {
         XCTAssertFalse(SP6AKeychainProbe.validService(service))
     }
 
+    func testSP6AHistoryResolverRejectsLatestPathDescendantInsteadOfSelectingIt() throws {
+        try withTemporaryDirectory { repository in
+            _ = try git(repository, ["init", "--quiet"])
+            _ = try git(repository, ["-c", "user.name=Test", "-c", "user.email=test@example.invalid", "commit", "--allow-empty", "--quiet", "-m", "source"])
+            let anchor = repository.appendingPathComponent(SP6ANamespaceHistoryContract.anchorPath)
+            try FileManager.default.createDirectory(at: anchor.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try SP6AHistoryAnchorProbe.canonical(SP6ANamespaceAttemptHistory(attempts: [])).write(to: anchor)
+            _ = try git(repository, ["add", SP6ANamespaceHistoryContract.anchorPath])
+            _ = try git(repository, ["-c", "user.name=Test", "-c", "user.email=test@example.invalid", "commit", "--quiet", "-m", "anchor"])
+            try FileManager.default.removeItem(at: anchor)
+            _ = try git(repository, ["add", "-A"])
+            _ = try git(repository, ["-c", "user.name=Test", "-c", "user.email=test@example.invalid", "commit", "--quiet", "-m", "delete"])
+            try SP6AHistoryAnchorProbe.canonical(SP6ANamespaceAttemptHistory(attempts: [])).write(to: anchor)
+            _ = try git(repository, ["add", SP6ANamespaceHistoryContract.anchorPath])
+            _ = try git(repository, ["-c", "user.name=Test", "-c", "user.email=test@example.invalid", "commit", "--quiet", "-m", "readd"])
+
+            XCTAssertThrowsError(try SP6AHistoryAnchorProbe.resolve(anchorURL: anchor)) { error in
+                XCTAssertEqual(error as? SP6AHistoryAnchorError, .invalidCandidateSet)
+            }
+        }
+    }
+
     func testSP6AMalformedEnvironmentInvalidatesStaleDestinationWithoutKeychainUse() throws {
         try withTemporaryDirectory { directory in
             let environment = directory.appendingPathComponent("malformed.json")

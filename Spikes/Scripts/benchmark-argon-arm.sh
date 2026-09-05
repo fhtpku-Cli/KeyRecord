@@ -14,7 +14,7 @@ clang -arch arm64 -mmacosx-version-min=14.0 -std=c89 -O3 -fno-strict-aliasing -I
   "$tmp_dir/phc/src/argon2.c" "$tmp_dir/phc/src/core.c" "$tmp_dir/phc/src/blake2/blake2b.c" "$tmp_dir/phc/src/thread.c" \
   "$tmp_dir/phc/src/encoding.c" "$tmp_dir/phc/src/ref.c" "$(cd "$(dirname "$0")" && pwd)/argon-bench.c" -o "$tmp_dir/bench"
 
-memory=524288; iterations=4; parallelism=4; sample_count=7
+memory=524288; iterations=5; parallelism=4; sample_count=7
 samples='[]'
 for _ in $(seq 1 "$sample_count"); do
   value="$("$tmp_dir/bench" "$memory" "$iterations" "$parallelism")"
@@ -23,7 +23,10 @@ done
 median="$(jq -r 'sort | .[length/2|floor]' <<<"$samples")"
 p95="$(jq -r 'sort | .[((length * 95 + 99) / 100 | floor) - 1]' <<<"$samples")"
 within="$(jq -n --argjson median "$median" '$median >= 300 and $median <= 500')"
-[[ "$within" == true ]]
+if [[ "$within" != true ]]; then
+  printf 'ARM benchmark median outside 300-500 ms: %s\n' "$median" >&2
+  exit 1
+fi
 mkdir -p "$(dirname "$output")"
 jq -n --arg generatedAt "$(date -u +%Y-%m-%dT%H:%M:%SZ)" --arg os "$(sw_vers -productVersion)" --arg build "$(sw_vers -buildVersion)" \
   --arg swift "$(xcrun swift --version | tr '\n' ' ')" --argjson samples "$samples" --argjson median "$median" --argjson p95 "$p95" \

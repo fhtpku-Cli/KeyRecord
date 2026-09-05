@@ -61,7 +61,7 @@ Residual Low findings: caller-owned password/salt Data zeroization is not guaran
 AUDIT
 bash "$script_dir/audit-security.sh" sp6b "$work/dependency-audit.md"
 
-jq -n '{verdict:"BLOCKED",detectorAvailable:false,blocker:{blocked_by:"physical_intel_macos14_host_unavailable",detect_command:["uname","-m"],prerequisite:"physical x86_64 Mac running macOS 14 or later",unblock_action:"Run the bound benchmark with frozen recommended parameters on a physical Intel macOS 14+ host"},frozenParameters:{candidate:"phc",memoryKiB:524288,iterations:4,parallelism:4,saltLength:16}}' >"$work/intel-blocker.json"
+jq -n '{verdict:"BLOCKED",detectorAvailable:false,blocker:{blocked_by:"physical_intel_macos14_host_unavailable",detect_command:["uname","-m"],prerequisite:"physical x86_64 Mac running macOS 14 or later",unblock_action:"Run the bound benchmark with frozen recommended parameters on a physical Intel macOS 14+ host"},frozenParameters:{candidate:"phc",memoryKiB:524288,iterations:5,parallelism:4,saltLength:16}}' >"$work/intel-blocker.json"
 
 audit_hash="$(shasum -a 256 "$work/dependency-audit.md" | cut -d' ' -f1)"; build_hash="$(shasum -a 256 "$work/build/argon2-universal.a" | cut -d' ' -f1)"
 arm_hash="$(shasum -a 256 "$work/arm-benchmark.json" | cut -d' ' -f1)"; vectors_hash="$(shasum -a 256 "$work/build/build.json" | cut -d' ' -f1)"

@@ -109,7 +109,7 @@ enum SP6BDirectoryValidator {
         guard arm.recommendedCandidate == "phc", arm.host.architecture == "arm64", arm.samplesMilliseconds.count == arm.sampleCount,
               (5...15).contains(arm.sampleCount), arm.medianMilliseconds == sorted[sorted.count / 2],
               arm.p95Milliseconds == sorted[Int(ceil(Double(sorted.count) * 0.95)) - 1], arm.memoryKiB == 524_288,
-              arm.iterations == 4, arm.parallelism == 4, arm.saltLength == 16, arm.withinTarget,
+              arm.iterations == 5, arm.parallelism == 4, arm.saltLength == 16, arm.withinTarget,
               (300...500).contains(arm.medianMilliseconds) else { throw ValidatorError("sp6b_arm_timing_invalid") }
         guard let phc = try? String(contentsOf: directory.appendingPathComponent("build/phc-vector.txt"), encoding: .utf8),
               let swift = try? String(contentsOf: directory.appendingPathComponent("build/swift-vector.txt"), encoding: .utf8),

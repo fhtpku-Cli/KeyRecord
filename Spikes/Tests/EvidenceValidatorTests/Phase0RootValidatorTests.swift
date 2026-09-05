@@ -29,7 +29,7 @@ final class Phase0RootValidatorTests: XCTestCase {
     }
 
     func testRemanifestedSourceMutationRejects() throws {
-        try assertCandidateMutation(code: "sp4a_source_provenance_mismatch") { root in
+        try assertCandidateMutation(code: "sp4a_source_hash_mismatch") { root in
             let sources = root.appendingPathComponent("sources")
             let artifact = sources.appendingPathComponent("repos/via-app/files/src/utils/test-keyboard-definition.json")
             try appendSpace(to: artifact)
@@ -38,7 +38,7 @@ final class Phase0RootValidatorTests: XCTestCase {
     }
 
     func testRemanifestedFixtureMutationRejects() throws {
-        try assertCandidateMutation(code: "sp4b_fixture_provenance_mismatch") { root in
+        try assertCandidateMutation(code: "sp4b_fixture_recompute_failed") { root in
             let fixtures = root.appendingPathComponent("fixtures/synthetic")
             let artifact = fixtures.appendingPathComponent("via-layout.json")
             try appendSpace(to: artifact)

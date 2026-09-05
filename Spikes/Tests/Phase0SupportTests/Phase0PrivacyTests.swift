@@ -48,6 +48,13 @@ final class Phase0PrivacyTests: XCTestCase {
         }
     }
 
+    func testNormalizedSensitiveFieldVariantsReject() {
+        for field in ["Credentials", "serial-number", "KEYCHAIN"] {
+            let bytes = Data("{\"\(field)\":\"private\"}".utf8)
+            XCTAssertThrowsError(try Phase0PrivacyAudit.scanJSON(bytes, path: "private.json"), field)
+        }
+    }
+
     func testTextByteLimitAcceptsExactAndRejectsPlusOne() throws {
         XCTAssertNoThrow(try Phase0PrivacyAudit.scanText(
             Data(repeating: 0x61, count: Phase0PrivacyAudit.maximumFileBytes), path: "exact.txt"
@@ -63,6 +70,43 @@ final class Phase0PrivacyTests: XCTestCase {
         }
         XCTAssertNoThrow(try Phase0PrivacyAudit.scanJSON(nested(Phase0PrivacyAudit.maximumJSONDepth), path: "exact.json"))
         XCTAssertThrowsError(try Phase0PrivacyAudit.scanJSON(nested(Phase0PrivacyAudit.maximumJSONDepth + 1), path: "deep.json"))
+    }
+
+    func testJSONCollectionLimitAcceptsExactAndRejectsPlusOne() throws {
+        let exact = Array(repeating: 0, count: Phase0PrivacyAudit.maximumJSONCollection)
+        XCTAssertNoThrow(try Phase0PrivacyAudit.scanJSON(try JSONSerialization.data(withJSONObject: exact), path: "exact.json"))
+        let excessive = Array(repeating: 0, count: Phase0PrivacyAudit.maximumJSONCollection + 1)
+        XCTAssertThrowsError(try Phase0PrivacyAudit.scanJSON(try JSONSerialization.data(withJSONObject: excessive), path: "large.json"))
+    }
+
+    func testJSONScalarLimitAcceptsExactAndRejectsPlusOne() throws {
+        let exact = [String(repeating: "a", count: Phase0PrivacyAudit.maximumJSONScalarBytes)]
+        XCTAssertNoThrow(try Phase0PrivacyAudit.scanJSON(try JSONSerialization.data(withJSONObject: exact), path: "exact.json"))
+        let excessive = [String(repeating: "a", count: Phase0PrivacyAudit.maximumJSONScalarBytes + 1)]
+        XCTAssertThrowsError(try Phase0PrivacyAudit.scanJSON(try JSONSerialization.data(withJSONObject: excessive), path: "large.json"))
+    }
+
+    func testFileCountLimitAcceptsExactAndRejectsPlusOne() throws {
+        let root = try temporaryRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        for index in 0..<Phase0PrivacyAudit.maximumFiles {
+            try Data().write(to: root.appendingPathComponent("\(index).txt"))
+        }
+        XCTAssertNoThrow(try Phase0PrivacyAudit.scan(root: root))
+        try Data().write(to: root.appendingPathComponent("overflow.txt"))
+        XCTAssertThrowsError(try Phase0PrivacyAudit.scan(root: root))
+    }
+
+    func testTotalByteLimitAcceptsExactAndRejectsPlusOne() throws {
+        let root = try temporaryRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let chunk = Data(repeating: 0x61, count: Phase0PrivacyAudit.maximumFileBytes)
+        for index in 0..<(Phase0PrivacyAudit.maximumTotalBytes / Phase0PrivacyAudit.maximumFileBytes) {
+            try chunk.write(to: root.appendingPathComponent("\(index).txt"))
+        }
+        XCTAssertNoThrow(try Phase0PrivacyAudit.scan(root: root))
+        try Data([0x61]).write(to: root.appendingPathComponent("overflow.txt"))
+        XCTAssertThrowsError(try Phase0PrivacyAudit.scan(root: root))
     }
 
     private func temporaryRoot() throws -> URL {

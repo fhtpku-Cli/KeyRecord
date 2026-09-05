@@ -34,13 +34,15 @@ public struct Phase0PrivacyReport: Codable, Equatable, Sendable {
 
 public enum Phase0PrivacyAudit {
     public static let maximumFileBytes = 4 * 1_024 * 1_024
+    public static let maximumTotalBytes = 16 * 1_024 * 1_024
+    public static let maximumFiles = 256
     public static let maximumJSONDepth = 64
-    private static let maximumFiles = 4_096
-    private static let maximumTotalBytes = 64 * 1_024 * 1_024
+    public static let maximumJSONCollection = 4_096
+    public static let maximumJSONScalarBytes = 1_024 * 1_024
     private static let maximumJSONNodes = 100_000
     private static let forbiddenFields = [
-        "serialnumber", "credential", "username", "keytext", "keysequence",
-        "keystream", "eventsequence", "exacttimestamp", "keychainitem",
+        "serial", "serialnumber", "credential", "credentials", "username", "keytext", "keysequence",
+        "keystream", "eventsequence", "exacttimestamp", "keychain", "keychainitem",
         "password", "accesstoken", "apikey", "authorization",
     ]
     private static let textMarkers = [
@@ -77,8 +79,7 @@ public enum Phase0PrivacyAudit {
             }
             totalBytes += bytes.count
             if relative == "sp6b/build/argon2-universal.a" {
-                let magics = [Data([0xca, 0xfe, 0xba, 0xbe]), Data([0xbe, 0xba, 0xfe, 0xca])]
-                guard magics.contains(where: bytes.starts(with:)) else {
+                guard AtomicityDigest.sha256(bytes) == "95497a26d620d235fd8c1da64dcd6cd08830a5090c9c0266b33af22ad899b110" else {
                     throw Phase0PrivacyError.invalidTextEncoding(relative)
                 }
                 continue
@@ -118,6 +119,10 @@ public enum Phase0PrivacyAudit {
         }
         nodes += 1
         if let object = value as? [String: Any] {
+            guard object.count <= maximumJSONCollection,
+                  object.keys.allSatisfy({ $0.utf8.count <= maximumJSONScalarBytes }) else {
+                throw Phase0PrivacyError.resourceLimit(path)
+            }
             let normalizedKeys = Set(object.keys.map { $0.precomposedStringWithCanonicalMapping.lowercased() })
             let fieldKeys = Set(normalizedKeys.map { $0.filter(\.isLetter) })
             if let field = fieldKeys.first(where: forbiddenFields.contains) {
@@ -131,8 +136,10 @@ public enum Phase0PrivacyAudit {
             }
             for child in object.values { try inspect(child, path: path, depth: depth + 1, nodes: &nodes) }
         } else if let array = value as? [Any] {
+            guard array.count <= maximumJSONCollection else { throw Phase0PrivacyError.resourceLimit(path) }
             for child in array { try inspect(child, path: path, depth: depth + 1, nodes: &nodes) }
         } else if let text = value as? String {
+            guard text.utf8.count <= maximumJSONScalarBytes else { throw Phase0PrivacyError.resourceLimit(path) }
             try scanText(Data(text.utf8), path: path)
         }
     }

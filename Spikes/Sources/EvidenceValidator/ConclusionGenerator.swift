@@ -12,14 +12,14 @@ struct RawConclusionLeg {
 }
 
 public enum ConclusionGenerator {
-    static let sourcePaths: Set<String> = [
+    static let sourcePaths: Set<String> = Set([
         "Spikes/Package.swift", "Spikes/Scripts/run-task-qa.sh", "Spikes/Scripts/task-15-qa.sh",
         "Spikes/Sources/EvidenceValidator/ConclusionGenerator.swift", "Spikes/Sources/EvidenceValidator/ConclusionValidator.swift",
         "Spikes/Sources/EvidenceValidator/EvidenceValidatorCommand.swift",
         "Spikes/Sources/Phase0Support/ConclusionModels.swift", "Spikes/Sources/Phase0Support/ConclusionStrictCoding.swift",
         "Spikes/Sources/Phase0Support/Phase0Privacy.swift",
         "Spikes/Tests/EvidenceValidatorTests/ConclusionGeneratorTests.swift",
-    ].union(Phase0RunBinding.task15SourcePaths)
+    ]).union(Phase0RunBinding.task15SourcePaths)
 
     public static func generate(sourceRoot: URL, outputRoot: URL, repository: URL, strictRepositoryBinding: Bool = false) throws {
         if strictRepositoryBinding { try Phase0RootValidator.validate(sourceRoot, repository: repository) }

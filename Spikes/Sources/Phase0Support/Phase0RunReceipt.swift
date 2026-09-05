@@ -75,13 +75,30 @@ public enum Phase0RunLayout {
 }
 
 public enum Phase0RunBinding {
-    public static let sourcePaths: Set<String> = [
-        "Spikes/Scripts/run-task-qa.sh", "Spikes/Scripts/task-14-qa.sh",
+    public static let sourcePaths: Set<String> = AtomicityRunnerBinding.sourcePaths
+        .union(SP1RunnerBinding.sourcePaths).union(SP2RunnerBinding.sourcePaths)
+        .union(SP3RunnerBinding.sourcePaths).union(SP4ARunnerBinding.sourcePaths)
+        .union(SP4BRunnerBinding.sourcePaths).union(SP5ARunnerBinding.sourcePaths)
+        .union(SP5BRunnerBinding.sourcePaths).union(SP6ARunnerBinding.sourcePaths)
+        .union(SP6BRunnerBinding.sourcePaths).union([
+        "Spikes/Scripts/run-task-qa.sh", "Spikes/Scripts/task-14-qa.sh", "Spikes/Scripts/verify-manifests.sh",
+        "Spikes/Sources/EvidenceValidator/AtomicityHistoricalValidator.swift",
+        "Spikes/Sources/EvidenceValidator/Canonical.swift", "Spikes/Sources/EvidenceValidator/GitRunner.swift",
         "Spikes/Sources/EvidenceValidator/EvidenceValidatorCommand.swift",
         "Spikes/Sources/EvidenceValidator/Phase0RootValidator.swift",
-        "Spikes/Sources/Phase0Probe/RunAllProbe.swift", "Spikes/Sources/Phase0Probe/main.swift",
+        "Spikes/Sources/EvidenceValidator/SP1DirectoryValidator.swift", "Spikes/Sources/EvidenceValidator/SP2DirectoryValidator.swift",
+        "Spikes/Sources/EvidenceValidator/SP3DirectoryValidator.swift", "Spikes/Sources/EvidenceValidator/SP4ADirectoryValidator.swift",
+        "Spikes/Sources/EvidenceValidator/SP4BDirectoryValidator.swift", "Spikes/Sources/EvidenceValidator/SP5ADirectoryValidator.swift",
+        "Spikes/Sources/EvidenceValidator/SP5BDirectoryValidator.swift", "Spikes/Sources/EvidenceValidator/SP6ADirectoryValidator.swift",
+        "Spikes/Sources/EvidenceValidator/SP6AHistoryAnchorValidator.swift", "Spikes/Sources/EvidenceValidator/SP6ANamespaceValidator.swift",
+        "Spikes/Sources/EvidenceValidator/SP6BDirectoryValidator.swift", "Spikes/Sources/EvidenceValidator/SP6BBenchmarkValidator.swift",
+        "Spikes/Sources/EvidenceValidator/SP6BBuildValidator.swift", "Spikes/Sources/EvidenceValidator/SP6BNVDValidator.swift",
+        "Spikes/Sources/EvidenceValidator/SP6BSourceValidator.swift", "Spikes/Sources/EvidenceValidator/ValidatorError.swift",
+        "Spikes/Sources/Phase0Probe/AtomicityRunnerIdentity.swift", "Spikes/Sources/Phase0Probe/RunAllProbe.swift",
+        "Spikes/Sources/Phase0Probe/RunAllPublication.swift", "Spikes/Sources/Phase0Probe/RunAllSignalCleanup.swift",
+        "Spikes/Sources/Phase0Probe/main.swift",
         "Spikes/Sources/Phase0Support/Phase0Privacy.swift", "Spikes/Sources/Phase0Support/Phase0RunReceipt.swift",
         "Spikes/Tests/EvidenceValidatorTests/Phase0RootValidatorTests.swift",
-        "Spikes/Tests/Phase0ProbeTests/RunAllProbeTests.swift",
-    ]
+        "Spikes/Tests/Phase0ProbeTests/RunAllProbeTests.swift"
+    ])
 }

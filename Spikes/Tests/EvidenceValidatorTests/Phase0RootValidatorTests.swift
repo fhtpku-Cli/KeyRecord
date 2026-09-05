@@ -77,12 +77,32 @@ final class Phase0RootValidatorTests: XCTestCase {
             .appendingPathComponent("phase0-candidate-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.copyItem(at: repository.appendingPathComponent("evidence/phase0"), to: candidate)
         defer { try? FileManager.default.removeItem(at: candidate) }
+        try upgradeRootBinding(candidate, repository: repository)
         try upgradeSP1Binding(candidate, repository: repository)
         try upgradeEarlyBindings(candidate, repository: repository)
         try mutation(candidate)
         XCTAssertThrowsError(try Phase0RootValidator.validate(candidate, repository: repository)) { error in
             XCTAssertEqual((error as? ValidatorError)?.code, expected)
         }
+    }
+
+    private func upgradeRootBinding(_ root: URL, repository: URL) throws {
+        let url = root.appendingPathComponent("run-all.json")
+        let old = try JSONDecoder().decode(Phase0RunReceipt.self, from: Data(contentsOf: url))
+        let commit = try gitText(["rev-parse", "HEAD"], repository: repository)
+        let tree = try gitText(["rev-parse", "HEAD^{tree}"], repository: repository)
+        let receipt = Phase0RunReceipt(
+            runnerCommitSha: commit,
+            runnerTreeSha: tree,
+            runnerSourceSha256: try sourceHashes(Phase0RunBinding.sourcePaths, commit: commit, repository: repository),
+            environmentSha256: old.environmentSha256,
+            directories: old.directories,
+            rootArtifacts: old.rootArtifacts,
+            stages: old.stages,
+            toolVersions: old.toolVersions
+        )
+        try write(receipt, to: url)
+        try refreshManifest(root, artifact: url, path: "run-all.json")
     }
 
     private func upgradeSP1Binding(_ root: URL, repository: URL) throws {

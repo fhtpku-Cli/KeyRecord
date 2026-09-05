@@ -91,7 +91,8 @@ else
   printf '\n# dirty-runner-attack\n' >>"$dirty_repo/Spikes/Scripts/task-14-qa.sh"
   task2_run_logged "$log" swift build --package-path "$dirty_repo/Spikes" --product Phase0Probe >/dev/null
   dirty_bin="$(swift build --package-path "$dirty_repo/Spikes" --show-bin-path)/Phase0Probe"
-  set +e; "$dirty_bin" run-all --environment "$PWD/evidence/phase0/environment.json" --output "$tmp_dir/dirty" >>"$log" 2>&1; status=$?; set -e
+  source_environment="$PWD/evidence/phase0/environment.json"
+  set +e; (cd "$dirty_repo" && "$dirty_bin" run-all --environment "$source_environment" --output "$tmp_dir/dirty") >>"$log" 2>&1; status=$?; set -e
   [[ "$status" -ne 0 && ! -e "$tmp_dir/dirty" ]] || failures=$((failures + 1))
   for signal_name in INT TERM HUP; do
     for phase in early child; do

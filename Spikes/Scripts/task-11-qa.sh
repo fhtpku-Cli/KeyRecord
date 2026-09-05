@@ -123,7 +123,7 @@ expect_reject misleading-pass '.verdict="PASS"' evidence.json
 
 forged="$tmp_dir/forged-coordinated-candidate"; cp -R "$evidence" "$forged"
 edit_json "$forged/candidate-evaluation.json" '.candidates[0].commit=("a"*40) | .candidates[0].tree=("b"*40)'
-edit_json "$forged/d12/snapshot.json" '.candidates[0].commit=("a"*40)'
+edit_json "$forged/d12/snapshot.json" '.candidates[0].commit=("a"*40) | .candidates[0].osv[].request.requestBody |= gsub("f57e61e19229e23c4445b85494dbf7c07de721cb"; "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")'
 remanifest "$forged"; expect_typed coordinated-candidate sp6b_candidate_provenance "$forged"
 
 for name in vector-text unresolved-medium; do
@@ -219,11 +219,13 @@ edit_json "$forged/build/build.json" ".archiveSha256=\"$(shasum -a 256 "$forged/
 rebind_build "$forged"; expect_typed unrelated-archive sp6b_build_archive_hash "$forged"
 
 forged="$tmp_dir/forged-later-generated-at"; cp -R "$evidence" "$forged"
-later="2099-01-01T00:00:00Z"
+later="2026-09-06T00:00:00Z"
 for file in evidence.json candidate-evaluation.json source-audit.json build/build.json arm-benchmark.json d12/snapshot.json; do
   edit_json "$forged/$file" ".generatedAt=\"$later\""
 done
 edit_json "$forged/d12/snapshot.json" ".candidates[].github[].retrievedAt=\"$later\" | .candidates[].osv[].request.retrievedAt=\"$later\" | .nvd.pages[].request.retrievedAt=\"$later\""
+arm_hash="$(shasum -a 256 "$forged/arm-benchmark.json"|cut -d' ' -f1)"
+edit_json "$forged/evidence.json" ".legs |= map(if .legID==\"sp6b.armTiming\" then .artifactSha256=\"$arm_hash\" else . end)"
 rebind_build "$forged"; expect_typed later-generated-at sp6b_evidence_history_blob "$forged"
 
 partial="$tmp_dir/partial"; cp -R "$evidence" "$partial"; rm "$partial/build/swift-vector.txt"
@@ -261,5 +263,5 @@ set +m
 
 if [[ "$failures" -eq 0 ]]; then
   { printf 'TASK_11_NEGATIVE=PASS\nOBSERVABLE=wrong identity/body, stale/non-200, GitHub/OSV replay-cycle-drift-stop, NVD count/page/index/total/CVE, vector/hash/branch/license/platform/build/timing/Medium, malformed/stale/partial/misleading output, dirty runner, deterministic reruns, and INT/TERM/HUP twice all rejected while Intel and backup blocks remained honest\n'; cat "$log"; } >"$output"
-else printf 'TASK_11_NEGATIVE=FAIL failures=%s\n' "$failures" >"$output"; exit 1; fi
+else { printf 'TASK_11_NEGATIVE=FAIL failures=%s\n' "$failures"; cat "$log"; } >"$output"; exit 1; fi
 printf 'TASK_11_NEGATIVE=PASS\n'

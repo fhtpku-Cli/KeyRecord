@@ -15,8 +15,8 @@
       "evidenceKind" : "fixture",
       "exitStatus" : 0,
       "legID" : "sp4b.bounds",
-      "runnerCommitSha" : "fa3e8dac2107bebb799ca55ec59dd6f843dafb48",
-      "runnerTreeSha" : "f22c6235183b40b8c9fa99f1a2a3e579d9bdf7dd",
+      "runnerCommitSha" : "2e9364c1fc00ce5d0968346d8d67fc47f6571692",
+      "runnerTreeSha" : "da26049cf4f4f704bfcc80186cec6e299660184e",
       "verdict" : "PASS"
     },
     {
@@ -37,8 +37,8 @@
       "environmentSha256" : "6b3288f5983cbce231295762d3f8381b8467d6dbe2e74fff0e17a1aebf7215f4",
       "evidenceKind" : "source",
       "legID" : "sp4b.deviceProtocol",
-      "runnerCommitSha" : "fa3e8dac2107bebb799ca55ec59dd6f843dafb48",
-      "runnerTreeSha" : "f22c6235183b40b8c9fa99f1a2a3e579d9bdf7dd",
+      "runnerCommitSha" : "2e9364c1fc00ce5d0968346d8d67fc47f6571692",
+      "runnerTreeSha" : "da26049cf4f4f704bfcc80186cec6e299660184e",
       "verdict" : "BLOCKED"
     },
     {
@@ -59,8 +59,8 @@
       "environmentSha256" : "6b3288f5983cbce231295762d3f8381b8467d6dbe2e74fff0e17a1aebf7215f4",
       "evidenceKind" : "live",
       "legID" : "sp4b.importer",
-      "runnerCommitSha" : "fa3e8dac2107bebb799ca55ec59dd6f843dafb48",
-      "runnerTreeSha" : "f22c6235183b40b8c9fa99f1a2a3e579d9bdf7dd",
+      "runnerCommitSha" : "2e9364c1fc00ce5d0968346d8d67fc47f6571692",
+      "runnerTreeSha" : "da26049cf4f4f704bfcc80186cec6e299660184e",
       "verdict" : "BLOCKED"
     },
     {
@@ -81,8 +81,8 @@
       "environmentSha256" : "6b3288f5983cbce231295762d3f8381b8467d6dbe2e74fff0e17a1aebf7215f4",
       "evidenceKind" : "source",
       "legID" : "sp4b.keycodeDialect",
-      "runnerCommitSha" : "fa3e8dac2107bebb799ca55ec59dd6f843dafb48",
-      "runnerTreeSha" : "f22c6235183b40b8c9fa99f1a2a3e579d9bdf7dd",
+      "runnerCommitSha" : "2e9364c1fc00ce5d0968346d8d67fc47f6571692",
+      "runnerTreeSha" : "da26049cf4f4f704bfcc80186cec6e299660184e",
       "verdict" : "BLOCKED"
     },
     {
@@ -100,8 +100,8 @@
       "evidenceKind" : "synthetic",
       "exitStatus" : 0,
       "legID" : "sp4b.layoutRoundTrip",
-      "runnerCommitSha" : "fa3e8dac2107bebb799ca55ec59dd6f843dafb48",
-      "runnerTreeSha" : "f22c6235183b40b8c9fa99f1a2a3e579d9bdf7dd",
+      "runnerCommitSha" : "2e9364c1fc00ce5d0968346d8d67fc47f6571692",
+      "runnerTreeSha" : "da26049cf4f4f704bfcc80186cec6e299660184e",
       "verdict" : "PASS"
     }
   ],

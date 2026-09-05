@@ -26,7 +26,8 @@ enum SP4BProbe {
         let repository = try repositoryRoot()
         let roundTrip = try SP4BScenarios.roundTrip(repository: repository)
         let bounds = try SP4BScenarios.bounds()
-        let axes = try SP4BScenarios.axes(repository: repository)
+        let stagedRoot = ProcessInfo.processInfo.environment["KEYRECORD_PHASE0_EVIDENCE_ROOT"].map(URL.init(fileURLWithPath:))
+        let axes = try SP4BScenarios.axes(repository: repository, evidenceRoot: stagedRoot)
         let facts = try SP4BScenarios.sourceFacts(repository: repository)
         guard SP4BScenarios.validates(roundTrip), bounds.results.count == 4,
               bounds.results.allSatisfy(\.exactAccepted), axes.axes.count == 5,

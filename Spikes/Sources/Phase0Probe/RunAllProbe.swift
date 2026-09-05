@@ -153,6 +153,11 @@ enum RunAllProbe {
                                 cleanup: RunAllSignalCleanup) throws -> (status: Int32, stdout: String, stderr: String) {
         let process = Process(), stdout = Pipe(), stderr = Pipe()
         process.executableURL = URL(fileURLWithPath: executable); process.arguments = arguments
+        if arguments.first == "sp4b", let index = arguments.firstIndex(of: "--output") {
+            var environment = ProcessInfo.processInfo.environment
+            environment["KEYRECORD_PHASE0_EVIDENCE_ROOT"] = URL(fileURLWithPath: arguments[index + 1]).deletingLastPathComponent().path
+            process.environment = environment
+        }
         process.standardOutput = stdout; process.standardError = stderr
         try process.run(); cleanup.setChild(process.processIdentifier)
         let deadline = Date().addingTimeInterval(timeout)

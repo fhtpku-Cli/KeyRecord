@@ -22,7 +22,7 @@ enum RunAllProbe {
         do {
             let environmentData = try bounded(environment)
             try seed(temporary, from: canonical)
-            try invalidate(output, parent: parent, preserving: temporary)
+            try cleanStale(parent: parent, preserving: temporary)
             if let raw = ProcessInfo.processInfo.environment["KEYRECORD_RUN_ALL_TEST_DELAY_AFTER_TEMP"], let delay = Double(raw) {
                 Thread.sleep(forTimeInterval: min(max(delay, 0), 5))
             }
@@ -67,6 +67,7 @@ enum RunAllProbe {
             let privacy = try Phase0PrivacyAudit.scan(root: temporary, excluding: exclusions)
             try encoded(privacy).write(to: temporary.appendingPathComponent("privacy-audit.json"))
             try writeRootManifest(temporary)
+            if FileManager.default.fileExists(atPath: output.path) { try FileManager.default.removeItem(at: output) }
             try FileManager.default.moveItem(at: temporary, to: output)
             cleanup.complete()
             print("RUN_ALL=PASS spikes=9 blocked_allowed=true privacy_hits=0 output=\(output.path)")
@@ -187,6 +188,9 @@ enum RunAllProbe {
     }
     static func invalidate(_ output: URL, parent: URL, preserving temporary: URL) throws {
         if FileManager.default.fileExists(atPath: output.path) { try FileManager.default.removeItem(at: output) }
+        try cleanStale(parent: parent, preserving: temporary)
+    }
+    private static func cleanStale(parent: URL, preserving temporary: URL) throws {
         for name in try FileManager.default.contentsOfDirectory(atPath: parent.path)
         where name.hasPrefix(".phase0.") && name.hasSuffix(".tmp") {
             let candidate = parent.appendingPathComponent(name).standardizedFileURL

@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 output="${1:-evidence/phase0/sp6b/d12}"
+script_dir="$(cd "$(dirname "$0")" && pwd)"
+review_contract="$script_dir/sp6b-nvd-review.json"
 tmp_dir="$(mktemp -d "${TMPDIR:-/tmp}/keyrecord-d12.XXXXXX")"
 cleanup() { status=$?; rm -rf "$tmp_dir"; exit "$status"; }
 trap cleanup EXIT INT TERM HUP
 mkdir -p "$tmp_dir/result/raw"
-retrieved_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+retrieved_at="${KEYRECORD_SP6B_GENERATED_AT:-$(date -u +%Y-%m-%dT%H:%M:%SZ)}"
 zero="$(printf '[]')"
 
 sanitize_response_headers() {
@@ -75,7 +77,7 @@ swift_github="$(github_pages swift MarlonJD/argon2id-swift-native)"
 phc_osv="$(osv_pages phc f57e61e19229e23c4445b85494dbf7c07de721cb)"
 swift_osv="$(osv_pages swift 14d47de1914ac63b368ddb2cfe0f47ffe25f04cf)"
 
-nvd_pages="$zero"; start=0; expected_total=""; seen=0; page=0
+nvd_pages="$zero"; start=0; expected_total=""; seen=0; page=0; seen_ids="$zero"
 while true; do
   base='https://services.nvd.nist.gov/rest/json/cves/2.0?keywordSearch=argon2&resultsPerPage=2000'
   if [[ "$start" -eq 0 ]]; then url="$base"; else url="$base&startIndex=$start"; fi
@@ -86,19 +88,35 @@ while true; do
   total="$(jq -r '.totalResults' "$tmp_dir/result/$raw")"; results="$(jq -r '.resultsPerPage' "$tmp_dir/result/$raw")"
   response_start="$(jq -r '.startIndex' "$tmp_dir/result/$raw")"; [[ "$response_start" == "$start" ]]
   [[ -z "$expected_total" || "$total" == "$expected_total" ]]; expected_total="$total"
-  vulnerabilities="$(jq -c '[.vulnerabilities[].cve | {cveID:.id,impact:"none",rationale:(.id + " is an application, language binding, or non-candidate implementation keyword hit; neither exact pinned repository is affected")}]' "$tmp_dir/result/$raw")"
-  count="$(jq 'length' <<<"$vulnerabilities")"; seen=$((seen + count))
+  vulnerabilities="$zero"; count="$(jq '.vulnerabilities|length' "$tmp_dir/result/$raw")"
+  for index in $(seq 0 $((count - 1))); do
+    cve="$(jq -c ".vulnerabilities[$index].cve" "$tmp_dir/result/$raw")"; id="$(jq -r .id <<<"$cve")"
+    description="$(jq -r 'first(.descriptions[]|select(.lang=="en")|.value)' <<<"$cve")"
+    configurations="$(jq -cS '(.configurations // [])' <<<"$cve")"; references="$(jq -cS '(.references // [])' <<<"$cve")"
+    description_hash="$(printf %s "$description" | shasum -a 256 | cut -d' ' -f1)"
+    configuration_hash="$(printf %s "$configurations" | shasum -a 256 | cut -d' ' -f1)"
+    references_hash="$(printf %s "$references" | shasum -a 256 | cut -d' ' -f1)"
+    disposition="$(jq -ce --arg id "$id" '.dispositions[]|select(.cveID==$id)' "$review_contract")"
+    jq -e --arg description "$description_hash" --arg configuration "$configuration_hash" --arg references "$references_hash" \
+      '.descriptionSha256==$description and .configurationSha256==$configuration and .referencesSha256==$references' <<<"$disposition" >/dev/null
+    vulnerabilities="$(jq -cn --argjson values "$vulnerabilities" --argjson value "$disposition" '$values+[$value]')"
+    seen_ids="$(jq -cn --argjson values "$seen_ids" --arg id "$id" '$values+[$id]')"
+  done
+  seen=$((seen + count))
   request="$(page_json "$url" "" "$status" "$headers" "$raw" "")"
   nvd_pages="$(jq -cn --argjson pages "$nvd_pages" --argjson request "$request" --argjson start "$start" --argjson results "$results" --argjson total "$total" --argjson vulnerabilities "$vulnerabilities" '$pages + [{request:$request,startIndex:$start,resultsPerPage:$results,totalResults:$total,vulnerabilities:$vulnerabilities}]')"
   [[ "$seen" -ge "$total" ]] && break
   start=$((start + results)); page=$((page + 1)); [[ "$page" -le 100 ]]
 done
 [[ "$seen" == "$expected_total" ]]
+review_revision="$(jq -r .auditRevision "$review_contract")"
+jq -e --argjson seen "$seen_ids" '([.dispositions[].cveID]|sort)==($seen|sort) and ([.dispositions[].cveID]|unique|length)==(.dispositions|length)' "$review_contract" >/dev/null
 
-generated_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+generated_at="$retrieved_at"
 jq -n --arg generatedAt "$generated_at" --argjson phcGithub "$phc_github" --argjson phcOsv "$phc_osv" \
   --argjson swiftGithub "$swift_github" --argjson swiftOsv "$swift_osv" --argjson nvd "$nvd_pages" \
-  '{schemaVersion:1,generatedAt:$generatedAt,candidates:[{id:"phc",ownerRepo:"P-H-C/phc-winner-argon2",commit:"f57e61e19229e23c4445b85494dbf7c07de721cb",github:$phcGithub,osv:$phcOsv},{id:"swift",ownerRepo:"MarlonJD/argon2id-swift-native",commit:"14d47de1914ac63b368ddb2cfe0f47ffe25f04cf",github:$swiftGithub,osv:$swiftOsv}],nvd:{pages:$nvd}}' >"$tmp_dir/result/snapshot.json"
+  --arg reviewRevision "$review_revision" \
+  '{schemaVersion:2,generatedAt:$generatedAt,candidates:[{id:"phc",ownerRepo:"P-H-C/phc-winner-argon2",commit:"f57e61e19229e23c4445b85494dbf7c07de721cb",github:$phcGithub,osv:$phcOsv},{id:"swift",ownerRepo:"MarlonJD/argon2id-swift-native",commit:"14d47de1914ac63b368ddb2cfe0f47ffe25f04cf",github:$swiftGithub,osv:$swiftOsv}],nvd:{auditRevision:$reviewRevision,pages:$nvd}}' >"$tmp_dir/result/snapshot.json"
 mkdir -p "$(dirname "$output")"; rm -rf "$output"; mv "$tmp_dir/result" "$output"
 printf 'D12_CAPTURE=PASS github_pages=%s osv_pages=%s nvd_pages=%s nvd_hits=%s generated_at=%s\n' \
   "$(jq '[.candidates[].github[]]|length' "$output/snapshot.json")" "$(jq '[.candidates[].osv[]]|length' "$output/snapshot.json")" \

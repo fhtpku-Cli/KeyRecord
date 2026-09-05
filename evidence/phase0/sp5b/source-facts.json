@@ -1,0 +1,236 @@
+{
+  "denyAllDefault" : true,
+  "excludedOperationFamilies" : [
+    "unknown",
+    "set-keyboard-value",
+    "set-keycode",
+    "dynamic-keymap-reset",
+    "custom-set",
+    "lighting-or-custom-save",
+    "eeprom-reset",
+    "bootloader",
+    "macro-write",
+    "macro-reset",
+    "keymap-write",
+    "encoder-write",
+    "vial-encoder-write",
+    "unlock-start",
+    "unlock-poll",
+    "lock",
+    "qmk-settings-write",
+    "qmk-settings-reset",
+    "dynamic-entry-operation"
+  ],
+  "noPublicRawBytesInitializer" : true,
+  "publicCases" : [
+    "protocolVersion",
+    "uid",
+    "definition",
+    "keymapRead"
+  ],
+  "reportDescription" : "Outbound HID reports are whitelist-constrained non-changing queries; sending a report is not literally read-only and device-side behavior remains unverified without approved capture.",
+  "reportSourcePath" : "Spikes/Sources/Phase0Support/VialQuery.swift",
+  "reportSourceSha256" : "e48a657f42095ea7acf30afacdd1aa38cb5839bcdd41fc075f25e2b33e0897b3",
+  "whitelist" : [
+    {
+      "anchors" : [
+        {
+          "fileSha256" : "db5ea5a835ba98883302930d1035a9496e6bcbd73373f60fa793cee104c97284",
+          "gitBlob" : "9c66275d4be60fe81a331b401eb22562d5a90233",
+          "licenseGitBlob" : "d159169d1050894d3ea3b98e1c965c4058208fe1",
+          "licensePath" : "LICENSE",
+          "licenseSha256" : "8177f97513213526df2cf6184d8ff986c675afb514d4e68a404010521b880643",
+          "lineEnd" : 26,
+          "lineStart" : 25,
+          "path" : "quantum/vial.h",
+          "repository" : "vial-qmk",
+          "revision" : "dd43959ae5c08d8a28d38a1acf7b04e86b14a344",
+          "snippetSha256" : "5c6acb5dd7f41c5a6307fc5bb46116c47b2908e5df5b36c99119cc25fbe584cc",
+          "tree" : "b9a0d7b574d78f3e0622c5cfe1f9ff9901d63f64"
+        },
+        {
+          "fileSha256" : "713c5a9ba680a3bd39f25fea00cbff66d9506ef8951be33b36aed50b0cc4b52b",
+          "gitBlob" : "42eb4c5e2ab87ea17b761ef95c311bc470ca94a7",
+          "licenseGitBlob" : "d159169d1050894d3ea3b98e1c965c4058208fe1",
+          "licensePath" : "LICENSE",
+          "licenseSha256" : "8177f97513213526df2cf6184d8ff986c675afb514d4e68a404010521b880643",
+          "lineEnd" : 127,
+          "lineStart" : 86,
+          "path" : "quantum/vial.c",
+          "repository" : "vial-qmk",
+          "revision" : "dd43959ae5c08d8a28d38a1acf7b04e86b14a344",
+          "snippetSha256" : "530fed2e5ce857f08d90f1c635c2497ae338f97812d3122445167609052903fd",
+          "tree" : "b9a0d7b574d78f3e0622c5cfe1f9ff9901d63f64"
+        },
+        {
+          "fileSha256" : "d71b73a6217c5d12a05ff0cd3c85ea06b8f9df798cfb5f1a783207af4623ecdb",
+          "gitBlob" : "12b785f6adf2b23239288d3bfd4f43e4e2ada2a9",
+          "licenseGitBlob" : "d159169d1050894d3ea3b98e1c965c4058208fe1",
+          "licensePath" : "COPYING",
+          "licenseSha256" : "8177f97513213526df2cf6184d8ff986c675afb514d4e68a404010521b880643",
+          "lineEnd" : 144,
+          "lineStart" : 124,
+          "path" : "src/main/python/protocol/keyboard_comm.py",
+          "repository" : "vial-gui",
+          "revision" : "aef8222a2d0429a183b2ed692d5f9efcfd383f08",
+          "snippetSha256" : "18097456d26f5ce10d0abb2efb4bc866ee23347a16f03973c52de87bb89f1917",
+          "tree" : "22a59cd7c2f7c4ef746378e259f6de0f1faa3633"
+        }
+      ],
+      "caseID" : "protocolVersion",
+      "opcode" : "0xFE/0x00",
+      "packetLayout" : "32 bytes: [FE,00,zero x30]",
+      "responseLayout" : "bytes 0...3 uint32 little-endian"
+    },
+    {
+      "anchors" : [
+        {
+          "fileSha256" : "db5ea5a835ba98883302930d1035a9496e6bcbd73373f60fa793cee104c97284",
+          "gitBlob" : "9c66275d4be60fe81a331b401eb22562d5a90233",
+          "licenseGitBlob" : "d159169d1050894d3ea3b98e1c965c4058208fe1",
+          "licensePath" : "LICENSE",
+          "licenseSha256" : "8177f97513213526df2cf6184d8ff986c675afb514d4e68a404010521b880643",
+          "lineEnd" : 50,
+          "lineStart" : 36,
+          "path" : "quantum/vial.h",
+          "repository" : "vial-qmk",
+          "revision" : "dd43959ae5c08d8a28d38a1acf7b04e86b14a344",
+          "snippetSha256" : "6d4d0352773a6bc3f256f3e354d45d6bcb0fb33379fc21db3eee5ff44b71f3ac",
+          "tree" : "b9a0d7b574d78f3e0622c5cfe1f9ff9901d63f64"
+        },
+        {
+          "fileSha256" : "713c5a9ba680a3bd39f25fea00cbff66d9506ef8951be33b36aed50b0cc4b52b",
+          "gitBlob" : "42eb4c5e2ab87ea17b761ef95c311bc470ca94a7",
+          "licenseGitBlob" : "d159169d1050894d3ea3b98e1c965c4058208fe1",
+          "licensePath" : "LICENSE",
+          "licenseSha256" : "8177f97513213526df2cf6184d8ff986c675afb514d4e68a404010521b880643",
+          "lineEnd" : 127,
+          "lineStart" : 86,
+          "path" : "quantum/vial.c",
+          "repository" : "vial-qmk",
+          "revision" : "dd43959ae5c08d8a28d38a1acf7b04e86b14a344",
+          "snippetSha256" : "530fed2e5ce857f08d90f1c635c2497ae338f97812d3122445167609052903fd",
+          "tree" : "b9a0d7b574d78f3e0622c5cfe1f9ff9901d63f64"
+        },
+        {
+          "fileSha256" : "d71b73a6217c5d12a05ff0cd3c85ea06b8f9df798cfb5f1a783207af4623ecdb",
+          "gitBlob" : "12b785f6adf2b23239288d3bfd4f43e4e2ada2a9",
+          "licenseGitBlob" : "d159169d1050894d3ea3b98e1c965c4058208fe1",
+          "licensePath" : "COPYING",
+          "licenseSha256" : "8177f97513213526df2cf6184d8ff986c675afb514d4e68a404010521b880643",
+          "lineEnd" : 144,
+          "lineStart" : 124,
+          "path" : "src/main/python/protocol/keyboard_comm.py",
+          "repository" : "vial-gui",
+          "revision" : "aef8222a2d0429a183b2ed692d5f9efcfd383f08",
+          "snippetSha256" : "18097456d26f5ce10d0abb2efb4bc866ee23347a16f03973c52de87bb89f1917",
+          "tree" : "22a59cd7c2f7c4ef746378e259f6de0f1faa3633"
+        }
+      ],
+      "caseID" : "uid",
+      "opcode" : "0xFE/0x00",
+      "packetLayout" : "32 bytes: [FE,00,zero x30]",
+      "responseLayout" : "bytes 4...11 UID"
+    },
+    {
+      "anchors" : [
+        {
+          "fileSha256" : "db5ea5a835ba98883302930d1035a9496e6bcbd73373f60fa793cee104c97284",
+          "gitBlob" : "9c66275d4be60fe81a331b401eb22562d5a90233",
+          "licenseGitBlob" : "d159169d1050894d3ea3b98e1c965c4058208fe1",
+          "licensePath" : "LICENSE",
+          "licenseSha256" : "8177f97513213526df2cf6184d8ff986c675afb514d4e68a404010521b880643",
+          "lineEnd" : 26,
+          "lineStart" : 25,
+          "path" : "quantum/vial.h",
+          "repository" : "vial-qmk",
+          "revision" : "dd43959ae5c08d8a28d38a1acf7b04e86b14a344",
+          "snippetSha256" : "5c6acb5dd7f41c5a6307fc5bb46116c47b2908e5df5b36c99119cc25fbe584cc",
+          "tree" : "b9a0d7b574d78f3e0622c5cfe1f9ff9901d63f64"
+        },
+        {
+          "fileSha256" : "db5ea5a835ba98883302930d1035a9496e6bcbd73373f60fa793cee104c97284",
+          "gitBlob" : "9c66275d4be60fe81a331b401eb22562d5a90233",
+          "licenseGitBlob" : "d159169d1050894d3ea3b98e1c965c4058208fe1",
+          "licensePath" : "LICENSE",
+          "licenseSha256" : "8177f97513213526df2cf6184d8ff986c675afb514d4e68a404010521b880643",
+          "lineEnd" : 50,
+          "lineStart" : 36,
+          "path" : "quantum/vial.h",
+          "repository" : "vial-qmk",
+          "revision" : "dd43959ae5c08d8a28d38a1acf7b04e86b14a344",
+          "snippetSha256" : "6d4d0352773a6bc3f256f3e354d45d6bcb0fb33379fc21db3eee5ff44b71f3ac",
+          "tree" : "b9a0d7b574d78f3e0622c5cfe1f9ff9901d63f64"
+        },
+        {
+          "fileSha256" : "713c5a9ba680a3bd39f25fea00cbff66d9506ef8951be33b36aed50b0cc4b52b",
+          "gitBlob" : "42eb4c5e2ab87ea17b761ef95c311bc470ca94a7",
+          "licenseGitBlob" : "d159169d1050894d3ea3b98e1c965c4058208fe1",
+          "licensePath" : "LICENSE",
+          "licenseSha256" : "8177f97513213526df2cf6184d8ff986c675afb514d4e68a404010521b880643",
+          "lineEnd" : 127,
+          "lineStart" : 86,
+          "path" : "quantum/vial.c",
+          "repository" : "vial-qmk",
+          "revision" : "dd43959ae5c08d8a28d38a1acf7b04e86b14a344",
+          "snippetSha256" : "530fed2e5ce857f08d90f1c635c2497ae338f97812d3122445167609052903fd",
+          "tree" : "b9a0d7b574d78f3e0622c5cfe1f9ff9901d63f64"
+        },
+        {
+          "fileSha256" : "d71b73a6217c5d12a05ff0cd3c85ea06b8f9df798cfb5f1a783207af4623ecdb",
+          "gitBlob" : "12b785f6adf2b23239288d3bfd4f43e4e2ada2a9",
+          "licenseGitBlob" : "d159169d1050894d3ea3b98e1c965c4058208fe1",
+          "licensePath" : "COPYING",
+          "licenseSha256" : "8177f97513213526df2cf6184d8ff986c675afb514d4e68a404010521b880643",
+          "lineEnd" : 144,
+          "lineStart" : 124,
+          "path" : "src/main/python/protocol/keyboard_comm.py",
+          "repository" : "vial-gui",
+          "revision" : "aef8222a2d0429a183b2ed692d5f9efcfd383f08",
+          "snippetSha256" : "18097456d26f5ce10d0abb2efb4bc866ee23347a16f03973c52de87bb89f1917",
+          "tree" : "22a59cd7c2f7c4ef746378e259f6de0f1faa3633"
+        }
+      ],
+      "caseID" : "definition",
+      "opcode" : "0xFE/0x01 size; 0xFE/0x02 page",
+      "packetLayout" : "32 bytes: prefix, opcode, uint16 page little-endian, zero padding",
+      "responseLayout" : "size uint32 little-endian; pages contain up to 32 definition bytes"
+    },
+    {
+      "anchors" : [
+        {
+          "fileSha256" : "d71b73a6217c5d12a05ff0cd3c85ea06b8f9df798cfb5f1a783207af4623ecdb",
+          "gitBlob" : "12b785f6adf2b23239288d3bfd4f43e4e2ada2a9",
+          "licenseGitBlob" : "d159169d1050894d3ea3b98e1c965c4058208fe1",
+          "licensePath" : "COPYING",
+          "licenseSha256" : "8177f97513213526df2cf6184d8ff986c675afb514d4e68a404010521b880643",
+          "lineEnd" : 216,
+          "lineStart" : 196,
+          "path" : "src/main/python/protocol/keyboard_comm.py",
+          "repository" : "vial-gui",
+          "revision" : "aef8222a2d0429a183b2ed692d5f9efcfd383f08",
+          "snippetSha256" : "186548caef26d38c1e406c547ccd8281e1a6097252cc60822ea78ad3790a1b5e",
+          "tree" : "22a59cd7c2f7c4ef746378e259f6de0f1faa3633"
+        },
+        {
+          "fileSha256" : "fdf2231eb0ba8699019b973ba68b685a9782b2fff87be6827bd899e299b76b1a",
+          "gitBlob" : "ef788ebfd85c4d171dcb539f5932964a5a749e0d",
+          "licenseGitBlob" : "d159169d1050894d3ea3b98e1c965c4058208fe1",
+          "licensePath" : "LICENSE",
+          "licenseSha256" : "8177f97513213526df2cf6184d8ff986c675afb514d4e68a404010521b880643",
+          "lineEnd" : 76,
+          "lineStart" : 55,
+          "path" : "quantum/via.h",
+          "repository" : "qmk",
+          "revision" : "3c73e928ab40b026adcff7112c8fc36a8d96152a",
+          "snippetSha256" : "7d086b1a6e13ccb181dc4c0da57f16715a1a727d0cacdc3b910a72bf6611913d",
+          "tree" : "12276f044f5c8aa2a96075cb72c5d2c2d89955fe"
+        }
+      ],
+      "caseID" : "keymapRead",
+      "opcode" : "0x12",
+      "packetLayout" : "32 bytes: [12,uint16 offset big-endian,uint8 length,zero x28]",
+      "responseLayout" : "bytes 4...(4+length-1), uint16 keycodes big-endian"
+    }
+  ]
+}

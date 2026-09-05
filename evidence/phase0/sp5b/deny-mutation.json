@@ -1,0 +1,127 @@
+{
+  "attempts" : [
+    {
+      "name" : "unknown",
+      "opcode" : "0xFF",
+      "rejected" : true,
+      "transportCallCount" : 0
+    },
+    {
+      "name" : "set-keyboard-value",
+      "opcode" : "0x03",
+      "rejected" : true,
+      "transportCallCount" : 0
+    },
+    {
+      "name" : "set-keycode",
+      "opcode" : "0x05",
+      "rejected" : true,
+      "transportCallCount" : 0
+    },
+    {
+      "name" : "dynamic-keymap-reset",
+      "opcode" : "0x06",
+      "rejected" : true,
+      "transportCallCount" : 0
+    },
+    {
+      "name" : "custom-set",
+      "opcode" : "0x07",
+      "rejected" : true,
+      "transportCallCount" : 0
+    },
+    {
+      "name" : "lighting-or-custom-save",
+      "opcode" : "0x09",
+      "rejected" : true,
+      "transportCallCount" : 0
+    },
+    {
+      "name" : "eeprom-reset",
+      "opcode" : "0x0A",
+      "rejected" : true,
+      "transportCallCount" : 0
+    },
+    {
+      "name" : "bootloader",
+      "opcode" : "0x0B",
+      "rejected" : true,
+      "transportCallCount" : 0
+    },
+    {
+      "name" : "macro-write",
+      "opcode" : "0x0F",
+      "rejected" : true,
+      "transportCallCount" : 0
+    },
+    {
+      "name" : "macro-reset",
+      "opcode" : "0x10",
+      "rejected" : true,
+      "transportCallCount" : 0
+    },
+    {
+      "name" : "keymap-write",
+      "opcode" : "0x13",
+      "rejected" : true,
+      "transportCallCount" : 0
+    },
+    {
+      "name" : "encoder-write",
+      "opcode" : "0x15",
+      "rejected" : true,
+      "transportCallCount" : 0
+    },
+    {
+      "name" : "vial-encoder-write",
+      "opcode" : "0xFE/0x04",
+      "rejected" : true,
+      "transportCallCount" : 0
+    },
+    {
+      "name" : "unlock-start",
+      "opcode" : "0xFE/0x06",
+      "rejected" : true,
+      "transportCallCount" : 0
+    },
+    {
+      "name" : "unlock-poll",
+      "opcode" : "0xFE/0x07",
+      "rejected" : true,
+      "transportCallCount" : 0
+    },
+    {
+      "name" : "lock",
+      "opcode" : "0xFE/0x08",
+      "rejected" : true,
+      "transportCallCount" : 0
+    },
+    {
+      "name" : "qmk-settings-write",
+      "opcode" : "0xFE/0x0B",
+      "rejected" : true,
+      "transportCallCount" : 0
+    },
+    {
+      "name" : "qmk-settings-reset",
+      "opcode" : "0xFE/0x0C",
+      "rejected" : true,
+      "transportCallCount" : 0
+    },
+    {
+      "name" : "dynamic-entry-operation",
+      "opcode" : "0xFE/0x0D",
+      "rejected" : true,
+      "transportCallCount" : 0
+    }
+  ],
+  "denyAllDefault" : true,
+  "noRawReportEscapeHatch" : true,
+  "publicCases" : [
+    "protocolVersion",
+    "uid",
+    "definition",
+    "keymapRead"
+  ],
+  "sourceContractValidated" : true
+}

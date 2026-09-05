@@ -1,0 +1,106 @@
+{
+  "legs" : [
+    {
+      "artifactPath" : "deny-mutation.json",
+      "artifactSha256" : "fdcf3943957e0567dea8cfa41bac7352e634f25292ec06ff7115221893ae0de3",
+      "command" : [
+        "Phase0Probe",
+        "sp5b",
+        "fixture",
+        "sp5b.denyMutation"
+      ],
+      "detectorAvailable" : true,
+      "detectorID" : "D0",
+      "environmentSha256" : "6b3288f5983cbce231295762d3f8381b8467d6dbe2e74fff0e17a1aebf7215f4",
+      "evidenceKind" : "fixture",
+      "exitStatus" : 0,
+      "legID" : "sp5b.denyMutation",
+      "runnerCommitSha" : "79cec8c3d5dd16fccfafe7ae06c2d9049d4caa6f",
+      "runnerTreeSha" : "ca6037e68654b73cb24ae7580fec366028654d4a",
+      "verdict" : "PASS"
+    },
+    {
+      "blocker" : {
+        "blocked_by" : "approved_vial_device_capture_absent",
+        "detect_command" : [
+          "environment-inventory",
+          "approved-vial-device"
+        ],
+        "prerequisite" : "an explicitly approved Vial keyboard, capture authorization, and reviewed non-changing query procedure",
+        "unblock_action" : "Under separate approval, capture the same whitelist-constrained report bytes on that keyboard without unlock or device writes"
+      },
+      "command" : [
+
+      ],
+      "detectorAvailable" : false,
+      "detectorID" : "D8",
+      "environmentSha256" : "6b3288f5983cbce231295762d3f8381b8467d6dbe2e74fff0e17a1aebf7215f4",
+      "evidenceKind" : "live",
+      "legID" : "sp5b.liveCapture",
+      "runnerCommitSha" : "79cec8c3d5dd16fccfafe7ae06c2d9049d4caa6f",
+      "runnerTreeSha" : "ca6037e68654b73cb24ae7580fec366028654d4a",
+      "verdict" : "BLOCKED"
+    },
+    {
+      "artifactPath" : "replay.json",
+      "artifactSha256" : "2a5552e349d0063ee7a740b8825be11cd1ee3f01472ca96fe45eddd1deb332df",
+      "command" : [
+        "Phase0Probe",
+        "sp5b",
+        "fixture",
+        "sp5b.replay"
+      ],
+      "detectorAvailable" : true,
+      "detectorID" : "D0",
+      "environmentSha256" : "6b3288f5983cbce231295762d3f8381b8467d6dbe2e74fff0e17a1aebf7215f4",
+      "evidenceKind" : "fixture",
+      "exitStatus" : 0,
+      "legID" : "sp5b.replay",
+      "runnerCommitSha" : "79cec8c3d5dd16fccfafe7ae06c2d9049d4caa6f",
+      "runnerTreeSha" : "ca6037e68654b73cb24ae7580fec366028654d4a",
+      "verdict" : "PASS"
+    },
+    {
+      "artifactPath" : "source-facts.json",
+      "artifactSha256" : "70e7670b426ba3adb3cd7708b3cc7ced301bcb12f3eb706c6ab11669e27901c4",
+      "command" : [
+        "Phase0Probe",
+        "sp5b",
+        "source",
+        "sp5b.whitelistSource"
+      ],
+      "detectorAvailable" : true,
+      "detectorID" : "D0",
+      "environmentSha256" : "6b3288f5983cbce231295762d3f8381b8467d6dbe2e74fff0e17a1aebf7215f4",
+      "evidenceKind" : "source",
+      "exitStatus" : 0,
+      "legID" : "sp5b.whitelistSource",
+      "runnerCommitSha" : "79cec8c3d5dd16fccfafe7ae06c2d9049d4caa6f",
+      "runnerTreeSha" : "ca6037e68654b73cb24ae7580fec366028654d4a",
+      "verdict" : "PASS"
+    }
+  ],
+  "runnerSourceSha256" : {
+    "Spikes/Scripts/run-task-qa.sh" : "e2d13be3e9882daec42f0497182622e5838c43dbe1ec410eb72930ecd015c5b6",
+    "Spikes/Scripts/task-13-qa.sh" : "ad51823a206fe6bd411d6f34a4ba41b399bba65ef57addecd639ba0a42f5d814",
+    "Spikes/Sources/EvidenceValidator/Canonical.swift" : "ab34555220fea7b5fcbc667e6a082ac98d5de0820c06cdf45f400d559320b2d8",
+    "Spikes/Sources/EvidenceValidator/EvidenceValidatorCommand.swift" : "3a6671f83b084bf88289e8154d8adf0ec90c5015c777daedea0c2a228787ee40",
+    "Spikes/Sources/EvidenceValidator/GitRunner.swift" : "ca3f1ba4a52173c54e45aaccbcf453e989a368da83e0c6f452373e8a0feffafb",
+    "Spikes/Sources/EvidenceValidator/SP5BDirectoryValidator.swift" : "0319515792e7324002f0304e15c1b8519fdf68f29ff648faac7c500fe27d600d",
+    "Spikes/Sources/EvidenceValidator/ValidatorError.swift" : "93bb3aee3aac5fa3322fdf8ff04743eb275bbac228ce60f72e3bdc071da4e06e",
+    "Spikes/Sources/Phase0Probe/AtomicityRunnerIdentity.swift" : "4c618386923dd3ca544d7e1ebe54f107f04eed771c923d53e1b5f6550e556901",
+    "Spikes/Sources/Phase0Probe/SP5BProbe.swift" : "dc21edb9a859d81d66aa82ae835f572f63fe1b5c1fc2486b89d5529397f85a86",
+    "Spikes/Sources/Phase0Probe/main.swift" : "5a4e448cada2f28414d5602fdad318be0cd2b925a7b79dbbdbafac43ba390ec6",
+    "Spikes/Sources/Phase0Support/Registries.swift" : "7b3bcb90f3f96ec5c0aea80acf45a16008e6cf5fc0b6b79a9ad0be0900c057fa",
+    "Spikes/Sources/Phase0Support/SP5BArtifacts.swift" : "67908d6f622a31eb82275e48d79e3228e4d698c5ae51b01147a4e8704e04203f",
+    "Spikes/Sources/Phase0Support/SP5BEvidence.swift" : "a97768710e6fcdb7b6697dd542db606fb2c54cc917ea04e72eadcf7aa34d4329",
+    "Spikes/Sources/Phase0Support/SP5BScenarios.swift" : "d32e203b737d3a009261f7479f3d75691183589db759591b9461c62e409a23da",
+    "Spikes/Sources/Phase0Support/VialQuery.swift" : "e48a657f42095ea7acf30afacdd1aa38cb5839bcdd41fc075f25e2b33e0897b3",
+    "Spikes/Sources/Phase0Support/VialRecordedFixtures.swift" : "96a5f521fd5551eb6fdc86def815f611a23a17c5ade5feb988ce38b4fb25bfc4",
+    "Spikes/Sources/Phase0Support/VialReplay.swift" : "862d3c752442e410470ade72d6e48917be690b1e900812ead24078fe4118f047",
+    "Spikes/Sources/Phase0Support/VialSourceContract.swift" : "d0ca447831941dd2fb4c8df72fa66f804d4f01c17e696ed6c29cfe54e2b705d1"
+  },
+  "schemaVersion" : 1,
+  "spikeID" : "SP-5B",
+  "verdict" : "BLOCKED"
+}

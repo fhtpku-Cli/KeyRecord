@@ -124,8 +124,9 @@ public enum SP4BScenarios {
         )
     }
 
-    public static func axes(repository: URL) throws -> SP4BAxesArtifact {
-        let sp4a = repository.appendingPathComponent("evidence/phase0/sp4a/evidence.json")
+    public static func axes(repository: URL, evidenceRoot: URL? = nil) throws -> SP4BAxesArtifact {
+        let sp4a = (evidenceRoot ?? repository.appendingPathComponent("evidence/phase0"))
+            .appendingPathComponent("sp4a/evidence.json")
         let layout = repository.appendingPathComponent(fixturePath)
         let blockedDevice = SP1Blocker(
             blockedBy: "approved_via_device_absent", detectCommand: ["environment-inventory", "approved-via-device"],
@@ -138,9 +139,9 @@ public enum SP4BScenarios {
             unblockAction: "Install official VIA and approve a matching device, then test import separately without exporting a deployment"
         )
         return SP4BAxesArtifact(axes: [
-            .init(axisID: .definitionSchema, verdict: .pass, evidence: evidence(sp4a, repository, "SP-4A independently characterizes V2/V3 definition schema only"), blocker: nil),
+            .init(axisID: .definitionSchema, verdict: .pass, evidence: evidence(sp4a, "evidence/phase0/sp4a/evidence.json", "SP-4A independently characterizes V2/V3 definition schema only"), blocker: nil),
             .init(axisID: .deviceProtocol, verdict: .blocked, evidence: nil, blocker: blockedDevice),
-            .init(axisID: .layoutFormat, verdict: .pass, evidence: evidence(layout, repository, "exact deterministic synthetic layout exercises the unversioned layout shape only"), blocker: nil),
+            .init(axisID: .layoutFormat, verdict: .pass, evidence: evidence(layout, fixturePath, "exact deterministic synthetic layout exercises the unversioned layout shape only"), blocker: nil),
             .init(axisID: .keycodeDialect, verdict: .blocked, evidence: nil, blocker: blockedDevice),
             .init(axisID: .officialImporterCompatibility, verdict: .blocked, evidence: nil, blocker: importer),
         ], firmwareDependentProtocolAndKeycodeDictionaries: true, viaProtocol13VialGUICompatible: false)
@@ -171,10 +172,9 @@ public enum SP4BScenarios {
             && value.opaqueSha256Before == value.opaqueSha256After
     }
 
-    private static func evidence(_ url: URL, _ repository: URL, _ claim: String) -> SP4BAxisEvidence {
-        let relative = url.path.replacingOccurrences(of: repository.path + "/", with: "")
+    private static func evidence(_ url: URL, _ artifactPath: String, _ claim: String) -> SP4BAxisEvidence {
         let data = (try? Data(contentsOf: url)) ?? Data()
-        return .init(artifactPath: relative, artifactSha256: ViaDefinitionDigest.sha256(data), claim: claim)
+        return .init(artifactPath: artifactPath, artifactSha256: ViaDefinitionDigest.sha256(data), claim: claim)
     }
     private static func required(_ value: String?) throws -> String { guard let value else { throw SP4BScenarioError.valueMissing }; return value }
     private static func opaqueHashes(_ value: ViaLayoutDocument) throws -> [String: String] {

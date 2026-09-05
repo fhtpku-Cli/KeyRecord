@@ -3,6 +3,23 @@ import XCTest
 @testable import Phase0Support
 
 final class ViaLayoutTests: XCTestCase {
+    func testAxesBindExplicitStagedSP4AEvidence() throws {
+        let repository = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent().deletingLastPathComponent()
+            .deletingLastPathComponent().deletingLastPathComponent()
+        let staged = FileManager.default.temporaryDirectory
+            .appendingPathComponent("keyrecord-sp4b-staged-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: staged.appendingPathComponent("sp4a"), withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: staged) }
+        let bytes = Data("staged-sp4a\n".utf8)
+        try bytes.write(to: staged.appendingPathComponent("sp4a/evidence.json"))
+
+        let axes = try SP4BScenarios.axes(repository: repository, evidenceRoot: staged)
+        let definition = try XCTUnwrap(axes.axes.first { $0.axisID == SP4BAxisID.definitionSchema }?.evidence)
+
+        XCTAssertEqual(definition.artifactPath, "evidence/phase0/sp4a/evidence.json")
+        XCTAssertEqual(definition.artifactSha256, ViaDefinitionDigest.sha256(bytes))
+    }
     private let fixture = Data(#"{"name":"phase0-layout","vendorProductId":1980457056,"layers":[["KC_A","KC_B"],["KC_C","KC_D"]],"macros":[""],"encoders":[]}"#.utf8)
     private let compatibility = ViaLayoutCompatibility(
         vendorProductID: 1_980_457_056,

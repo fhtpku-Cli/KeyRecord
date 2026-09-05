@@ -118,7 +118,11 @@ enum Phase0RootValidator {
     }
 
     private static func validateRunner(_ receipt: Phase0RunReceipt, repository: URL) throws {
-        guard Set(receipt.runnerSourceSha256.keys) == Phase0RunBinding.sourcePaths,
+        let sourceSet = Set(receipt.runnerSourceSha256.keys)
+        let legacyTask14Set = Phase0RunBinding.sourcePaths.subtracting(Phase0RunBinding.task15SourcePaths)
+        let acceptedSourceSet = sourceSet == Phase0RunBinding.sourcePaths
+            || (receipt.runnerCommitSha == "a5bb0fdac50be69d7abdbe2456c610f3e3e795a7" && sourceSet == legacyTask14Set)
+        guard acceptedSourceSet,
               isHex(receipt.runnerCommitSha, count: 40), isHex(receipt.runnerTreeSha, count: 40) else {
             throw ValidatorError("phase0_runner_source_set_mismatch")
         }
@@ -132,7 +136,7 @@ enum Phase0RootValidator {
         guard try git.run(["merge-base", "--is-ancestor", receipt.runnerCommitSha, "HEAD"], acceptedStatuses: [0, 1]).status == 0 else {
             throw ValidatorError("phase0_runner_not_ancestor")
         }
-        for path in Phase0RunBinding.sourcePaths.sorted() {
+        for path in sourceSet.sorted() {
             let result = try git.run(["cat-file", "blob", "\(receipt.runnerCommitSha):\(path)"], acceptedStatuses: [0, 128])
             guard result.status == 0, receipt.runnerSourceSha256[path] == Canonical.sha256(result.stdout) else {
                 throw ValidatorError("phase0_runner_source_hash_mismatch", path)

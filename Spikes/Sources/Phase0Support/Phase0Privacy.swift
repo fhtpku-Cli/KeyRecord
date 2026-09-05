@@ -21,14 +21,14 @@ public struct Phase0PrivacyReport: Codable, Equatable, Sendable {
     public let unmarkedEventRecordCount: Int
     public let conclusionGenerated: Bool
 
-    public init(filesScanned: Int, jsonFilesScanned: Int) {
+    public init(filesScanned: Int, jsonFilesScanned: Int, conclusionGenerated: Bool = false) {
         schemaVersion = 1
         self.filesScanned = filesScanned
         self.jsonFilesScanned = jsonFilesScanned
         forbiddenHitCount = 0
         symlinkCount = 0
         unmarkedEventRecordCount = 0
-        conclusionGenerated = false
+        self.conclusionGenerated = conclusionGenerated
     }
 }
 
@@ -92,7 +92,11 @@ public enum Phase0PrivacyAudit {
                 try scanText(bytes, path: relative)
             }
         }
-        return Phase0PrivacyReport(filesScanned: fileCount, jsonFilesScanned: jsonCount)
+        return Phase0PrivacyReport(
+            filesScanned: fileCount,
+            jsonFilesScanned: jsonCount,
+            conclusionGenerated: FileManager.default.fileExists(atPath: root.appendingPathComponent("conclusions.json").path)
+        )
     }
 
     public static func scanJSON(_ bytes: Data, path: String) throws {

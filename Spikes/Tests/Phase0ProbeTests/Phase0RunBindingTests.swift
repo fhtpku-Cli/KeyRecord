@@ -5,6 +5,7 @@ import XCTest
 
 final class Phase0RunBindingTests: XCTestCase {
     private static let newlyBoundSources: Set<String> = [
+        "Spikes/Package.swift",
         "Spikes/Sources/EvidenceValidator/CandidateBinder.swift",
         "Spikes/Sources/EvidenceValidator/GateValidator.swift",
         "Spikes/Sources/EvidenceValidator/ReceiptValidator.swift",
@@ -14,7 +15,7 @@ final class Phase0RunBindingTests: XCTestCase {
         "Spikes/Sources/Phase0Support/ValidationContracts.swift",
     ]
 
-    func testRunAllBindingIncludesEveryCompiledTargetSource() throws {
+    func testRunAllBindingIncludesEveryCompiledTargetSourceAndPackageManifest() throws {
         let repository = repositoryRoot()
         let targetDirectories = ["EvidenceValidator", "Phase0Probe", "Phase0Support"]
         var compiledSources = Set<String>()
@@ -25,7 +26,8 @@ final class Phase0RunBindingTests: XCTestCase {
             }
         }
 
-        XCTAssertTrue(compiledSources.isSubset(of: Phase0RunBinding.sourcePaths))
+        let requiredBuildInputs = compiledSources.union(["Spikes/Package.swift"])
+        XCTAssertTrue(requiredBuildInputs.isSubset(of: Phase0RunBinding.sourcePaths))
     }
 
     func testRunAllIdentityRejectsEachNewlyBoundDirtySource() throws {

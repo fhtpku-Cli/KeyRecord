@@ -81,6 +81,7 @@ public enum Phase0RunBinding {
         .union(SP4BRunnerBinding.sourcePaths).union(SP5ARunnerBinding.sourcePaths)
         .union(SP5BRunnerBinding.sourcePaths).union(SP6ARunnerBinding.sourcePaths)
         .union(SP6BRunnerBinding.sourcePaths).union([
+        "Spikes/Package.swift",
         "Spikes/Scripts/run-task-qa.sh", "Spikes/Scripts/task-14-qa.sh", "Spikes/Scripts/verify-manifests.sh",
         "Spikes/Sources/EvidenceValidator/AtomicityHistoricalValidator.swift",
         "Spikes/Sources/EvidenceValidator/CandidateBinder.swift", "Spikes/Sources/EvidenceValidator/Canonical.swift",

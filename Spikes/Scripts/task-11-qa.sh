@@ -5,7 +5,11 @@ tmp_dir="$(mktemp -d "${TMPDIR:-/tmp}/keyrecord-task11-qa.XXXXXX")"
 cleanup() { status=$?; children="$(jobs -pr)"; [[ -z "$children" ]] || { kill $children 2>/dev/null || true; wait $children 2>/dev/null || true; }; rm -rf "$tmp_dir"; exit "$status"; }
 trap cleanup EXIT INT TERM HUP
 mkdir -p .omo/evidence
-output=".omo/evidence/task-11-phase-0-validation$([[ "$mode" == failure ]] && printf '%s' '-failure').txt"
+if [[ "$mode" == failure ]]; then
+  output=".omo/evidence/task-11-phase-0-validation-failure.txt"
+else
+  output=".omo/evidence/task-11-phase-0-validation.txt"
+fi
 log="$tmp_dir/qa.log"; : >"$log"
 scratch="$tmp_dir/build"
 run() { printf 'COMMAND=' >>"$log"; printf ' %q' "$@" >>"$log"; printf '\n' >>"$log"; "$@" >>"$log" 2>&1; }

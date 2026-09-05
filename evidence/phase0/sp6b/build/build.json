@@ -1,5 +1,6 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-05T07:37:50Z",
   "recommendedCandidate": "phc",
   "commit": "f57e61e19229e23c4445b85494dbf7c07de721cb",
   "tree": "ac3dc753ff75ce5a0f243cba1d94582bafe09409",
@@ -8,7 +9,8 @@
     "arm64",
     "x86_64"
   ],
-  "archiveSha256": "650b2e0eff0910929f7aaae7ef7b43c337625cf120b06a19b577499b3c8881de",
+  "archiveSha256": "95497a26d620d235fd8c1da64dcd6cd08830a5090c9c0266b33af22ad899b110",
+  "compilerIdentity": "Apple clang version 21.0.0 (clang-2100.1.1.101)\nTarget: arm64-apple-darwin25.6.0\nThread model: posix\nInstalledDir: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin",
   "compilerFlags": [
     "-mmacosx-version-min=14.0",
     "-std=c89",
@@ -18,10 +20,183 @@
     "-Werror",
     "-fno-strict-aliasing"
   ],
+  "slices": [
+    {
+      "architecture": "x86_64",
+      "sliceSha256": "73ad3c60f125d6757d66853472a9c7dc7dedce7566f5d4f08e92b2f2b1ad9605",
+      "members": [
+        {
+          "member": "argon2.o",
+          "machOArchitecture": "x86_64",
+          "sourcePath": "src/argon2.c",
+          "sourceBlob": "34da3d6b4acf9f018c65c5b4835f6632708a3833",
+          "sourceSha256": "b1289ec7134e8502e9113396fdac89402bf2575ee1b35e33fb7410f2fb63bb6d",
+          "objectSha256": "7fa6ad2a0fd5df7893cef4422193ba3b69b389188f980b9fe52a7ae27ab3a298"
+        },
+        {
+          "member": "core.o",
+          "machOArchitecture": "x86_64",
+          "sourcePath": "src/core.c",
+          "sourceBlob": "e697882eb96dff757b0b64e9f990c4e740899562",
+          "sourceSha256": "d6ddc9e28c51d2c3b0d542c0c4678c4d9d788da048e4f557166030d0ef62618b",
+          "objectSha256": "7fa9529d9b0e2a98b347950ab11f6582e7867da6fd430c18e03a2003ae14c544"
+        },
+        {
+          "member": "blake2b.o",
+          "machOArchitecture": "x86_64",
+          "sourcePath": "src/blake2/blake2b.c",
+          "sourceBlob": "3b519ddb4d0754bc9f51d1380bffdb556ad7565b",
+          "sourceSha256": "7eb2f3faac14c532fb75f645f518686f3ef0db4c7b9849a1ffc73d262b596281",
+          "objectSha256": "447fe1724559e2779929cc1b088a2ada2aba66fe0015a19a30c796733a5f6045"
+        },
+        {
+          "member": "thread.o",
+          "machOArchitecture": "x86_64",
+          "sourcePath": "src/thread.c",
+          "sourceBlob": "3ae2fb233289737c8bdaec564bc1f43d1fd3797c",
+          "sourceSha256": "af2ab481fcf5ef00f1b2deb346bda3642797b417fc0ed98bfb7ae80e716f90d1",
+          "objectSha256": "ca6d5bd3a96ee622cbed80b2fd3c3bc6e65b9d634ac63ea45726ca69c26f1d6b"
+        },
+        {
+          "member": "encoding.o",
+          "machOArchitecture": "x86_64",
+          "sourcePath": "src/encoding.c",
+          "sourceBlob": "771a4409d571163f2535dbd5d0cd1f0cd8cbfc48",
+          "sourceSha256": "7b9a0c019abc6fca7e6e0a9abd2f7b22a885f8831827cfbd4bfd4502dd9f7806",
+          "objectSha256": "89a42e084bbf26bd728c8be24d7aab29a0987dc00c039fd9bbc15e744c63f0c5"
+        },
+        {
+          "member": "ref.o",
+          "machOArchitecture": "x86_64",
+          "sourcePath": "src/ref.c",
+          "sourceBlob": "10e45eba64eddd6ae0a8608438d414345a6aff9b",
+          "sourceSha256": "9ac347fd8dc737af69bbb93d56ac8b4ab5488152f606880c8d7fc4592e207647",
+          "objectSha256": "37bd89649d6e3d47d440600dd1d8d93bc3d20efe1701cc787e7e25bd27c98399"
+        }
+      ]
+    },
+    {
+      "architecture": "arm64",
+      "sliceSha256": "62af537f7c21ba045f66ca4a1815fe9c45f1e3a7b554bad49b049fb0358395f1",
+      "members": [
+        {
+          "member": "argon2.o",
+          "machOArchitecture": "arm64",
+          "sourcePath": "src/argon2.c",
+          "sourceBlob": "34da3d6b4acf9f018c65c5b4835f6632708a3833",
+          "sourceSha256": "b1289ec7134e8502e9113396fdac89402bf2575ee1b35e33fb7410f2fb63bb6d",
+          "objectSha256": "4264274a26376792e9203aa332f835b75e8a8d0085c223f502efcb8f20884fde"
+        },
+        {
+          "member": "core.o",
+          "machOArchitecture": "arm64",
+          "sourcePath": "src/core.c",
+          "sourceBlob": "e697882eb96dff757b0b64e9f990c4e740899562",
+          "sourceSha256": "d6ddc9e28c51d2c3b0d542c0c4678c4d9d788da048e4f557166030d0ef62618b",
+          "objectSha256": "9b8170a68ff9a669750b99205be8b2f4139fb49f0c53b047b763a4b1af488175"
+        },
+        {
+          "member": "blake2b.o",
+          "machOArchitecture": "arm64",
+          "sourcePath": "src/blake2/blake2b.c",
+          "sourceBlob": "3b519ddb4d0754bc9f51d1380bffdb556ad7565b",
+          "sourceSha256": "7eb2f3faac14c532fb75f645f518686f3ef0db4c7b9849a1ffc73d262b596281",
+          "objectSha256": "8df7d7817650d247d0abfc50a9ca849ae426b3548737199222075ee11f9c7246"
+        },
+        {
+          "member": "thread.o",
+          "machOArchitecture": "arm64",
+          "sourcePath": "src/thread.c",
+          "sourceBlob": "3ae2fb233289737c8bdaec564bc1f43d1fd3797c",
+          "sourceSha256": "af2ab481fcf5ef00f1b2deb346bda3642797b417fc0ed98bfb7ae80e716f90d1",
+          "objectSha256": "3ab43ccc86ec5d03f4fe3d7d94802c89d5fb94727455cfb9ce4697a8e9537bc8"
+        },
+        {
+          "member": "encoding.o",
+          "machOArchitecture": "arm64",
+          "sourcePath": "src/encoding.c",
+          "sourceBlob": "771a4409d571163f2535dbd5d0cd1f0cd8cbfc48",
+          "sourceSha256": "7b9a0c019abc6fca7e6e0a9abd2f7b22a885f8831827cfbd4bfd4502dd9f7806",
+          "objectSha256": "ddb2449b5818cb44343d1bdaf76c13ff6da6b68fa2b3b14e3c26489af8708ec8"
+        },
+        {
+          "member": "ref.o",
+          "machOArchitecture": "arm64",
+          "sourcePath": "src/ref.c",
+          "sourceBlob": "10e45eba64eddd6ae0a8608438d414345a6aff9b",
+          "sourceSha256": "9ac347fd8dc737af69bbb93d56ac8b4ab5488152f606880c8d7fc4592e207647",
+          "objectSha256": "402368f2564dd0d940e1767955179b26bc0ae18c9cfe051a36b03064c6d59bcd"
+        }
+      ]
+    }
+  ],
   "swiftCandidate": {
     "commit": "14d47de1914ac63b368ddb2cfe0f47ffe25f04cf",
     "tree": "4bb860f4c47b4b327ea207da3fe7a007a05c7b81",
     "arm64MacOS14": true,
     "x86_64MacOS14": true
-  }
+  },
+  "vectors": [
+    {
+      "candidateID": "phc",
+      "commit": "f57e61e19229e23c4445b85494dbf7c07de721cb",
+      "tree": "ac3dc753ff75ce5a0f243cba1d94582bafe09409",
+      "command": [
+        "clang",
+        "argon-vector.c",
+        "argon2-universal.a"
+      ],
+      "inputs": {
+        "passwordByte": "01",
+        "passwordLength": 32,
+        "saltByte": "02",
+        "saltLength": 16,
+        "secretByte": "03",
+        "secretLength": 8,
+        "associatedDataByte": "04",
+        "associatedDataLength": 12,
+        "memoryKiB": 32,
+        "iterations": 3,
+        "parallelism": 4,
+        "outputLength": 32
+      },
+      "expectedTag": "0d640df58d78766c08c037a34a8b53c9d01ef0452d75b65eb52520e96b01e659",
+      "observedTag": "0d640df58d78766c08c037a34a8b53c9d01ef0452d75b65eb52520e96b01e659",
+      "harnessSourceSha256": "6f55bdb7288cc1a38a79ce5ad6be1853b06f2c5ad571a8d9363b1675d9f81da6",
+      "candidateSourceSha256": null,
+      "executableSha256": "17062df43289432bd4f6152a22bc5f26a04e0070abea476d96310e85f04d2de0",
+      "exitStatus": 0
+    },
+    {
+      "candidateID": "swift",
+      "commit": "14d47de1914ac63b368ddb2cfe0f47ffe25f04cf",
+      "tree": "4bb860f4c47b4b327ea207da3fe7a007a05c7b81",
+      "command": [
+        "xcrun",
+        "swiftc",
+        "Argon2id.swift",
+        "argon-swift-vector.swift"
+      ],
+      "inputs": {
+        "passwordByte": "01",
+        "passwordLength": 32,
+        "saltByte": "02",
+        "saltLength": 16,
+        "secretByte": "03",
+        "secretLength": 8,
+        "associatedDataByte": "04",
+        "associatedDataLength": 12,
+        "memoryKiB": 32,
+        "iterations": 3,
+        "parallelism": 4,
+        "outputLength": 32
+      },
+      "expectedTag": "0d640df58d78766c08c037a34a8b53c9d01ef0452d75b65eb52520e96b01e659",
+      "observedTag": "0d640df58d78766c08c037a34a8b53c9d01ef0452d75b65eb52520e96b01e659",
+      "harnessSourceSha256": "9558e67e758dba3af0aa58397000248f23eaff7cd96569e447f132161725dde8",
+      "candidateSourceSha256": "1e61d33a541766098afdb665aa017d6e8ec1becbac605ae16f2ab6ffb7bd42ad",
+      "executableSha256": "b7a8e0efaddac398baf24a291ce94c56b7bcf4bbf8a3f3dd8ed84016859c5c3d",
+      "exitStatus": 0
+    }
+  ]
 }

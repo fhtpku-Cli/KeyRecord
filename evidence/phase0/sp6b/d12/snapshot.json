@@ -1,6 +1,6 @@
 {
-  "schemaVersion": 1,
-  "generatedAt": "2026-09-05T06:32:08Z",
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-05T07:37:50Z",
   "candidates": [
     {
       "id": "phc",
@@ -11,8 +11,8 @@
           "url": "https://api.github.com/repos/P-H-C/phc-winner-argon2/security-advisories?per_page=100",
           "requestBody": null,
           "status": 200,
-          "retrievedAt": "2026-09-05T06:32:03Z",
-          "headersSha256": "64e91d787e914e82f3c3602bf1283cb4a000f9a22fe9d60b07d02753fc46b2ab",
+          "retrievedAt": "2026-09-05T07:37:50Z",
+          "headersSha256": "3485049658492a0430482266553038d791b9bf0108f024e8e77e8567642bdc71",
           "rawBodySha256": "2ba33ca0557f1bb5b7ba88d67f9d0093c7185a36ec51fe2b7bd9372d3e001d6d",
           "headersPath": "raw/github-phc-0.headers",
           "rawBodyPath": "raw/github-phc-0.json",
@@ -25,8 +25,8 @@
             "url": "https://api.osv.dev/v1/query",
             "requestBody": "{\"commit\":\"f57e61e19229e23c4445b85494dbf7c07de721cb\"}",
             "status": 200,
-            "retrievedAt": "2026-09-05T06:32:03Z",
-            "headersSha256": "c7f33cd8c4e7d87229316cc59ef223795313d462b42d40c96d09102acdacca32",
+            "retrievedAt": "2026-09-05T07:37:50Z",
+            "headersSha256": "ffe3f670348a2f05c35c2f1a2ec0ee5d7208153e28f417638e22f65d001cbc54",
             "rawBodySha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
             "headersPath": "raw/osv-phc-0.headers",
             "rawBodyPath": "raw/osv-phc-0.json",
@@ -45,8 +45,8 @@
           "url": "https://api.github.com/repos/MarlonJD/argon2id-swift-native/security-advisories?per_page=100",
           "requestBody": null,
           "status": 200,
-          "retrievedAt": "2026-09-05T06:32:03Z",
-          "headersSha256": "ac28ddb3cfa65e7abdb722ed767f553ac6c88ba5371d0100fd965eb7295e6fd6",
+          "retrievedAt": "2026-09-05T07:37:50Z",
+          "headersSha256": "d647f12fe717f3cc84c55ff2ea15074e9e8b8e37be23d56bc2c99d9dfbe62b6b",
           "rawBodySha256": "2ba33ca0557f1bb5b7ba88d67f9d0093c7185a36ec51fe2b7bd9372d3e001d6d",
           "headersPath": "raw/github-swift-0.headers",
           "rawBodyPath": "raw/github-swift-0.json",
@@ -59,8 +59,8 @@
             "url": "https://api.osv.dev/v1/query",
             "requestBody": "{\"commit\":\"14d47de1914ac63b368ddb2cfe0f47ffe25f04cf\"}",
             "status": 200,
-            "retrievedAt": "2026-09-05T06:32:03Z",
-            "headersSha256": "24517e6c53130cac3d4edd959cbd2ed5a45566cd0569ca403c8d9c55cf8b6320",
+            "retrievedAt": "2026-09-05T07:37:50Z",
+            "headersSha256": "1dae40a5262d289c7db2d6a712c9db8c4a1befd2761a11ad4c64085219dff192",
             "rawBodySha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
             "headersPath": "raw/osv-swift-0.headers",
             "rawBodyPath": "raw/osv-swift-0.json",
@@ -72,15 +72,16 @@
     }
   ],
   "nvd": {
+    "auditRevision": "argon2-keyword-2026-09-05",
     "pages": [
       {
         "request": {
           "url": "https://services.nvd.nist.gov/rest/json/cves/2.0?keywordSearch=argon2&resultsPerPage=2000",
           "requestBody": null,
           "status": 200,
-          "retrievedAt": "2026-09-05T06:32:03Z",
-          "headersSha256": "c3b30de29238652d1151200f9c4f566b22c7afeb781e9f22cefb328b887506a8",
-          "rawBodySha256": "67e226f2725eb7c55ba3afcedebb621a32e56b6ebd6ab0269a96e28158b05372",
+          "retrievedAt": "2026-09-05T07:37:50Z",
+          "headersSha256": "825b88f11e1fe41256c3d9a544b39fa0b45aaa179d2e9dd1eb89086d8b06890b",
+          "rawBodySha256": "ac5e0de16b375258916fc16979c1d611e11aab231f67f0917949935556af96dc",
           "headersPath": "raw/nvd-0.headers",
           "rawBodyPath": "raw/nvd-0.json",
           "next": null
@@ -92,52 +93,92 @@
           {
             "cveID": "CVE-2023-27481",
             "impact": "none",
-            "rationale": "CVE-2023-27481 is an application, language binding, or non-candidate implementation keyword hit; neither exact pinned repository is affected"
+            "category": "unrelated-application",
+            "rationale": "Directus authorization flaw exposes stored hashes; its Directus CPE and code are outside both pinned candidate trees.",
+            "descriptionSha256": "f608f9d650b3fe657e3554db2ddbeb55cc0cdecf55af24a4aa9c9bbdb75ddf73",
+            "configurationSha256": "14c9a86514a2a4db52d3c77cb1b0832615d8c5b2bbcc5b4f537a70e69887fe48",
+            "referencesSha256": "2c5526103e9fd6d0bca5a50e9c24e7f9817f104e1a3729b02c88fe1c7646527c"
           },
           {
             "cveID": "CVE-2026-25222",
             "impact": "none",
-            "rationale": "CVE-2026-25222 is an application, language binding, or non-candidate implementation keyword hit; neither exact pinned repository is affected"
+            "category": "unrelated-application",
+            "rationale": "PolarLearn login timing behavior is application control flow and does not affect either pinned Argon2 implementation.",
+            "descriptionSha256": "297a260734ae1b71dc2a4dbc9f8465b426c05b22735f25548e3d494f0e42b737",
+            "configurationSha256": "fcd6a8147ef87843f88302c080658f6f4928052dd4fa1e351f30404deeed7e9d",
+            "referencesSha256": "eeafdc01275c8695277f3939606663d1a41bd7e6abafc4fff99f3f25646b2c5a"
           },
           {
             "cveID": "CVE-2026-8463",
             "impact": "none",
-            "rationale": "CVE-2026-8463 is an application, language binding, or non-candidate implementation keyword hit; neither exact pinned repository is affected"
+            "category": "unrelated-language-binding",
+            "rationale": "The underflow is in Perl Crypt::Argon2 wrapper code, absent from both pinned candidate trees.",
+            "descriptionSha256": "2679c6dca98ebe781e620f05c15c5e4ec80c67b81de66bec0661e6deb373ddc1",
+            "configurationSha256": "37a44bcf11bea1853d44f84c7bf13916e4554175ff8068cef0fa128ecbeef885",
+            "referencesSha256": "b12b081a87e5431b6339c9b29fe54ed58239ed0ea8d542a8f07be5cce87cbadc"
           },
           {
             "cveID": "CVE-2026-56124",
             "impact": "none",
-            "rationale": "CVE-2026-56124 is an application, language binding, or non-candidate implementation keyword hit; neither exact pinned repository is affected"
+            "category": "unrelated-application",
+            "rationale": "phpUploader discloses database rows containing hashes; it does not identify code in either pinned candidate.",
+            "descriptionSha256": "fc9ca4caa16fee8de63d05b50c3b102db92d4abc870f341682ea13ca1ae708cc",
+            "configurationSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "referencesSha256": "e465c434234dda8d9e77e3e99ab94a64aceba0a054b103f88302e47f3a954317"
           },
           {
             "cveID": "CVE-2026-59648",
             "impact": "none",
-            "rationale": "CVE-2026-59648 is an application, language binding, or non-candidate implementation keyword hit; neither exact pinned repository is affected"
+            "category": "unrelated-implementation",
+            "rationale": "Bouncy Castle Java OpenPGP parameter handling is a separate Java implementation outside both pinned trees.",
+            "descriptionSha256": "5900c2bb04c1969a11e6c67a69b025fbc5448c11b5a13da90bce903e6d1065f9",
+            "configurationSha256": "c9811d6e481e9b574944cfc514b3285f0550533b73bef99210feea26c825cc83",
+            "referencesSha256": "284551d086951551231bedb4d118314201dc84dc87452c2cf09ac36fc41edcc1"
           },
           {
             "cveID": "CVE-2026-48084",
             "impact": "none",
-            "rationale": "CVE-2026-48084 is an application, language binding, or non-candidate implementation keyword hit; neither exact pinned repository is affected"
+            "category": "unrelated-application",
+            "rationale": "OpenReception lacks application-level throttling; neither pinned Argon2 candidate supplies that policy.",
+            "descriptionSha256": "cc03d4cadbae94baf69e6dbe64e0dd57a073650f3629f72823cec908861c5155",
+            "configurationSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "referencesSha256": "7bffe1c581f506e7dfa9fe7e83915b4c89b26e2587823768595dd3edf831c29f"
           },
           {
             "cveID": "CVE-2026-72801",
             "impact": "none",
-            "rationale": "CVE-2026-72801 is an application, language binding, or non-candidate implementation keyword hit; neither exact pinned repository is affected"
+            "category": "unrelated-application",
+            "rationale": "SiYuan publish endpoints disclose application key material; its application code is absent from both pinned trees.",
+            "descriptionSha256": "0f27a4dd88ca60bb50d07d77bc16d165f35361a8c2a9815cbeb02b440a763c68",
+            "configurationSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "referencesSha256": "0eafa32682e987099acb793925ca0c446b9c1e1ff331c84d258d55f74fe6b411"
           },
           {
             "cveID": "CVE-2026-81704",
             "impact": "none",
-            "rationale": "CVE-2026-81704 is an application, language binding, or non-candidate implementation keyword hit; neither exact pinned repository is affected"
+            "category": "unrelated-implementation",
+            "rationale": "openssl_encrypt uses a separate Python KDF implementation and its missing stretching is outside both pinned trees.",
+            "descriptionSha256": "2ea404e95ad3fae9438e5ecc1702aee33b6cbbb53c973d0da5fe6e0c23a9afcb",
+            "configurationSha256": "a5108cd58e51e21b6de706f0c658624e2e9ed91c2613500dc85f0ea2c812612f",
+            "referencesSha256": "7ba17e6c5c8dcfe82af51cee7878ecf2a19f0e3b3cae4ebca7ea140d2edc05e5"
           },
           {
             "cveID": "CVE-2026-81721",
             "impact": "none",
-            "rationale": "CVE-2026-81721 is an application, language binding, or non-candidate implementation keyword hit; neither exact pinned repository is affected"
+            "category": "unrelated-implementation",
+            "rationale": "openssl_encrypt metadata bounds are implemented in separate Python code absent from both pinned trees.",
+            "descriptionSha256": "bb2c1056bfcb4bc7a996de1ebe8d436e0ec248775c7e05dfe07187267de8b1d6",
+            "configurationSha256": "a5108cd58e51e21b6de706f0c658624e2e9ed91c2613500dc85f0ea2c812612f",
+            "referencesSha256": "5a6bfa8abf27509f19610cd9ce4a0625b3e7d338433922dd30d666be54db87d6"
           },
           {
             "cveID": "CVE-2026-53720",
             "impact": "none",
-            "rationale": "CVE-2026-53720 is an application, language binding, or non-candidate implementation keyword hit; neither exact pinned repository is affected"
+            "category": "unrelated-language-binding",
+            "rationale": "pymonocypher is a Cython wrapper around Monocypher and shares no source with either pinned candidate.",
+            "descriptionSha256": "7a3a5b2db2c8ed4cc076901d1553ec5e5e99003e5a89f5f547ed8c880b6bb620",
+            "configurationSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "referencesSha256": "ad28578c4ab09481ff79f24aa7051fd6fe1b2988b1e8d4bfbb4ac87fd596fe1c"
           }
         ]
       }

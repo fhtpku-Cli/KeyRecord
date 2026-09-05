@@ -1,5 +1,6 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-05T07:37:50Z",
   "spikeID": "SP-6B",
   "dependencyFrozen": false,
   "recommendedCandidate": "phc",
@@ -10,8 +11,8 @@
       "detectorID": "D12",
       "detectorAvailable": true,
       "verdict": "PASS",
-      "runnerCommitSha": "311e7a150dfe20ac3ff7aee6a378aee0fda0aeb8",
-      "runnerTreeSha": "3e717e7b46695c7c894487093cf722f4d8b737ab",
+      "runnerCommitSha": "e560cdeb9e60d0925ce445fe20094f9226ab2166",
+      "runnerTreeSha": "5ed9113d385a4f7b1a3005e922075525cb94e906",
       "environmentSha256": "6b3288f5983cbce231295762d3f8381b8467d6dbe2e74fff0e17a1aebf7215f4",
       "command": [
         "Phase0Probe",
@@ -20,7 +21,7 @@
       ],
       "exitStatus": 0,
       "artifactPath": "dependency-audit.md",
-      "artifactSha256": "48e1b34f5a4b5a414d84d84043c1d1cc667d34a76fb7ccbe5e0e07fdf4f08bbf"
+      "artifactSha256": "f1fc3c48837da579c04f99db275b5eab2082945c1305ceaf49d1aef07d507340"
     },
     {
       "legID": "sp6b.swiftAudit",
@@ -28,8 +29,8 @@
       "detectorID": "D12",
       "detectorAvailable": true,
       "verdict": "PASS",
-      "runnerCommitSha": "311e7a150dfe20ac3ff7aee6a378aee0fda0aeb8",
-      "runnerTreeSha": "3e717e7b46695c7c894487093cf722f4d8b737ab",
+      "runnerCommitSha": "e560cdeb9e60d0925ce445fe20094f9226ab2166",
+      "runnerTreeSha": "5ed9113d385a4f7b1a3005e922075525cb94e906",
       "environmentSha256": "6b3288f5983cbce231295762d3f8381b8467d6dbe2e74fff0e17a1aebf7215f4",
       "command": [
         "Phase0Probe",
@@ -38,7 +39,7 @@
       ],
       "exitStatus": 0,
       "artifactPath": "dependency-audit.md",
-      "artifactSha256": "48e1b34f5a4b5a414d84d84043c1d1cc667d34a76fb7ccbe5e0e07fdf4f08bbf"
+      "artifactSha256": "f1fc3c48837da579c04f99db275b5eab2082945c1305ceaf49d1aef07d507340"
     },
     {
       "legID": "sp6b.vectors",
@@ -46,8 +47,8 @@
       "detectorID": "D0",
       "detectorAvailable": true,
       "verdict": "PASS",
-      "runnerCommitSha": "311e7a150dfe20ac3ff7aee6a378aee0fda0aeb8",
-      "runnerTreeSha": "3e717e7b46695c7c894487093cf722f4d8b737ab",
+      "runnerCommitSha": "e560cdeb9e60d0925ce445fe20094f9226ab2166",
+      "runnerTreeSha": "5ed9113d385a4f7b1a3005e922075525cb94e906",
       "environmentSha256": "6b3288f5983cbce231295762d3f8381b8467d6dbe2e74fff0e17a1aebf7215f4",
       "command": [
         "Phase0Probe",
@@ -56,7 +57,7 @@
       ],
       "exitStatus": 0,
       "artifactPath": "build/build.json",
-      "artifactSha256": "8b1093e8c0ee3d93b03870400dd6edf80696664e6943ae74f1fc5f6a2f96d5d3"
+      "artifactSha256": "668cca7e2818c5945a0579503afe735e376ca6b64f566e0b0dd72a5668168d3d"
     },
     {
       "legID": "sp6b.universalBuild",
@@ -64,8 +65,8 @@
       "detectorID": "D10",
       "detectorAvailable": true,
       "verdict": "PASS",
-      "runnerCommitSha": "311e7a150dfe20ac3ff7aee6a378aee0fda0aeb8",
-      "runnerTreeSha": "3e717e7b46695c7c894487093cf722f4d8b737ab",
+      "runnerCommitSha": "e560cdeb9e60d0925ce445fe20094f9226ab2166",
+      "runnerTreeSha": "5ed9113d385a4f7b1a3005e922075525cb94e906",
       "environmentSha256": "6b3288f5983cbce231295762d3f8381b8467d6dbe2e74fff0e17a1aebf7215f4",
       "command": [
         "Phase0Probe",
@@ -74,7 +75,7 @@
       ],
       "exitStatus": 0,
       "artifactPath": "build/argon2-universal.a",
-      "artifactSha256": "650b2e0eff0910929f7aaae7ef7b43c337625cf120b06a19b577499b3c8881de"
+      "artifactSha256": "95497a26d620d235fd8c1da64dcd6cd08830a5090c9c0266b33af22ad899b110"
     },
     {
       "legID": "sp6b.armTiming",
@@ -82,8 +83,8 @@
       "detectorID": "D0",
       "detectorAvailable": true,
       "verdict": "PASS",
-      "runnerCommitSha": "311e7a150dfe20ac3ff7aee6a378aee0fda0aeb8",
-      "runnerTreeSha": "3e717e7b46695c7c894487093cf722f4d8b737ab",
+      "runnerCommitSha": "e560cdeb9e60d0925ce445fe20094f9226ab2166",
+      "runnerTreeSha": "5ed9113d385a4f7b1a3005e922075525cb94e906",
       "environmentSha256": "6b3288f5983cbce231295762d3f8381b8467d6dbe2e74fff0e17a1aebf7215f4",
       "command": [
         "Phase0Probe",
@@ -92,7 +93,7 @@
       ],
       "exitStatus": 0,
       "artifactPath": "arm-benchmark.json",
-      "artifactSha256": "6bf3027ccaa8e9ae790d56661375ff49a6f9a9f7fd3097c6e0313fe948ed3c8e"
+      "artifactSha256": "f22513cb2a86ab8720a521c994c692a8b8c285215a26db87b2cdee874337d172"
     },
     {
       "legID": "sp6b.securityAudit",
@@ -100,8 +101,8 @@
       "detectorID": "D12",
       "detectorAvailable": true,
       "verdict": "PASS",
-      "runnerCommitSha": "311e7a150dfe20ac3ff7aee6a378aee0fda0aeb8",
-      "runnerTreeSha": "3e717e7b46695c7c894487093cf722f4d8b737ab",
+      "runnerCommitSha": "e560cdeb9e60d0925ce445fe20094f9226ab2166",
+      "runnerTreeSha": "5ed9113d385a4f7b1a3005e922075525cb94e906",
       "environmentSha256": "6b3288f5983cbce231295762d3f8381b8467d6dbe2e74fff0e17a1aebf7215f4",
       "command": [
         "Phase0Probe",
@@ -110,7 +111,7 @@
       ],
       "exitStatus": 0,
       "artifactPath": "dependency-audit.md",
-      "artifactSha256": "48e1b34f5a4b5a414d84d84043c1d1cc667d34a76fb7ccbe5e0e07fdf4f08bbf"
+      "artifactSha256": "f1fc3c48837da579c04f99db275b5eab2082945c1305ceaf49d1aef07d507340"
     },
     {
       "legID": "sp6b.intelTiming",
@@ -127,8 +128,8 @@
         "prerequisite": "physical x86_64 Mac running macOS 14 or later",
         "unblock_action": "Run the bound benchmark with frozen recommended parameters on a physical Intel macOS 14+ host"
       },
-      "runnerCommitSha": "311e7a150dfe20ac3ff7aee6a378aee0fda0aeb8",
-      "runnerTreeSha": "3e717e7b46695c7c894487093cf722f4d8b737ab",
+      "runnerCommitSha": "e560cdeb9e60d0925ce445fe20094f9226ab2166",
+      "runnerTreeSha": "5ed9113d385a4f7b1a3005e922075525cb94e906",
       "environmentSha256": "6b3288f5983cbce231295762d3f8381b8467d6dbe2e74fff0e17a1aebf7215f4",
       "command": [],
       "exitStatus": null,
@@ -138,23 +139,32 @@
   ],
   "verdict": "BLOCKED",
   "runnerSourceSha256": {
-    "Spikes/Scripts/argon-bench.c": "6305786e785ae8fb29951bc0e6b1248b39f768f9ed0dbd3d6d55970dd139ad2e",
+    "Spikes/Scripts/argon-bench.c": "09f039936e5f05be90c83c7c8be90467752388b900370439976d0d3957fb0491",
+    "Spikes/Scripts/argon-swift-vector.swift": "9558e67e758dba3af0aa58397000248f23eaff7cd96569e447f132161725dde8",
     "Spikes/Scripts/argon-vector.c": "6f55bdb7288cc1a38a79ce5ad6be1853b06f2c5ad571a8d9363b1675d9f81da6",
+    "Spikes/Scripts/audit-argon-sources.sh": "d78f9d123e4f5f4e0e8a8a80e2febc26b1bdcb8b2547ea0d1e1f5a5cd0e0c0aa",
     "Spikes/Scripts/audit-security.sh": "0eb18cc4d59c5de6854f59a7e9b770b4497909aed54c7e1bd759688583e7674d",
-    "Spikes/Scripts/benchmark-argon-arm.sh": "fefcfc314404fbf083a5bf9974a945e8fcfe270be2561bbf8f8907efcfa854c9",
-    "Spikes/Scripts/build-argon-universal.sh": "339cb4bc0ca9684202e156892b9fe24deef826aa172c76e67dda0ed916ca6c69",
-    "Spikes/Scripts/capture-argon-advisories.sh": "0438ee6b2520fdcfb546fd33627b94f156b5bb6bb9e1a54f17b026ce71f8ba08",
-    "Spikes/Scripts/run-sp6b.sh": "2ddb72b3ff8dcf9672b21d32562d3f4835c46ab90ceef1f45c031523183ce721",
+    "Spikes/Scripts/benchmark-argon-arm.sh": "9f259f5fd27f82eae130941727cd6578aa798d3330afa161b694d5ffa134dece",
+    "Spikes/Scripts/build-argon-universal.sh": "a671664bcd64c2a6adf9739ad42321ab2169802436d89afdd57786d10b268917",
+    "Spikes/Scripts/capture-argon-advisories.sh": "4edf5353e9d5434761a18be3b56b778f6d994863dfbb80f7093b4781b3e6367f",
+    "Spikes/Scripts/run-sp6b.sh": "f4793a418511b5f047c0a6966eb8505d967aa004aa4da2640ab0eb44bf9fdef6",
     "Spikes/Scripts/run-task-qa.sh": "219c091e5b639b261f1e26629d6700dfe1fcdfc5ef13c91c582ae5888dac9a63",
-    "Spikes/Scripts/task-11-qa.sh": "e95eb3f0218806e4ec6d1064fe6d4ba730339d84ffa15307152dcf4bb2ead358",
+    "Spikes/Scripts/sp6b-nvd-review.json": "96122bb36eb946c43e8428bedf1a16adab8406fb5e8d14ab9885859b736de241",
+    "Spikes/Scripts/sp6b-source-contract.json": "e4faa8e4078da4af6bcb36a6d64fe614f6986cac2ccbf4fa1d4760d964fef357",
+    "Spikes/Scripts/task-11-qa.sh": "2fb911867696d57a8499b6e8d7a38ab20a926f40af66fa532a1460c12e564ee5",
     "Spikes/Sources/EvidenceValidator/EvidenceValidatorCommand.swift": "6c99eb6b6a33a0a66eabacaae23ca2de39fe233f77799a9ada1d9f1bbad28131",
-    "Spikes/Sources/EvidenceValidator/SP6BDirectoryValidator.swift": "209b5841a55d39769fb863843cd596807242306334eae507724bb766e35d53be",
+    "Spikes/Sources/EvidenceValidator/SP6BBenchmarkValidator.swift": "1f1ca070e8894cd101e8893741ec1cb245983c33a4387c73307c4f86613f42d7",
+    "Spikes/Sources/EvidenceValidator/SP6BBuildValidator.swift": "3c7f77d769f3cfd37850eba2fcb6bb2b91e19d19ca698f618282277c107c600c",
+    "Spikes/Sources/EvidenceValidator/SP6BDirectoryValidator.swift": "1748f2c252883eb354a912d13120bcb435b5855486185ca3e233f3dc2bd6934b",
+    "Spikes/Sources/EvidenceValidator/SP6BNVDValidator.swift": "d0ec1b29cdd2fd8d018ceca704dae5cf1da0cd9889eba14f2bc233249ebd65fa",
+    "Spikes/Sources/EvidenceValidator/SP6BSourceValidator.swift": "10ba47d9b2d98e6dd856585fda2a963c118793b67d49c38f7897772202f8058f",
     "Spikes/Sources/Phase0Probe/SP6BProbe.swift": "76ade32843292a20cf00edcde595e73840fddd54c31fbeba831b26c05fc2548b",
     "Spikes/Sources/Phase0Probe/main.swift": "b55e49ef6645da74b7e404fd436d88d5c8250ceeae158ad2fee0b07f64712ae6",
-    "Spikes/Sources/Phase0Support/Argon2Candidate.swift": "94c242ed9b73c782ea01423af3f3e24c1a0dcfde51054024111cc7fade37b897",
-    "Spikes/Sources/Phase0Support/D12Snapshot.swift": "f0d6d74f3c8d640e91712155ef196a8446bd1492da57dd0b6a3f7ab8911b6f73",
-    "Spikes/Sources/Phase0Support/SP6BEvidence.swift": "b43ccf50b42a8c32e993d8b7ac8f1e6bc0d4b7a5b19feb8f9ff07b5068a64f1d",
-    "Spikes/Tests/EvidenceValidatorTests/SP6BValidatorTests.swift": "1093a66dd56934ddc23e3c20368e536936a845b22248c21936daede0501cf8d3",
+    "Spikes/Sources/Phase0Support/Argon2Candidate.swift": "e234b0fdd9c96b712f9ea612345c86b3970bf64d49972fb0c9de4593a8e398d8",
+    "Spikes/Sources/Phase0Support/D12Fixture.swift": "7c0bcad43ab0a93cf61e86a254a48a447a25272b3122933125711e575c4873d4",
+    "Spikes/Sources/Phase0Support/D12Snapshot.swift": "ad02c830e0809ae9483526aa113d14c3b1a98520dec17c766871c1afdbdd5400",
+    "Spikes/Sources/Phase0Support/SP6BEvidence.swift": "8ae8a2cb285dc99ccc939d2f934bc3d3668b9a146c72948b23adbb41ba47ed88",
+    "Spikes/Tests/EvidenceValidatorTests/SP6BValidatorTests.swift": "d10a4d12f60f0162296fe2f68f3a1eccf77c505c321a8386f066b5212a19e713",
     "Spikes/Tests/Phase0SupportTests/Argon2AuditTests.swift": "d54413bcdf4a3fd02d59c9fb65b1b44d6fca3788a9aa0ae516dcca94af4b9111"
   }
 }

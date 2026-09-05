@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-05T06:32:08Z",
+  "generatedAt": "2026-09-05T07:37:50Z",
   "dependencyFrozen": false,
   "recommendation": "phc",
   "eligibleCandidateIDs": [
@@ -16,7 +16,7 @@
       "latestCommitDate": "2021-06-25T08:21:15Z",
       "pedigree": "phcReference",
       "runtimeDependencyCount": 0,
-      "sourceLOC": 2988,
+      "sourceLOC": 3294,
       "licenseApproved": true,
       "vectorsPassed": true,
       "dualArchMacOS14Build": true,
@@ -31,7 +31,7 @@
       "latestCommitDate": "2026-05-25T11:13:33Z",
       "pedigree": "independent",
       "runtimeDependencyCount": 0,
-      "sourceLOC": 558,
+      "sourceLOC": 631,
       "licenseApproved": true,
       "vectorsPassed": true,
       "dualArchMacOS14Build": true,

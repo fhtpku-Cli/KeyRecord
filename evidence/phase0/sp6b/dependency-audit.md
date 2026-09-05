@@ -14,7 +14,7 @@ Scope: full pinned implementations and manifests. PHC `f57e61e19229e23c4445b8549
 | 9 | allocation-errors | PASS | High | allocation callbacks and error codes in `src/core.c` | checked parameter domain and Swift allocation | PHC propagates allocation failures; fixed 512 MiB reviewed Swift/C parameters avoid attacker-controlled allocation. |
 | 10 | vectors | PASS | Critical | RFC 9106 section 5.3 through `argon2id_ctx` | upstream RFC 9106 test | Both candidates independently produce `0d640d...e659`. |
 | 11 | universal-build | PASS | High | six reference C sources | package source | macOS 14 arm64 and x86_64 builds pass; PHC archive contains both slices. |
-| 12 | source-loc | PASS | Low | 2,988 non-generated C/header LOC | 558 non-generated Swift LOC | Both are below 10,000 LOC and were reviewed in full. |
+| 12 | source-loc | PASS | Low | 3,294 audited C/header LOC | 631 audited Swift LOC | Exact included/excluded paths are fixed by the immutable source contract; both reviewed scopes are below 10,000 LOC. |
 
 Unresolved severity totals: Critical: 0; High: 0; Medium: 0; Low: 2.
 

@@ -15,8 +15,8 @@
       "evidenceKind" : "fixture",
       "exitStatus" : 0,
       "legID" : "sp4a.bounds",
-      "runnerCommitSha" : "acab2e6f0634b73dfcc34441cbc0e42160a5bfa0",
-      "runnerTreeSha" : "77778ade0e3264e40ab86149e70c790d1cca6d1d",
+      "runnerCommitSha" : "a5bb0fdac50be69d7abdbe2456c610f3e3e795a7",
+      "runnerTreeSha" : "50abaf6d0af37bee489130dbc6a3668bcb40f053",
       "verdict" : "PASS"
     },
     {
@@ -34,8 +34,8 @@
       "evidenceKind" : "fixture",
       "exitStatus" : 0,
       "legID" : "sp4a.opaqueRoundTrip",
-      "runnerCommitSha" : "acab2e6f0634b73dfcc34441cbc0e42160a5bfa0",
-      "runnerTreeSha" : "77778ade0e3264e40ab86149e70c790d1cca6d1d",
+      "runnerCommitSha" : "a5bb0fdac50be69d7abdbe2456c610f3e3e795a7",
+      "runnerTreeSha" : "50abaf6d0af37bee489130dbc6a3668bcb40f053",
       "verdict" : "PASS"
     },
     {
@@ -53,8 +53,8 @@
       "evidenceKind" : "fixture",
       "exitStatus" : 0,
       "legID" : "sp4a.v2Schema",
-      "runnerCommitSha" : "acab2e6f0634b73dfcc34441cbc0e42160a5bfa0",
-      "runnerTreeSha" : "77778ade0e3264e40ab86149e70c790d1cca6d1d",
+      "runnerCommitSha" : "a5bb0fdac50be69d7abdbe2456c610f3e3e795a7",
+      "runnerTreeSha" : "50abaf6d0af37bee489130dbc6a3668bcb40f053",
       "verdict" : "PASS"
     },
     {
@@ -72,8 +72,8 @@
       "evidenceKind" : "fixture",
       "exitStatus" : 0,
       "legID" : "sp4a.v3Schema",
-      "runnerCommitSha" : "acab2e6f0634b73dfcc34441cbc0e42160a5bfa0",
-      "runnerTreeSha" : "77778ade0e3264e40ab86149e70c790d1cca6d1d",
+      "runnerCommitSha" : "a5bb0fdac50be69d7abdbe2456c610f3e3e795a7",
+      "runnerTreeSha" : "50abaf6d0af37bee489130dbc6a3668bcb40f053",
       "verdict" : "PASS"
     }
   ],

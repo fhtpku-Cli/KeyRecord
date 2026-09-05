@@ -15,8 +15,8 @@
       "evidenceKind" : "fixture",
       "exitStatus" : 0,
       "legID" : "sp5b.denyMutation",
-      "runnerCommitSha" : "acab2e6f0634b73dfcc34441cbc0e42160a5bfa0",
-      "runnerTreeSha" : "77778ade0e3264e40ab86149e70c790d1cca6d1d",
+      "runnerCommitSha" : "a5bb0fdac50be69d7abdbe2456c610f3e3e795a7",
+      "runnerTreeSha" : "50abaf6d0af37bee489130dbc6a3668bcb40f053",
       "verdict" : "PASS"
     },
     {
@@ -37,8 +37,8 @@
       "environmentSha256" : "6b3288f5983cbce231295762d3f8381b8467d6dbe2e74fff0e17a1aebf7215f4",
       "evidenceKind" : "live",
       "legID" : "sp5b.liveCapture",
-      "runnerCommitSha" : "acab2e6f0634b73dfcc34441cbc0e42160a5bfa0",
-      "runnerTreeSha" : "77778ade0e3264e40ab86149e70c790d1cca6d1d",
+      "runnerCommitSha" : "a5bb0fdac50be69d7abdbe2456c610f3e3e795a7",
+      "runnerTreeSha" : "50abaf6d0af37bee489130dbc6a3668bcb40f053",
       "verdict" : "BLOCKED"
     },
     {
@@ -56,8 +56,8 @@
       "evidenceKind" : "fixture",
       "exitStatus" : 0,
       "legID" : "sp5b.replay",
-      "runnerCommitSha" : "acab2e6f0634b73dfcc34441cbc0e42160a5bfa0",
-      "runnerTreeSha" : "77778ade0e3264e40ab86149e70c790d1cca6d1d",
+      "runnerCommitSha" : "a5bb0fdac50be69d7abdbe2456c610f3e3e795a7",
+      "runnerTreeSha" : "50abaf6d0af37bee489130dbc6a3668bcb40f053",
       "verdict" : "PASS"
     },
     {
@@ -75,8 +75,8 @@
       "evidenceKind" : "source",
       "exitStatus" : 0,
       "legID" : "sp5b.whitelistSource",
-      "runnerCommitSha" : "acab2e6f0634b73dfcc34441cbc0e42160a5bfa0",
-      "runnerTreeSha" : "77778ade0e3264e40ab86149e70c790d1cca6d1d",
+      "runnerCommitSha" : "a5bb0fdac50be69d7abdbe2456c610f3e3e795a7",
+      "runnerTreeSha" : "50abaf6d0af37bee489130dbc6a3668bcb40f053",
       "verdict" : "PASS"
     }
   ],

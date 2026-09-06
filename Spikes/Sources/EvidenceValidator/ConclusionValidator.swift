@@ -25,8 +25,10 @@ public enum ConclusionValidator {
             repository: repository,
             strictRepositoryBinding: strictRepositoryBinding,
             sourceManifestSha256: document.sourceRootManifestSha256,
-            bindingCommitSha: document.generatorCommitSha,
-            bindingTreeSha: document.generatorTreeSha
+            sourceCommitSha: document.sourceEvidenceCommitSha,
+            sourceTreeSha: document.sourceEvidenceTreeSha,
+            bindingCommitSha: strictRepositoryBinding ? document.generatorCommitSha : nil,
+            bindingTreeSha: strictRepositoryBinding ? document.generatorTreeSha : nil
         )
         guard document == expected else { throw ValidatorError("conclusion_recompute_mismatch") }
         if strictRepositoryBinding { try validateUnderlyingSpikes(root: root, repository: repository) }

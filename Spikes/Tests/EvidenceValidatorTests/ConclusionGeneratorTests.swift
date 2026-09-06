@@ -27,10 +27,11 @@ final class ConclusionGeneratorTests: XCTestCase {
         }
 
         let source = try rawEvidenceRoot(repository: repository)
+        let sourceCommit = try recordedSourceCommit(repository: repository)
         defer { if source != repository.appendingPathComponent("evidence/phase0") { try? FileManager.default.removeItem(at: source) } }
-        do { try ConclusionGenerator.generate(sourceRoot: source, outputRoot: first, repository: repository) }
+        do { try ConclusionGenerator.generate(sourceRoot: source, outputRoot: first, repository: repository, sourceCommitSha: sourceCommit) }
         catch { XCTFail("first generation: \(error)"); return }
-        do { try ConclusionGenerator.generate(sourceRoot: source, outputRoot: second, repository: repository) }
+        do { try ConclusionGenerator.generate(sourceRoot: source, outputRoot: second, repository: repository, sourceCommitSha: sourceCommit) }
         catch { XCTFail("second generation: \(error)"); return }
 
         let firstJSON = try Data(contentsOf: first.appendingPathComponent("conclusions.json"))
@@ -92,5 +93,11 @@ final class ConclusionGeneratorTests: XCTestCase {
             try output.fileHandleForReading.readDataToEndOfFile().write(to: raw.appendingPathComponent(name))
         }
         return raw
+    }
+
+    private func recordedSourceCommit(repository: URL) throws -> String? {
+        let conclusions = repository.appendingPathComponent("evidence/phase0/conclusions.json")
+        guard FileManager.default.fileExists(atPath: conclusions.path) else { return nil }
+        return try JSONDecoder().decode(Phase0Conclusions.self, from: Data(contentsOf: conclusions)).sourceEvidenceCommitSha
     }
 }

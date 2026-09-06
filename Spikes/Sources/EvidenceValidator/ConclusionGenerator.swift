@@ -21,7 +21,13 @@ public enum ConclusionGenerator {
         "Spikes/Tests/EvidenceValidatorTests/ConclusionGeneratorTests.swift",
     ]).union(Phase0RunBinding.task15SourcePaths)
 
-    public static func generate(sourceRoot: URL, outputRoot: URL, repository: URL, strictRepositoryBinding: Bool = false) throws {
+    public static func generate(
+        sourceRoot: URL,
+        outputRoot: URL,
+        repository: URL,
+        strictRepositoryBinding: Bool = false,
+        sourceCommitSha: String? = nil
+    ) throws {
         if strictRepositoryBinding { try Phase0RootValidator.validate(sourceRoot, repository: repository) }
         guard !FileManager.default.fileExists(atPath: outputRoot.path) else { throw ValidatorError("stale_conclusion_output") }
         let parent = outputRoot.deletingLastPathComponent()
@@ -31,7 +37,12 @@ public enum ConclusionGenerator {
         defer { if strictRepositoryBinding { ConclusionSignalCleanup.uninstall() } }
         do {
             try FileManager.default.copyItem(at: sourceRoot, to: candidate)
-            let document = try derive(root: sourceRoot, repository: repository, strictRepositoryBinding: strictRepositoryBinding)
+            let document = try derive(
+                root: sourceRoot,
+                repository: repository,
+                strictRepositoryBinding: strictRepositoryBinding,
+                sourceCommitSha: sourceCommitSha
+            )
             try write(document, to: candidate.appendingPathComponent("conclusions.json"))
             for spike in document.spikes {
                 try Data(renderMarkdown(spike).utf8).write(to: candidate.appendingPathComponent("\(spike.id)-CONCLUSION.md"))
@@ -61,6 +72,8 @@ public enum ConclusionGenerator {
         repository: URL,
         strictRepositoryBinding: Bool,
         sourceManifestSha256: String? = nil,
+        sourceCommitSha: String? = nil,
+        sourceTreeSha: String? = nil,
         bindingCommitSha: String? = nil,
         bindingTreeSha: String? = nil
     ) throws -> Phase0Conclusions {
@@ -69,6 +82,11 @@ public enum ConclusionGenerator {
         let tree = try bindingTreeSha ?? git.text(["rev-parse", "\(commit)^{tree}"])
         guard try git.text(["rev-parse", "\(commit)^{tree}"]) == tree else {
             throw ValidatorError("conclusion_runner_tree_mismatch")
+        }
+        let sourceCommit = sourceCommitSha ?? commit
+        let sourceTree = try sourceTreeSha ?? git.text(["rev-parse", "\(sourceCommit)^{tree}"])
+        guard try git.text(["rev-parse", "\(sourceCommit)^{tree}"]) == sourceTree else {
+            throw ValidatorError("source_manifest_rebind")
         }
         if strictRepositoryBinding {
             for path in sourcePaths.sorted() where !(try git.text(["status", "--porcelain=v1", "--untracked-files=all", "--", path])).isEmpty {
@@ -92,7 +110,7 @@ public enum ConclusionGenerator {
         if let sourceManifestSha256 { sourceManifestHash = sourceManifestSha256 }
         else { sourceManifestHash = Canonical.sha256(try Data(contentsOf: manifest)) }
         return Phase0Conclusions(
-            schemaVersion: 1, sourceEvidenceCommitSha: commit, sourceEvidenceTreeSha: tree,
+            schemaVersion: 1, sourceEvidenceCommitSha: sourceCommit, sourceEvidenceTreeSha: sourceTree,
             sourceRootManifestSha256: sourceManifestHash, generatorCommitSha: commit,
             generatorTreeSha: tree, generatorSourceSha256: sourceHashes, spikes: spikes,
             oItems: oItems(g0Blocked: g0Blocked), o4Matrix: try o4(root: root), downstreamBlocks: downstream(), g0: g0

@@ -31,6 +31,7 @@ run swift build --package-path Spikes --scratch-path "$scratch" --product Eviden
 bin="$(swift build --package-path Spikes --scratch-path "$scratch" --show-bin-path)/EvidenceValidator"
 
 source_root="evidence/phase0"
+source_commit=""
 if [[ -f "$source_root/conclusions.json" ]]; then
   source_commit="$(jq -r '.source_evidence_commit_sha' "$source_root/conclusions.json")"
   mkdir -p "$tmp_dir/raw-source"
@@ -38,7 +39,11 @@ if [[ -f "$source_root/conclusions.json" ]]; then
   source_root="$tmp_dir/raw-source/evidence/phase0"
 fi
 
-generate() { "$bin" generate-conclusions --source "$source_root" --output "$1"; }
+generate() {
+  args=(generate-conclusions --source "$source_root" --output "$1")
+  [[ -z "$source_commit" ]] || args+=(--source-commit "$source_commit")
+  "$bin" "${args[@]}"
+}
 validate() { "$bin" "$1"; }
 
 if [[ "$mode" == happy ]]; then

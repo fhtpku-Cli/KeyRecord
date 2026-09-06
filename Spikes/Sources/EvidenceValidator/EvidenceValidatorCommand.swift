@@ -38,8 +38,15 @@ public enum EvidenceValidatorCommand {
             let options = try Options(Array(arguments.dropFirst()))
             let source = try options.required("--source")
             let output = try options.required("--output")
+            let sourceCommit = options.value("--source-commit")
             try options.rejectUnused()
-            try ConclusionGenerator.generate(sourceRoot: url(source), outputRoot: url(output), repository: url("."), strictRepositoryBinding: true)
+            try ConclusionGenerator.generate(
+                sourceRoot: url(source),
+                outputRoot: url(output),
+                repository: url("."),
+                strictRepositoryBinding: true,
+                sourceCommitSha: sourceCommit
+            )
             print("VALID conclusions_generated output=\(output)")
         case "bind": try bind(Array(arguments.dropFirst()))
         case "verify-candidate": try verifyCandidate(Array(arguments.dropFirst()))
@@ -167,7 +174,7 @@ public enum EvidenceValidatorCommand {
     private static func url(_ path: String) -> URL { URL(fileURLWithPath: path, relativeTo: URL(fileURLWithPath: FileManager.default.currentDirectoryPath)).standardizedFileURL }
     private static func writeError(_ value: String) { FileHandle.standardError.write(Data(value.utf8)) }
 
-    private static let usage = "EvidenceValidator <evidence-directory> | generate-conclusions --source PATH --output PATH | validate <directory> | validate-atomicity <directory> | validate-phase0 <root> | audit-privacy <root> | bind --evidence PATH --plan PATH --output PATH [--environment PATH] | verify-candidate CANDIDATE --evidence PATH --plan PATH [--environment PATH] | assemble-receipts SOURCE --output PATH --candidate PATH --commands PATH --required-reviewers F1,F2,F3,F4 | verify-receipts AGGREGATE --source-dir PATH --candidate PATH --commands PATH --required-reviewers F1,F2,F3,F4 [expected flags]"
+private static let usage = "EvidenceValidator <evidence-directory> | generate-conclusions --source PATH --output PATH [--source-commit SHA] | validate <directory> | validate-atomicity <directory> | validate-phase0 <root> | audit-privacy <root> | bind --evidence PATH --plan PATH --output PATH [--environment PATH] | verify-candidate CANDIDATE --evidence PATH --plan PATH [--environment PATH] | assemble-receipts SOURCE --output PATH --candidate PATH --commands PATH --required-reviewers F1,F2,F3,F4 | verify-receipts AGGREGATE --source-dir PATH --candidate PATH --commands PATH --required-reviewers F1,F2,F3,F4 [expected flags]"
 }
 
 private final class Options {

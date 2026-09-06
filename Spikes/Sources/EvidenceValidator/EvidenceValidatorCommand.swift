@@ -61,16 +61,36 @@ public enum EvidenceValidatorCommand {
     }
 
     private static func bind(_ arguments: [String]) throws {
-        let options = try Options(arguments)
-        let evidence = try options.required("--evidence")
+        let arguments = try parseBindArguments(arguments)
+        let createdAt = arguments.createdAt ?? ISO8601DateFormatter().string(from: Date())
+        let candidate = try CandidateBinder(repository: url(".")).bind(evidence: url(arguments.evidence), plan: url(arguments.plan), environment: url(arguments.environment), createdAt: createdAt)
+        try writeJSON(candidate, to: url(arguments.output))
+        print("VALID candidate_bound commit=\(candidate.commitSha)")
+    }
+
+    static func parseBindArguments(_ arguments: [String]) throws -> BindArguments {
+        let positionalEvidence: String?
+        let optionArguments: [String]
+        if let first = arguments.first, !first.hasPrefix("--") {
+            positionalEvidence = first
+            optionArguments = Array(arguments.dropFirst())
+        } else {
+            positionalEvidence = nil
+            optionArguments = arguments
+        }
+        let options = try Options(optionArguments)
+        let flaggedEvidence = options.value("--evidence")
+        let evidence: String
+        switch (positionalEvidence, flaggedEvidence) {
+        case let (.some(value), .none), let (.none, .some(value)): evidence = value
+        case (.none, .none), (.some, .some): throw ValidatorError("usage", "evidence")
+        }
         let plan = try options.required("--plan")
         let environment = options.value("--environment") ?? "\(evidence)/environment.json"
         let output = try options.required("--output")
-        let createdAt = options.value("--created-at") ?? ISO8601DateFormatter().string(from: Date())
+        let createdAt = options.value("--created-at")
         try options.rejectUnused()
-        let candidate = try CandidateBinder(repository: url(".")).bind(evidence: url(evidence), plan: url(plan), environment: url(environment), createdAt: createdAt)
-        try writeJSON(candidate, to: url(output))
-        print("VALID candidate_bound commit=\(candidate.commitSha)")
+        return BindArguments(evidence: evidence, plan: plan, environment: environment, output: output, createdAt: createdAt)
     }
 
     private static func verifyCandidate(_ arguments: [String]) throws {
@@ -176,7 +196,15 @@ public enum EvidenceValidatorCommand {
     private static func url(_ path: String) -> URL { URL(fileURLWithPath: path, relativeTo: URL(fileURLWithPath: FileManager.default.currentDirectoryPath)).standardizedFileURL }
     private static func writeError(_ value: String) { FileHandle.standardError.write(Data(value.utf8)) }
 
-private static let usage = "EvidenceValidator <evidence-directory> | generate-conclusions --source PATH --output PATH [--source-commit SHA] [--generator-commit SHA] | validate <directory> | validate-atomicity <directory> | validate-phase0 <root> | audit-privacy <root> | bind --evidence PATH --plan PATH --output PATH [--environment PATH] | verify-candidate CANDIDATE --evidence PATH --plan PATH [--environment PATH] | assemble-receipts SOURCE --output PATH --candidate PATH --commands PATH --required-reviewers F1,F2,F3,F4 | verify-receipts AGGREGATE --source-dir PATH --candidate PATH --commands PATH --required-reviewers F1,F2,F3,F4 [expected flags]"
+private static let usage = "EvidenceValidator <evidence-directory> | generate-conclusions --source PATH --output PATH [--source-commit SHA] [--generator-commit SHA] | validate <directory> | validate-atomicity <directory> | validate-phase0 <root> | audit-privacy <root> | bind EVIDENCE --plan PATH --output PATH [--environment PATH] | bind --evidence PATH --plan PATH --output PATH [--environment PATH] | verify-candidate CANDIDATE --evidence PATH --plan PATH [--environment PATH] | assemble-receipts SOURCE --output PATH --candidate PATH --commands PATH --required-reviewers F1,F2,F3,F4 | verify-receipts AGGREGATE --source-dir PATH --candidate PATH --commands PATH --required-reviewers F1,F2,F3,F4 [expected flags]"
+}
+
+struct BindArguments {
+    let evidence: String
+    let plan: String
+    let environment: String
+    let output: String
+    let createdAt: String?
 }
 
 private final class Options {

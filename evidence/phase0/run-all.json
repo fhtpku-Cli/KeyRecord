@@ -21,7 +21,7 @@
     "privacy-audit.json",
     "run-all.json"
   ],
-  "runnerCommitSha" : "1cb570627a7586a72574dbdae3043bd453422cb7",
+  "runnerCommitSha" : "31818604f8fdce2e02a90e288d1b9eb485655c6a",
   "runnerSourceSha256" : {
     "Spikes/Package.swift" : "37fba3ea04711a4c542cfa8f7888c32fcfc422b500e9aeb482248a2c3ef86184",
     "Spikes/Scripts/argon-bench.c" : "09f039936e5f05be90c83c7c8be90467752388b900370439976d0d3957fb0491",
@@ -143,7 +143,7 @@
     "Spikes/Sources/Phase0Support/VialReplay.swift" : "8e5c0e07e598d0eef34b0da7c32485dd0cc7d9a2121c7d1c0f312f0a011c7f70",
     "Spikes/Sources/Phase0Support/VialSourceContract.swift" : "d0ca447831941dd2fb4c8df72fa66f804d4f01c17e696ed6c29cfe54e2b705d1",
     "Spikes/Tests/EvidenceValidatorTests/ConclusionDecodingTests.swift" : "672931b26422b032b2b81bb71e73a633466cd75e40ac71866d6e8f03a2459abd",
-    "Spikes/Tests/EvidenceValidatorTests/ConclusionGeneratorTests.swift" : "2ffe04509b4727949126e7a811a8c8e08975f52c066634ca771eb0dd83f9ce23",
+    "Spikes/Tests/EvidenceValidatorTests/ConclusionGeneratorTests.swift" : "8309ba16367eb2acbf35b6b8b170fc309eff10f00f08d5563a54b650356faa4e",
     "Spikes/Tests/EvidenceValidatorTests/Phase0RootValidatorTests.swift" : "eb0e636e04a2accc8fb4527d2ba092652208cd44c5c2cc269434b75397eec71d",
     "Spikes/Tests/EvidenceValidatorTests/SP6ANamespaceValidatorTests.swift" : "df2b70c2773bf81f40c9190e6ea9d68f8355d93df16cc7c341a3d51450eb0747",
     "Spikes/Tests/EvidenceValidatorTests/SP6AValidatorTests.swift" : "74f080bcb91e9fb953cfb151edc44242b040fbf6bb1d6704a03396a77edab6c9",
@@ -153,7 +153,7 @@
     "Spikes/Tests/Phase0SupportTests/Argon2AuditTests.swift" : "d54413bcdf4a3fd02d59c9fb65b1b44d6fca3788a9aa0ae516dcca94af4b9111",
     "Spikes/Tests/Phase0SupportTests/StorageSecurityTests.swift" : "019dcc49914b348cdebe0aaa96b948e9f12cade4eb790a9cf7710359e387c7de"
   },
-  "runnerTreeSha" : "ac10322e00c6fe8efe829253210cd68f6bae1adc",
+  "runnerTreeSha" : "161f1bbb4a4b193c11515f3cb5817f0b252a7b76",
   "schemaVersion" : 1,
   "stages" : [
     {
@@ -188,7 +188,7 @@
       "id" : "shared-atomicity",
       "policy" : "executed-observation;canonical-preserved",
       "stderr" : "",
-      "stdout" : "ATOMICITY=PASS executions=100 boundaries=8 failures=4 output=${TEMP}\nobserved_result_sha256=dfd360103ef19f635040486d4d99ad94e4c36ee8be983dc81589bc7d5c715b94\n",
+      "stdout" : "ATOMICITY=PASS executions=100 boundaries=8 failures=4 output=${TEMP}\nobserved_result_sha256=834c046e379294338d2eb38f0375e8e3506bcb5bda0746665a51cf480de9b5f4\n",
       "verdict" : "PASS"
     },
     {

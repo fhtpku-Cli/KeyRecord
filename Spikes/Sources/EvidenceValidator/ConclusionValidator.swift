@@ -19,7 +19,8 @@ public enum ConclusionValidator {
         do { document = try ValidatorDecoding.decode(Phase0Conclusions.self, from: data, malformedCode: "malformed_conclusions") }
         catch let error as ValidatorError { throw error }
         catch { throw ValidatorError("malformed_conclusions", String(describing: error)) }
-        try validateHistoricalSource(document, repository: repository, strictRepositoryBinding: strictRepositoryBinding)
+        try validateHistoricalSource(document, root: root, repository: repository, strictRepositoryBinding: strictRepositoryBinding)
+        try validateVialDefinitionSchema(document, root: root, repository: repository)
         let expected = try ConclusionGenerator.derive(
             root: root,
             repository: repository,
@@ -85,11 +86,52 @@ public enum ConclusionValidator {
         _ = try SP6BDirectoryValidator.validate(directory: root.appendingPathComponent("sp6b"), repository: repository, gitRepository: repository)
     }
 
-    private static func validateHistoricalSource(_ document: Phase0Conclusions, repository: URL, strictRepositoryBinding: Bool) throws {
+    static func validateVialDefinitionSchema(
+        _ document: Phase0Conclusions,
+        root: URL,
+        repository: URL
+    ) throws {
+        guard let row = document.o4Matrix.first(where: { $0.id == "vial.definitionSchema" }),
+              row.evidencePath == "sp5a/format-facts.json",
+              row.blockedRef == nil else {
+            throw ValidatorError("vial_definition_schema_evidence_invalid")
+        }
+        let facts: SP5AFormatFactsArtifact = try ValidatorDecoding.decode(
+            SP5AFormatFactsArtifact.self,
+            from: Data(contentsOf: root.appendingPathComponent("sp5a/format-facts.json")),
+            malformedCode: "vial_definition_schema_evidence_invalid"
+        )
+        let roundTrip: SP5ARoundTripArtifact = try ValidatorDecoding.decode(
+            SP5ARoundTripArtifact.self,
+            from: Data(contentsOf: root.appendingPathComponent("sp5a/round-trip.json")),
+            malformedCode: "vial_definition_schema_evidence_invalid"
+        )
+        let expectedFacts: SP5AFormatFactsArtifact
+        do {
+            expectedFacts = try SP5AFixtureScenarios.sourceFacts(repository: repository)
+        } catch {
+            throw ValidatorError("vial_definition_schema_evidence_invalid")
+        }
+        guard facts == expectedFacts, roundTrip.version == 1 else {
+            throw ValidatorError("vial_definition_schema_evidence_invalid")
+        }
+    }
+
+    private static func validateHistoricalSource(
+        _ document: Phase0Conclusions,
+        root: URL,
+        repository: URL,
+        strictRepositoryBinding: Bool
+    ) throws {
         let git = GitRunner(repository: repository, timeout: 10, executable: URL(fileURLWithPath: "/usr/bin/git"))
         guard try git.text(["rev-parse", "\(document.sourceEvidenceCommitSha)^{tree}"]) == document.sourceEvidenceTreeSha else { throw ValidatorError("source_manifest_rebind") }
         let blob = try git.run(["cat-file", "blob", "\(document.sourceEvidenceCommitSha):evidence/phase0/manifest.sha256"]).stdout
         guard Canonical.sha256(blob) == document.sourceRootManifestSha256 else { throw ValidatorError("source_manifest_rebind") }
+        try HistoricalEvidenceInventoryValidator.validate(
+            root: root,
+            sourceCommit: document.sourceEvidenceCommitSha,
+            repository: repository
+        )
         guard Set(document.generatorSourceSha256.keys) == ConclusionGenerator.sourcePaths else { throw ValidatorError("conclusion_runner_source_set_mismatch") }
         for path in ConclusionGenerator.sourcePaths.sorted() {
             let bytes = strictRepositoryBinding

@@ -12,7 +12,11 @@ struct GitRunner: Sendable {
     let timeout: TimeInterval
     let executable: URL
 
-    func run(_ arguments: [String], acceptedStatuses: Set<Int32> = [0]) throws -> GitResult {
+    func run(
+        _ arguments: [String],
+        acceptedStatuses: Set<Int32> = [0],
+        input: Data? = nil
+    ) throws -> GitResult {
         let scratchRoot = repository.appendingPathComponent(".omo/evidence")
         try FileManager.default.createDirectory(at: scratchRoot, withIntermediateDirectories: true)
         let temporary = scratchRoot.appendingPathComponent(".git-command-\(UUID().uuidString)")
@@ -25,6 +29,15 @@ struct GitRunner: Sendable {
         let stdoutHandle = try FileHandle(forWritingTo: stdoutURL)
         let stderrHandle = try FileHandle(forWritingTo: stderrURL)
         defer { try? stdoutHandle.close(); try? stderrHandle.close() }
+        let stdinHandle: FileHandle?
+        if let input {
+            let stdinURL = temporary.appendingPathComponent("stdin")
+            try input.write(to: stdinURL)
+            stdinHandle = try FileHandle(forReadingFrom: stdinURL)
+        } else {
+            stdinHandle = nil
+        }
+        defer { try? stdinHandle?.close() }
 
         let process = Process()
         process.executableURL = executable
@@ -32,6 +45,7 @@ struct GitRunner: Sendable {
         process.currentDirectoryURL = repository
         process.standardOutput = stdoutHandle
         process.standardError = stderrHandle
+        process.standardInput = stdinHandle
         try process.run()
         let deadline = Date().addingTimeInterval(timeout)
         while process.isRunning && Date() < deadline { Thread.sleep(forTimeInterval: 0.01) }

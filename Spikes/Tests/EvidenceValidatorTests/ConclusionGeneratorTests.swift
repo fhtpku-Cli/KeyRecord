@@ -17,6 +17,68 @@ final class ConclusionGeneratorTests: XCTestCase {
         XCTAssertEqual(ConclusionContract.downstreamBlockIDs, ["G1", "KARABINER_STABLE", "VIA_GENERATION", "VIAL_BETA", "FULL_BACKUP_FINAL_RELEASE"])
     }
 
+    func testDownstreamRerunsMatchPlanTasksExactly() throws {
+        let document = try deriveCanonicalConclusions()
+        let reruns = Dictionary(uniqueKeysWithValues: document.downstreamBlocks.map { ($0.id, $0.rerunArgv) })
+        XCTAssertEqual(reruns["G1"], qa([5, 6, 10]))
+        XCTAssertEqual(reruns["KARABINER_STABLE"], qa([7]))
+        XCTAssertEqual(reruns["VIA_GENERATION"], qa([12]))
+        XCTAssertEqual(reruns["VIAL_BETA"], qa([9, 13]))
+        XCTAssertEqual(reruns["FULL_BACKUP_FINAL_RELEASE"], qa([11]))
+    }
+
+    func testVialDefinitionSchemaUsesPinnedVersionOneFormatFacts() throws {
+        let document = try deriveCanonicalConclusions()
+        let row = try XCTUnwrap(document.o4Matrix.first { $0.id == "vial.definitionSchema" })
+        XCTAssertEqual(row.evidencePath, "sp5a/format-facts.json")
+    }
+
+    func testVialDefinitionSchemaRejectsSemanticallyUnrelatedEvidenceSubstitution() throws {
+        let repository = try repositoryRoot()
+        let source = try rawEvidenceRoot(repository: repository)
+        defer { if source != repository.appendingPathComponent("evidence/phase0") { try? FileManager.default.removeItem(at: source) } }
+        let document = try deriveCanonicalConclusions()
+        var object = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(document)) as? [String: Any])
+        var rows = try XCTUnwrap(object["o4_matrix"] as? [[String: Any]])
+        let index = try XCTUnwrap(rows.firstIndex { $0["id"] as? String == "vial.definitionSchema" })
+        rows[index]["evidence_path"] = "sp5a/bounds.json"
+        rows[index]["evidence_sha256"] = Canonical.sha256(try Data(contentsOf: source.appendingPathComponent("sp5a/bounds.json")))
+        object["o4_matrix"] = rows
+        let substituted = try JSONDecoder().decode(
+            Phase0Conclusions.self,
+            from: JSONSerialization.data(withJSONObject: object)
+        )
+
+        XCTAssertThrowsError(try ConclusionValidator.validateVialDefinitionSchema(
+            substituted,
+            root: source,
+            repository: repository
+        )) { error in
+            XCTAssertEqual((error as? ValidatorError)?.code, "vial_definition_schema_evidence_invalid")
+        }
+    }
+
+    func testHistoricalSourceRejectsCoordinatedChildRemanifest() throws {
+        let repository = try repositoryRoot()
+        let source = try rawEvidenceRoot(repository: repository)
+        let output = temporaryURL("coordinated-remanifest")
+        defer { try? FileManager.default.removeItem(at: source); try? FileManager.default.removeItem(at: output) }
+        let evidenceURL = source.appendingPathComponent("sp1/evidence.json")
+        var object = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: evidenceURL)) as? [String: Any])
+        object["coordinated_extra"] = true
+        try JSONSerialization.data(withJSONObject: object, options: [.prettyPrinted, .sortedKeys]).write(to: evidenceURL)
+        try remanifest(source.appendingPathComponent("sp1"))
+        try remanifest(source, names: ["README.md", "environment.json", "privacy-audit.json", "run-all.json"])
+        XCTAssertThrowsError(try ConclusionGenerator.generate(
+            sourceRoot: source,
+            outputRoot: output,
+            repository: repository,
+            sourceCommitSha: try recordedSourceCommit(repository: repository)
+        )) { error in
+            XCTAssertEqual((error as? ValidatorError)?.code, "source_evidence_bytes_mismatch")
+        }
+    }
+
     func testCanonicalEvidenceGeneratesDeterministicallyAndValidatesIndependently() throws {
         let repository = try repositoryRoot()
         let first = temporaryURL("conclusions-first")
@@ -99,5 +161,24 @@ final class ConclusionGeneratorTests: XCTestCase {
         let conclusions = repository.appendingPathComponent("evidence/phase0/conclusions.json")
         guard FileManager.default.fileExists(atPath: conclusions.path) else { return nil }
         return try JSONDecoder().decode(Phase0Conclusions.self, from: Data(contentsOf: conclusions)).sourceEvidenceCommitSha
+    }
+
+    private func deriveCanonicalConclusions() throws -> Phase0Conclusions {
+        let repository = try repositoryRoot()
+        let source = try rawEvidenceRoot(repository: repository)
+        defer { if source != repository.appendingPathComponent("evidence/phase0") { try? FileManager.default.removeItem(at: source) } }
+        return try ConclusionGenerator.derive(root: source, repository: repository, strictRepositoryBinding: false, sourceCommitSha: try recordedSourceCommit(repository: repository))
+    }
+
+    private func qa(_ tasks: [Int]) -> [[String]] {
+        tasks.map { ["bash", "Spikes/Scripts/run-task-qa.sh", String($0), "happy"] }
+    }
+
+    private func remanifest(_ directory: URL, names: [String]? = nil) throws {
+        let files = try names ?? FileManager.default.contentsOfDirectory(atPath: directory.path).filter { $0 != "manifest.sha256" }
+        let lines = try files.sorted().map { name in
+            "\(Canonical.sha256(try Data(contentsOf: directory.appendingPathComponent(name))))  \(name)"
+        }
+        try Data((lines.joined(separator: "\n") + "\n").utf8).write(to: directory.appendingPathComponent("manifest.sha256"))
     }
 }

@@ -28,6 +28,13 @@ public enum ConclusionGenerator {
         strictRepositoryBinding: Bool = false,
         sourceCommitSha: String? = nil
     ) throws {
+        if let sourceCommitSha {
+            try HistoricalEvidenceInventoryValidator.validate(
+                root: sourceRoot,
+                sourceCommit: sourceCommitSha,
+                repository: repository
+            )
+        }
         if strictRepositoryBinding { try Phase0RootValidator.validate(sourceRoot, repository: repository) }
         guard !FileManager.default.fileExists(atPath: outputRoot.path) else { throw ValidatorError("stale_conclusion_output") }
         let parent = outputRoot.deletingLastPathComponent()
@@ -166,7 +173,7 @@ public enum ConclusionGenerator {
         let evidence: [(String, String)] = [
             ("karabiner.managedBlock", "sp3/managed-block.json"), ("karabiner.atomicReplace", "sp3/atomicity-citation.json"),
             ("via.definitionSchema", "sp4a/evidence.json"), ("via.layoutBackupFormat", "sp4b/round-trip.json"),
-            ("vial.definitionSchema", "sp5a/bounds.json"), ("vial.layoutBackupFormat", "sp5a/round-trip.json"),
+            ("vial.definitionSchema", "sp5a/format-facts.json"), ("vial.layoutBackupFormat", "sp5a/round-trip.json"),
         ]
         let blocked: [(String, String)] = [
             ("karabiner.configSchema", "sp3.schemaLint"), ("karabiner.reload", "sp3.reload"), ("karabiner.disableLatency", "sp3.disableLatency"),
@@ -183,8 +190,8 @@ public enum ConclusionGenerator {
 
     private static func downstream() -> [ValidatedDownstreamBlock] {
         [
-            .init(id: "G1", blockedCapability: "Phase 1 collection, privacy, and encrypted persistence", causedBy: ["G0", "sp6a.keychainSelection"], artifactRefs: ["sp1/evidence.json", "sp2/evidence.json", "sp6a/evidence.json"], rerunArgv: qa([4, 5, 10])),
-            .init(id: "KARABINER_STABLE", blockedCapability: "Karabiner stable release and <=2s p95 disable", causedBy: ["sp3.versionSample", "sp3.reload", "sp3.disableLatency"], artifactRefs: ["sp3/evidence.json"], rerunArgv: qa([6])),
+            .init(id: "G1", blockedCapability: "Phase 1 collection, privacy, and encrypted persistence", causedBy: ["G0", "sp6a.keychainSelection"], artifactRefs: ["sp1/evidence.json", "sp2/evidence.json", "sp6a/evidence.json"], rerunArgv: qa([5, 6, 10])),
+            .init(id: "KARABINER_STABLE", blockedCapability: "Karabiner stable release and <=2s p95 disable", causedBy: ["sp3.versionSample", "sp3.reload", "sp3.disableLatency"], artifactRefs: ["sp3/evidence.json"], rerunArgv: qa([7])),
             .init(id: "VIA_GENERATION", blockedCapability: "VIA generation and compatibility", causedBy: ["sp4b.deviceProtocol", "sp4b.keycodeDialect", "sp4b.importer"], artifactRefs: ["sp4b/axes.json", "sp4b/evidence.json"], rerunArgv: qa([12])),
             .init(id: "VIAL_BETA", blockedCapability: "Vial Beta import and live verification", causedBy: ["sp5a.importer", "sp5b.liveCapture"], artifactRefs: ["sp5a/evidence.json", "sp5b/evidence.json"], rerunArgv: qa([9, 13])),
             .init(id: "FULL_BACKUP_FINAL_RELEASE", blockedCapability: "Full backup and final release", causedBy: ["sp6b.intelTiming", "SP-6B dependency_frozen=false"], artifactRefs: ["sp6b/evidence.json", "sp6b/candidate-evaluation.json"], rerunArgv: qa([11])),

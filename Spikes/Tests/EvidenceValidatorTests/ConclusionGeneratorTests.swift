@@ -44,6 +44,17 @@ final class ConclusionGeneratorTests: XCTestCase {
         XCTAssertEqual(report.g0Status, .open)
     }
 
+    func testCommittedEvidenceOnlyDescendantRecomputesAgainstRecordedGeneratorCommit() throws {
+        let repository = try repositoryRoot()
+        let report = try ConclusionValidator.validate(
+            root: repository.appendingPathComponent("evidence/phase0"),
+            repository: repository,
+            strictRepositoryBinding: true
+        )
+        XCTAssertEqual(report.spikeCount, 9)
+        XCTAssertEqual(report.g0Status, .open)
+    }
+
     private func temporaryURL(_ name: String) -> URL {
         FileManager.default.temporaryDirectory.appendingPathComponent("keyrecord-\(name)-\(UUID().uuidString)")
     }

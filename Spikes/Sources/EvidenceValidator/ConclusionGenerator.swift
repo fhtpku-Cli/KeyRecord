@@ -56,17 +56,27 @@ public enum ConclusionGenerator {
         }
     }
 
-    static func derive(root: URL, repository: URL, strictRepositoryBinding: Bool, sourceManifestSha256: String? = nil) throws -> Phase0Conclusions {
+    static func derive(
+        root: URL,
+        repository: URL,
+        strictRepositoryBinding: Bool,
+        sourceManifestSha256: String? = nil,
+        bindingCommitSha: String? = nil,
+        bindingTreeSha: String? = nil
+    ) throws -> Phase0Conclusions {
         let git = GitRunner(repository: repository, timeout: 10, executable: URL(fileURLWithPath: "/usr/bin/git"))
-        let commit = try git.text(["rev-parse", "HEAD"])
-        let tree = try git.text(["rev-parse", "HEAD^{tree}"])
+        let commit = try bindingCommitSha ?? git.text(["rev-parse", "HEAD"])
+        let tree = try bindingTreeSha ?? git.text(["rev-parse", "\(commit)^{tree}"])
+        guard try git.text(["rev-parse", "\(commit)^{tree}"]) == tree else {
+            throw ValidatorError("conclusion_runner_tree_mismatch")
+        }
         if strictRepositoryBinding {
             for path in sourcePaths.sorted() where !(try git.text(["status", "--porcelain=v1", "--untracked-files=all", "--", path])).isEmpty {
                 throw ValidatorError("conclusion_runner_dirty", path)
             }
         }
         let sourceHashes = try Dictionary(uniqueKeysWithValues: sourcePaths.sorted().map { path in
-            let data = strictRepositoryBinding
+            let data = strictRepositoryBinding || bindingCommitSha != nil
                 ? try git.run(["cat-file", "blob", "\(commit):\(path)"]).stdout
                 : try Data(contentsOf: repository.appendingPathComponent(path))
             return (path, Canonical.sha256(data))

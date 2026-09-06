@@ -20,7 +20,14 @@ public enum ConclusionValidator {
         catch let error as ValidatorError { throw error }
         catch { throw ValidatorError("malformed_conclusions", String(describing: error)) }
         try validateHistoricalSource(document, repository: repository, strictRepositoryBinding: strictRepositoryBinding)
-        let expected = try ConclusionGenerator.derive(root: root, repository: repository, strictRepositoryBinding: strictRepositoryBinding, sourceManifestSha256: document.sourceRootManifestSha256)
+        let expected = try ConclusionGenerator.derive(
+            root: root,
+            repository: repository,
+            strictRepositoryBinding: strictRepositoryBinding,
+            sourceManifestSha256: document.sourceRootManifestSha256,
+            bindingCommitSha: document.generatorCommitSha,
+            bindingTreeSha: document.generatorTreeSha
+        )
         guard document == expected else { throw ValidatorError("conclusion_recompute_mismatch") }
         if strictRepositoryBinding { try validateUnderlyingSpikes(root: root, repository: repository) }
         try validateSemantics(document, root: root)

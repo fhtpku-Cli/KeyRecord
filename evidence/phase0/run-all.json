@@ -21,7 +21,7 @@
     "privacy-audit.json",
     "run-all.json"
   ],
-  "runnerCommitSha" : "3cf3f852cfc3962fc3c48ad030b1ad22c7c84d1a",
+  "runnerCommitSha" : "2b4b41457592527688967a19be00fa618b11c845",
   "runnerSourceSha256" : {
     "Spikes/Package.swift" : "37fba3ea04711a4c542cfa8f7888c32fcfc422b500e9aeb482248a2c3ef86184",
     "Spikes/Scripts/argon-bench.c" : "09f039936e5f05be90c83c7c8be90467752388b900370439976d0d3957fb0491",
@@ -55,9 +55,9 @@
     "Spikes/Sources/EvidenceValidator/ConclusionValidator.swift" : "44298ca0b2db70f6e53ba662bcbaf79a38a09f679b839907bab4416e3f71410a",
     "Spikes/Sources/EvidenceValidator/EvidenceValidatorCommand.swift" : "5f4067e17792e445115246400da809234104789fbd4814a45c216e25a1c43f62",
     "Spikes/Sources/EvidenceValidator/GateValidator.swift" : "008b4deaee6ffb5e5d7a1a3314cef592eafcb5a13a1b725a730ea6ba0b01c573",
-    "Spikes/Sources/EvidenceValidator/GitRunner.swift" : "87494a2fcb53fca4ac2714b9431c31328e2f5133a879e4a75de58607db91eb67",
-    "Spikes/Sources/EvidenceValidator/HistoricalEvidenceInventoryValidator.swift" : "9cc7f5491e06c4c0249c85d77b949de9dcefa3e1fb8c45a59cec95e30d6c17c3",
-    "Spikes/Sources/EvidenceValidator/Phase0RootValidator.swift" : "82decca8068c0df12ff3bc4b1590e3c1e0f170e37815c5ac8c00706396f75ea8",
+    "Spikes/Sources/EvidenceValidator/GitRunner.swift" : "6fda6a7ed8be9eed7bbfe9b86382810ac6887c2490c5a410b6ca3deb6491a1ad",
+    "Spikes/Sources/EvidenceValidator/HistoricalEvidenceInventoryValidator.swift" : "4af96f8b5021f479607ba2d5fb4f10f7bbb6c6e964acc955e5c748cae011531d",
+    "Spikes/Sources/EvidenceValidator/Phase0RootValidator.swift" : "7279c52b18554a90419da37f6a9a168c0771fb2c88525ab67623bf5574567053",
     "Spikes/Sources/EvidenceValidator/ReceiptValidator.swift" : "1d6d44267de691719f078645d47d4c966b8ca942807e5d600e3124c1f3ad68b8",
     "Spikes/Sources/EvidenceValidator/SP1DirectoryValidator.swift" : "6089e60180d4bdc40d35bb4f336c32e6e5b4bb86ba4a9bfcdba3086275a9640c",
     "Spikes/Sources/EvidenceValidator/SP2DirectoryValidator.swift" : "bd189ab0c1117ab00236048bee39aa4b13717e604b635c3ad3ae4cba981207ca",
@@ -153,7 +153,7 @@
     "Spikes/Tests/Phase0SupportTests/Argon2AuditTests.swift" : "d54413bcdf4a3fd02d59c9fb65b1b44d6fca3788a9aa0ae516dcca94af4b9111",
     "Spikes/Tests/Phase0SupportTests/StorageSecurityTests.swift" : "019dcc49914b348cdebe0aaa96b948e9f12cade4eb790a9cf7710359e387c7de"
   },
-  "runnerTreeSha" : "3de4b54e805de1f052ee45f5c5db1130ba1c1b8d",
+  "runnerTreeSha" : "2a5d13185ed6fc231b8afd93bc90ddf0710efc17",
   "schemaVersion" : 1,
   "stages" : [
     {
@@ -188,7 +188,7 @@
       "id" : "shared-atomicity",
       "policy" : "executed-observation;canonical-preserved",
       "stderr" : "",
-      "stdout" : "ATOMICITY=PASS executions=100 boundaries=8 failures=4 output=${TEMP}\nobserved_result_sha256=16fbfb605c49fd9dfa1d113d0ef944fef0b6759237092f7a59623c4302718db7\n",
+      "stdout" : "ATOMICITY=PASS executions=100 boundaries=8 failures=4 output=${TEMP}\nobserved_result_sha256=bc6fd1d4d3dc83c030fe39fa42ddf2e7225dd7eee19e62dfd44959485ed15503\n",
       "verdict" : "PASS"
     },
     {

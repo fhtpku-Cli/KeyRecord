@@ -1,0 +1,3 @@
+enum VialQuery {
+    case keymapWrite
+}

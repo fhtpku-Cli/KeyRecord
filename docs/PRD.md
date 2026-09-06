@@ -665,10 +665,10 @@ UX 与平台：
 
 | 编号 | 事项 | 当前状态 | 说明 |
 |---|---|---|---|
-| O1 | 最终产品名称 | 待定 | KeyRecord 仅为内部代号 |
-| O2 | 开源许可证 | 待定 | 候选未评审；首个可运行原型公开前必须评审落定 |
-| O3 | 测试键盘型号清单（至少 3 款） | 待定 | 需覆盖 VIA 与 Vial 目标设备 |
-| O4 | Karabiner 版本支持矩阵、VIA/Vial 五版本轴支持矩阵 | 待定 | 以 spike 验证为准；当前仅确定 VIA 定义 JSON 格式 V2/V3 为支持目标 |
-| O5 | 最终 API 与 spike 验证细节 | 待定 | 由技术架构文档承接 |
-| O6 | 前台归属、Secure Input 与修饰键状态重建的系统能力边界 | 待定 | spike 验证；决定已知归属、可靠无归属（未知归属桶）与不可判定（失败关闭）的具体触发条件 |
-| O7 | 合成/注入事件识别能力与误报策略 | 待定 | spike 验证；仅带产品标记的测试事件可保证排除 |
+| O1 | 最终产品名称 | DEFERRED [证据：`evidence/phase0/conclusions.json`] | KeyRecord 仅为内部代号 |
+| O2 | 开源许可证 | NO_PUBLIC_ACTION [证据：`evidence/phase0/conclusions.json`] | 候选未评审；首个可运行原型公开前必须评审落定 |
+| O3 | 测试键盘型号清单（至少 3 款） | FUTURE_REAL_DEVICE [证据：`evidence/phase0/conclusions.json`] | 需覆盖 VIA 与 Vial 目标设备 |
+| O4 | Karabiner 版本支持矩阵、VIA/Vial 五版本轴支持矩阵 | EVIDENCE_OR_BLOCKED [证据：`evidence/phase0/conclusions.json`] | 以 spike 验证为准；当前仅确定 VIA 定义 JSON 格式 V2/V3 为支持目标 |
+| O5 | 最终 API 与 spike 验证细节 | REPRESENTED [证据：`evidence/phase0/conclusions.json`] | 由技术架构文档承接 |
+| O6 | 前台归属、Secure Input 与修饰键状态重建的系统能力边界 | OPEN [证据：`evidence/phase0/conclusions.json`] | spike 验证；决定已知归属、可靠无归属（未知归属桶）与不可判定（失败关闭）的具体触发条件 |
+| O7 | 合成/注入事件识别能力与误报策略 | CONSERVATIVE [证据：`evidence/phase0/conclusions.json`] | spike 验证；仅带产品标记的测试事件可保证排除 |

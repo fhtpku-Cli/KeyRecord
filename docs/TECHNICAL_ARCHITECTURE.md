@@ -210,6 +210,8 @@ struct ObservedKeyEvent {
 
 Tap 的具体挂载点（HID 级 / Session 级 / Annotated Session 级）不由本文冻结，由 SP-1 决定。选择标准是：在用户已启用 Karabiner-Elements 的典型环境中，观测到的是变换后的事件，且每个物理按下只观测到一次。
 
+**Phase 0 证据状态**：SP-1 为 BLOCKED，未选择 tap 候选。当前主机缺少 Input Monitoring 与 Karabiner，`sp1.autoRepeat`、`sp1.o7Boundary`、`sp1.productStampedDrop`、`sp1.systemShortcut`、`sp1.tap.annotated.matrix`、`sp1.tap.session.matrix`、`sp1.tapReset` 均未取得 PASS；因此 G0：OPEN。O7：保守失败关闭，仅带产品标记的合成测试事件可保证排除，未标记注入不推断为已识别。[证据：`evidence/phase0/sp1/evidence.json`；`evidence/phase0/conclusions.json`]
+
 下表列出各边界情况的处理策略；凡标注 SP 的条目，其系统行为以 spike 结论为准：
 
 | 边界情况 | 处理策略 | 状态 |
@@ -231,6 +233,8 @@ Tap 的具体挂载点（HID 级 / Session 级 / Annotated Session 级）不由�
 ### 4.4 PrivacyGate（隐私门）
 
 隐私门位于 EventSource 与 Normalizer 之间，是所有事件的必经路径。FrontmostAppProvider 的输出为三态：
+
+**Phase 0 证据状态**：三态模型中的 `indeterminate` 失败关闭已由夹具验证；但排除应用、已知前台、可靠无归属、Secure Input、tap 重置与睡眠/唤醒的目标系统行为仍阻塞。O6：OPEN，所有未执行路径继续按失败关闭处理，不把 UNKNOWN 桶扩展到不可判定状态。[证据：`evidence/phase0/sp2/evidence.json`；`evidence/phase0/conclusions.json`]
 
 ```swift
 enum FrontmostState {
@@ -266,6 +270,8 @@ appBucket = frontmostState == .known(b) ? b : UNKNOWN   // knownUnattributable �
 - UI 默认按族合并展示（left/right/both 归并为"按下"，`activeSideUnknown` 单独标注），可展开查看侧别明细（C3）。
 - `fn` 不分左右，取 `none / active` 两态（若 SP-1 证明系统能提供侧别信息再扩展）。
 - 自动重复抑制不依赖计时，只依赖事件自带的 repeat 标记与聚合状态机，避免时间窗启发式引入不确定性（C1）。
+
+**Phase 0 证据状态**：侧别与 Fn 恢复的确定性模型夹具通过，但实机侧别恢复与 Fn 实机恢复均因 Input Monitoring 不可用而阻塞；睡眠/唤醒恢复也未执行。O6 在这些 SP-2 行全部 PASS 前保持 OPEN，不据模型夹具冻结生产系统 API。[证据：`evidence/phase0/sp2/modifier-model.json`；`evidence/phase0/sp2/evidence.json`；`evidence/phase0/conclusions.json`]
 
 ### 4.6 规范化和弦模型
 
@@ -370,12 +376,16 @@ struct Chord: Hashable {
 6. **崩溃恢复**：恢复粒度为单个分片或单个对象文件的"最后一次完整 rename 生效"；分片更新为读、解密、改、整体重写的单写者串行流程，半成品临时文件在启动时丢弃。写序为"先数据文件、后清单"，启动时对账清单与目录并清理孤儿文件。跨对象一致性（如 Karabiner 事务、固件导出）由 9.1 与 9.5 的操作日志协调，操作日志本身也是加密对象，只含批次元数据（哈希、阶段、备份 ID、加密目标引用），不含任何事件数据。
 7. **删除语义**：对象与分片的删除均为文件移除 + 目录 fsync；完整删除（卸载准备）移除整个存储目录与 Keychain 密钥材料（EK4、P7）。
 
+**Phase 0 证据状态**：SP-6A 的信封、HKDF/不透明定位符、路径金丝雀、安全审计与共享原子替换夹具通过；数据保护 Keychain 的候选选择与生命周期仍因签名 entitlement 不可用而阻塞。G1 因 G0 与 `sp6a.keychainSelection` 保持阻塞；生产 API 与生产依赖均未冻结，且无明文回退。[证据：`evidence/phase0/sp6a/evidence.json`；`evidence/phase0/sp6a/crypto.json`；`evidence/phase0/sp6a/locator.json`；`evidence/phase0/shared-atomicity/result.json`；`evidence/phase0/conclusions.json`]
+
 ### 5.3 密钥生命周期（版本化密钥环）
 
 - 本地密钥材料为一组版本化的 Keychain 对称密钥项（密钥环）：每个密钥版本是一个独立的 Keychain 项，可访问性全部限定为仅本机、不同步（`ThisDeviceOnly` 族），不随 iCloud Keychain 或任何云同步（EK1、P4）。【架构决策，具体可访问性级别以 SP-6A 验证为准】
 - **密钥版本化**：信封头携带 `keyVersion`，指向密钥环上的对应版本。每个版本项为当版主密钥；对象加密键与定位键（locatorKey）经 HKDF 以不同 info 标签从当版主密钥派生（密钥分离，SP-6A 定稿）。轮换时生成新版本主密钥项；读取时按信封版本从环上选择派生来源，写入一律用当前版本。旧版本密钥项被显式保留，直至其保护的对象全部完成重加密或被删除；不存在"单一根密钥自动解开所有历史版本"的机制。轮换是否触发全量重加密由 SP-6A 的性能实测决定，首版允许惰性（读时重写）策略。
 - **失败关闭**：当前或所需版本的密钥项缺失、损坏或 Keychain 不可用时，采集与读取全部停止，不生成任何本地明文副本（EK3、FR-P7）。UI 只提示"数据不可用"级别信息，不展示技术细节。
 - **完整删除**：卸载准备流程删除密钥环上每一个保留版本的密钥项，此后密文不可恢复（EK4）。
+
+**Phase 0 证据状态**：隔离的未签名探针不能访问数据保护 Keychain；`WhenUnlockedThisDeviceOnly` 与 `AfterFirstUnlockThisDeviceOnly` 的生产选择、锁定/后台生命周期及删除闭环未冻结。密钥不可用仍按失败关闭，`sp6a.keychainSelection` 阻塞 Phase 1。[证据：`evidence/phase0/sp6a/keychain.json`；`evidence/phase0/sp6a/evidence.json`；`evidence/phase0/conclusions.json`]
 
 ### 5.4 完整备份的密码 KDF 信封（ADR-006）
 
@@ -387,6 +397,8 @@ struct Chord: Hashable {
 - 参数（内存、迭代、并行度、盐长）随信封版本记录，按实测目标调校：参考机型上派生耗时目标约 300 至 500 毫秒，具体数值由 SP-6B 实测确定并写入评审记录。
 - 不预设回退方案：若 Argon2id 依赖或该设计未通过 SP-6B，完整备份功能及其发布门禁保持阻断，直至一份新的 KDF ADR 经安全评审通过；本文不预写替代算法，也不允许静默降级为更弱的 KDF。不得声称 Apple 提供 Argon2id；CryptoKit 不提供 Argon2id 或 PBKDF2，其他框架中的 KDF 能力也不构成未经评审的自动回退方案。
 - 常规导出（映射与偏好）不经过此信封、不含统计数据，属于用户显式选择的明文边界，导出时 UI 明确提示（EK6、B3、FR-BK3）。
+
+**Phase 0 证据状态**：SP-6B 对两项固定候选完成来源、许可证、公告、向量与双架构构建审计，并给出 PHC 候选推荐及 Apple Silicon 参数；该推荐不是依赖冻结（`dependency_frozen=false`）。Intel 实机计时仍阻塞，生产 API 与生产依赖均未冻结，因此 FULL_BACKUP_FINAL_RELEASE 继续阻塞。[证据：`evidence/phase0/sp6b/candidate-evaluation.json`；`evidence/phase0/sp6b/intel-blocker.json`；`evidence/phase0/sp6b/evidence.json`；`evidence/phase0/conclusions.json`]
 
 ### 5.5 明文边界清单
 
@@ -604,6 +616,8 @@ sourceReliability(chord) = table( ordinaryCount / (ordinaryCount + suspectedCoun
 
 ### 9.1 KarabinerAdapter：plan / diff / commit / reconcile（ADR-007）
 
+**Phase 0 证据状态**：受管块保序、共享原子替换与崩溃恢复夹具通过；配置 schema/版本采样、实机重载和一键停用 ≤2 秒 p95 未执行。KARABINER_STABLE 保持阻塞，不能据夹具冻结支持版本或宣称稳定发布。[证据：`evidence/phase0/sp3/managed-block.json`；`evidence/phase0/sp3/atomicity-citation.json`；`evidence/phase0/sp3/evidence.json`；`evidence/phase0/conclusions.json`]
+
 **前置门禁**
 
 - 支持版本门禁：Karabiner 版本在支持矩阵内才允许写入；未知版本只读与导出（K10）。支持矩阵【待定 O4】，由 SP-3 产出。
@@ -660,6 +674,8 @@ commit(batch):
 
 ### 9.2 ViaAdapter
 
+**Phase 0 证据状态**：SP-4A：PASS（仅定义 schema）（V2/V3 定义解析与不透明保留），不得外推其他轴。SP-4B 只在 SHA-256 固定的合成夹具上验证未版本化 `.layout.json` 形状、边界与选中槽修补；该布局产物不是有版本的稳定交换标准。设备协议、固件选择的键码方言、官方导入器与真实设备行为均阻塞；协议/键码字典依赖固件，VIA protocol 13 与固定版本 Vial GUI 不兼容。VIA_GENERATION 保持阻塞，合成往返不是部署兼容性。[证据：`evidence/phase0/sp4a/evidence.json`；`evidence/phase0/sp4b/axes.json`；`evidence/phase0/sp4b/round-trip.json`；`evidence/phase0/fixtures/synthetic/via-layout.json`；`evidence/phase0/conclusions.json`]
+
 - **目标格式**：厂商定义 JSON 的格式版本 V2/V3 为支持目标（V1、O4）。V2/V3 是定义文件格式版本，不是设备协议版本。兼容性按五个独立版本轴判定：定义 schema、设备协议、布局备份格式、键码方言、官方导入器兼容性（PRD 8.1）。任一必需版本轴未知或不受支持即阻断生成（V7、FR-BE5）。版本轴支持矩阵【待定 O4】，由 SP-4A/SP-4B 产出。
 - **基线**：每个批次从用户最近一次经官方工具导出的基线出发；无最新基线即阻断（V3、FR-BE8）。基线与产物均记录来源哈希（A5）。
 - **生成前校验**：设备身份、布局、层与基线一致，不一致即阻断（V9）。
@@ -671,6 +687,8 @@ commit(batch):
 - **交付边界**：产品只做安全修补与导出，用户经官方 VIA 导入；产品不直接写设备（V4、N9）。导出不等同部署（第 8 章）。
 
 ### 9.3 VialAdapter
+
+**Phase 0 证据状态**：固定源码与合成回放证明公开构造仅限白名单约束的协议版本、UID、定义页与 keymap 查询，deny-all 默认使解锁及变更操作不可构造；但发送出站 HID report 不是字面只读，且未在获批设备上实机捕获。SP-5A 的合成 `.vil` 往返未通过官方导入器，SP-5B 实机捕获阻塞；Vial Beta 必须同时通过 SP-5A 与 SP-5B，故 VIAL_BETA 保持阻塞。[证据：`evidence/phase0/sp5a/evidence.json`；`evidence/phase0/sp5b/deny-mutation.json`；`evidence/phase0/sp5b/replay.json`；`evidence/phase0/sp5b/evidence.json`；`evidence/phase0/conclusions.json`]
 
 - 能力与 VIA 对齐（VL1）：不生成 Combo、Tap Dance、宏、Key Override（VL1、N11、N12）；仅全局作用域；仅现有可达层；未知版本阻断（VL4）。
 - **唯一交付物**是修改后的 .vil 文件，用户经官方 Vial 导入；产品不写设备、不处理解锁（VL3、N9）。
@@ -868,6 +886,10 @@ recordVerification(mapping, batch, artifact, method, result):
 | SP-6A 本地存储安全 | AEAD 算法与信封格式定稿；Keychain 可访问性级别行为符合"仅本机不同步"；定位键派生与不透明定位符/加密清单无路径语义泄露 | 安全评审 + 密钥行为实测 + 路径元数据静态检查与金丝雀路径扫描 | 通过：密钥行为实测符合、路径不含语义元数据；失败：任一不达标 | 阻断 Phase 1 采集与持久化；不得降级为明文或弱化存储 |
 | SP-6B 备份 KDF | Argon2id 依赖可审计、参数可按目标耗时调校 | 依赖审计 + 参考机型派生耗时实测 | 通过：依赖通过审计且耗时落入目标区间；失败：任一不达标 | 阻断完整备份功能与最终发布，直至新的 KDF ADR 经安全评审通过；不静默降级 |
 
+**Phase 0 汇总结论**：G0：OPEN，阻塞项精确为 `sp1.autoRepeat`、`sp1.o7Boundary`、`sp1.productStampedDrop`、`sp1.systemShortcut`、`sp1.tap.annotated.matrix`、`sp1.tap.session.matrix`、`sp1.tapReset`、`sp2.excludedApp`、`sp2.fnRecoveryLive`、`sp2.frontmostKnown`、`sp2.frontmostUnattributable`、`sp2.secureInput`、`sp2.sidedRecovery`、`sp2.sleepWake`、`sp2.tapReset`。SP-4A 的 PASS 仅覆盖定义 schema；其余 spike 的部分夹具/源码结果不冻结生产 API、生产依赖或跨版本兼容性。[证据：`evidence/phase0/conclusions.json`]
+
+下游阻塞级联与规范结论完全一致：G1 ← G0 + `sp6a.keychainSelection`；KARABINER_STABLE ← `sp3.versionSample` + `sp3.reload` + `sp3.disableLatency`；VIA_GENERATION ← `sp4b.deviceProtocol` + `sp4b.keycodeDialect` + `sp4b.importer`；VIAL_BETA ← `sp5a.importer` + `sp5b.liveCapture`；FULL_BACKUP_FINAL_RELEASE ← `sp6b.intelTiming` + `SP-6B dependency_frozen=false`。[证据：`evidence/phase0/conclusions.json`]
+
 ---
 
 ## 14. 需求追踪
@@ -911,10 +933,10 @@ recordVerification(mapping, batch, artifact, method, result):
 | O1 产品名 | 代码命名空间固定 `KeyRecord`，对外名称留空待评审 |
 | O2 许可证 | 时间门禁：首个可运行原型公开前必须评审落定（Phase 0/G0 阻断公开动作）；本文不选择许可证 |
 | O3 测试键盘清单 | 真实设备测试的输入；未落定前真实设备测试标记阻塞 |
-| O4 版本支持矩阵 | SP-3/SP-4A/SP-4B/SP-5A/SP-5B 产出；矩阵落定前对应后端保持阻断或只读 |
+| O4 版本支持矩阵 | 当前为 EVIDENCE_OR_BLOCKED：仅各独立轴的证据或阻塞已记录，不推断跨轴兼容；Karabiner 稳定、VIA 生成与 Vial Beta 仍阻塞。[证据：`evidence/phase0/conclusions.json`] |
 | O5 API 与 spike 细节 | 本文第 3/4/9 章 + 第 13 章 spike 表 |
-| O6 归属/安全输入/修饰键能力边界 | SP-2；决定前台三态划分（已知归属 / 可靠无归属入 UNKNOWN 桶 / 不可判定失败关闭）的具体系统触发条件，结论回写第 4 章 |
-| O7 注入识别 | SP-1 附带观测；首版仅保证产品标记事件排除，其余降置信度 |
+| O6 归属/安全输入/修饰键能力边界 | O6：OPEN；SP-2 的已知/可靠无归属、Secure Input、tap、睡眠、侧别及 Fn 实机恢复阻塞，所有行（含 Fn）通过前不关闭。[证据：`evidence/phase0/sp2/evidence.json`；`evidence/phase0/conclusions.json`] |
+| O7 注入识别 | O7：保守失败关闭；仅产品标记事件保证排除，未标记注入不推断识别成功。[证据：`evidence/phase0/sp1/O7-ADDENDUM.md`；`evidence/phase0/conclusions.json`] |
 
 ---
 
@@ -932,6 +954,8 @@ recordVerification(mapping, batch, artifact, method, result):
 
 v1 发布门禁：PRD 第 15 章 17 项验收全部通过。
 
+**Phase 0 门禁写回**：G0：OPEN，Phase 1 的 G1 同时受 G0 与 SP-6A Keychain 选择阻塞；Phase 3 的 KARABINER_STABLE 受版本采样、实机重载和 ≤2 秒 p95 停用阻塞；Phase 4 的 VIA_GENERATION 受设备协议、键码方言和官方导入器阻塞，VIAL_BETA 受 SP-5A+SP-5B 双门禁阻塞；完整备份与最终发布受 Intel 计时及未冻结依赖阻塞。任何夹具结果均不替代相应实机/官方导入证据。[证据：`evidence/phase0/conclusions.json`]
+
 ---
 
 ## 16. ADR 记录
@@ -939,18 +963,18 @@ v1 发布门禁：PRD 第 15 章 17 项验收全部通过。
 | 编号 | 决策 | 备选方案（已拒绝） | 理由与状态 |
 |---|---|---|---|
 | ADR-001 | 单一菜单栏进程，无守护进程、无 CLI | 守护进程/XPC 帮助进程；CLI | PRD 13.1 与 N7 直接排除；单进程缩小信任面与安装面。【已定】 |
-| ADR-002 | 自加密对象存储：内存序列化 + 版本化 AEAD 信封 + 每对象/每日聚合分片一个信封文件 + 原子替换 | 明文 SQLite；SQLCipher；一行一文件 | SQLite 默认不加密；数据规模 MB 级无关系查询需求；SQLCipher 引入需审计的原生依赖且 WAL 增加明文管控面；一行一文件会让文件数与 fsync 开销随记录数线性膨胀，日聚合按 `(cycleId, dayKey, aggregateType)` 分片后单分片体积小、整体重写代价可忽略。对象存储可完整自审计。【架构决策】 |
-| ADR-003 | listen-only 事件 tap 观测阶段 3 | 设备独占抓取；拦截式 tap（可改写事件） | 本产品只观测不改键；拦截式 tap 扩大风险面且与"永不修改事件"冲突。位置冻结属 SP-1。【已定 + Spike 门禁】 |
+| ADR-002 | 自加密对象存储：内存序列化 + 版本化 AEAD 信封 + 每对象/每日聚合分片一个信封文件 + 原子替换 | 明文 SQLite；SQLCipher；一行一文件 | 信封/HKDF/定位符/共享原子替换夹具通过；数据保护 Keychain 选择仍阻塞，生产 API 未冻结。【架构决策 + 证据受限】[证据：`evidence/phase0/sp6a/evidence.json`；`evidence/phase0/conclusions.json`] |
+| ADR-003 | listen-only 事件 tap 观测阶段 3 | 设备独占抓取；拦截式 tap（可改写事件） | SP-1 因 Input Monitoring 与 Karabiner 不可用而未选择 tap，位置与生产 API 不冻结；O7 保守失败关闭。【已定 + Spike 门禁】[证据：`evidence/phase0/sp1/evidence.json`；`evidence/phase0/conclusions.json`] |
 | ADR-004 | 确定性规则评分 | 机器学习/黑盒排序 | R1 要求相同输入相同输出且因子可解释；黑盒无法满足。【已定】 |
-| ADR-005 | 固件仅产物导出，官方工具导入 | 直接写入 VIA/Vial 设备 | N9 直接排除；写入与解锁风险不可接受；Vial 查询也仅白名单非变更命令。【已定】 |
-| ADR-006 | 完整备份用独立加盐版本化 KDF 信封，选定 Argon2id（依赖须经审计、参数经实测调校）；不预设回退，SP-6B 不通过则功能阻断并待新 KDF ADR | 声称使用 Apple 原生 Argon2 API；把其他 KDF 当作未经评审的自动回退；复用本地存储密钥；静默降级为更弱 KDF | Apple 平台无现成 Argon2id API，且 CryptoKit 不提供 Argon2id 或 PBKDF2；不得虚构。其他框架的 KDF 能力必须经新的 ADR 与安全评审，不能自动回退。备份密钥必须与本地存储密钥环独立（EK5）。参数与依赖属 SP-6B；不通过时阻断完整备份与最终发布而非降级。【架构决策 + Spike 门禁】 |
-| ADR-007 | Karabiner 受管规则组织为 Profile 内连续受管块 + 独立命名空间 | 分散插入用户规则间；独立专用 Profile | 连续块保证用户内容零改动可证明（黄金测试）；独立 Profile 改变用户既有激活语义，风险更大。【已定 K4 下的架构决策】 |
+| ADR-005 | 固件仅产物导出，官方工具导入 | 直接写入 VIA/Vial 设备 | 合成产物/回放仅证明边界；VIA 官方导入与设备轴、Vial 官方导入与实机捕获均阻塞。Vial 查询受白名单约束但不是字面只读。【已定 + 证据受限】[证据：`evidence/phase0/sp4b/evidence.json`；`evidence/phase0/sp5a/evidence.json`；`evidence/phase0/sp5b/evidence.json`] |
+| ADR-006 | 完整备份用独立加盐版本化 KDF 信封，选定 Argon2id（依赖须经审计、参数经实测调校）；不预设回退，SP-6B 不通过则功能阻断并待新 KDF ADR | 声称使用 Apple 原生 Argon2 API；把其他 KDF 当作未经评审的自动回退；复用本地存储密钥；静默降级为更弱 KDF | PHC 仅为证据推荐，不是依赖冻结；`dependency_frozen=false`，Intel 计时阻塞，完整备份与最终发布继续阻塞。【架构决策 + Spike 门禁】[证据：`evidence/phase0/sp6b/candidate-evaluation.json`；`evidence/phase0/sp6b/intel-blocker.json`；`evidence/phase0/conclusions.json`] |
+| ADR-007 | Karabiner 受管规则组织为 Profile 内连续受管块 + 独立命名空间 | 分散插入用户规则间；独立专用 Profile | 受管块夹具证明保序；实机 schema/版本、重载和时延阻塞，稳定版本矩阵不冻结。【已定 K4 下的架构决策 + 证据受限】[证据：`evidence/phase0/sp3/managed-block.json`；`evidence/phase0/sp3/evidence.json`] |
 | ADR-008 | 不做阶段 4 推断：冲突与验证均不使用效果推断 | 以辅助功能观察应用行为作为"已生效"证明 | X2 规定证据均为部分证据；效果推断会产生虚假确定性与错误回滚决策。【已定】 |
-| ADR-009 | 明文边界仅两类：用户选择的导出、Karabiner 自有配置 | 提供"明文模式"便于调试 | EK2/EK6 排除明文回退；调试经测试接缝与金丝雀机制解决。【已定】 |
+| ADR-009 | 明文边界仅两类：用户选择的导出、Karabiner 自有配置 | 提供"明文模式"便于调试 | 路径金丝雀与隐私审计支持无语义定位符边界；Keychain 阻塞不允许明文回退。【已定 + 证据受限】[证据：`evidence/phase0/sp6a/path-canary.json`；`evidence/phase0/sp6a/evidence.json`] |
 | ADR-010 | 周期重置时明细删除、汇总单向生成 CycleSummary | 保留全部明细；或全部删除 | L5 要求"删明细、留汇总"；单向汇总不含日粒度，避免变相保留明细。字段定义待产品评审确认（10.2 L5 行）。【架构决策】 |
-| ADR-011 | 存储路径元数据保密：不透明定位符（HMAC + 分离派生的定位键）+ 加密清单；逻辑类型/ID/分片键只存于密文 | 按类型/日期分桶的明文目录名；只加密内容不管文件名 | 明文路径泄露使用节律与数据结构；定位键随密钥环版本化与删除。残余泄露（文件数、大小、时序）在威胁模型明示，不声称消除。【架构决策】 |
+| ADR-011 | 存储路径元数据保密：不透明定位符（HMAC + 分离派生的定位键）+ 加密清单；逻辑类型/ID/分片键只存于密文 | 按类型/日期分桶的明文目录名；只加密内容不管文件名 | HKDF 分离与路径金丝雀夹具通过；生产密钥生命周期仍随 SP-6A Keychain 选择阻塞。【架构决策 + 证据受限】[证据：`evidence/phase0/sp6a/locator.json`；`evidence/phase0/sp6a/path-canary.json`；`evidence/phase0/conclusions.json`] |
 | ADR-012 | 固件导出建模为一次操作：ArtifactExported 为产物操作结果，AwaitingUserImport 与之原子迁移；FirmwareOperationJournal 跨对象幂等对账 | 把导出当中间持久映射状态串行推进；以导入声明充当验证证据 | 串行状态在崩溃下产生不可达与矛盾状态；声明不是证据（A2）。【架构决策】 |
-| ADR-013 | Karabiner 读回不一致按当前哈希三分类：仅等于本产品写入结果允许自动恢复；等于基线只标记未落盘；其他一律外部变更 | 读回不一致即无条件恢复前镜像 | 无条件恢复可能覆盖外部编辑，破坏 K11/K13 语义。【架构决策】 |
+| ADR-013 | Karabiner 读回不一致按当前哈希三分类：仅等于本产品写入结果允许自动恢复；等于基线只标记未落盘；其他一律外部变更 | 读回不一致即无条件恢复前镜像 | 三分类崩溃恢复夹具通过；实机 Karabiner 重载与时延仍阻塞。【架构决策 + 证据受限】[证据：`evidence/phase0/sp3/recovery.json`；`evidence/phase0/sp3/evidence.json`] |
 
 ---
 

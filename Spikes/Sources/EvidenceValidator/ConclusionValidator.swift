@@ -133,13 +133,17 @@ public enum ConclusionValidator {
             repository: repository
         )
         guard Set(document.generatorSourceSha256.keys) == ConclusionGenerator.sourcePaths else { throw ValidatorError("conclusion_runner_source_set_mismatch") }
-        for path in ConclusionGenerator.sourcePaths.sorted() {
-            let bytes = strictRepositoryBinding
-                ? try git.run(["cat-file", "blob", "\(document.generatorCommitSha):\(path)"]).stdout
-                : try Data(contentsOf: repository.appendingPathComponent(path))
+        let paths = ConclusionGenerator.sourcePaths.sorted()
+        let sourceBytes = try strictRepositoryBinding
+            ? git.blobs(paths.map { "\(document.generatorCommitSha):\($0)" })
+            : paths.map { try Data(contentsOf: repository.appendingPathComponent($0)) }
+        for (path, bytes) in zip(paths, sourceBytes) {
             guard document.generatorSourceSha256[path] == Canonical.sha256(bytes) else { throw ValidatorError("conclusion_runner_source_hash_mismatch", path) }
-            if strictRepositoryBinding, !(try git.text(["status", "--porcelain=v1", "--untracked-files=all", "--", path])).isEmpty {
-                throw ValidatorError("conclusion_runner_dirty", path)
+        }
+        if strictRepositoryBinding {
+            let dirty = try git.text(["status", "--porcelain=v1", "--untracked-files=all", "--"] + paths)
+            guard dirty.isEmpty else {
+                throw ValidatorError("conclusion_runner_dirty", dirty.split(separator: "\n").first.map(String.init) ?? "")
             }
         }
         guard try git.text(["rev-parse", "\(document.generatorCommitSha)^{tree}"]) == document.generatorTreeSha else { throw ValidatorError("conclusion_runner_tree_mismatch") }

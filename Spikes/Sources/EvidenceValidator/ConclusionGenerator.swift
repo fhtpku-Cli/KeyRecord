@@ -97,16 +97,18 @@ public enum ConclusionGenerator {
         guard try git.text(["rev-parse", "\(sourceCommit)^{tree}"]) == sourceTree else {
             throw ValidatorError("source_manifest_rebind")
         }
+        let paths = sourcePaths.sorted()
         if strictRepositoryBinding {
-            for path in sourcePaths.sorted() where !(try git.text(["status", "--porcelain=v1", "--untracked-files=all", "--", path])).isEmpty {
-                throw ValidatorError("conclusion_runner_dirty", path)
+            let dirty = try git.text(["status", "--porcelain=v1", "--untracked-files=all", "--"] + paths)
+            guard dirty.isEmpty else {
+                throw ValidatorError("conclusion_runner_dirty", dirty.split(separator: "\n").first.map(String.init) ?? "")
             }
         }
-        let sourceHashes = try Dictionary(uniqueKeysWithValues: sourcePaths.sorted().map { path in
-            let data = strictRepositoryBinding || bindingCommitSha != nil
-                ? try git.run(["cat-file", "blob", "\(commit):\(path)"]).stdout
-                : try Data(contentsOf: repository.appendingPathComponent(path))
-            return (path, Canonical.sha256(data))
+        let sourceBytes = try strictRepositoryBinding || bindingCommitSha != nil
+            ? git.blobs(paths.map { "\(commit):\($0)" })
+            : paths.map { try Data(contentsOf: repository.appendingPathComponent($0)) }
+        let sourceHashes = Dictionary(uniqueKeysWithValues: zip(paths, sourceBytes).map {
+            ($0.0, Canonical.sha256($0.1))
         })
         let spikes = try ConclusionContract.spikeIDs.map { id in try spike(id, root: root) }
         let byID = Dictionary(uniqueKeysWithValues: spikes.map { ($0.id, $0) })

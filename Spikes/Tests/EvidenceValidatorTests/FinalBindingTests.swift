@@ -15,16 +15,12 @@ final class FinalBindingTests: XCTestCase {
         try assertUntrackedError(ignored: true, operation: .bind, expected: "ignored_bound_input")
     }
 
-    func testBindAllowsIgnoredSwiftPMBuildArtifacts() throws {
-        // Given
-        let repository = try TemporaryRepository.make()
-        defer { repository.remove() }
-        try repository.write("Spikes/.build/.lock", "")
-        try repository.write(".git/info/exclude", "Spikes/.build/\n")
-        let binder = CandidateBinder(repository: repository.root, auditBaseSha: repository.auditBase)
+    func testBindRejectsIgnoredSwiftPMBuildArtifacts() throws {
+        try assertIgnoredSwiftPMBuildError(operation: .bind)
+    }
 
-        // When / Then
-        XCTAssertNoThrow(try binder.bind(evidence: repository.evidence, plan: repository.plan, environment: repository.environment, createdAt: "2026-09-04T00:00:00Z"))
+    func testVerifyRejectsIgnoredSwiftPMBuildArtifacts() throws {
+        try assertIgnoredSwiftPMBuildError(operation: .verify)
     }
 
     func testVerifyRejectsIgnoredUntrackedBoundInput() throws {
@@ -94,6 +90,24 @@ final class FinalBindingTests: XCTestCase {
     }
 
     private enum Operation { case bind, verify }
+
+    private func assertIgnoredSwiftPMBuildError(operation: Operation) throws {
+        let repository = try TemporaryRepository.make()
+        defer { repository.remove() }
+        let binder = CandidateBinder(repository: repository.root, auditBaseSha: repository.auditBase)
+        let candidate = try binder.bind(evidence: repository.evidence, plan: repository.plan, environment: repository.environment, createdAt: "2026-09-04T00:00:00Z")
+        try repository.write("Spikes/.build/.lock", "")
+        try repository.write(".git/info/exclude", "Spikes/.build/\n")
+        let code = capture {
+            switch operation {
+            case .bind:
+                _ = try binder.bind(evidence: repository.evidence, plan: repository.plan, environment: repository.environment, createdAt: "2026-09-04T00:00:00Z")
+            case .verify:
+                try binder.verify(candidate, evidence: repository.evidence, plan: repository.plan, environment: repository.environment)
+            }
+        }
+        XCTAssertEqual(code, "ignored_bound_input")
+    }
 
     private func assertUntrackedError(ignored: Bool, operation: Operation, expected: String) throws {
         let repository = try TemporaryRepository.make()

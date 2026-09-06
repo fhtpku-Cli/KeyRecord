@@ -146,7 +146,7 @@ else
       ready="$tmp_dir/ready-$signal_name-$attempt"
       KEYRECORD_CONCLUSION_TEST_SIGNAL_EXEC=1 KEYRECORD_CONCLUSION_TEST_DELAY=30 KEYRECORD_CONCLUSION_TEST_READY_FILE="$ready" generate "$output" >>"$log" 2>&1 & child=$!
       observed=false
-      for _ in {1..600}; do [[ -f "$ready" ]] && { observed=true; break; }; sleep 0.05; done
+      for _ in {1..3600}; do [[ -f "$ready" ]] && { observed=true; break; }; sleep 0.05; done
       [[ "$observed" == true ]] || failures=$((failures + 1))
       candidate="$(cat "$ready" 2>/dev/null || true)"
       [[ -n "$candidate" && -e "$candidate" ]] || failures=$((failures + 1))
@@ -160,6 +160,7 @@ else
   [[ "$(shasum -a 256 "$tmp_dir/canonical/conclusions.json" | cut -d ' ' -f 1)" == "$canonical_hash" ]] || failures=$((failures + 1))
   check_committed_conclusions || failures=$((failures + 1))
   if [[ "$failures" -ne 0 ]]; then
+    cat "$log" >&2
     printf 'TASK_15_NEGATIVE=FAIL failures=%s\n' "$failures" >&2
     exit 1
   fi

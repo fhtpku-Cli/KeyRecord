@@ -62,7 +62,12 @@ final class ConclusionGeneratorTests: XCTestCase {
         let repository = try repositoryRoot()
         let source = try rawEvidenceRoot(repository: repository)
         let output = temporaryURL("coordinated-remanifest")
-        defer { try? FileManager.default.removeItem(at: source); try? FileManager.default.removeItem(at: output) }
+        defer {
+            if source != repository.appendingPathComponent("evidence/phase0") {
+                try? FileManager.default.removeItem(at: source)
+            }
+            try? FileManager.default.removeItem(at: output)
+        }
         let evidenceURL = source.appendingPathComponent("sp1/evidence.json")
         var object = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: evidenceURL)) as? [String: Any])
         object["coordinated_extra"] = true

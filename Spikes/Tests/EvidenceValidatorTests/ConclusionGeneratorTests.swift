@@ -60,25 +60,39 @@ final class ConclusionGeneratorTests: XCTestCase {
 
     func testHistoricalSourceRejectsCoordinatedChildRemanifest() throws {
         let repository = try repositoryRoot()
-        let source = try rawEvidenceRoot(repository: repository)
+        let canonical = try rawEvidenceRoot(repository: repository)
+        let source = temporaryURL("coordinated-source")
+        try FileManager.default.copyItem(at: canonical, to: source)
         let output = temporaryURL("coordinated-remanifest")
         defer {
-            if source != repository.appendingPathComponent("evidence/phase0") {
-                try? FileManager.default.removeItem(at: source)
+            try? FileManager.default.removeItem(at: source)
+            if canonical != repository.appendingPathComponent("evidence/phase0") {
+                try? FileManager.default.removeItem(at: canonical)
             }
             try? FileManager.default.removeItem(at: output)
         }
         let evidenceURL = source.appendingPathComponent("sp1/evidence.json")
         var object = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: evidenceURL)) as? [String: Any])
-        object["coordinated_extra"] = true
+        object["coordinated_extra"] = "mutated-copy"
         try JSONSerialization.data(withJSONObject: object, options: [.prettyPrinted, .sortedKeys]).write(to: evidenceURL)
         try remanifest(source.appendingPathComponent("sp1"))
         try remanifest(source, names: ["README.md", "environment.json", "privacy-audit.json", "run-all.json"])
+        let sourceCommit = try XCTUnwrap(recordedSourceCommit(repository: repository))
+        let git = GitRunner(repository: repository, timeout: 10, executable: URL(fileURLWithPath: "/usr/bin/git"))
+        XCTAssertNotEqual(
+            try Data(contentsOf: evidenceURL),
+            try git.run(["cat-file", "blob", "\(sourceCommit):evidence/phase0/sp1/evidence.json"]).stdout
+        )
+        XCTAssertThrowsError(try HistoricalEvidenceInventoryValidator.validate(
+            root: source,
+            sourceCommit: sourceCommit,
+            repository: repository
+        ))
         XCTAssertThrowsError(try ConclusionGenerator.generate(
             sourceRoot: source,
             outputRoot: output,
             repository: repository,
-            sourceCommitSha: try recordedSourceCommit(repository: repository)
+            sourceCommitSha: sourceCommit
         )) { error in
             XCTAssertEqual((error as? ValidatorError)?.code, "source_evidence_bytes_mismatch")
         }
@@ -114,6 +128,9 @@ final class ConclusionGeneratorTests: XCTestCase {
 
     func testCommittedEvidenceOnlyDescendantRecomputesAgainstRecordedGeneratorCommit() throws {
         let repository = try repositoryRoot()
+        guard FileManager.default.fileExists(atPath: repository.appendingPathComponent("evidence/phase0/conclusions.json").path) else {
+            throw XCTSkip("task-15 conclusions are not generated in the raw task-14 state")
+        }
         let report = try ConclusionValidator.validate(
             root: repository.appendingPathComponent("evidence/phase0"),
             repository: repository,
@@ -164,8 +181,19 @@ final class ConclusionGeneratorTests: XCTestCase {
 
     private func recordedSourceCommit(repository: URL) throws -> String? {
         let conclusions = repository.appendingPathComponent("evidence/phase0/conclusions.json")
-        guard FileManager.default.fileExists(atPath: conclusions.path) else { return nil }
-        return try JSONDecoder().decode(Phase0Conclusions.self, from: Data(contentsOf: conclusions)).sourceEvidenceCommitSha
+        if FileManager.default.fileExists(atPath: conclusions.path) {
+            return try JSONDecoder().decode(Phase0Conclusions.self, from: Data(contentsOf: conclusions)).sourceEvidenceCommitSha
+        }
+        let process = Process(), output = Pipe()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/git")
+        process.arguments = ["rev-parse", "HEAD"]
+        process.currentDirectoryURL = repository
+        process.standardOutput = output
+        try process.run()
+        process.waitUntilExit()
+        guard process.terminationStatus == 0 else { throw CocoaError(.fileReadUnknown) }
+        return String(decoding: output.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     private func deriveCanonicalConclusions() throws -> Phase0Conclusions {

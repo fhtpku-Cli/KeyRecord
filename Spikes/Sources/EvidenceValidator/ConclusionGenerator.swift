@@ -26,10 +26,12 @@ public enum ConclusionGenerator {
         outputRoot: URL,
         repository: URL,
         strictRepositoryBinding: Bool = false,
-        sourceCommitSha: String? = nil
+        sourceCommitSha: String? = nil,
+        generatorCommitSha: String? = nil
     ) throws {
         let git = GitRunner(repository: repository, timeout: 10, executable: URL(fileURLWithPath: "/usr/bin/git"))
         let canonicalSourceCommit = try sourceCommitSha.map { try canonicalCommit($0, git: git) }
+        let canonicalGeneratorCommit = try generatorCommitSha.map { try canonicalCommit($0, git: git) }
         if let canonicalSourceCommit {
             try HistoricalEvidenceInventoryValidator.validate(
                 root: sourceRoot,
@@ -50,7 +52,8 @@ public enum ConclusionGenerator {
                 root: sourceRoot,
                 repository: repository,
                 strictRepositoryBinding: strictRepositoryBinding,
-                sourceCommitSha: canonicalSourceCommit
+                sourceCommitSha: canonicalSourceCommit,
+                bindingCommitSha: canonicalGeneratorCommit
             )
             try write(document, to: candidate.appendingPathComponent("conclusions.json"))
             for spike in document.spikes {
@@ -87,9 +90,7 @@ public enum ConclusionGenerator {
         bindingTreeSha: String? = nil
     ) throws -> Phase0Conclusions {
         let git = GitRunner(repository: repository, timeout: 10, executable: URL(fileURLWithPath: "/usr/bin/git"))
-        let commit = try canonicalCommit(bindingCommitSha
-            ?? (strictRepositoryBinding ? sourceCommitSha : nil)
-            ?? "HEAD", git: git)
+        let commit = try canonicalCommit(bindingCommitSha ?? "HEAD", git: git)
         let tree = try bindingTreeSha ?? git.text(["rev-parse", "\(commit)^{tree}"])
         guard try git.text(["rev-parse", "\(commit)^{tree}"]) == tree else {
             throw ValidatorError("conclusion_runner_tree_mismatch")

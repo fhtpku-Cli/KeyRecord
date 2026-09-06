@@ -32,21 +32,26 @@ bin="$(swift build --package-path Spikes --scratch-path "$scratch" --show-bin-pa
 
 source_root="evidence/phase0"
 source_commit=""
+generator_commit=""
 committed_conclusions=""
 committed_hash_before=""
 if [[ -f "$source_root/conclusions.json" ]]; then
   committed_conclusions="$source_root/conclusions.json"
   committed_hash_before="$(shasum -a 256 "$committed_conclusions" | cut -d ' ' -f 1)"
   source_commit="$(jq -r '.source_evidence_commit_sha' "$source_root/conclusions.json")"
+  generator_commit="$(jq -r '.generator_commit_sha' "$source_root/conclusions.json")"
   mkdir -p "$tmp_dir/raw-source"
   GIT_MASTER=1 git archive "$source_commit" evidence/phase0 | tar -x -C "$tmp_dir/raw-source"
   source_root="$tmp_dir/raw-source/evidence/phase0"
 fi
 [[ -n "$source_commit" ]] || source_commit="$(GIT_MASTER=1 git rev-parse HEAD)"
+[[ -n "$generator_commit" ]] || generator_commit="$(GIT_MASTER=1 git rev-parse HEAD)"
+source_commit="$(GIT_MASTER=1 git rev-parse --verify "$source_commit^{commit}")"
+generator_commit="$(GIT_MASTER=1 git rev-parse --verify "$generator_commit^{commit}")"
 
 generate() {
   args=(generate-conclusions --source "$source_root" --output "$1")
-  args+=(--source-commit "$source_commit")
+  args+=(--source-commit "$source_commit" --generator-commit "$generator_commit")
   "$bin" "${args[@]}"
 }
 validate() { "$bin" "$1"; }

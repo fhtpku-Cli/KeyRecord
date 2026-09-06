@@ -168,6 +168,27 @@ final class ConclusionGeneratorTests: XCTestCase {
         XCTAssertEqual(document.generatorCommitSha.count, 40)
     }
 
+    func testSourceAndGeneratorRevisionArgumentsRemainIndependent() throws {
+        let repository = try repositoryRoot()
+        let source = try rawEvidenceRoot(repository: repository)
+        defer { if source != repository.appendingPathComponent("evidence/phase0") { try? FileManager.default.removeItem(at: source) } }
+        let sourceRevision = try XCTUnwrap(recordedSourceCommit(repository: repository))
+        let git = GitRunner(repository: repository, timeout: 10, executable: URL(fileURLWithPath: "/usr/bin/git"))
+        let canonicalSource = try git.text(["rev-parse", "--verify", "\(sourceRevision)^{commit}"])
+        let canonicalGenerator = try git.text(["rev-parse", "--verify", "HEAD^{commit}"])
+
+        let document = try ConclusionGenerator.derive(
+            root: source,
+            repository: repository,
+            strictRepositoryBinding: false,
+            sourceCommitSha: String(canonicalSource.prefix(7)),
+            bindingCommitSha: String(canonicalGenerator.prefix(7))
+        )
+
+        XCTAssertEqual(document.sourceEvidenceCommitSha, canonicalSource)
+        XCTAssertEqual(document.generatorCommitSha, canonicalGenerator)
+    }
+
     private func temporaryURL(_ name: String) -> URL {
         FileManager.default.temporaryDirectory.appendingPathComponent("keyrecord-\(name)-\(UUID().uuidString)")
     }

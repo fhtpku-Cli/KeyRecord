@@ -15,6 +15,18 @@ final class FinalBindingTests: XCTestCase {
         try assertUntrackedError(ignored: true, operation: .bind, expected: "ignored_bound_input")
     }
 
+    func testBindAllowsIgnoredSwiftPMBuildArtifacts() throws {
+        // Given
+        let repository = try TemporaryRepository.make()
+        defer { repository.remove() }
+        try repository.write("Spikes/.build/.lock", "")
+        try repository.write(".git/info/exclude", "Spikes/.build/\n")
+        let binder = CandidateBinder(repository: repository.root, auditBaseSha: repository.auditBase)
+
+        // When / Then
+        XCTAssertNoThrow(try binder.bind(evidence: repository.evidence, plan: repository.plan, environment: repository.environment, createdAt: "2026-09-04T00:00:00Z"))
+    }
+
     func testVerifyRejectsIgnoredUntrackedBoundInput() throws {
         try assertUntrackedError(ignored: true, operation: .verify, expected: "ignored_bound_input")
     }

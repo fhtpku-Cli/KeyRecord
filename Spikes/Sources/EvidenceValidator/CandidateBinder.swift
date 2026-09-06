@@ -72,10 +72,12 @@ public struct CandidateBinder: Sendable {
 
     private func rejectUntracked() throws {
         let ignored = try git.nulPaths(["ls-files", "--others", "-i", "--exclude-standard", "-z"])
-        if let path = ignored.first(where: isBound) { throw ValidatorError("ignored_bound_input", path) }
+        if let path = ignored.first(where: { isBound($0) && !$0.hasPrefix("Spikes/.build/") }) {
+            throw ValidatorError("ignored_bound_input", path)
+        }
         let ordinary = try git.nulPaths(["ls-files", "--others", "--exclude-standard", "-z"])
         if let path = ordinary.first(where: isBound) { throw ValidatorError("untracked_bound_input", path) }
-        if let path = (ordinary + ignored).first(where: { $0 != ".DS_Store" && !$0.hasPrefix(".omo/") }) {
+        if let path = (ordinary + ignored).first(where: { $0 != ".DS_Store" && !$0.hasPrefix(".omo/") && !$0.hasPrefix("Spikes/.build/") }) {
             throw ValidatorError("untracked_path", path)
         }
     }

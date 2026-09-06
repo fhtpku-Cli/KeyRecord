@@ -1,4 +1,5 @@
 {
+  "coordinated_extra" : true,
   "g0Status" : "OPEN",
   "legs" : [
     {
@@ -14,8 +15,8 @@
       "detectorAvailable" : false,
       "environmentSha256" : "6b3288f5983cbce231295762d3f8381b8467d6dbe2e74fff0e17a1aebf7215f4",
       "legID" : "sp1.autoRepeat",
-      "runnerCommitSha" : "a5bb0fdac50be69d7abdbe2456c610f3e3e795a7",
-      "runnerTreeSha" : "50abaf6d0af37bee489130dbc6a3668bcb40f053",
+      "runnerCommitSha" : "1cb570627a7586a72574dbdae3043bd453422cb7",
+      "runnerTreeSha" : "ac10322e00c6fe8efe829253210cd68f6bae1adc",
       "verdict" : "BLOCKED"
     },
     {
@@ -31,8 +32,8 @@
       "detectorAvailable" : false,
       "environmentSha256" : "6b3288f5983cbce231295762d3f8381b8467d6dbe2e74fff0e17a1aebf7215f4",
       "legID" : "sp1.o7Boundary",
-      "runnerCommitSha" : "a5bb0fdac50be69d7abdbe2456c610f3e3e795a7",
-      "runnerTreeSha" : "50abaf6d0af37bee489130dbc6a3668bcb40f053",
+      "runnerCommitSha" : "1cb570627a7586a72574dbdae3043bd453422cb7",
+      "runnerTreeSha" : "ac10322e00c6fe8efe829253210cd68f6bae1adc",
       "verdict" : "BLOCKED"
     },
     {
@@ -48,8 +49,8 @@
       "detectorAvailable" : false,
       "environmentSha256" : "6b3288f5983cbce231295762d3f8381b8467d6dbe2e74fff0e17a1aebf7215f4",
       "legID" : "sp1.productStampedDrop",
-      "runnerCommitSha" : "a5bb0fdac50be69d7abdbe2456c610f3e3e795a7",
-      "runnerTreeSha" : "50abaf6d0af37bee489130dbc6a3668bcb40f053",
+      "runnerCommitSha" : "1cb570627a7586a72574dbdae3043bd453422cb7",
+      "runnerTreeSha" : "ac10322e00c6fe8efe829253210cd68f6bae1adc",
       "verdict" : "BLOCKED"
     },
     {
@@ -65,8 +66,8 @@
       "detectorAvailable" : false,
       "environmentSha256" : "6b3288f5983cbce231295762d3f8381b8467d6dbe2e74fff0e17a1aebf7215f4",
       "legID" : "sp1.systemShortcut",
-      "runnerCommitSha" : "a5bb0fdac50be69d7abdbe2456c610f3e3e795a7",
-      "runnerTreeSha" : "50abaf6d0af37bee489130dbc6a3668bcb40f053",
+      "runnerCommitSha" : "1cb570627a7586a72574dbdae3043bd453422cb7",
+      "runnerTreeSha" : "ac10322e00c6fe8efe829253210cd68f6bae1adc",
       "verdict" : "BLOCKED"
     },
     {
@@ -76,14 +77,14 @@
           "CGPreflightListenEventAccess",
           "environment.json applications[name=Karabiner-Elements]"
         ],
-        "prerequisite" : "Input Monitoring granted and a separately authorized supported Karabiner installation with controlled OFF/ON mapping",
-        "unblock_action" : "Grant Input Monitoring and install/configure Karabiner only through separate user-authorized actions, then rerun both OFF/ON legs"
+        "prerequisite" : "Input Monitoring granted and a separately authorized supported Karabiner installation with controlled OFF\/ON mapping",
+        "unblock_action" : "Grant Input Monitoring and install\/configure Karabiner only through separate user-authorized actions, then rerun both OFF\/ON legs"
       },
       "detectorAvailable" : false,
       "environmentSha256" : "6b3288f5983cbce231295762d3f8381b8467d6dbe2e74fff0e17a1aebf7215f4",
       "legID" : "sp1.tap.annotated.matrix",
-      "runnerCommitSha" : "a5bb0fdac50be69d7abdbe2456c610f3e3e795a7",
-      "runnerTreeSha" : "50abaf6d0af37bee489130dbc6a3668bcb40f053",
+      "runnerCommitSha" : "1cb570627a7586a72574dbdae3043bd453422cb7",
+      "runnerTreeSha" : "ac10322e00c6fe8efe829253210cd68f6bae1adc",
       "verdict" : "BLOCKED"
     },
     {
@@ -93,14 +94,14 @@
           "CGPreflightListenEventAccess",
           "environment.json applications[name=Karabiner-Elements]"
         ],
-        "prerequisite" : "Input Monitoring granted and a separately authorized supported Karabiner installation with controlled OFF/ON mapping",
-        "unblock_action" : "Grant Input Monitoring and install/configure Karabiner only through separate user-authorized actions, then rerun both OFF/ON legs"
+        "prerequisite" : "Input Monitoring granted and a separately authorized supported Karabiner installation with controlled OFF\/ON mapping",
+        "unblock_action" : "Grant Input Monitoring and install\/configure Karabiner only through separate user-authorized actions, then rerun both OFF\/ON legs"
       },
       "detectorAvailable" : false,
       "environmentSha256" : "6b3288f5983cbce231295762d3f8381b8467d6dbe2e74fff0e17a1aebf7215f4",
       "legID" : "sp1.tap.session.matrix",
-      "runnerCommitSha" : "a5bb0fdac50be69d7abdbe2456c610f3e3e795a7",
-      "runnerTreeSha" : "50abaf6d0af37bee489130dbc6a3668bcb40f053",
+      "runnerCommitSha" : "1cb570627a7586a72574dbdae3043bd453422cb7",
+      "runnerTreeSha" : "ac10322e00c6fe8efe829253210cd68f6bae1adc",
       "verdict" : "BLOCKED"
     },
     {
@@ -116,21 +117,21 @@
       "detectorAvailable" : false,
       "environmentSha256" : "6b3288f5983cbce231295762d3f8381b8467d6dbe2e74fff0e17a1aebf7215f4",
       "legID" : "sp1.tapReset",
-      "runnerCommitSha" : "a5bb0fdac50be69d7abdbe2456c610f3e3e795a7",
-      "runnerTreeSha" : "50abaf6d0af37bee489130dbc6a3668bcb40f053",
+      "runnerCommitSha" : "1cb570627a7586a72574dbdae3043bd453422cb7",
+      "runnerTreeSha" : "ac10322e00c6fe8efe829253210cd68f6bae1adc",
       "verdict" : "BLOCKED"
     }
   ],
   "o7Guarantee" : "only product-stamped synthetic events are guaranteed excluded; unmarked injection indicators remain suspected, never proven, and no source-field exclusion is claimed.",
   "runnerSourceSha256" : {
-    "Spikes/Scripts/run-task-qa.sh" : "bcea44c9434fba8b6189344f0b983590cb8566ab85956e8c25d95ae058ae8a78",
-    "Spikes/Sources/Phase0Probe/AtomicityProbe.swift" : "06f3044bf870bcb0057242681f64fd8c4d8c967adea917ae82d7a14abb198546",
-    "Spikes/Sources/Phase0Probe/AtomicityRunnerIdentity.swift" : "4c618386923dd3ca544d7e1ebe54f107f04eed771c923d53e1b5f6550e556901",
-    "Spikes/Sources/Phase0Probe/SP1Probe.swift" : "224fb0a682c936bc0689ca1dad69741251402743aac85d301a796b04814643e0",
-    "Spikes/Sources/Phase0Probe/main.swift" : "4f12c425094d0e4516a5bad751cda12f24fee482ca63213904bbfb36f391e0c4",
-    "Spikes/Sources/Phase0Support/AtomicReplacement.swift" : "2b41ebb3195e28a094dc70407456cb51e757245286f7c963d0deeb0a1537be9b",
-    "Spikes/Sources/Phase0Support/AtomicityEvidence.swift" : "9b40d0c7f07df767c93d90580a61b68c12cf97c32e916d7cba60f6e892127bf8",
-    "Spikes/Sources/Phase0Support/InputObservation.swift" : "6ad7686ac12e601bf5cec26188c89211ed8765f18c49d5d40227614e776d4ac4"
+    "Spikes\/Scripts\/run-task-qa.sh" : "fb4deb3f71f65ecd39efdd493b62c6b74729f8f4c6593eff429e9910da8a3675",
+    "Spikes\/Sources\/Phase0Probe\/AtomicityProbe.swift" : "06f3044bf870bcb0057242681f64fd8c4d8c967adea917ae82d7a14abb198546",
+    "Spikes\/Sources\/Phase0Probe\/AtomicityRunnerIdentity.swift" : "4c618386923dd3ca544d7e1ebe54f107f04eed771c923d53e1b5f6550e556901",
+    "Spikes\/Sources\/Phase0Probe\/main.swift" : "4f12c425094d0e4516a5bad751cda12f24fee482ca63213904bbfb36f391e0c4",
+    "Spikes\/Sources\/Phase0Probe\/SP1Probe.swift" : "224fb0a682c936bc0689ca1dad69741251402743aac85d301a796b04814643e0",
+    "Spikes\/Sources\/Phase0Support\/AtomicityEvidence.swift" : "9b40d0c7f07df767c93d90580a61b68c12cf97c32e916d7cba60f6e892127bf8",
+    "Spikes\/Sources\/Phase0Support\/AtomicReplacement.swift" : "2b41ebb3195e28a094dc70407456cb51e757245286f7c963d0deeb0a1537be9b",
+    "Spikes\/Sources\/Phase0Support\/InputObservation.swift" : "6ad7686ac12e601bf5cec26188c89211ed8765f18c49d5d40227614e776d4ac4"
   },
   "schemaVersion" : 1,
   "verdict" : "BLOCKED"

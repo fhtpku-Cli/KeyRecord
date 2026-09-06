@@ -4,7 +4,7 @@
       "axisID" : "definitionSchema",
       "evidence" : {
         "artifactPath" : "evidence/phase0/sp4a/evidence.json",
-        "artifactSha256" : "11bbbba902d62b2dc510d49720cdef4930dda62397dd797a7e61baa5bb00aec9",
+        "artifactSha256" : "eb0393d6f82f5b451d896a23f1572363269dd23161992570b503d02965422b38",
         "claim" : "SP-4A independently characterizes V2/V3 definition schema only"
       },
       "verdict" : "PASS"

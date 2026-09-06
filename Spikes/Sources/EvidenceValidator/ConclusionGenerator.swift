@@ -85,7 +85,9 @@ public enum ConclusionGenerator {
         bindingTreeSha: String? = nil
     ) throws -> Phase0Conclusions {
         let git = GitRunner(repository: repository, timeout: 10, executable: URL(fileURLWithPath: "/usr/bin/git"))
-        let commit = try bindingCommitSha ?? git.text(["rev-parse", "HEAD"])
+        let commit = try bindingCommitSha
+            ?? (strictRepositoryBinding ? sourceCommitSha : nil)
+            ?? git.text(["rev-parse", "HEAD"])
         let tree = try bindingTreeSha ?? git.text(["rev-parse", "\(commit)^{tree}"])
         guard try git.text(["rev-parse", "\(commit)^{tree}"]) == tree else {
             throw ValidatorError("conclusion_runner_tree_mismatch")

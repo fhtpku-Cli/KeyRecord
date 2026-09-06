@@ -73,4 +73,30 @@ struct GitRunner: Sendable {
     func nulPaths(_ arguments: [String]) throws -> [String] {
         String(decoding: try run(arguments).stdout, as: UTF8.self).split(separator: "\0").map(String.init)
     }
+
+    func blobs(_ objectSpecs: [String]) throws -> [Data] {
+        let input = Data((objectSpecs.joined(separator: "\n") + "\n").utf8)
+        let output = try run(["cat-file", "--batch"], input: input).stdout
+        var cursor = output.startIndex
+        var blobs: [Data] = []
+        blobs.reserveCapacity(objectSpecs.count)
+        for objectSpec in objectSpecs {
+            guard let newline = output[cursor...].firstIndex(of: 10) else {
+                throw ValidatorError("git_batch_malformed", objectSpec)
+            }
+            let header = String(decoding: output[cursor..<newline], as: UTF8.self).split(separator: " ")
+            guard header.count == 3, header[1] == "blob", let size = Int(header[2]) else {
+                throw ValidatorError("git_batch_malformed", objectSpec)
+            }
+            let start = output.index(after: newline)
+            guard let end = output.index(start, offsetBy: size, limitedBy: output.endIndex),
+                  end < output.endIndex, output[end] == 10 else {
+                throw ValidatorError("git_batch_malformed", objectSpec)
+            }
+            blobs.append(Data(output[start..<end]))
+            cursor = output.index(after: end)
+        }
+        guard cursor == output.endIndex else { throw ValidatorError("git_batch_malformed") }
+        return blobs
+    }
 }

@@ -136,14 +136,16 @@ enum Phase0RootValidator {
         guard try git.run(["merge-base", "--is-ancestor", receipt.runnerCommitSha, "HEAD"], acceptedStatuses: [0, 1]).status == 0 else {
             throw ValidatorError("phase0_runner_not_ancestor")
         }
-        for path in sourceSet.sorted() {
-            let result = try git.run(["cat-file", "blob", "\(receipt.runnerCommitSha):\(path)"], acceptedStatuses: [0, 128])
-            guard result.status == 0, receipt.runnerSourceSha256[path] == Canonical.sha256(result.stdout) else {
+        let paths = sourceSet.sorted()
+        let blobs = try git.blobs(paths.map { "\(receipt.runnerCommitSha):\($0)" })
+        for (index, path) in paths.enumerated() {
+            guard receipt.runnerSourceSha256[path] == Canonical.sha256(blobs[index]) else {
                 throw ValidatorError("phase0_runner_source_hash_mismatch", path)
             }
-            guard try git.text(["status", "--porcelain=v1", "--untracked-files=all", "--", path]).isEmpty else {
-                throw ValidatorError("phase0_runner_source_dirty", path)
-            }
+        }
+        let dirty = try git.text(["status", "--porcelain=v1", "--untracked-files=all", "--"] + paths)
+        guard dirty.isEmpty else {
+            throw ValidatorError("phase0_runner_source_dirty", dirty.split(separator: "\n").first.map(String.init) ?? "")
         }
     }
 

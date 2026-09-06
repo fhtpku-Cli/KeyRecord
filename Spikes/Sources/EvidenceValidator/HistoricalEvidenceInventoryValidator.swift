@@ -31,7 +31,7 @@ enum HistoricalEvidenceInventoryValidator {
         let compared = historical.keys.sorted().filter { path in
             historical[path]?.kind == .file && !(concluded && mutableConclusionPaths.contains(path))
         }
-        let committed = try batchBlobs(compared.compactMap { historical[$0]?.objectID }, git: git)
+        let committed = try git.blobs(compared.compactMap { historical[$0]?.objectID })
         for (path, historicalEntry) in historical {
             guard local[path] == historicalEntry.kind else {
                 throw ValidatorError("source_evidence_type_mismatch", path)
@@ -77,35 +77,6 @@ enum HistoricalEvidenceInventoryValidator {
             }
         }
         return result
-    }
-
-    private static func batchBlobs(_ objectIDs: [String], git: GitRunner) throws -> [Data] {
-        let input = Data((objectIDs.joined(separator: "\n") + "\n").utf8)
-        let output = try git.run(["cat-file", "--batch"], input: input).stdout
-        var cursor = output.startIndex
-        var blobs: [Data] = []
-        blobs.reserveCapacity(objectIDs.count)
-        for objectID in objectIDs {
-            guard let newline = output[cursor...].firstIndex(of: 10) else {
-                throw ValidatorError("source_evidence_inventory_malformed")
-            }
-            let header = String(decoding: output[cursor..<newline], as: UTF8.self).split(separator: " ")
-            guard header.count == 3, header[0] == objectID, header[1] == "blob",
-                  let size = Int(header[2]) else {
-                throw ValidatorError("source_evidence_inventory_malformed")
-            }
-            let start = output.index(after: newline)
-            guard let end = output.index(start, offsetBy: size, limitedBy: output.endIndex),
-                  end < output.endIndex, output[end] == 10 else {
-                throw ValidatorError("source_evidence_inventory_malformed")
-            }
-            blobs.append(Data(output[start..<end]))
-            cursor = output.index(after: end)
-        }
-        guard cursor == output.endIndex else {
-            throw ValidatorError("source_evidence_inventory_malformed")
-        }
-        return blobs
     }
 
     private static func localInventory(root: URL) throws -> [String: EntryKind] {

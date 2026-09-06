@@ -124,6 +124,10 @@ public enum ConclusionValidator {
         strictRepositoryBinding: Bool
     ) throws {
         let git = GitRunner(repository: repository, timeout: 10, executable: URL(fileURLWithPath: "/usr/bin/git"))
+        guard isCanonicalCommit(document.sourceEvidenceCommitSha),
+              isCanonicalCommit(document.generatorCommitSha) else {
+            throw ValidatorError("noncanonical_commit_sha")
+        }
         guard try git.text(["rev-parse", "\(document.sourceEvidenceCommitSha)^{tree}"]) == document.sourceEvidenceTreeSha else { throw ValidatorError("source_manifest_rebind") }
         let blob = try git.run(["cat-file", "blob", "\(document.sourceEvidenceCommitSha):evidence/phase0/manifest.sha256"]).stdout
         guard Canonical.sha256(blob) == document.sourceRootManifestSha256 else { throw ValidatorError("source_manifest_rebind") }
@@ -147,6 +151,10 @@ public enum ConclusionValidator {
             }
         }
         guard try git.text(["rev-parse", "\(document.generatorCommitSha)^{tree}"]) == document.generatorTreeSha else { throw ValidatorError("conclusion_runner_tree_mismatch") }
+    }
+
+    private static func isCanonicalCommit(_ value: String) -> Bool {
+        value.range(of: "^[0-9a-f]{40}$", options: .regularExpression) != nil
     }
 
     private static func validateMembership(_ root: URL) throws {

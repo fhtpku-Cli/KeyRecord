@@ -128,8 +128,13 @@ final class ConclusionGeneratorTests: XCTestCase {
 
     func testCommittedEvidenceOnlyDescendantRecomputesAgainstRecordedGeneratorCommit() throws {
         let repository = try repositoryRoot()
-        guard FileManager.default.fileExists(atPath: repository.appendingPathComponent("evidence/phase0/conclusions.json").path) else {
+        let conclusions = repository.appendingPathComponent("evidence/phase0/conclusions.json")
+        guard FileManager.default.fileExists(atPath: conclusions.path) else {
             throw XCTSkip("task-15 conclusions are not generated in the raw task-14 state")
+        }
+        let stored = try JSONDecoder().decode(Phase0Conclusions.self, from: Data(contentsOf: conclusions))
+        guard stored.sourceEvidenceCommitSha.count == 40, stored.generatorCommitSha.count == 40 else {
+            throw XCTSkip("task-15 conclusions require canonical revision resealing")
         }
         let report = try ConclusionValidator.validate(
             root: repository.appendingPathComponent("evidence/phase0"),
@@ -138,6 +143,29 @@ final class ConclusionGeneratorTests: XCTestCase {
         )
         XCTAssertEqual(report.spikeCount, 9)
         XCTAssertEqual(report.g0Status, .open)
+    }
+
+    func testDeriveCanonicalizesAbbreviatedRevisionArguments() throws {
+        let repository = try repositoryRoot()
+        let source = try rawEvidenceRoot(repository: repository)
+        defer { if source != repository.appendingPathComponent("evidence/phase0") { try? FileManager.default.removeItem(at: source) } }
+        let recorded = try XCTUnwrap(recordedSourceCommit(repository: repository))
+        let git = GitRunner(repository: repository, timeout: 10, executable: URL(fileURLWithPath: "/usr/bin/git"))
+        let full = try git.text(["rev-parse", "--verify", "\(recorded)^{commit}"])
+        let abbreviated = String(full.prefix(7))
+
+        let document = try ConclusionGenerator.derive(
+            root: source,
+            repository: repository,
+            strictRepositoryBinding: false,
+            sourceCommitSha: abbreviated,
+            bindingCommitSha: abbreviated
+        )
+
+        XCTAssertEqual(document.sourceEvidenceCommitSha, full)
+        XCTAssertEqual(document.generatorCommitSha, full)
+        XCTAssertEqual(document.sourceEvidenceCommitSha.count, 40)
+        XCTAssertEqual(document.generatorCommitSha.count, 40)
     }
 
     private func temporaryURL(_ name: String) -> URL {

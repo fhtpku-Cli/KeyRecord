@@ -33,8 +33,10 @@ bin="$(swift build --package-path Spikes --scratch-path "$scratch" --show-bin-pa
 source_root="evidence/phase0"
 source_commit=""
 committed_conclusions=""
+committed_hash_before=""
 if [[ -f "$source_root/conclusions.json" ]]; then
   committed_conclusions="$source_root/conclusions.json"
+  committed_hash_before="$(shasum -a 256 "$committed_conclusions" | cut -d ' ' -f 1)"
   source_commit="$(jq -r '.source_evidence_commit_sha' "$source_root/conclusions.json")"
   mkdir -p "$tmp_dir/raw-source"
   GIT_MASTER=1 git archive "$source_commit" evidence/phase0 | tar -x -C "$tmp_dir/raw-source"
@@ -48,9 +50,17 @@ generate() {
   "$bin" "${args[@]}"
 }
 validate() { "$bin" "$1"; }
+check_committed_conclusions() {
+  [[ -z "$committed_conclusions" ]] && return
+  if ! run validate "$committed_conclusions"; then return 1; fi
+  local hash_after
+  hash_after="$(shasum -a 256 "$committed_conclusions" | cut -d ' ' -f 1)"
+  [[ "$hash_after" == "$committed_hash_before" ]]
+}
 
 if [[ "$mode" == happy ]]; then
   run bash Spikes/Scripts/verify-manifests.sh evidence/phase0
+  check_committed_conclusions
   run generate "$tmp_dir/first"
   run generate "$tmp_dir/second"
   run validate "$tmp_dir/first"
@@ -64,12 +74,13 @@ if [[ "$mode" == happy ]]; then
   run "$bin" audit-privacy "$tmp_dir/first"
   run jq -e '([.spikes[].id] | sort) == ["SP-1","SP-2","SP-3","SP-4A","SP-4B","SP-5A","SP-5B","SP-6A","SP-6B"] and ([.o_items[].id] | sort) == ["O1","O2","O3","O4","O5","O6","O7"] and ((.spikes[] | select(.id == "SP-6B") | .dependency_frozen) == false)' "$tmp_dir/first/conclusions.json"
   run jq -e '([.o4_matrix[].id] | sort) == (["karabiner.configSchema","karabiner.managedBlock","karabiner.atomicReplace","karabiner.reload","karabiner.disableLatency","via.definitionSchema","via.deviceProtocol","via.layoutBackupFormat","via.keycodeDialect","via.officialImporterCompatibility","vial.definitionSchema","vial.deviceProtocol","vial.layoutBackupFormat","vial.keycodeDialect","vial.officialImporterCompatibility"] | sort) and ([.o4_matrix[] | ((has("evidence_path") and (has("blocked_ref")|not)) or (has("blocked_ref") and (has("evidence_path")|not)))] | all) and .g0.status == "OPEN" and (.downstream_blocks | length) >= 5' "$tmp_dir/first/conclusions.json"
-  { printf 'TASK_15_HAPPY=PASS\nCONCLUSIONS_SHA256=%s\nDETERMINISTIC_SHA256=%s\n' "$hash1" "$hash2"; cat "$log"; } >"$publish_temp"
+  check_committed_conclusions
+  { printf 'TASK_15_HAPPY=PASS\nCONCLUSIONS_SHA256=%s\nDETERMINISTIC_SHA256=%s\n' "$committed_hash_before" "$hash2"; cat "$log"; } >"$publish_temp"
 else
   run generate "$tmp_dir/canonical"
   canonical_hash="$(shasum -a 256 "$tmp_dir/canonical/conclusions.json" | cut -d ' ' -f 1)"
   failures=0
-  mutations=(missing-spike extra-spike missing-o extra-o missing-o4 extra-o4 missing-downstream extra-downstream xor-both xor-neither evidence-path evidence-hash blocker-ref vial-substitution g0-passed o6-closed sp6b-frozen compatibility rerun-drift manifest-rebind duplicate-root duplicate-nested stale partial)
+  mutations=(missing-spike extra-spike missing-o extra-o missing-o4 extra-o4 missing-downstream extra-downstream xor-both xor-neither evidence-path evidence-hash blocker-ref vial-substitution g0-passed o6-closed sp6b-frozen compatibility rerun-drift manifest-rebind abbreviated-source abbreviated-generator abbreviated-runner duplicate-root duplicate-nested stale partial)
   for mutation in "${mutations[@]}"; do
     copy="$tmp_dir/$mutation"; cp -R "$tmp_dir/canonical" "$copy"
     file="$copy/conclusions.json"
@@ -94,6 +105,9 @@ else
       compatibility) jq '.spikes[4].limitations=["official importer compatible"]' "$file" >"$tmp_dir/value" ;;
       rerun-drift) jq '.spikes[0].rerun_argv[0]="false"' "$file" >"$tmp_dir/value" ;;
       manifest-rebind) jq '.source_root_manifest_sha256=("f"*64)' "$file" >"$tmp_dir/value" ;;
+      abbreviated-source) jq '.source_evidence_commit_sha=(.source_evidence_commit_sha[0:7])' "$file" >"$tmp_dir/value" ;;
+      abbreviated-generator) jq '.generator_commit_sha=(.generator_commit_sha[0:7])' "$file" >"$tmp_dir/value" ;;
+      abbreviated-runner) jq '.spikes[0].runner_commit_sha=(.spikes[0].runner_commit_sha[0:7])' "$file" >"$tmp_dir/value" ;;
       duplicate-root) perl -0pe 's/^\{/\{"schema_version":1,/' "$file" >"$tmp_dir/value" ;;
       duplicate-nested) perl -0pe 's/"evidence":\{/"evidence":{"path":"sp1\/evidence.json",/' "$file" >"$tmp_dir/value" ;;
       stale) printf '{}\n' >"$tmp_dir/value" ;;
@@ -124,20 +138,26 @@ else
     for attempt in 1 2; do
       output="$tmp_dir/signal-$signal_name-$attempt"
       ready="$tmp_dir/ready-$signal_name-$attempt"
-      KEYRECORD_CONCLUSION_TEST_DELAY=30 KEYRECORD_CONCLUSION_TEST_READY_FILE="$ready" "$bin" generate-conclusions --source "$source_root" --output "$output" >>"$log" 2>&1 & child=$!
+      KEYRECORD_CONCLUSION_TEST_DELAY=30 KEYRECORD_CONCLUSION_TEST_READY_FILE="$ready" generate "$output" >>"$log" 2>&1 & child=$!
       observed=false
       for _ in {1..200}; do [[ -f "$ready" ]] && { observed=true; break; }; sleep 0.05; done
       [[ "$observed" == true ]] || failures=$((failures + 1))
-      kill -s "$signal_name" "$child" 2>/dev/null || true
-      set +e; wait "$child"; signal_status=$?; set -e
-      [[ "$signal_status" -ne 0 && ! -e "$output" ]] || failures=$((failures + 1))
       candidate="$(cat "$ready" 2>/dev/null || true)"
-      [[ -z "$candidate" || ! -e "$candidate" ]] || { rm -rf "$candidate"; failures=$((failures + 1)); }
+      [[ -n "$candidate" && -e "$candidate" ]] || failures=$((failures + 1))
+      kill -s "$signal_name" "$child" 2>/dev/null || failures=$((failures + 1))
+      set +e; wait "$child"; signal_status=$?; set -e
+      case "$signal_name" in INT) expected_status=130 ;; TERM) expected_status=143 ;; HUP) expected_status=129 ;; esac
+      printf 'signal=%s attempt=%s ready=%s exit_status=%s expected_status=%s\n' "$signal_name" "$attempt" "$observed" "$signal_status" "$expected_status" >>"$log"
+      [[ "$signal_status" -eq "$expected_status" && ! -e "$output" && ! -e "$candidate" ]] || failures=$((failures + 1))
     done
   done
   [[ "$(shasum -a 256 "$tmp_dir/canonical/conclusions.json" | cut -d ' ' -f 1)" == "$canonical_hash" ]] || failures=$((failures + 1))
-  [[ "$failures" -eq 0 ]]
-  { printf 'TASK_15_NEGATIVE=PASS\nCANONICAL_SHA256=%s\nMUTATIONS=%s\n' "$canonical_hash" "${#mutations[@]}"; cat "$log"; } >"$publish_temp"
+  check_committed_conclusions || failures=$((failures + 1))
+  if [[ "$failures" -ne 0 ]]; then
+    printf 'TASK_15_NEGATIVE=FAIL failures=%s\n' "$failures" >&2
+    exit 1
+  fi
+  { printf 'TASK_15_NEGATIVE=PASS\nCANONICAL_SHA256=%s\nMUTATIONS=%s\nSIGNAL_ATTEMPTS=6\n' "$committed_hash_before" "${#mutations[@]}"; cat "$log"; } >"$publish_temp"
 fi
 
 mv "$publish_temp" "$receipt"

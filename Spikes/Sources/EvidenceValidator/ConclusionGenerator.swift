@@ -28,10 +28,12 @@ public enum ConclusionGenerator {
         strictRepositoryBinding: Bool = false,
         sourceCommitSha: String? = nil
     ) throws {
-        if let sourceCommitSha {
+        let git = GitRunner(repository: repository, timeout: 10, executable: URL(fileURLWithPath: "/usr/bin/git"))
+        let canonicalSourceCommit = try sourceCommitSha.map { try canonicalCommit($0, git: git) }
+        if let canonicalSourceCommit {
             try HistoricalEvidenceInventoryValidator.validate(
                 root: sourceRoot,
-                sourceCommit: sourceCommitSha,
+                sourceCommit: canonicalSourceCommit,
                 repository: repository
             )
         }
@@ -48,7 +50,7 @@ public enum ConclusionGenerator {
                 root: sourceRoot,
                 repository: repository,
                 strictRepositoryBinding: strictRepositoryBinding,
-                sourceCommitSha: sourceCommitSha
+                sourceCommitSha: canonicalSourceCommit
             )
             try write(document, to: candidate.appendingPathComponent("conclusions.json"))
             for spike in document.spikes {
@@ -85,14 +87,14 @@ public enum ConclusionGenerator {
         bindingTreeSha: String? = nil
     ) throws -> Phase0Conclusions {
         let git = GitRunner(repository: repository, timeout: 10, executable: URL(fileURLWithPath: "/usr/bin/git"))
-        let commit = try bindingCommitSha
+        let commit = try canonicalCommit(bindingCommitSha
             ?? (strictRepositoryBinding ? sourceCommitSha : nil)
-            ?? git.text(["rev-parse", "HEAD"])
+            ?? "HEAD", git: git)
         let tree = try bindingTreeSha ?? git.text(["rev-parse", "\(commit)^{tree}"])
         guard try git.text(["rev-parse", "\(commit)^{tree}"]) == tree else {
             throw ValidatorError("conclusion_runner_tree_mismatch")
         }
-        let sourceCommit = sourceCommitSha ?? commit
+        let sourceCommit = try sourceCommitSha.map { try canonicalCommit($0, git: git) } ?? commit
         let sourceTree = try sourceTreeSha ?? git.text(["rev-parse", "\(sourceCommit)^{tree}"])
         guard try git.text(["rev-parse", "\(sourceCommit)^{tree}"]) == sourceTree else {
             throw ValidatorError("source_manifest_rebind")
@@ -204,6 +206,14 @@ public enum ConclusionGenerator {
 
     private static func qa(_ tasks: [Int]) -> [[String]] { tasks.map { ["bash", "Spikes/Scripts/run-task-qa.sh", String($0), "happy"] } }
     static func directoryName(_ id: String) -> String { id.lowercased().replacingOccurrences(of: "-", with: "") }
+
+    static func canonicalCommit(_ revision: String, git: GitRunner) throws -> String {
+        let commit = try git.text(["rev-parse", "--verify", "\(revision)^{commit}"])
+        guard commit.range(of: "^[0-9a-f]{40}$", options: .regularExpression) != nil else {
+            throw ValidatorError("noncanonical_commit_sha", revision)
+        }
+        return commit
+    }
 
     private static let limitations: [String: [String]] = [
         "SP-1": ["Input Monitoring and Karabiner were unavailable; no tap candidate is selected.", "O7 excludes only product-stamped synthetic events and otherwise fails closed."],

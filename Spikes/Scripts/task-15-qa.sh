@@ -32,16 +32,19 @@ bin="$(swift build --package-path Spikes --scratch-path "$scratch" --show-bin-pa
 
 source_root="evidence/phase0"
 source_commit=""
+committed_conclusions=""
 if [[ -f "$source_root/conclusions.json" ]]; then
+  committed_conclusions="$source_root/conclusions.json"
   source_commit="$(jq -r '.source_evidence_commit_sha' "$source_root/conclusions.json")"
   mkdir -p "$tmp_dir/raw-source"
   GIT_MASTER=1 git archive "$source_commit" evidence/phase0 | tar -x -C "$tmp_dir/raw-source"
   source_root="$tmp_dir/raw-source/evidence/phase0"
 fi
+[[ -n "$source_commit" ]] || source_commit="$(GIT_MASTER=1 git rev-parse HEAD)"
 
 generate() {
   args=(generate-conclusions --source "$source_root" --output "$1")
-  [[ -z "$source_commit" ]] || args+=(--source-commit "$source_commit")
+  args+=(--source-commit "$source_commit")
   "$bin" "${args[@]}"
 }
 validate() { "$bin" "$1"; }
@@ -56,6 +59,7 @@ if [[ "$mode" == happy ]]; then
   hash2="$(shasum -a 256 "$tmp_dir/second/conclusions.json" | cut -d ' ' -f 1)"
   [[ "$hash1" == "$hash2" ]]
   run cmp "$tmp_dir/first/conclusions.json" "$tmp_dir/second/conclusions.json"
+  [[ -z "$committed_conclusions" ]] || run cmp "$committed_conclusions" "$tmp_dir/first/conclusions.json"
   run bash Spikes/Scripts/verify-manifests.sh "$tmp_dir/first"
   run "$bin" audit-privacy "$tmp_dir/first"
   run jq -e '([.spikes[].id] | sort) == ["SP-1","SP-2","SP-3","SP-4A","SP-4B","SP-5A","SP-5B","SP-6A","SP-6B"] and ([.o_items[].id] | sort) == ["O1","O2","O3","O4","O5","O6","O7"] and ((.spikes[] | select(.id == "SP-6B") | .dependency_frozen) == false)' "$tmp_dir/first/conclusions.json"
@@ -65,7 +69,7 @@ else
   run generate "$tmp_dir/canonical"
   canonical_hash="$(shasum -a 256 "$tmp_dir/canonical/conclusions.json" | cut -d ' ' -f 1)"
   failures=0
-  mutations=(missing-spike extra-spike missing-o extra-o missing-o4 extra-o4 missing-downstream extra-downstream xor-both xor-neither evidence-path evidence-hash blocker-ref g0-passed o6-closed sp6b-frozen compatibility rerun-drift manifest-rebind stale partial)
+  mutations=(missing-spike extra-spike missing-o extra-o missing-o4 extra-o4 missing-downstream extra-downstream xor-both xor-neither evidence-path evidence-hash blocker-ref vial-substitution g0-passed o6-closed sp6b-frozen compatibility rerun-drift manifest-rebind duplicate-root duplicate-nested stale partial)
   for mutation in "${mutations[@]}"; do
     copy="$tmp_dir/$mutation"; cp -R "$tmp_dir/canonical" "$copy"
     file="$copy/conclusions.json"
@@ -83,12 +87,15 @@ else
       evidence-path) jq '.spikes[0].evidence.path="sp2/evidence.json"' "$file" >"$tmp_dir/value" ;;
       evidence-hash) jq '.spikes[0].evidence.sha256=("f"*64)' "$file" >"$tmp_dir/value" ;;
       blocker-ref) jq '.o4_matrix[0].blocked_ref="sp3.reload"' "$file" >"$tmp_dir/value" ;;
+      vial-substitution) jq --arg hash "$(shasum -a 256 "$copy/sp5a/bounds.json" | cut -d ' ' -f 1)" '(.o4_matrix[] | select(.id=="vial.definitionSchema")) |= (.evidence_path="sp5a/bounds.json" | .evidence_sha256=$hash)' "$file" >"$tmp_dir/value" ;;
       g0-passed) jq '.g0.status="PASSED" | .g0.blocking_leg_ids=[] | .g0.candidate_selection="session"' "$file" >"$tmp_dir/value" ;;
       o6-closed) jq '(.o_items[] | select(.id=="O6") | .status)="RESOLVED"' "$file" >"$tmp_dir/value" ;;
       sp6b-frozen) jq '(.spikes[] | select(.id=="SP-6B") | .dependency_frozen)=true' "$file" >"$tmp_dir/value" ;;
       compatibility) jq '.spikes[4].limitations=["official importer compatible"]' "$file" >"$tmp_dir/value" ;;
       rerun-drift) jq '.spikes[0].rerun_argv[0]="false"' "$file" >"$tmp_dir/value" ;;
       manifest-rebind) jq '.source_root_manifest_sha256=("f"*64)' "$file" >"$tmp_dir/value" ;;
+      duplicate-root) perl -0pe 's/^\{/\{"schema_version":1,/' "$file" >"$tmp_dir/value" ;;
+      duplicate-nested) perl -0pe 's/"evidence":\{/"evidence":{"path":"sp1\/evidence.json",/' "$file" >"$tmp_dir/value" ;;
       stale) printf '{}\n' >"$tmp_dir/value" ;;
       partial) printf '{"schema_version":1' >"$tmp_dir/value" ;;
     esac
@@ -97,6 +104,17 @@ else
     set +e; validate "$copy" >>"$log" 2>&1; status=$?; set -e
     [[ "$status" -ne 0 ]] || failures=$((failures + 1))
   done
+  coordinated="$tmp_dir/coordinated-source"
+  cp -R "$source_root" "$coordinated"
+  jq '.coordinated_extra=true' "$coordinated/sp1/evidence.json" >"$tmp_dir/value"
+  mv "$tmp_dir/value" "$coordinated/sp1/evidence.json"
+  (cd "$coordinated/sp1" && { for name in *; do [[ "$name" == manifest.sha256 ]] || shasum -a 256 "$name"; done; } | LC_ALL=C sort -k3 >manifest.sha256)
+  (cd "$coordinated" && shasum -a 256 README.md environment.json privacy-audit.json run-all.json | LC_ALL=C sort -k3 >manifest.sha256)
+  set +e
+  "$bin" generate-conclusions --source "$coordinated" --source-commit "$source_commit" --output "$tmp_dir/coordinated-output" >>"$log" 2>&1
+  coordinated_status=$?
+  set -e
+  [[ "$coordinated_status" -ne 0 && ! -e "$tmp_dir/coordinated-output" ]] || failures=$((failures + 1))
   dirty="$tmp_dir/dirty-clone"; GIT_MASTER=1 git clone -q --no-hardlinks . "$dirty"
   generate "$tmp_dir/dirty-valid" >>"$log" 2>&1
   printf '\n' >>"$dirty/Spikes/Sources/EvidenceValidator/ConclusionValidator.swift"

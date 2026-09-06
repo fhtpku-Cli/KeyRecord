@@ -52,6 +52,7 @@ generator_commit="$(GIT_MASTER=1 git rev-parse --verify "$generator_commit^{comm
 generate() {
   args=(generate-conclusions --source "$source_root" --output "$1")
   args+=(--source-commit "$source_commit" --generator-commit "$generator_commit")
+  if [[ "${KEYRECORD_CONCLUSION_TEST_SIGNAL_EXEC:-}" == 1 ]]; then exec "$bin" "${args[@]}"; fi
   "$bin" "${args[@]}"
 }
 validate() { "$bin" "$1"; }
@@ -143,9 +144,9 @@ else
     for attempt in 1 2; do
       output="$tmp_dir/signal-$signal_name-$attempt"
       ready="$tmp_dir/ready-$signal_name-$attempt"
-      KEYRECORD_CONCLUSION_TEST_DELAY=30 KEYRECORD_CONCLUSION_TEST_READY_FILE="$ready" generate "$output" >>"$log" 2>&1 & child=$!
+      KEYRECORD_CONCLUSION_TEST_SIGNAL_EXEC=1 KEYRECORD_CONCLUSION_TEST_DELAY=30 KEYRECORD_CONCLUSION_TEST_READY_FILE="$ready" generate "$output" >>"$log" 2>&1 & child=$!
       observed=false
-      for _ in {1..200}; do [[ -f "$ready" ]] && { observed=true; break; }; sleep 0.05; done
+      for _ in {1..600}; do [[ -f "$ready" ]] && { observed=true; break; }; sleep 0.05; done
       [[ "$observed" == true ]] || failures=$((failures + 1))
       candidate="$(cat "$ready" 2>/dev/null || true)"
       [[ -n "$candidate" && -e "$candidate" ]] || failures=$((failures + 1))

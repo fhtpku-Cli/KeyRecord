@@ -58,7 +58,7 @@ generate() {
 validate() { "$bin" "$1"; }
 check_committed_conclusions() {
   [[ -z "$committed_conclusions" ]] && return
-  if ! run validate "$committed_conclusions"; then return 1; fi
+  if ! run validate "$(dirname "$committed_conclusions")"; then return 1; fi
   local hash_after
   hash_after="$(shasum -a 256 "$committed_conclusions" | cut -d ' ' -f 1)"
   [[ "$hash_after" == "$committed_hash_before" ]]

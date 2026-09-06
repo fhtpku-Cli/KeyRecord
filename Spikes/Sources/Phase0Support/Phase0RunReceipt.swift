@@ -76,9 +76,17 @@ public enum Phase0RunLayout {
 
 public enum Phase0RunBinding {
     public static let task15SourcePaths: Set<String> = [
-        "Spikes/Scripts/task-15-qa.sh",
+        "Spikes/Scripts/run-task-qa.sh", "Spikes/Scripts/task-15-qa.sh",
+        "Spikes/Scripts/task-qa-common.sh", "Spikes/Scripts/task-qa-1-4.sh",
+        "Spikes/Scripts/task-qa-5-7.sh", "Spikes/Scripts/task-qa-8-9.sh", "Spikes/Scripts/task-qa-10.sh",
         "Spikes/Sources/EvidenceValidator/ConclusionGenerator.swift", "Spikes/Sources/EvidenceValidator/ConclusionValidator.swift",
+        "Spikes/Sources/EvidenceValidator/GitRunner.swift",
+        "Spikes/Sources/EvidenceValidator/HistoricalEvidenceInventoryValidator.swift",
+        "Spikes/Sources/EvidenceValidator/ValidatorError.swift",
+        "Spikes/Sources/Phase0Support/BoundedJSONDuplicateKeyScanner.swift",
         "Spikes/Sources/Phase0Support/ConclusionModels.swift", "Spikes/Sources/Phase0Support/ConclusionStrictCoding.swift",
+        "Spikes/Sources/Phase0Support/SP5AArtifacts.swift",
+        "Spikes/Tests/EvidenceValidatorTests/ConclusionDecodingTests.swift",
         "Spikes/Tests/EvidenceValidatorTests/ConclusionGeneratorTests.swift",
     ]
     public static let sourcePaths: Set<String> = AtomicityRunnerBinding.sourcePaths
@@ -89,6 +97,8 @@ public enum Phase0RunBinding {
         .union(SP6BRunnerBinding.sourcePaths).union([
         "Spikes/Package.swift",
         "Spikes/Scripts/run-task-qa.sh", "Spikes/Scripts/task-14-qa.sh", "Spikes/Scripts/verify-manifests.sh",
+        "Spikes/Scripts/task-qa-common.sh", "Spikes/Scripts/task-qa-1-4.sh", "Spikes/Scripts/task-qa-5-7.sh",
+        "Spikes/Scripts/task-qa-8-9.sh", "Spikes/Scripts/task-qa-10.sh",
         "Spikes/Sources/EvidenceValidator/AtomicityHistoricalValidator.swift",
         "Spikes/Sources/EvidenceValidator/CandidateBinder.swift", "Spikes/Sources/EvidenceValidator/Canonical.swift",
         "Spikes/Sources/EvidenceValidator/GateValidator.swift", "Spikes/Sources/EvidenceValidator/GitRunner.swift",

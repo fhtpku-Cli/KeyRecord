@@ -4,7 +4,14 @@ import XCTest
 @testable import Phase0Support
 
 final class Phase0RunBindingTests: XCTestCase {
-    private static let newlyBoundSources: Set<String> = [
+    private static let qaHelperSources: Set<String> = [
+        "Spikes/Scripts/task-qa-common.sh",
+        "Spikes/Scripts/task-qa-1-4.sh",
+        "Spikes/Scripts/task-qa-5-7.sh",
+        "Spikes/Scripts/task-qa-8-9.sh",
+        "Spikes/Scripts/task-qa-10.sh",
+    ]
+    private static let newlyBoundSources: Set<String> = Set([
         "Spikes/Package.swift",
         "Spikes/Sources/EvidenceValidator/CandidateBinder.swift",
         "Spikes/Sources/EvidenceValidator/GateValidator.swift",
@@ -13,7 +20,7 @@ final class Phase0RunBindingTests: XCTestCase {
         "Spikes/Sources/Phase0Support/SourceLedger.swift",
         "Spikes/Sources/Phase0Support/StrictCoding.swift",
         "Spikes/Sources/Phase0Support/ValidationContracts.swift",
-    ]
+    ]).union(qaHelperSources)
 
     func testRunAllBindingIncludesEveryCompiledTargetSourceAndPackageManifest() throws {
         let repository = repositoryRoot()
@@ -28,6 +35,11 @@ final class Phase0RunBindingTests: XCTestCase {
 
         let requiredBuildInputs = compiledSources.union(["Spikes/Package.swift"])
         XCTAssertTrue(requiredBuildInputs.isSubset(of: Phase0RunBinding.sourcePaths))
+    }
+
+    func testRunAllAndConclusionBindingsIncludeEveryQAHelper() {
+        XCTAssertTrue(Self.qaHelperSources.isSubset(of: Phase0RunBinding.sourcePaths))
+        XCTAssertTrue(Self.qaHelperSources.isSubset(of: Phase0RunBinding.task15SourcePaths))
     }
 
     func testRunAllIdentityRejectsEachNewlyBoundDirtySource() throws {

@@ -18,7 +18,15 @@ public struct ValidatorError: Error, Equatable, CustomStringConvertible, Sendabl
 enum ValidatorDecoding {
     static func decode<T: Decodable>(_ type: T.Type, from data: Data, malformedCode: String) throws -> T {
         do {
+            if malformedCode == "malformed_conclusions" {
+                try BoundedJSONPreflight.rejectDuplicateKeys(data)
+            }
             return try JSONDecoder().decode(type, from: data)
+        } catch let error as BoundedJSONPreflightError {
+            switch error {
+            case let .duplicateKey(key): throw ValidatorError("duplicate_json_key", key)
+            default: throw ValidatorError(malformedCode, String(describing: error))
+            }
         } catch let error as EvidenceModelError {
             switch error {
             case .invalidBlocker:

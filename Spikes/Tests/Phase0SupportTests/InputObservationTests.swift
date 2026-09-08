@@ -37,13 +37,23 @@ final class InputObservationTests: XCTestCase {
     func testTapResetIncrementsGenerationAndClosesGate() throws {
         var observer = InputObservationState()
         XCTAssertEqual(observer.generation, 0)
+        try observer.observe(.init(kind: .keyDown, keyCode: 4, isAutoRepeat: false, marker: nil))
+        XCTAssertEqual(observer.aggregateCount, 1)
         observer.tapDisabled()
         XCTAssertEqual(observer.generation, 1)
         XCTAssertFalse(observer.gateOpen)
         try observer.observe(.init(kind: .keyDown, keyCode: 4, isAutoRepeat: false, marker: nil))
-        XCTAssertEqual(observer.aggregateCount, 0)
+        XCTAssertEqual(observer.aggregateCount, 1)
         observer.rebuildTap()
         XCTAssertTrue(observer.gateOpen)
+        try observer.observe(.init(kind: .keyDown, keyCode: 4, isAutoRepeat: false, marker: nil))
+        XCTAssertEqual(observer.aggregateCount, 2, "reset must clear the key that was held before the tap was disabled")
+    }
+
+    func testPersistedInputObservationModelsRejectUnknownFields() throws {
+        try assertUnknownFieldRejects(SyntheticInputEvent(kind: .keyDown, keyCode: 4, isAutoRepeat: false, marker: nil), as: SyntheticInputEvent.self)
+        try assertUnknownFieldRejects(ProductStampedRecord(kind: .keyDown, keyCode: 4, isAutoRepeat: false, marker: ProductSyntheticMarker.value, dropped: true), as: ProductStampedRecord.self)
+        try assertUnknownFieldRejects(SP1LiveAggregateArtifact(systemShortcutObservedCount: 0, unmarkedObservedCount: 0), as: SP1LiveAggregateArtifact.self)
     }
 
     func testO7GuaranteeIsConservative() {
@@ -152,6 +162,11 @@ final class InputObservationTests: XCTestCase {
     }
     private func assertReject(_ expected: SP1ValidationError, _ report: SP1Evidence) {
         XCTAssertThrowsError(try report.validate()) { XCTAssertEqual($0 as? SP1ValidationError, expected) }
+    }
+    private func assertUnknownFieldRejects<T: Codable>(_ value: T, as type: T.Type, file: StaticString = #filePath, line: UInt = #line) throws {
+        var object = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(value)) as? [String: Any])
+        object["unexpected"] = true
+        XCTAssertThrowsError(try JSONDecoder().decode(type, from: JSONSerialization.data(withJSONObject: object)), file: file, line: line)
     }
     private func mutate(_ value: SP1Evidence, _ body: (inout SP1Evidence) -> Void) -> SP1Evidence { var copy = value; body(&copy); return copy }
 }

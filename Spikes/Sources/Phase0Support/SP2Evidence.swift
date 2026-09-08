@@ -136,3 +136,83 @@ public struct SP2AggregateArtifact: Codable, Equatable, Sendable {
         self.evidenceKind = evidenceKind; self.dataDelta = dataDelta; self.metaDelta = metaDelta
     }
 }
+
+public enum SP2FrontmostAttribution: String, Codable, CaseIterable, Sendable { case knownAttributable, knownUnattributable, indeterminate, excluded }
+
+public enum SP2LiveAggregateV2Error: Error, Equatable, Sendable {
+    case invalidSchemaVersion(found: Int), invalidEvidenceKind(found: EvidenceKind), negativeCount(field: String)
+}
+
+public struct SP2LiveAggregateV2: Codable, Equatable, Sendable {
+    public static let currentSchemaVersion = 2
+    public let schemaVersion: Int
+    public let evidenceKind: EvidenceKind
+    public internal(set) var knownAttributable = 0
+    public internal(set) var knownUnattributable = 0
+    public internal(set) var tapResets = 0
+    public internal(set) var fnUnknownAfterReset = 0
+    public internal(set) var fnRecoveredKnownNone = 0
+    public internal(set) var fnRecoveredKnownActive = 0
+    public init() { schemaVersion = Self.currentSchemaVersion; evidenceKind = .live }
+
+    enum CodingKeys: String, CodingKey, CaseIterable, StrictCodingKeys {
+        case schemaVersion, evidenceKind, knownAttributable, knownUnattributable, tapResets
+        case fnUnknownAfterReset, fnRecoveredKnownNone, fnRecoveredKnownActive
+    }
+
+    public init(from decoder: Decoder) throws {
+        try decoder.rejectUnknownKeys(CodingKeys.self, typeName: "SP2LiveAggregateV2")
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        schemaVersion = try values.decode(Int.self, forKey: .schemaVersion)
+        evidenceKind = try values.decode(EvidenceKind.self, forKey: .evidenceKind)
+        knownAttributable = try values.decode(Int.self, forKey: .knownAttributable)
+        knownUnattributable = try values.decode(Int.self, forKey: .knownUnattributable)
+        tapResets = try values.decode(Int.self, forKey: .tapResets)
+        fnUnknownAfterReset = try values.decode(Int.self, forKey: .fnUnknownAfterReset)
+        fnRecoveredKnownNone = try values.decode(Int.self, forKey: .fnRecoveredKnownNone)
+        fnRecoveredKnownActive = try values.decode(Int.self, forKey: .fnRecoveredKnownActive)
+        try validate()
+    }
+
+    private var counts: [(String, Int)] {
+        [("knownAttributable", knownAttributable), ("knownUnattributable", knownUnattributable),
+         ("tapResets", tapResets), ("fnUnknownAfterReset", fnUnknownAfterReset),
+         ("fnRecoveredKnownNone", fnRecoveredKnownNone), ("fnRecoveredKnownActive", fnRecoveredKnownActive)]
+    }
+
+    public func validate() throws {
+        guard schemaVersion == Self.currentSchemaVersion else { throw SP2LiveAggregateV2Error.invalidSchemaVersion(found: schemaVersion) }
+        guard evidenceKind == .live else { throw SP2LiveAggregateV2Error.invalidEvidenceKind(found: evidenceKind) }
+        for (field, count) in counts where count < 0 { throw SP2LiveAggregateV2Error.negativeCount(field: field) }
+    }
+
+    public func canonicalData() throws -> Data {
+        try validate()
+        let encoder = JSONEncoder(); encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
+        var data = try encoder.encode(self); data.append(10); return data
+    }
+}
+
+public struct SP2LiveAggregateV2Reducer: Sendable {
+    public private(set) var aggregate = SP2LiveAggregateV2()
+    public init() {}
+
+    public mutating func recordTerminalKeyDown(gateOpen: Bool, secureInput: SecureInputState, frontmost: SP2FrontmostAttribution) {
+        guard gateOpen, secureInput == .disabled else { return }
+        switch frontmost {
+        case .knownAttributable: aggregate.knownAttributable += 1
+        case .knownUnattributable: aggregate.knownUnattributable += 1
+        case .indeterminate, .excluded: return
+        }
+    }
+
+    public mutating func recordTapReset() { aggregate.tapResets += 1 }
+
+    public mutating func recordFnRecoverySnapshot(_ confidence: FnConfidence) {
+        switch confidence {
+        case .unknown: aggregate.fnUnknownAfterReset += 1
+        case .knownNone: aggregate.fnRecoveredKnownNone += 1
+        case .knownActive: aggregate.fnRecoveredKnownActive += 1
+        }
+    }
+}

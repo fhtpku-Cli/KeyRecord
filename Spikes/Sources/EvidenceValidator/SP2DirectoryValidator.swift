@@ -17,6 +17,7 @@ enum SP2DirectoryValidator {
         catch let error as SP2ValidationError { throw ValidatorError("sp2_\(error.rawValue)") }
         try verifyManifest(directory)
         try validateArtifacts(directory)
+        try validateV2LiveSemantics(evidence, directory: directory)
         try validateArtifactBindings(evidence, directory: directory, repository: repository)
         try validateConclusion(directory, evidence: evidence)
         try validateRunnerBinding(evidence, repository: gitRepository ?? repository)
@@ -55,12 +56,46 @@ enum SP2DirectoryValidator {
         let expected = SP2ModelScenarios.run()
         let privacy: SP2PrivacyArtifact = try decode(privacyURL)
         let modifiers: SP2ModifierArtifact = try decode(modifierURL)
-        let live: SP2AggregateArtifact = try decode(liveURL)
         guard privacy == expected.privacy, modifiers == expected.modifiers else {
             throw ValidatorError("sp2_model_recompute_mismatch")
         }
-        guard live.evidenceKind == .live, live.dataDelta == 0, live.metaDelta == 0 else {
-            throw ValidatorError("sp2_sensitive_detail_forbidden")
+        if let v2 = try? JSONDecoder().decode(SP2LiveAggregateV2.self, from: Data(contentsOf: liveURL)) {
+            do { try v2.validate() } catch { throw ValidatorError("sp2_sensitive_detail_forbidden") }
+        } else {
+            let live: SP2AggregateArtifact = try decode(liveURL)
+            guard live.evidenceKind == .live, live.dataDelta == 0, live.metaDelta == 0 else {
+                throw ValidatorError("sp2_sensitive_detail_forbidden")
+            }
+        }
+    }
+
+    static func validateV2LiveSemantics(_ evidence: SP2Evidence, directory: URL) throws {
+        let liveURL = directory.appendingPathComponent("live-aggregate-counts.json")
+        guard let v2 = try? JSONDecoder().decode(SP2LiveAggregateV2.self, from: Data(contentsOf: liveURL)) else { return }
+        do { try v2.validate() } catch { throw ValidatorError("sp2_sensitive_detail_forbidden") }
+        for leg in evidence.legs {
+            switch leg.legID {
+            case "sp2.frontmostKnown":
+                if leg.verdict == .pass, v2.knownAttributable < 1 || leg.dataDelta != 1 || leg.metaDelta != 1 {
+                    throw ValidatorError("sp2_live_counter_mismatch", leg.legID)
+                }
+            case "sp2.frontmostUnattributable":
+                if leg.verdict == .pass, v2.knownUnattributable < 1 || leg.dataDelta != 1 || leg.metaDelta != 1 {
+                    throw ValidatorError("sp2_live_counter_mismatch", leg.legID)
+                }
+            case "sp2.fnRecoveryLive":
+                if leg.verdict == .pass,
+                   v2.fnUnknownAfterReset < 1 || v2.fnRecoveredKnownNone < 1 || v2.fnRecoveredKnownActive < 1
+                    || leg.dataDelta != 0 || leg.metaDelta != 0 {
+                    throw ValidatorError("sp2_live_counter_mismatch", leg.legID)
+                }
+            case "sp2.secureInput", "sp2.sleepWake":
+                if leg.verdict == .pass, leg.dataDelta != 0 || leg.metaDelta != 0 {
+                    throw ValidatorError("sp2_live_counter_mismatch", leg.legID)
+                }
+            default:
+                break
+            }
         }
     }
 

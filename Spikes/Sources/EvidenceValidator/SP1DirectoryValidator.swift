@@ -24,14 +24,14 @@ enum SP1DirectoryValidator {
         if let environmentData {
             do { environmentEvidence = try JSONDecoder().decode(EnvironmentEvidence.self, from: environmentData) }
             catch { throw ValidatorError("sp1_environment_malformed", String(describing: error)) }
-        } else if evidence.schemaVersion == 2 {
+        } else if evidence.schemaVersion == 2 || evidence.schemaVersion == 3 {
             throw ValidatorError("sp1_environment_missing")
         }
-        if evidence.schemaVersion == 2 {
+        if evidence.schemaVersion == 2 || evidence.schemaVersion == 3 {
             guard environmentEvidence?.guiSession.status == .available,
                   environmentEvidence?.listenEventAccess == .available,
                   environmentEvidence?.guiSession.tapCreate == .available else {
-                throw ValidatorError("sp1_v2_requires_d1")
+                throw ValidatorError(evidence.schemaVersion == 3 ? "sp1_v3_requires_d1" : "sp1_v2_requires_d1")
             }
         }
         do { try evidence.validate(candidateEnvironmentSha256: candidateEnvironmentSha256) }
@@ -42,6 +42,10 @@ enum SP1DirectoryValidator {
         if evidence.schemaVersion == 2, let environmentEvidence {
             try validateV2ArtifactSemantics(directory, evidence: evidence)
             try validateV2EnvironmentSemantics(evidence, environment: environmentEvidence)
+        }
+        if evidence.schemaVersion == 3, let environmentEvidence {
+            try validateV3ArtifactSemantics(directory, evidence: evidence)
+            try validateV3EnvironmentSemantics(evidence, environment: environmentEvidence)
         }
         try validateBlockerSemantics(evidence, environment: environmentEvidence)
         try validateNarratives(directory, evidence: evidence)
@@ -61,7 +65,7 @@ enum SP1DirectoryValidator {
         guard commitCheck.status == 0 else { throw ValidatorError("sp1_runner_commit_missing") }
         let actualTree = try git.text(["rev-parse", "\(commitSha)^{tree}"])
         guard actualTree == treeSha else { throw ValidatorError("sp1_runner_tree_mismatch") }
-        if evidence.schemaVersion == 2 {
+        if evidence.schemaVersion == 2 || evidence.schemaVersion == 3 {
             guard try git.text(["rev-parse", "HEAD"]) == commitSha,
                   try git.text(["rev-parse", "HEAD^{tree}"]) == treeSha else {
                 throw ValidatorError("sp1_runner_not_current_head")
@@ -80,7 +84,7 @@ enum SP1DirectoryValidator {
             }
             let workingURL = repository.appendingPathComponent(path)
             guard isRegularFile(workingURL) else { throw ValidatorError("sp1_runner_source_dirty", path) }
-            if evidence.schemaVersion == 2,
+            if evidence.schemaVersion == 2 || evidence.schemaVersion == 3,
                Canonical.sha256(try Data(contentsOf: workingURL)) != evidence.runnerSourceSha256[path] {
                 throw ValidatorError("sp1_runner_source_dirty", path)
             }
@@ -97,7 +101,7 @@ enum SP1DirectoryValidator {
             if let leg = evidence.legs.first(where: { $0.verdict != .blocked }) {
                 throw ValidatorError("sp1_synthetic_pass_unsupported", leg.legID)
             }
-        case 2:
+        case 2, 3:
             let actual = try bytes(syntheticURL, code: "sp1_synthetic_recompute_mismatch")
             let recomputed = try SP1SyntheticScenarios.run()
             guard actual == (try recomputed.canonicalJSON()) else {
@@ -107,7 +111,7 @@ enum SP1DirectoryValidator {
             throw ValidatorError("sp1_unsupported_schema_version")
         }
         let live = try validateLiveArtifact(directory.appendingPathComponent("live-aggregate-counts.json"))
-        if evidence.schemaVersion == 1,
+        if evidence.schemaVersion == 1 || evidence.schemaVersion == 2,
            live.systemShortcutObservedCount != 0 || live.unmarkedObservedCount != 0 {
             throw ValidatorError("sp1_live_semantics_invalid")
         }
@@ -123,8 +127,10 @@ enum SP1DirectoryValidator {
             }
             let actual = Canonical.sha256(data)
             guard leg.artifactSha256 == actual else { throw ValidatorError("sp1_artifact_hash_mismatch", leg.legID) }
-            guard synthetic || liveHashes.insert(actual).inserted else {
-                throw ValidatorError("sp1_reused_artifact_hash", leg.legID)
+            if !synthetic {
+                if evidence.schemaVersion < 3, !liveHashes.insert(actual).inserted {
+                    throw ValidatorError("sp1_reused_artifact_hash", leg.legID)
+                }
             }
         }
     }
@@ -170,9 +176,12 @@ enum SP1DirectoryValidator {
         let assertionByID = Dictionary(uniqueKeysWithValues: assertions.map { ($0.legID, $0.passed) })
         guard Set(assertionByID.keys) == syntheticLegIDs else { throw ValidatorError("sp1_synthetic_recompute_mismatch") }
         for leg in evidence.legs where syntheticLegIDs.contains(leg.legID) {
+            let identityOK = evidence.schemaVersion < 3 || evidence.selectedTapIdentity == nil
+                ? leg.identity == nil
+                : leg.identity == evidence.selectedTapIdentity
             guard let passed = assertionByID[leg.legID],
                   leg.verdict == (passed ? .pass : .fail), leg.detectorAvailable,
-                  leg.blocker == nil, leg.identity == nil, leg.matrix == nil, leg.aggregateCount == nil,
+                  leg.blocker == nil, identityOK, leg.matrix == nil, leg.aggregateCount == nil,
                   leg.artifactSha256 == artifactHash else {
                 throw ValidatorError("sp1_synthetic_assertion_leg_mismatch", leg.legID)
             }
@@ -237,8 +246,67 @@ enum SP1DirectoryValidator {
                     throw ValidatorError("sp1_blocker_invalid", leg.legID)
                 }
             }
+        case 3:
+            guard let environment else { throw ValidatorError("sp1_environment_missing") }
+            let karabinerInstalled = environment.applications.contains { $0.name == "Karabiner-Elements" && $0.status == .installed }
+            for leg in evidence.legs where leg.verdict == .blocked {
+                let expected: SP1Blocker?
+                if leg.legID == "sp1.systemShortcut" {
+                    expected = SP1CanonicalBlockers.liveExecutionNotArmed
+                } else if matrixLegIDs.contains(leg.legID) {
+                    expected = karabinerInstalled ? SP1CanonicalBlockers.liveExecutionNotArmed : SP1CanonicalBlockers.v2KarabinerAbsent
+                } else {
+                    expected = nil
+                }
+                guard let expected, leg.blocker == expected else {
+                    throw ValidatorError("sp1_blocker_invalid", leg.legID)
+                }
+            }
         default:
             throw ValidatorError("sp1_unsupported_schema_version")
+        }
+    }
+
+    private static func validateV3ArtifactSemantics(_ directory: URL, evidence: SP1Evidence) throws {
+        let synthetic = try SP1SyntheticScenarios.run()
+        let syntheticData = try bytes(directory.appendingPathComponent("product-stamped-synthetic.json"), code: "sp1_synthetic_recompute_mismatch")
+        try validateV2SyntheticSemantics(evidence, assertions: synthetic.assertions, artifactHash: Canonical.sha256(syntheticData))
+        let live = try validateLiveArtifact(directory.appendingPathComponent("live-aggregate-counts.json"))
+        guard let shortcut = evidence.legs.first(where: { $0.legID == "sp1.systemShortcut" }) else {
+            throw ValidatorError("sp1_live_semantics_invalid")
+        }
+        if shortcut.verdict == .blocked {
+            guard live.systemShortcutObservedCount == 0, live.unmarkedObservedCount == 0,
+                  shortcut.blocker == SP1CanonicalBlockers.liveExecutionNotArmed,
+                  shortcut.identity == nil, shortcut.artifactSha256 == nil else {
+                throw ValidatorError("sp1_live_semantics_invalid")
+            }
+        } else if shortcut.verdict == .pass {
+            guard shortcut.detectorAvailable, shortcut.blocker == nil,
+                  shortcut.artifactSha256 != nil,
+                  live.systemShortcutObservedCount >= 0,
+                  live.unmarkedObservedCount >= 0 else {
+                throw ValidatorError("sp1_live_semantics_invalid")
+            }
+        } else if shortcut.verdict == .inconclusive {
+            guard shortcut.detectorAvailable, shortcut.blocker == nil, shortcut.artifactSha256 != nil else {
+                throw ValidatorError("sp1_live_semantics_invalid")
+            }
+        }
+        if let selected = evidence.selectedTapIdentity {
+            let selectedLegID = "sp1.tap.\(selected.tapType).matrix"
+            guard let selectedLeg = evidence.legs.first(where: { $0.legID == selectedLegID }),
+                  selectedLeg.verdict == .pass, selectedLeg.matrix?.passes == true else {
+                throw ValidatorError("sp1_matrix_semantics_invalid")
+            }
+        }
+    }
+
+    private static func validateV3EnvironmentSemantics(_ evidence: SP1Evidence, environment: EnvironmentEvidence) throws {
+        let karabinerInstalled = environment.applications.contains { $0.name == "Karabiner-Elements" && $0.status == .installed }
+        for leg in evidence.legs where matrixLegIDs.contains(leg.legID) && leg.verdict == .blocked {
+            let expected = karabinerInstalled ? SP1CanonicalBlockers.liveExecutionNotArmed : SP1CanonicalBlockers.v2KarabinerAbsent
+            guard leg.blocker == expected else { throw ValidatorError("sp1_matrix_blocker_invalid", leg.legID) }
         }
     }
 

@@ -65,6 +65,26 @@ final class InputObservationTests: XCTestCase {
     }
 
     func testCompletePassingIdentityAndMatrixValidate() throws { XCTAssertNoThrow(try validReport().validate()) }
+
+    func testTapSelectionPrefersSessionWhenBothMatricesPass() {
+        XCTAssertEqual(SP1TapSelection.select(sessionPasses: true, annotatedPasses: true), "session")
+        XCTAssertEqual(SP1TapSelection.select(sessionPasses: false, annotatedPasses: true), "annotated")
+        XCTAssertNil(SP1TapSelection.select(sessionPasses: false, annotatedPasses: false))
+    }
+
+    func testBothMatricesPassingWithSessionSelectionValidates() throws {
+        var report = validReport()
+        report.schemaVersion = 3
+        let annotated = report.legs.firstIndex(where: { $0.legID == "sp1.tap.annotated.matrix" })!
+        report.legs[annotated].verdict = .pass
+        report.legs[annotated].blocker = nil
+        report.legs[annotated].identity = nil
+        report.legs[annotated].matrix = .init(
+            offObservedCode: 79, offCount: 1, onObservedCode: 80, onCount: 1,
+            expectedPhysicalCode: 79, expectedTransformedCode: 80
+        )
+        XCTAssertNoThrow(try report.validate())
+    }
     func testDuplicateObservationRejects() { assertReject(.duplicateLeg, mutate(validReport()) { $0.legs.append($0.legs[0]) }) }
     func testMissingObservationRejects() { assertReject(.missingLeg, mutate(validReport()) { $0.legs.removeLast() }) }
     func testTCCDeniedProducesCompleteBlockedRecordsAndNoSelection() throws { XCTAssertNoThrow(try blockedReport(tcc: false, karabiner: true).validate()) }

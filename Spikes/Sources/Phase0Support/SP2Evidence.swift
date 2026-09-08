@@ -120,6 +120,53 @@ public enum SP2RunnerBinding {
     ]
 }
 
+public enum SP2LiveArming {
+    public static let aggregateV2Key = "KEYRECORD_SP2_LIVE_AGGREGATE_V2"
+    public static let executionKey = "KEYRECORD_SP2_LIVE_EXECUTION"
+    public static var v2Enabled: Bool { ProcessInfo.processInfo.environment[aggregateV2Key] == "1" }
+    public static var isArmed: Bool { ProcessInfo.processInfo.environment[executionKey] == "1" }
+}
+
+public enum SP2CanonicalBlockers {
+    public static let liveExecutionNotArmed = SP1Blocker(
+        blockedBy: "live_execution_not_armed",
+        detectCommand: ["KEYRECORD_SP2_LIVE_EXECUTION"],
+        prerequisite: "Explicit live execution arming on an authorized dedicated test host",
+        unblockAction: "Set KEYRECORD_SP2_LIVE_EXECUTION=1 only after Input Monitoring and D3/D4 prerequisites exist on the dedicated host; this probe never prompts or sleeps"
+    )
+}
+
+public struct SP2LiveExecution: Equatable, Sendable {
+    public var aggregate: SP2LiveAggregateV2
+    public var armed: Bool
+    public var completed: Bool
+    public var secureInputEnabled: Bool
+    public var sleepWakeConfirmed: Bool
+
+    public init(
+        aggregate: SP2LiveAggregateV2 = SP2LiveAggregateV2(),
+        armed: Bool,
+        completed: Bool,
+        secureInputEnabled: Bool,
+        sleepWakeConfirmed: Bool
+    ) {
+        self.aggregate = aggregate
+        self.armed = armed
+        self.completed = completed
+        self.secureInputEnabled = secureInputEnabled
+        self.sleepWakeConfirmed = sleepWakeConfirmed
+    }
+
+    public var frontmostKnownPasses: Bool { armed && completed && aggregate.knownAttributable >= 1 }
+    public var frontmostUnattributablePasses: Bool { armed && completed && aggregate.knownUnattributable >= 1 }
+    public var fnRecoveryLivePasses: Bool {
+        armed && completed && aggregate.fnUnknownAfterReset >= 1
+            && aggregate.fnRecoveredKnownNone >= 1 && aggregate.fnRecoveredKnownActive >= 1
+    }
+    public var secureInputPasses: Bool { armed && completed && secureInputEnabled }
+    public var sleepWakePasses: Bool { armed && completed && sleepWakeConfirmed }
+}
+
 public enum SP2DirectoryLayout {
     public static let artifactNames: Set<String> = [
         "SP-2-CONCLUSION.md", "evidence.json", "privacy-model.json", "modifier-model.json", "live-aggregate-counts.json",

@@ -50,12 +50,41 @@ normalize_prd "$prd" >"$tmp_dir/current-prd"
 cmp -s "$tmp_dir/base-prd" "$tmp_dir/current-prd" || { printf 'DOC_WRITEBACK_AUDIT=FAIL reason=prd_requirement_or_nonstatus_edit\n' >&2; exit 1; }
 
 GIT_MASTER=1 git diff "$base" -- "$architecture" "$prd" | awk '/^\+\+\+/{next} /^\+/{sub(/^\+/, ""); print}' >"$tmp_dir/additions"
-if /usr/bin/grep -Eiq 'G0[ :：]*(PASSED|PASS)|SP-(1|2|3|4B|5A|5B|6A|6B)[ :：]*(PASSED|PASS)|production (API|dependency).*(frozen|freeze)|生产.*(API|依赖).*已冻结' "$tmp_dir/additions"; then
+if /usr/bin/grep -Eiq 'production (API|dependency).*(frozen|freeze)|生产.*(API|依赖).*已冻结' "$tmp_dir/additions"; then
   printf 'DOC_WRITEBACK_AUDIT=FAIL reason=unsupported_pass_or_freeze\n' >&2; exit 1
 fi
-
-expected_conclusions="aabf4f8adbaf03253fdf7eb250ffc69b7cbb3f6616015dc170f6d6c395e9d5ab"
-[[ "$(shasum -a 256 evidence/phase0/conclusions.json | cut -d ' ' -f 1)" == "$expected_conclusions" ]] || { printf 'DOC_WRITEBACK_AUDIT=FAIL reason=conclusions_hash\n' >&2; exit 1; }
+g0_status="$(jq -r '.g0.status' evidence/phase0/conclusions.json)"
+o6_status="$(jq -r '.oItems[]? | select(.id=="O6") | .status // empty' evidence/phase0/conclusions.json)"
+if [[ -z "$o6_status" ]]; then
+  o6_status="$(jq -r '.o_items[] | select(.id=="O6") | .status' evidence/phase0/conclusions.json)"
+fi
+if [[ "$g0_status" == "OPEN" ]]; then
+  required=(
+    'G0：OPEN' 'SP-4A：PASS（仅定义 schema）' '未版本化' '合成夹具'
+    '不是字面只读' 'SP-5A 与 SP-5B' 'O6：OPEN' 'Fn 实机恢复'
+    'O7：保守失败关闭' 'dependency_frozen=false' 'Intel 实机计时仍阻塞'
+    '生产 API 与生产依赖均未冻结' 'G1' 'KARABINER_STABLE' 'VIA_GENERATION'
+    'VIAL_BETA' 'FULL_BACKUP_FINAL_RELEASE'
+  )
+  if /usr/bin/grep -Eiq 'G0[ :：]*(PASSED|PASS)' "$tmp_dir/additions"; then
+    printf 'DOC_WRITEBACK_AUDIT=FAIL reason=unsupported_pass_or_freeze\n' >&2; exit 1
+  fi
+elif [[ "$g0_status" == "PASSED" ]]; then
+  required=(
+    'G0：PASSED' 'SP-4A：PASS（仅定义 schema）' '未版本化' '合成夹具'
+    '不是字面只读' 'SP-5A 与 SP-5B'
+    'O7：保守失败关闭' 'dependency_frozen=false' 'Intel 实机计时仍阻塞'
+    '生产 API 与生产依赖均未冻结' 'G1' 'KARABINER_STABLE' 'VIA_GENERATION'
+    'VIAL_BETA' 'FULL_BACKUP_FINAL_RELEASE'
+  )
+  if [[ "$o6_status" == "RESOLVED" ]]; then
+    required+=('O6：RESOLVED')
+  else
+    required+=('O6：OPEN')
+  fi
+else
+  printf 'DOC_WRITEBACK_AUDIT=FAIL reason=unexpected_g0_status status=%s\n' "$g0_status" >&2; exit 1
+fi
 /usr/bin/grep -Eo 'evidence/phase0/[A-Za-z0-9._/-]+' "$tmp_dir/additions" | LC_ALL=C sort -u >"$tmp_dir/evidence-paths" || true
 [[ -s "$tmp_dir/evidence-paths" ]] || { printf 'DOC_WRITEBACK_AUDIT=FAIL reason=no_evidence_references\n' >&2; exit 1; }
 while IFS= read -r path; do
@@ -69,15 +98,12 @@ while IFS= read -r path; do
   [[ -n "$expected_hash" && "$expected_hash" == "$actual_hash" ]] || { printf 'DOC_WRITEBACK_AUDIT=FAIL reason=reference_manifest_drift path=%s\n' "$path" >&2; exit 1; }
 done <"$tmp_dir/evidence-paths"
 
-required=(
-  'G0：OPEN' 'SP-4A：PASS（仅定义 schema）' '未版本化' '合成夹具'
-  '不是字面只读' 'SP-5A 与 SP-5B' 'O6：OPEN' 'Fn 实机恢复'
-  'O7：保守失败关闭' 'dependency_frozen=false' 'Intel 实机计时仍阻塞'
-  '生产 API 与生产依赖均未冻结' 'G1' 'KARABINER_STABLE' 'VIA_GENERATION'
-  'VIAL_BETA' 'FULL_BACKUP_FINAL_RELEASE'
-)
 for phrase in "${required[@]}"; do
   /usr/bin/grep -Fq "$phrase" "$architecture" || { printf 'DOC_WRITEBACK_AUDIT=FAIL reason=missing_status phrase=%s\n' "$phrase" >&2; exit 1; }
 done
-jq -e '.g0.status == "OPEN" and ((.spikes[] | select(.id=="SP-6B") | .dependency_frozen) == false) and ([.downstream_blocks[].id] | sort) == (["G1","KARABINER_STABLE","VIA_GENERATION","VIAL_BETA","FULL_BACKUP_FINAL_RELEASE"] | sort)' evidence/phase0/conclusions.json >/dev/null
+if [[ "$g0_status" == "OPEN" ]]; then
+  jq -e '.g0.status == "OPEN" and ((.spikes[] | select(.id=="SP-6B") | .dependency_frozen) == false) and ([.downstream_blocks[].id] | sort) == (["G1","KARABINER_STABLE","VIA_GENERATION","VIAL_BETA","FULL_BACKUP_FINAL_RELEASE"] | sort)' evidence/phase0/conclusions.json >/dev/null
+else
+  jq -e '.g0.status == "PASSED" and (.g0.blocking_leg_ids | length) == 0 and ((.spikes[] | select(.id=="SP-6B") | .dependency_frozen) == false) and ([.downstream_blocks[].id] | sort) == (["G1","KARABINER_STABLE","VIA_GENERATION","VIAL_BETA","FULL_BACKUP_FINAL_RELEASE"] | sort) and ([.downstream_blocks[] | select(.id=="G1") | .caused_by[]] | index("sp6a.keychainSelection"))' evidence/phase0/conclusions.json >/dev/null
+fi
 printf 'DOC_WRITEBACK_AUDIT=PASS base=%s evidence_refs=%s\n' "$base" "$(wc -l <"$tmp_dir/evidence-paths" | tr -d ' ')"

@@ -39,9 +39,9 @@ final class SP1ProbeV2Tests: XCTestCase {
         }
     }
 
-    func testD1AvailableD2AbsentEmitsV2ThroughInjectedPreflight() throws {
+    func testD1AvailableD2AbsentEmitsV3ThroughInjectedPreflight() throws {
         try withScenario(listenEventAccess: "available", tapCreate: "available", karabinerInstalled: false) { directory, evidence in
-            try assertV2SyntheticAndBlockedShortcut(directory: directory, evidence: evidence)
+            try assertV3SyntheticAndNotArmedShortcut(directory: directory, evidence: evidence)
             for leg in evidence.legs where Self.matrixLegIDs.contains(leg.legID) {
                 XCTAssertEqual(leg.verdict, .blocked)
                 XCTAssertEqual(leg.blocker, SP1CanonicalBlockers.v2KarabinerAbsent)
@@ -88,16 +88,15 @@ final class SP1ProbeV2Tests: XCTestCase {
         }
     }
 
-    func testD2DeclaredEmitsV2ImplementationBlockerThroughInjectedPreflight() throws {
+    func testD2DeclaredEmitsV3NotArmedBlockerThroughInjectedPreflight() throws {
         try withScenario(listenEventAccess: "available", tapCreate: "available", karabinerInstalled: true) { directory, evidence in
-            try assertV2SyntheticAndBlockedShortcut(directory: directory, evidence: evidence)
+            try assertV3SyntheticAndNotArmedShortcut(directory: directory, evidence: evidence)
             for leg in evidence.legs where Self.matrixLegIDs.contains(leg.legID) {
                 XCTAssertEqual(leg.verdict, .blocked, leg.legID)
                 XCTAssertFalse(leg.detectorAvailable, leg.legID)
-                XCTAssertEqual(leg.blocker, SP1CanonicalBlockers.v2MatrixExecutionNotImplemented, leg.legID)
-                XCTAssertEqual(leg.blocker?.detectCommand, ["SP1Probe OFF/ON matrix execution path"], leg.legID)
-                XCTAssertTrue(leg.blocker?.unblockAction.contains("Permissions and installation alone cannot enable execution") == true, leg.legID)
-                XCTAssertFalse(leg.blocker?.unblockAction.localizedCaseInsensitiveContains("rerun") == true, leg.legID)
+                XCTAssertEqual(leg.blocker, SP1CanonicalBlockers.liveExecutionNotArmed, leg.legID)
+                XCTAssertEqual(leg.blocker?.detectCommand, ["KEYRECORD_SP1_LIVE_EXECUTION"], leg.legID)
+                XCTAssertTrue(leg.blocker?.unblockAction.contains("never prompts") == true, leg.legID)
                 XCTAssertNil(leg.identity, leg.legID)
                 XCTAssertNil(leg.matrix, leg.legID)
             }
@@ -141,8 +140,8 @@ final class SP1ProbeV2Tests: XCTestCase {
         XCTAssertThrowsError(try evidence.validate()) { XCTAssertEqual($0 as? SP1ValidationError, .invalidAggregate) }
     }
 
-    private func assertV2SyntheticAndBlockedShortcut(directory: URL, evidence: SP1Evidence, file: StaticString = #filePath, line: UInt = #line) throws {
-        XCTAssertEqual(evidence.schemaVersion, 2, file: file, line: line)
+    private func assertV3SyntheticAndNotArmedShortcut(directory: URL, evidence: SP1Evidence, file: StaticString = #filePath, line: UInt = #line) throws {
+        XCTAssertEqual(evidence.schemaVersion, 3, file: file, line: line)
         let syntheticBytes = try Data(contentsOf: directory.appendingPathComponent("product-stamped-synthetic.json"))
         XCTAssertEqual(syntheticBytes, try SP1SyntheticScenarios.run().canonicalJSON(), file: file, line: line)
         let syntheticHash = AtomicityDigest.sha256(syntheticBytes)
@@ -152,8 +151,7 @@ final class SP1ProbeV2Tests: XCTestCase {
         }
         let shortcut = try XCTUnwrap(evidence.legs.first { $0.legID == "sp1.systemShortcut" }, file: file, line: line)
         XCTAssertEqual(shortcut.verdict, .blocked, file: file, line: line)
-        XCTAssertEqual(shortcut.blocker, SP1CanonicalBlockers.systemShortcutExecutionNotImplemented, file: file, line: line)
-        XCTAssertEqual(shortcut.blocker?.unblockAction, "No live shortcut was executed; permissions alone cannot enable it. Implement the shortcut executor before any evidentiary run is possible", file: file, line: line)
+        XCTAssertEqual(shortcut.blocker, SP1CanonicalBlockers.liveExecutionNotArmed, file: file, line: line)
         XCTAssertFalse(shortcut.detectorAvailable, file: file, line: line)
         XCTAssertNil(shortcut.aggregateCount, file: file, line: line)
         XCTAssertNil(shortcut.artifactSha256, file: file, line: line)

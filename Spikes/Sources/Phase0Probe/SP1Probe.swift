@@ -3,56 +3,12 @@ import Darwin
 import Foundation
 import Phase0Support
 
-enum SP1Probe {
-    static func run(arguments: [String], identityProvider: any AtomicityRunnerIdentityProviding = GitAtomicityRunnerIdentityProvider(sourcePaths: SP1RunnerBinding.sourcePaths.sorted())) throws {
-        guard arguments.count == 5, arguments[0] == "sp1", arguments[1] == "--environment", arguments[3] == "--output" else { throw ProbeError.usage }
-        let environmentURL = URL(fileURLWithPath: arguments[2])
-        let output = URL(fileURLWithPath: arguments[4])
-        try invalidate(output)
-        let environmentData = try boundedFile(environmentURL)
-        let environment = try JSONDecoder().decode(EnvironmentEvidence.self, from: environmentData)
-        let identity = try identityProvider.resolve()
-        let environmentHash = AtomicityDigest.sha256(environmentData)
-        let karabinerInstalled = environment.applications.contains { $0.name == "Karabiner-Elements" && $0.status == .installed }
-        let d1 = environment.guiSession.status == .available && environment.listenEventAccess == .available
-            && environment.guiSession.tapCreate == .available
-        let d2 = d1 && karabinerInstalled
+protocol SP1PreflightProviding: Sendable {
+    func preflightListenOnlyCandidates() throws
+}
 
-        if d1 { try preflightListenOnlyCandidates() }
-        let matrixBlocker = SP1Blocker(
-            blockedBy: [d1 ? nil : "input_monitoring_denied", karabinerInstalled ? nil : "karabiner_absent"].compactMap { $0 }.joined(separator: ";"),
-            detectCommand: ["CGPreflightListenEventAccess", "environment.json applications[name=Karabiner-Elements]"],
-            prerequisite: "Input Monitoring granted and a separately authorized supported Karabiner installation with controlled OFF/ON mapping",
-            unblockAction: "Grant Input Monitoring and install/configure Karabiner only through separate user-authorized actions, then rerun both OFF/ON legs"
-        )
-        let d1Blocker = SP1Blocker(
-            blockedBy: "input_monitoring_denied",
-            detectCommand: ["CGPreflightListenEventAccess", "environment.json guiSession.tapCreate"],
-            prerequisite: "GUI session with Input Monitoring already granted for this executable",
-            unblockAction: "Grant Input Monitoring outside this probe, then rerun; this probe never prompts"
-        )
-        let legs = SP1Evidence.requiredLegIDs.sorted().map { legID -> SP1Leg in
-            let isMatrix = legID == "sp1.tap.session.matrix" || legID == "sp1.tap.annotated.matrix"
-            let available = isMatrix ? d2 : d1
-            return SP1Leg(
-                legID: legID, verdict: available ? .inconclusive : .blocked, detectorAvailable: available,
-                blocker: available ? nil : (isMatrix ? matrixBlocker : d1Blocker), identity: nil,
-                runnerCommitSha: identity.commitSha, runnerTreeSha: identity.treeSha,
-                environmentSha256: environmentHash, artifactSha256: available ? AtomicityDigest.sha256(Data(legID.utf8)) : nil,
-                matrix: nil, aggregateCount: available ? 0 : nil
-            )
-        }
-        let report = SP1Evidence(
-            selectedTapIdentity: nil, legs: legs,
-            verdict: legs.contains(where: { $0.verdict == .blocked }) ? .blocked : .inconclusive,
-            g0Status: .open, o7Guarantee: O7Boundary.guarantee, runnerSourceSha256: identity.sourceSha256
-        )
-        try report.validate()
-        try publish(report: report, output: output)
-        print("SP1=\(report.verdict.rawValue) selectedTapIdentity=NONE g0=OPEN output=\(output.path)")
-    }
-
-    private static func preflightListenOnlyCandidates() throws {
+struct CoreGraphicsSP1PreflightProvider: SP1PreflightProviding {
+    func preflightListenOnlyCandidates() throws {
         let mask = (CGEventMask(1) << CGEventType.keyDown.rawValue)
             | (CGEventMask(1) << CGEventType.keyUp.rawValue)
             | (CGEventMask(1) << CGEventType.flagsChanged.rawValue)
@@ -63,8 +19,86 @@ enum SP1Probe {
             CFMachPortInvalidate(tap)
         }
     }
+}
 
-    private static func publish(report: SP1Evidence, output: URL) throws {
+enum SP1Probe {
+    static func run(
+        arguments: [String],
+        identityProvider: any AtomicityRunnerIdentityProviding = GitAtomicityRunnerIdentityProvider(sourcePaths: SP1RunnerBinding.sourcePaths.sorted()),
+        preflightProvider: any SP1PreflightProviding = CoreGraphicsSP1PreflightProvider()
+    ) throws {
+        guard arguments.count == 5, arguments[0] == "sp1", arguments[1] == "--environment", arguments[3] == "--output" else { throw ProbeError.usage }
+        let environmentURL = URL(fileURLWithPath: arguments[2])
+        let output = URL(fileURLWithPath: arguments[4])
+        try invalidate(output)
+        let environmentData = try boundedFile(environmentURL)
+        let environment = try JSONDecoder().decode(EnvironmentEvidence.self, from: environmentData)
+        let identity = try identityProvider.resolve()
+        let environmentHash = AtomicityDigest.sha256(environmentData)
+        let karabinerInstalled = environment.applications.contains { $0.name == "Karabiner-Elements" && $0.status == .installed }
+        let d1Failure = SP1CanonicalBlockers.d1Failure(for: environment)
+        let d1 = d1Failure == nil
+
+        if d1 { try preflightProvider.preflightListenOnlyCandidates() }
+        let synthetic = d1 ? try SP1SyntheticScenarios.run() : nil
+        let syntheticBytes = try synthetic?.canonicalJSON() ?? SP1CanonicalArtifacts.v1Synthetic
+        let syntheticHash = AtomicityDigest.sha256(syntheticBytes)
+        let liveBytes = try canonicalJSON(SP1LiveAggregateArtifact(systemShortcutObservedCount: 0, unmarkedObservedCount: 0))
+
+        let matrixBlocker = !d1
+            ? SP1CanonicalBlockers.legacyV1Matrix(environment: environment, karabinerAbsent: !karabinerInstalled)
+            : karabinerInstalled ? SP1CanonicalBlockers.v2MatrixExecutionNotImplemented : SP1CanonicalBlockers.v2KarabinerAbsent
+        let assertions = Dictionary(uniqueKeysWithValues: (synthetic?.assertions ?? []).map { ($0.legID, $0.passed) })
+        let legs = SP1Evidence.requiredLegIDs.sorted().map { legID -> SP1Leg in
+            if !d1 {
+                guard let d1Failure else { preconditionFailure("D1 failure blocker missing") }
+                let legBlocker = Self.matrixLegIDs.contains(legID) ? matrixBlocker : d1Failure
+                return SP1Leg(
+                    legID: legID, verdict: .blocked, detectorAvailable: false, blocker: legBlocker, identity: nil,
+                    runnerCommitSha: identity.commitSha, runnerTreeSha: identity.treeSha,
+                    environmentSha256: environmentHash, artifactSha256: nil, matrix: nil, aggregateCount: nil
+                )
+            }
+            if let passed = assertions[legID] {
+                return SP1Leg(
+                    legID: legID, verdict: passed ? .pass : .fail, detectorAvailable: true, blocker: nil, identity: nil,
+                    runnerCommitSha: identity.commitSha, runnerTreeSha: identity.treeSha,
+                    environmentSha256: environmentHash, artifactSha256: syntheticHash, matrix: nil, aggregateCount: nil
+                )
+            }
+            if legID == "sp1.systemShortcut" {
+                return SP1Leg(
+                    legID: legID, verdict: .blocked, detectorAvailable: false,
+                    blocker: SP1CanonicalBlockers.systemShortcutExecutionNotImplemented, identity: nil,
+                    runnerCommitSha: identity.commitSha, runnerTreeSha: identity.treeSha,
+                    environmentSha256: environmentHash, artifactSha256: nil,
+                    matrix: nil, aggregateCount: nil
+                )
+            }
+            return SP1Leg(
+                legID: legID, verdict: .blocked, detectorAvailable: false, blocker: matrixBlocker, identity: nil,
+                runnerCommitSha: identity.commitSha, runnerTreeSha: identity.treeSha,
+                environmentSha256: environmentHash, artifactSha256: nil, matrix: nil, aggregateCount: nil
+            )
+        }
+        var report = SP1Evidence(
+            selectedTapIdentity: nil, legs: legs,
+            verdict: legs.map(\.verdict).max { precedence($0) < precedence($1) } ?? .blocked,
+            g0Status: .open, o7Guarantee: O7Boundary.guarantee, runnerSourceSha256: identity.sourceSha256
+        )
+        report.schemaVersion = d1 ? 2 : 1
+        try report.validate()
+        try publish(report: report, synthetic: syntheticBytes, live: liveBytes, output: output)
+        print("SP1=\(report.verdict.rawValue) selectedTapIdentity=NONE g0=OPEN output=\(output.path)")
+    }
+
+    private static func precedence(_ verdict: Verdict) -> Int {
+        switch verdict { case .pass: 0; case .inconclusive: 1; case .blocked: 2; case .fail: 3 }
+    }
+
+    private static let matrixLegIDs: Set<String> = ["sp1.tap.session.matrix", "sp1.tap.annotated.matrix"]
+
+    private static func publish(report: SP1Evidence, synthetic syntheticBytes: Data, live liveBytes: Data, output: URL) throws {
         let parent = output.deletingLastPathComponent()
         try FileManager.default.createDirectory(at: parent, withIntermediateDirectories: true)
         let temporary = parent.appendingPathComponent(".sp1.\(UUID().uuidString).tmp", isDirectory: true)
@@ -75,17 +109,10 @@ enum SP1Probe {
                 Thread.sleep(forTimeInterval: min(max(delay, 0), 5))
             }
             try writeJSON(report, to: temporary.appendingPathComponent("evidence.json"))
-            var synthetic = InputObservationState()
-            for kind in InputEventKind.allCases {
-                try synthetic.observe(.init(kind: kind, keyCode: 4, isAutoRepeat: false, marker: ProductSyntheticMarker.value))
-            }
-            try writeJSON(SP1SyntheticArtifact(records: synthetic.productStampedRecords), to: temporary.appendingPathComponent("product-stamped-synthetic.json"))
-            try writeJSON(SP1LiveAggregateArtifact(systemShortcutObservedCount: 0, unmarkedObservedCount: 0), to: temporary.appendingPathComponent("live-aggregate-counts.json"))
-            try Data(("# O7 addendum\n\n" + O7Boundary.guarantee + "\n\nNo source-field exclusion beyond aggregate observation is claimed.\n").utf8)
-                .write(to: temporary.appendingPathComponent("O7-ADDENDUM.md"))
-            let blockers = report.legs.map { "- `\($0.legID)`: \($0.verdict.rawValue) (`\($0.blocker?.blockedBy ?? "executed")`)" }.joined(separator: "\n")
-            let conclusion = "# SP-1 conclusion\n\nVerdict: **\(report.verdict.rawValue)**\n\nSelected tap identity: **NONE**\n\nG0: **OPEN**\n\nHID tap is unavailable to a normal non-root menu-bar process and was not attempted. Session and annotated-session candidates are listen-only. No live assertion was inferred from an unexecuted check.\n\n\(blockers)\n"
-            try Data(conclusion.utf8).write(to: temporary.appendingPathComponent("SP-1-CONCLUSION.md"))
+            try syntheticBytes.write(to: temporary.appendingPathComponent("product-stamped-synthetic.json"))
+            try liveBytes.write(to: temporary.appendingPathComponent("live-aggregate-counts.json"))
+            try SP1CanonicalNarratives.o7().write(to: temporary.appendingPathComponent("O7-ADDENDUM.md"))
+            try SP1CanonicalNarratives.conclusion(for: report).write(to: temporary.appendingPathComponent("SP-1-CONCLUSION.md"))
             try writeManifest(in: temporary)
             try FileManager.default.moveItem(at: temporary, to: output)
             signalCleanup.complete()
@@ -97,8 +124,12 @@ enum SP1Probe {
     }
 
     private static func writeJSON<T: Encodable>(_ value: T, to url: URL) throws {
+        try canonicalJSON(value).write(to: url)
+    }
+
+    private static func canonicalJSON<T: Encodable>(_ value: T) throws -> Data {
         let encoder = JSONEncoder(); encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
-        var data = try encoder.encode(value); data.append(10); try data.write(to: url)
+        var data = try encoder.encode(value); data.append(10); return data
     }
 
     private static func writeManifest(in directory: URL) throws {

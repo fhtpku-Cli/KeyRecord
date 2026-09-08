@@ -37,8 +37,8 @@ final class SP2LiveAggregateV2ReducerTests: XCTestCase {
 
     func testTapResetCountsResetsOnly() {
         var reducer = SP2LiveAggregateV2Reducer()
-        reducer.recordTapReset()
-        reducer.recordTapReset()
+        reducer.recordTapReset(gateOpen: true, secureInput: .disabled)
+        reducer.recordTapReset(gateOpen: true, secureInput: .disabled)
         let aggregate = reducer.aggregate
         XCTAssertEqual(aggregate.tapResets, 2)
         XCTAssertEqual(aggregate.knownAttributable + aggregate.knownUnattributable, 0)
@@ -48,13 +48,63 @@ final class SP2LiveAggregateV2ReducerTests: XCTestCase {
 
     func testFnRecoverySnapshotCountsBothRecoveredStatesExactlyOnce() {
         var reducer = SP2LiveAggregateV2Reducer()
-        reducer.recordFnRecoverySnapshot(.knownNone)
-        reducer.recordFnRecoverySnapshot(.knownActive)
+        reducer.recordFnRecoverySnapshot(.knownNone, gateOpen: true, secureInput: .disabled)
+        reducer.recordFnRecoverySnapshot(.knownActive, gateOpen: true, secureInput: .disabled)
         let aggregate = reducer.aggregate
         XCTAssertEqual(aggregate.fnRecoveredKnownNone, 1)
         XCTAssertEqual(aggregate.fnRecoveredKnownActive, 1)
         XCTAssertEqual(aggregate.fnUnknownAfterReset, 0)
         XCTAssertNoThrow(try aggregate.validate())
+    }
+
+    func testTapResetAndFnRecoveryProduceNoCounterUpdatesOnEveryPrivacyClosedPath() {
+        let closed: [(gateOpen: Bool, secureInput: SecureInputState)] = [
+            (false, .disabled), (false, .enabled), (false, .unknown),
+            (true, .enabled), (true, .unknown),
+        ]
+        for (gateOpen, secureInput) in closed {
+            var reducer = SP2LiveAggregateV2Reducer()
+            reducer.recordTapReset(gateOpen: gateOpen, secureInput: secureInput)
+            for confidence in FnConfidence.allCases {
+                reducer.recordFnRecoverySnapshot(confidence, gateOpen: gateOpen, secureInput: secureInput)
+            }
+            XCTAssertEqual(reducer.aggregate, SP2LiveAggregateV2(), "gateOpen=\(gateOpen) secureInput=\(secureInput)")
+            XCTAssertNoThrow(try reducer.aggregate.validate())
+        }
+    }
+
+    func testEveryClosedPathIsZeroUpdateAcrossAllThreeEntryPointsCombined() {
+        var reducer = SP2LiveAggregateV2Reducer()
+        for gateOpen in [true, false] {
+            for secureInput in SecureInputState.allCases where !(gateOpen && secureInput == .disabled) {
+                for frontmost in SP2FrontmostAttribution.allCases {
+                    reducer.recordTerminalKeyDown(gateOpen: gateOpen, secureInput: secureInput, frontmost: frontmost)
+                }
+                reducer.recordTapReset(gateOpen: gateOpen, secureInput: secureInput)
+                for confidence in FnConfidence.allCases {
+                    reducer.recordFnRecoverySnapshot(confidence, gateOpen: gateOpen, secureInput: secureInput)
+                }
+            }
+        }
+        XCTAssertEqual(reducer.aggregate, SP2LiveAggregateV2())
+        XCTAssertEqual(try? reducer.aggregate.canonicalData(), try? SP2LiveAggregateV2().canonicalData())
+    }
+
+    func testSecureInputDuringRecoveryCannotLeakFnActivityIntoPersistedCounters() throws {
+        var modifiers = ModifierReconstructionModel()
+        var reducer = SP2LiveAggregateV2Reducer()
+        modifiers.applyFn(active: true)
+        modifiers.invalidate(for: .tapReset)
+        reducer.recordTapReset(gateOpen: true, secureInput: .enabled)
+        reducer.recordFnRecoverySnapshot(modifiers.fn, gateOpen: true, secureInput: .enabled)
+        modifiers.applyFn(active: true)
+        reducer.recordFnRecoverySnapshot(modifiers.fn, gateOpen: true, secureInput: .enabled)
+        XCTAssertEqual(modifiers.fn, .knownActive)
+        XCTAssertEqual(reducer.aggregate, SP2LiveAggregateV2())
+        let encoded = String(decoding: try reducer.aggregate.canonicalData(), as: UTF8.self)
+        for field in ["fnRecoveredKnownActive", "fnUnknownAfterReset", "tapResets"] {
+            XCTAssertTrue(encoded.contains("\"\(field)\" : 0"), "\(field) must stay zero: \(encoded)")
+        }
     }
 
     func testParityWithPrivacyTransitionModelDecisions() {
@@ -94,8 +144,9 @@ final class SP2LiveAggregateV2ReducerTests: XCTestCase {
         model.captureState = .paused
         XCTAssertEqual(observe(&model, &reducer), .dropped)
         model.captureState = .collecting
+        let gateOpenBeforeReset = model.gateOpen
         XCTAssertEqual(model.tapReset(), .zero)
-        reducer.recordTapReset()
+        reducer.recordTapReset(gateOpen: gateOpenBeforeReset, secureInput: .disabled)
         XCTAssertEqual(observe(&model, &reducer), .dropped)
         model.recoverTap()
         XCTAssertEqual(observe(&model, &reducer), .counted(bucket: .bundle("app.allowed")))
@@ -118,14 +169,14 @@ final class SP2LiveAggregateV2ReducerTests: XCTestCase {
         modifiers.applyFn(active: true)
         modifiers.invalidate(for: .eventLoss)
         XCTAssertEqual(modifiers.fn, .unknown)
-        reducer.recordFnRecoverySnapshot(modifiers.fn)
+        reducer.recordFnRecoverySnapshot(modifiers.fn, gateOpen: true, secureInput: .disabled)
         modifiers.applyFn(active: true)
-        reducer.recordFnRecoverySnapshot(modifiers.fn)
+        reducer.recordFnRecoverySnapshot(modifiers.fn, gateOpen: true, secureInput: .disabled)
         modifiers.invalidate(for: .tapReset)
         XCTAssertEqual(modifiers.fn, .unknown)
-        reducer.recordFnRecoverySnapshot(modifiers.fn)
+        reducer.recordFnRecoverySnapshot(modifiers.fn, gateOpen: true, secureInput: .disabled)
         modifiers.applyFn(active: false)
-        reducer.recordFnRecoverySnapshot(modifiers.fn)
+        reducer.recordFnRecoverySnapshot(modifiers.fn, gateOpen: true, secureInput: .disabled)
         let aggregate = reducer.aggregate
         XCTAssertEqual(aggregate.fnUnknownAfterReset, 2)
         XCTAssertEqual(aggregate.fnRecoveredKnownActive, 1)

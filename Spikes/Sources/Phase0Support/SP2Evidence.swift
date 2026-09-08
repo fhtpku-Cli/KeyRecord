@@ -197,8 +197,14 @@ public struct SP2LiveAggregateV2Reducer: Sendable {
     public private(set) var aggregate = SP2LiveAggregateV2()
     public init() {}
 
+    /// Every counter-mutating entry point must consult this predicate first: PRD C8/P6 require a zero
+    /// update on every counter while the gate is closed or Secure Input is enabled/indeterminate.
+    private static func privacyOpen(gateOpen: Bool, secureInput: SecureInputState) -> Bool {
+        gateOpen && secureInput == .disabled
+    }
+
     public mutating func recordTerminalKeyDown(gateOpen: Bool, secureInput: SecureInputState, frontmost: SP2FrontmostAttribution) {
-        guard gateOpen, secureInput == .disabled else { return }
+        guard Self.privacyOpen(gateOpen: gateOpen, secureInput: secureInput) else { return }
         switch frontmost {
         case .knownAttributable: aggregate.knownAttributable += 1
         case .knownUnattributable: aggregate.knownUnattributable += 1
@@ -206,9 +212,14 @@ public struct SP2LiveAggregateV2Reducer: Sendable {
         }
     }
 
-    public mutating func recordTapReset() { aggregate.tapResets += 1 }
+    /// `gateOpen` is the gate state observed immediately before the reset closed it.
+    public mutating func recordTapReset(gateOpen: Bool, secureInput: SecureInputState) {
+        guard Self.privacyOpen(gateOpen: gateOpen, secureInput: secureInput) else { return }
+        aggregate.tapResets += 1
+    }
 
-    public mutating func recordFnRecoverySnapshot(_ confidence: FnConfidence) {
+    public mutating func recordFnRecoverySnapshot(_ confidence: FnConfidence, gateOpen: Bool, secureInput: SecureInputState) {
+        guard Self.privacyOpen(gateOpen: gateOpen, secureInput: secureInput) else { return }
         switch confidence {
         case .unknown: aggregate.fnUnknownAfterReset += 1
         case .knownNone: aggregate.fnRecoveredKnownNone += 1

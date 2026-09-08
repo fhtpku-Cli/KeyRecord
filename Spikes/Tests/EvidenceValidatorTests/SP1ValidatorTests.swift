@@ -125,12 +125,16 @@ final class SP1ValidatorTests: XCTestCase {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("sp1-artifacts-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: false)
         let hash = String(repeating: "a", count: 64), commit = String(repeating: "b", count: 40)
-        let blocker = SP1Blocker(blockedBy: "input_monitoring_denied", detectCommand: ["preflight"], prerequisite: "Input Monitoring", unblockAction: "Grant separately")
-        let legs = SP1Evidence.requiredLegIDs.sorted().map { SP1Leg(legID: $0, verdict: .blocked, detectorAvailable: false, blocker: blocker, identity: nil, runnerCommitSha: commit, runnerTreeSha: commit, environmentSha256: hash, artifactSha256: nil, matrix: nil, aggregateCount: nil) }
+        let matrixIDs: Set<String> = ["sp1.tap.session.matrix", "sp1.tap.annotated.matrix"]
+        let legs = SP1Evidence.requiredLegIDs.sorted().map { legID in
+            let blocker = matrixIDs.contains(legID)
+                ? SP1CanonicalBlockers.legacyV1Matrix(inputMonitoringUnavailable: true, karabinerAbsent: true)
+                : SP1CanonicalBlockers.d1
+            return SP1Leg(legID: legID, verdict: .blocked, detectorAvailable: false, blocker: blocker, identity: nil, runnerCommitSha: commit, runnerTreeSha: commit, environmentSha256: hash, artifactSha256: nil, matrix: nil, aggregateCount: nil)
+        }
         let evidence = SP1Evidence(selectedTapIdentity: nil, legs: legs, verdict: .blocked, g0Status: .open, o7Guarantee: O7Boundary.guarantee, runnerSourceSha256: Dictionary(uniqueKeysWithValues: SP1RunnerBinding.sourcePaths.map { ($0, hash) }))
         try encode(evidence, to: root.appendingPathComponent("evidence.json"))
-        let records = InputEventKind.allCases.map { ProductStampedRecord(kind: $0, keyCode: 4, isAutoRepeat: false, marker: ProductSyntheticMarker.value, dropped: true) }
-        try encode(SP1SyntheticArtifact(records: records), to: root.appendingPathComponent("product-stamped-synthetic.json"))
+        try SP1CanonicalArtifacts.v1Synthetic.write(to: root.appendingPathComponent("product-stamped-synthetic.json"))
         try encode(SP1LiveAggregateArtifact(systemShortcutObservedCount: 0, unmarkedObservedCount: 0), to: root.appendingPathComponent("live-aggregate-counts.json"))
         try Data("O7 conservative\n".utf8).write(to: root.appendingPathComponent("O7-ADDENDUM.md"))
         try Data("SP-1 BLOCKED G0 OPEN\n".utf8).write(to: root.appendingPathComponent("SP-1-CONCLUSION.md"))

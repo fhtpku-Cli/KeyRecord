@@ -2,6 +2,7 @@ import Foundation
 import Phase0Support
 
 enum SP1DirectoryValidator {
+    private static let canonicalV1SyntheticSHA256 = "7238044654fbd6c081b5531f50ba8a095fd90e89e80edf9c6cb48a52f94ba518"
     private static let artifactNames: Set<String> = [
         "O7-ADDENDUM.md", "SP-1-CONCLUSION.md", "evidence.json",
         "live-aggregate-counts.json", "product-stamped-synthetic.json",
@@ -16,14 +17,34 @@ enum SP1DirectoryValidator {
         let evidence: SP1Evidence
         do { evidence = try JSONDecoder().decode(SP1Evidence.self, from: Data(contentsOf: evidenceURL)) }
         catch { throw ValidatorError("malformed_sp1_evidence", String(describing: error)) }
-        let environment = directory.deletingLastPathComponent().appendingPathComponent("environment.json")
-        let candidateEnvironmentSha256 = isRegularFile(environment)
-            ? try Canonical.sha256(Data(contentsOf: environment))
-            : nil
+        let environmentURL = directory.deletingLastPathComponent().appendingPathComponent("environment.json")
+        let environmentData = isRegularFile(environmentURL) ? try Data(contentsOf: environmentURL) : nil
+        let candidateEnvironmentSha256 = environmentData.map(Canonical.sha256)
+        var environmentEvidence: EnvironmentEvidence?
+        if let environmentData {
+            do { environmentEvidence = try JSONDecoder().decode(EnvironmentEvidence.self, from: environmentData) }
+            catch { throw ValidatorError("sp1_environment_malformed", String(describing: error)) }
+        } else if evidence.schemaVersion == 2 {
+            throw ValidatorError("sp1_environment_missing")
+        }
+        if evidence.schemaVersion == 2 {
+            guard environmentEvidence?.guiSession.status == .available,
+                  environmentEvidence?.listenEventAccess == .available,
+                  environmentEvidence?.guiSession.tapCreate == .available else {
+                throw ValidatorError("sp1_v2_requires_d1")
+            }
+        }
         do { try evidence.validate(candidateEnvironmentSha256: candidateEnvironmentSha256) }
         catch let error as SP1ValidationError { throw ValidatorError("sp1_\(error.rawValue)") }
         try verifyManifest(directory)
-        try validateArtifacts(directory)
+        try validateArtifacts(directory, evidence: evidence)
+        try validateArtifactBindings(evidence, directory: directory)
+        if evidence.schemaVersion == 2, let environmentEvidence {
+            try validateV2ArtifactSemantics(directory, evidence: evidence)
+            try validateV2EnvironmentSemantics(evidence, environment: environmentEvidence)
+        }
+        try validateBlockerSemantics(evidence, environment: environmentEvidence)
+        try validateNarratives(directory, evidence: evidence)
         try validateRunnerBinding(evidence, repository: repository)
         return GateValidationReport(legCount: evidence.legs.count, o4RowCount: 0, g0Status: evidence.g0Status)
     }
@@ -40,8 +61,15 @@ enum SP1DirectoryValidator {
         guard commitCheck.status == 0 else { throw ValidatorError("sp1_runner_commit_missing") }
         let actualTree = try git.text(["rev-parse", "\(commitSha)^{tree}"])
         guard actualTree == treeSha else { throw ValidatorError("sp1_runner_tree_mismatch") }
-        let ancestor = try git.run(["merge-base", "--is-ancestor", commitSha, "HEAD"], acceptedStatuses: [0, 1])
-        guard ancestor.status == 0 else { throw ValidatorError("sp1_runner_not_ancestor") }
+        if evidence.schemaVersion == 2 {
+            guard try git.text(["rev-parse", "HEAD"]) == commitSha,
+                  try git.text(["rev-parse", "HEAD^{tree}"]) == treeSha else {
+                throw ValidatorError("sp1_runner_not_current_head")
+            }
+        } else {
+            let ancestor = try git.run(["merge-base", "--is-ancestor", commitSha, "HEAD"], acceptedStatuses: [0, 1])
+            guard ancestor.status == 0 else { throw ValidatorError("sp1_runner_not_ancestor") }
+        }
 
         for path in SP1RunnerBinding.sourcePaths.sorted() {
             let object = try git.run(["cat-file", "-e", "\(commitSha):\(path)"], acceptedStatuses: [0, 1, 128])
@@ -52,14 +80,63 @@ enum SP1DirectoryValidator {
             }
             let workingURL = repository.appendingPathComponent(path)
             guard isRegularFile(workingURL) else { throw ValidatorError("sp1_runner_source_dirty", path) }
+            if evidence.schemaVersion == 2,
+               Canonical.sha256(try Data(contentsOf: workingURL)) != evidence.runnerSourceSha256[path] {
+                throw ValidatorError("sp1_runner_source_dirty", path)
+            }
             let status = try git.text(["status", "--porcelain=v1", "--untracked-files=all", "--", path])
             guard status.isEmpty else { throw ValidatorError("sp1_runner_source_dirty", path) }
         }
     }
 
-    private static func validateArtifacts(_ directory: URL) throws {
+    static func validateArtifacts(_ directory: URL, evidence: SP1Evidence) throws {
         let syntheticURL = directory.appendingPathComponent("product-stamped-synthetic.json")
-        let synthetic = try jsonObject(syntheticURL, code: "sp1_malformed_product_marker")
+        switch evidence.schemaVersion {
+        case 1:
+            try validateV1SyntheticArtifact(syntheticURL)
+            if let leg = evidence.legs.first(where: { $0.verdict != .blocked }) {
+                throw ValidatorError("sp1_synthetic_pass_unsupported", leg.legID)
+            }
+        case 2:
+            let actual = try bytes(syntheticURL, code: "sp1_synthetic_recompute_mismatch")
+            let recomputed = try SP1SyntheticScenarios.run()
+            guard actual == (try recomputed.canonicalJSON()) else {
+                throw ValidatorError("sp1_synthetic_recompute_mismatch")
+            }
+        default:
+            throw ValidatorError("sp1_unsupported_schema_version")
+        }
+        let live = try validateLiveArtifact(directory.appendingPathComponent("live-aggregate-counts.json"))
+        if evidence.schemaVersion == 1,
+           live.systemShortcutObservedCount != 0 || live.unmarkedObservedCount != 0 {
+            throw ValidatorError("sp1_live_semantics_invalid")
+        }
+    }
+
+    static func validateArtifactBindings(_ evidence: SP1Evidence, directory: URL) throws {
+        var liveHashes = Set<String>()
+        for leg in evidence.legs where leg.verdict != .blocked {
+            let synthetic = syntheticLegIDs.contains(leg.legID)
+            let url = directory.appendingPathComponent(synthetic ? "product-stamped-synthetic.json" : "live-aggregate-counts.json")
+            guard isRegularFile(url), let data = try? Data(contentsOf: url) else {
+                throw ValidatorError("sp1_artifact_missing", leg.legID)
+            }
+            let actual = Canonical.sha256(data)
+            guard leg.artifactSha256 == actual else { throw ValidatorError("sp1_artifact_hash_mismatch", leg.legID) }
+            guard synthetic || liveHashes.insert(actual).inserted else {
+                throw ValidatorError("sp1_reused_artifact_hash", leg.legID)
+            }
+        }
+    }
+
+    private static let syntheticLegIDs: Set<String> = ["sp1.autoRepeat", "sp1.o7Boundary", "sp1.productStampedDrop", "sp1.tapReset"]
+
+    private static func validateV1SyntheticArtifact(_ url: URL) throws {
+        let actual = try bytes(url, code: "sp1_malformed_product_marker")
+        guard Canonical.sha256(actual) == canonicalV1SyntheticSHA256, actual == SP1CanonicalArtifacts.v1Synthetic else {
+            throw ValidatorError("sp1_malformed_product_marker")
+        }
+        let synthetic = try jsonObject(url, code: "sp1_malformed_product_marker")
         guard let object = synthetic as? [String: Any], Set(object.keys) == ["evidenceKind", "productStampedSynthetic", "records"],
               object["evidenceKind"] as? String == EvidenceKind.synthetic.rawValue,
               object["productStampedSynthetic"] as? Bool == true,
@@ -76,19 +153,105 @@ enum SP1DirectoryValidator {
                   let kind = record["kind"] as? String, InputEventKind(rawValue: kind) != nil,
                   kinds.insert(kind).inserted else { throw ValidatorError("sp1_malformed_product_marker") }
         }
+    }
 
-        let liveURL = directory.appendingPathComponent("live-aggregate-counts.json")
-        let live = try jsonObject(liveURL, code: "sp1_live_event_detail_forbidden")
-        guard let object = live as? [String: Any],
-              Set(object.keys) == ["evidenceKind", "systemShortcutObservedCount", "unmarkedObservedCount"],
-              object["evidenceKind"] as? String == EvidenceKind.live.rawValue,
-              let shortcut = object["systemShortcutObservedCount"] as? NSNumber, shortcut.intValue >= 0,
-              let unmarked = object["unmarkedObservedCount"] as? NSNumber, unmarked.intValue >= 0 else {
+    private static func validateLiveArtifact(_ url: URL) throws -> SP1LiveAggregateArtifact {
+        let data = try bytes(url, code: "sp1_live_event_detail_forbidden")
+        guard let live = try? JSONDecoder().decode(SP1LiveAggregateArtifact.self, from: data),
+              live.evidenceKind == .live,
+              live.systemShortcutObservedCount >= 0,
+              live.unmarkedObservedCount >= 0 else {
             throw ValidatorError("sp1_live_event_detail_forbidden")
+        }
+        return live
+    }
+
+    private static func validateV2SyntheticSemantics(_ evidence: SP1Evidence, assertions: [SP1SyntheticAssertion], artifactHash: String) throws {
+        let assertionByID = Dictionary(uniqueKeysWithValues: assertions.map { ($0.legID, $0.passed) })
+        guard Set(assertionByID.keys) == syntheticLegIDs else { throw ValidatorError("sp1_synthetic_recompute_mismatch") }
+        for leg in evidence.legs where syntheticLegIDs.contains(leg.legID) {
+            guard let passed = assertionByID[leg.legID],
+                  leg.verdict == (passed ? .pass : .fail), leg.detectorAvailable,
+                  leg.blocker == nil, leg.identity == nil, leg.matrix == nil, leg.aggregateCount == nil,
+                  leg.artifactSha256 == artifactHash else {
+                throw ValidatorError("sp1_synthetic_assertion_leg_mismatch", leg.legID)
+            }
         }
     }
 
-    private static func verifyManifest(_ directory: URL) throws {
+    private static func validateV2ArtifactSemantics(_ directory: URL, evidence: SP1Evidence) throws {
+        let synthetic = try SP1SyntheticScenarios.run()
+        let syntheticData = try bytes(directory.appendingPathComponent("product-stamped-synthetic.json"), code: "sp1_synthetic_recompute_mismatch")
+        try validateV2SyntheticSemantics(evidence, assertions: synthetic.assertions, artifactHash: Canonical.sha256(syntheticData))
+        let live = try validateLiveArtifact(directory.appendingPathComponent("live-aggregate-counts.json"))
+        try validateV2LiveSemantics(evidence, live: live)
+    }
+
+    private static func validateV2LiveSemantics(_ evidence: SP1Evidence, live: SP1LiveAggregateArtifact) throws {
+        guard live.systemShortcutObservedCount == 0, live.unmarkedObservedCount == 0,
+              let shortcut = evidence.legs.first(where: { $0.legID == "sp1.systemShortcut" }),
+              shortcut.verdict == .blocked, !shortcut.detectorAvailable,
+              shortcut.blocker == SP1CanonicalBlockers.systemShortcutExecutionNotImplemented,
+              shortcut.identity == nil, shortcut.artifactSha256 == nil,
+              shortcut.matrix == nil, shortcut.aggregateCount == nil else {
+            throw ValidatorError("sp1_live_semantics_invalid")
+        }
+        for leg in evidence.legs where matrixLegIDs.contains(leg.legID) {
+            guard leg.verdict == .blocked, !leg.detectorAvailable, leg.blocker?.complete == true,
+                  leg.identity == nil, leg.artifactSha256 == nil, leg.matrix == nil, leg.aggregateCount == nil else {
+                throw ValidatorError("sp1_matrix_semantics_invalid", leg.legID)
+            }
+        }
+    }
+
+    private static func validateV2EnvironmentSemantics(_ evidence: SP1Evidence, environment: EnvironmentEvidence) throws {
+        let karabinerInstalled = environment.applications.contains { $0.name == "Karabiner-Elements" && $0.status == .installed }
+        let expected = karabinerInstalled ? SP1CanonicalBlockers.v2MatrixExecutionNotImplemented : SP1CanonicalBlockers.v2KarabinerAbsent
+        for leg in evidence.legs where matrixLegIDs.contains(leg.legID) {
+            guard leg.blocker == expected else { throw ValidatorError("sp1_matrix_blocker_invalid", leg.legID) }
+        }
+    }
+
+    private static func validateBlockerSemantics(_ evidence: SP1Evidence, environment: EnvironmentEvidence?) throws {
+        switch evidence.schemaVersion {
+        case 1:
+            let d1Failure = environment.flatMap(SP1CanonicalBlockers.d1Failure(for:)) ?? (environment == nil ? SP1CanonicalBlockers.d1 : nil)
+            let karabinerAbsent = environment.map {
+                !$0.applications.contains { $0.name == "Karabiner-Elements" && $0.status == .installed }
+            } ?? true
+            let matrix = environment.map { SP1CanonicalBlockers.legacyV1Matrix(environment: $0, karabinerAbsent: karabinerAbsent) }
+                ?? SP1CanonicalBlockers.legacyV1Matrix(inputMonitoringUnavailable: true, karabinerAbsent: karabinerAbsent)
+            for leg in evidence.legs where leg.verdict == .blocked {
+                guard let expected = matrixLegIDs.contains(leg.legID) ? matrix : d1Failure,
+                      leg.blocker == expected else { throw ValidatorError("sp1_blocker_invalid", leg.legID) }
+            }
+        case 2:
+            guard let environment else { throw ValidatorError("sp1_environment_missing") }
+            let matrix = environment.applications.contains { $0.name == "Karabiner-Elements" && $0.status == .installed }
+                ? SP1CanonicalBlockers.v2MatrixExecutionNotImplemented
+                : SP1CanonicalBlockers.v2KarabinerAbsent
+            for leg in evidence.legs where leg.verdict == .blocked {
+                let expected = leg.legID == "sp1.systemShortcut" ? SP1CanonicalBlockers.systemShortcutExecutionNotImplemented
+                    : matrixLegIDs.contains(leg.legID) ? matrix : nil
+                guard let expected, leg.blocker == expected else {
+                    throw ValidatorError("sp1_blocker_invalid", leg.legID)
+                }
+            }
+        default:
+            throw ValidatorError("sp1_unsupported_schema_version")
+        }
+    }
+
+    private static func validateNarratives(_ directory: URL, evidence: SP1Evidence) throws {
+        guard try bytes(directory.appendingPathComponent("O7-ADDENDUM.md"), code: "sp1_narrative_mismatch") == SP1CanonicalNarratives.o7(),
+              try bytes(directory.appendingPathComponent("SP-1-CONCLUSION.md"), code: "sp1_narrative_mismatch") == SP1CanonicalNarratives.conclusion(for: evidence) else {
+            throw ValidatorError("sp1_narrative_mismatch")
+        }
+    }
+
+    private static let matrixLegIDs: Set<String> = ["sp1.tap.session.matrix", "sp1.tap.annotated.matrix"]
+
+    static func verifyManifest(_ directory: URL) throws {
         let manifest = directory.appendingPathComponent("manifest.sha256")
         guard isRegularFile(manifest), let text = try? String(contentsOf: manifest, encoding: .utf8) else { throw ValidatorError("missing_manifest") }
         var expected = Set<String>()
@@ -104,6 +267,11 @@ enum SP1DirectoryValidator {
         }
         let actual = Set(try FileManager.default.contentsOfDirectory(atPath: directory.path).filter { $0 != "manifest.sha256" })
         guard expected == artifactNames, actual == artifactNames else { throw ValidatorError("manifest_membership_mismatch") }
+    }
+
+    private static func bytes(_ url: URL, code: String) throws -> Data {
+        guard isRegularFile(url), let data = try? Data(contentsOf: url) else { throw ValidatorError(code) }
+        return data
     }
 
     private static func jsonObject(_ url: URL, code: String) throws -> Any {

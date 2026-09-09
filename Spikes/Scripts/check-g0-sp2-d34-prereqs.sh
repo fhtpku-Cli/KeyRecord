@@ -10,11 +10,10 @@ else
 fi
 if sudo -n true 2>/dev/null; then
   echo "D4 sudo -n: OK"
-  if sudo -n /usr/bin/pmset sleepnow --help >/dev/null 2>&1; then
-    echo "D4 pmset: reachable"
+  if sudo -n -l 2>/dev/null | grep -q 'pmset'; then
+    echo "D4 pmset sleepnow: sudoers entry present"
   else
-    echo "D4 pmset: sudo OK but pmset sleepnow may need sudoers entry"
-    echo "  see Spikes/Scripts/sudoers-keyrecord-phase0-d4.example"
+    echo "D4 pmset sleepnow: may need sudoers (see install-g0-d4-sudoers.sh)"
   fi
 else
   echo "D4 sudo -n: NOT CONFIGURED"

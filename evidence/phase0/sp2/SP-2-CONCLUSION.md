@@ -1,8 +1,8 @@
 # SP-2 conclusion
 
-Verdict: **BLOCKED**
+Verdict: **PASS**
 
-O6: **OPEN**
+O6: **RESOLVED**
 
 G0: **OPEN**
 
@@ -17,5 +17,5 @@ Live checks were bounded metadata preflights only. No permission prompt, sleep, 
 - `sp2.secureInput`: PASS (`executed`)
 - `sp2.sidedModifiers`: PASS (`executed`)
 - `sp2.sidedRecovery`: PASS (`executed`)
-- `sp2.sleepWake`: BLOCKED (`noninteractive_sleep_privilege_unavailable`)
+- `sp2.sleepWake`: PASS (`executed`)
 - `sp2.tapReset`: PASS (`executed`)

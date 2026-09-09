@@ -11,7 +11,8 @@ enum SP2Probe {
     static func run(
         arguments: [String],
         identityProvider: any AtomicityRunnerIdentityProviding = GitAtomicityRunnerIdentityProvider(sourcePaths: SP2RunnerBinding.sourcePaths.sorted()),
-        liveExecutor: any SP2LiveScenarioExecuting = ProcessEnvironmentSP2LiveExecutor()
+        liveExecutor: any SP2LiveScenarioExecuting = ProcessEnvironmentSP2LiveExecutor(),
+        secureHelperProvider: @Sendable () -> SecureInputState? = { safeSecureInputHelperState() }
     ) throws {
         guard arguments.count == 5, arguments[0] == "sp2", arguments[1] == "--environment",
               arguments[3] == "--output" else { throw ProbeError.usage }
@@ -24,7 +25,7 @@ enum SP2Probe {
         let environmentHash = AtomicityDigest.sha256(environmentData)
         let d1 = environment.guiSession.status == .available && environment.listenEventAccess == .available
             && environment.guiSession.tapCreate == .available
-        let secureHelper = safeSecureInputHelperState()
+        let secureHelper = secureHelperProvider()
         let d3 = environment.guiSession.status == .available && secureHelper != nil
         let d4 = environment.guiSession.status == .available && environment.sudoNonInteractive
         if environment.guiSession.status == .available { _ = boundedFrontmostMetadataPreflight() }
@@ -203,22 +204,6 @@ enum SP2Probe {
     }
     private static func precedence(_ verdict: Verdict) -> Int {
         switch verdict { case .pass: 0; case .inconclusive: 1; case .blocked: 2; case .fail: 3 }
-    }
-}
-
-struct ProcessEnvironmentSP2LiveExecutor: SP2LiveScenarioExecuting {
-    func execute(d1: Bool, d3: Bool, d4: Bool, secureHelper: SecureInputState?) -> SP2LiveExecution {
-        guard SP2LiveArming.isArmed else {
-            return SP2LiveExecution(armed: false, completed: false, secureInputEnabled: false, sleepWakeConfirmed: false)
-        }
-        if d1 { _ = SP2Probe.boundedFrontmostMetadataPreflightForExecutor() }
-        return SP2LiveExecution(
-            aggregate: SP2LiveAggregateV2(),
-            armed: true,
-            completed: true,
-            secureInputEnabled: d3 && secureHelper == .enabled,
-            sleepWakeConfirmed: false
-        )
     }
 }
 

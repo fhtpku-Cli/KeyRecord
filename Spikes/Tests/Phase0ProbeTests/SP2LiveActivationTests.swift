@@ -63,7 +63,8 @@ final class SP2LiveActivationTests: XCTestCase {
             try SP2Probe.run(
                 arguments: ["sp2", "--environment", environment.path, "--output", output.path],
                 identityProvider: FixedSP2IdentityProvider(identity: identity),
-                liveExecutor: FixedSP2LiveExecutor(result: execution)
+                liveExecutor: FixedSP2LiveExecutor(result: execution),
+                secureHelperProvider: { nil }
             )
             let evidence = try JSONDecoder().decode(SP2Evidence.self, from: Data(contentsOf: output.appendingPathComponent("evidence.json")))
             XCTAssertEqual(evidence.legs.first { $0.legID == "sp2.frontmostKnown" }?.verdict, .pass)
@@ -87,7 +88,8 @@ final class SP2LiveActivationTests: XCTestCase {
             try SP2Probe.run(
                 arguments: ["sp2", "--environment", environment.path, "--output", output.path],
                 identityProvider: FixedSP2IdentityProvider(identity: identity),
-                liveExecutor: FixedSP2LiveExecutor(result: execution)
+                liveExecutor: FixedSP2LiveExecutor(result: execution),
+                secureHelperProvider: { nil }
             )
             let evidence = try JSONDecoder().decode(SP2Evidence.self, from: Data(contentsOf: output.appendingPathComponent("evidence.json")))
             XCTAssertEqual(evidence.legs.first { $0.legID == "sp2.sleepWake" }?.verdict, .inconclusive)

@@ -213,6 +213,7 @@ final class SP2LiveAggregateV2SchemaTests: XCTestCase {
         XCTAssertEqual(SP2RunnerBinding.sourcePaths, [
             "Spikes/Scripts/run-task-qa.sh",
             "Spikes/Sources/Phase0Probe/AtomicityRunnerIdentity.swift",
+            "Spikes/Sources/Phase0Probe/SP2LiveExecutor.swift",
             "Spikes/Sources/Phase0Probe/SP2Probe.swift",
             "Spikes/Sources/Phase0Probe/main.swift",
             "Spikes/Sources/Phase0Support/EvidenceDocuments.swift",

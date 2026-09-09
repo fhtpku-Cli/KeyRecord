@@ -5,7 +5,7 @@
   "commit": "f57e61e19229e23c4445b85494dbf7c07de721cb",
   "tree": "ac3dc753ff75ce5a0f243cba1d94582bafe09409",
   "archiveSha256": "95497a26d620d235fd8c1da64dcd6cd08830a5090c9c0266b33af22ad899b110",
-  "environmentSha256": "6b3288f5983cbce231295762d3f8381b8467d6dbe2e74fff0e17a1aebf7215f4",
+  "environmentSha256": "c67cd660c318012dd04613a0c598198fa15aec6ce3cb905314be2946e130e77f",
   "harnessSourceSha256": "09f039936e5f05be90c83c7c8be90467752388b900370439976d0d3957fb0491",
   "executableSha256": "e178cb9c039e0057c767ba36ecccdbd8042e40699dd51526be41488f890d9bda",
   "compilerIdentity": "Apple clang version 21.0.0 (clang-2100.1.1.101)\nTarget: arm64-apple-darwin25.6.0\nThread model: posix\nInstalledDir: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin",

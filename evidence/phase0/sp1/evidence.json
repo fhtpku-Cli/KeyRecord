@@ -1,154 +1,154 @@
 {
-  "g0Status": "OPEN",
-  "legs": [
+  "g0Status" : "OPEN",
+  "legs" : [
     {
-      "artifactSha256": "83f7a2463b3fa00c73ac971decc77f277719e30d57f1df94456907605b848766",
-      "detectorAvailable": true,
-      "environmentSha256": "c67cd660c318012dd04613a0c598198fa15aec6ce3cb905314be2946e130e77f",
-      "identity": {
-        "attemptId": "0806f86cc656c8eea5680ca3365d94ab2d53b0a6c4f401e245f98a97213bbfd4",
-        "environmentSha256": "c67cd660c318012dd04613a0c598198fa15aec6ce3cb905314be2946e130e77f",
-        "runnerCommitSha": "c28035c998381e7de75be8f90e61053c9393295c",
-        "runnerTreeSha": "24d9a79c82255f52313bd4a9c15308acf0afb33e",
-        "tapConfigSha256": "77d3a2ceac2ba20468c40c81874e5a34d2e93751ab70fd757fb58b2e8cec06ae",
-        "tapType": "session"
+      "artifactSha256" : "83f7a2463b3fa00c73ac971decc77f277719e30d57f1df94456907605b848766",
+      "detectorAvailable" : true,
+      "environmentSha256" : "c67cd660c318012dd04613a0c598198fa15aec6ce3cb905314be2946e130e77f",
+      "identity" : {
+        "attemptId" : "0806f86cc656c8eea5680ca3365d94ab2d53b0a6c4f401e245f98a97213bbfd4",
+        "environmentSha256" : "c67cd660c318012dd04613a0c598198fa15aec6ce3cb905314be2946e130e77f",
+        "runnerCommitSha" : "3df401b8304e7775343a011f1f2fe794be43713e",
+        "runnerTreeSha" : "eedebcc9d875b50da4c323411a4e5972dc237959",
+        "tapConfigSha256" : "77d3a2ceac2ba20468c40c81874e5a34d2e93751ab70fd757fb58b2e8cec06ae",
+        "tapType" : "session"
       },
-      "legID": "sp1.autoRepeat",
-      "runnerCommitSha": "c28035c998381e7de75be8f90e61053c9393295c",
-      "runnerTreeSha": "24d9a79c82255f52313bd4a9c15308acf0afb33e",
-      "verdict": "PASS"
+      "legID" : "sp1.autoRepeat",
+      "runnerCommitSha" : "3df401b8304e7775343a011f1f2fe794be43713e",
+      "runnerTreeSha" : "eedebcc9d875b50da4c323411a4e5972dc237959",
+      "verdict" : "PASS"
     },
     {
-      "artifactSha256": "83f7a2463b3fa00c73ac971decc77f277719e30d57f1df94456907605b848766",
-      "detectorAvailable": true,
-      "environmentSha256": "c67cd660c318012dd04613a0c598198fa15aec6ce3cb905314be2946e130e77f",
-      "identity": {
-        "attemptId": "0806f86cc656c8eea5680ca3365d94ab2d53b0a6c4f401e245f98a97213bbfd4",
-        "environmentSha256": "c67cd660c318012dd04613a0c598198fa15aec6ce3cb905314be2946e130e77f",
-        "runnerCommitSha": "c28035c998381e7de75be8f90e61053c9393295c",
-        "runnerTreeSha": "24d9a79c82255f52313bd4a9c15308acf0afb33e",
-        "tapConfigSha256": "77d3a2ceac2ba20468c40c81874e5a34d2e93751ab70fd757fb58b2e8cec06ae",
-        "tapType": "session"
+      "artifactSha256" : "83f7a2463b3fa00c73ac971decc77f277719e30d57f1df94456907605b848766",
+      "detectorAvailable" : true,
+      "environmentSha256" : "c67cd660c318012dd04613a0c598198fa15aec6ce3cb905314be2946e130e77f",
+      "identity" : {
+        "attemptId" : "0806f86cc656c8eea5680ca3365d94ab2d53b0a6c4f401e245f98a97213bbfd4",
+        "environmentSha256" : "c67cd660c318012dd04613a0c598198fa15aec6ce3cb905314be2946e130e77f",
+        "runnerCommitSha" : "3df401b8304e7775343a011f1f2fe794be43713e",
+        "runnerTreeSha" : "eedebcc9d875b50da4c323411a4e5972dc237959",
+        "tapConfigSha256" : "77d3a2ceac2ba20468c40c81874e5a34d2e93751ab70fd757fb58b2e8cec06ae",
+        "tapType" : "session"
       },
-      "legID": "sp1.o7Boundary",
-      "runnerCommitSha": "c28035c998381e7de75be8f90e61053c9393295c",
-      "runnerTreeSha": "24d9a79c82255f52313bd4a9c15308acf0afb33e",
-      "verdict": "PASS"
+      "legID" : "sp1.o7Boundary",
+      "runnerCommitSha" : "3df401b8304e7775343a011f1f2fe794be43713e",
+      "runnerTreeSha" : "eedebcc9d875b50da4c323411a4e5972dc237959",
+      "verdict" : "PASS"
     },
     {
-      "artifactSha256": "83f7a2463b3fa00c73ac971decc77f277719e30d57f1df94456907605b848766",
-      "detectorAvailable": true,
-      "environmentSha256": "c67cd660c318012dd04613a0c598198fa15aec6ce3cb905314be2946e130e77f",
-      "identity": {
-        "attemptId": "0806f86cc656c8eea5680ca3365d94ab2d53b0a6c4f401e245f98a97213bbfd4",
-        "environmentSha256": "c67cd660c318012dd04613a0c598198fa15aec6ce3cb905314be2946e130e77f",
-        "runnerCommitSha": "c28035c998381e7de75be8f90e61053c9393295c",
-        "runnerTreeSha": "24d9a79c82255f52313bd4a9c15308acf0afb33e",
-        "tapConfigSha256": "77d3a2ceac2ba20468c40c81874e5a34d2e93751ab70fd757fb58b2e8cec06ae",
-        "tapType": "session"
+      "artifactSha256" : "83f7a2463b3fa00c73ac971decc77f277719e30d57f1df94456907605b848766",
+      "detectorAvailable" : true,
+      "environmentSha256" : "c67cd660c318012dd04613a0c598198fa15aec6ce3cb905314be2946e130e77f",
+      "identity" : {
+        "attemptId" : "0806f86cc656c8eea5680ca3365d94ab2d53b0a6c4f401e245f98a97213bbfd4",
+        "environmentSha256" : "c67cd660c318012dd04613a0c598198fa15aec6ce3cb905314be2946e130e77f",
+        "runnerCommitSha" : "3df401b8304e7775343a011f1f2fe794be43713e",
+        "runnerTreeSha" : "eedebcc9d875b50da4c323411a4e5972dc237959",
+        "tapConfigSha256" : "77d3a2ceac2ba20468c40c81874e5a34d2e93751ab70fd757fb58b2e8cec06ae",
+        "tapType" : "session"
       },
-      "legID": "sp1.productStampedDrop",
-      "runnerCommitSha": "c28035c998381e7de75be8f90e61053c9393295c",
-      "runnerTreeSha": "24d9a79c82255f52313bd4a9c15308acf0afb33e",
-      "verdict": "PASS"
+      "legID" : "sp1.productStampedDrop",
+      "runnerCommitSha" : "3df401b8304e7775343a011f1f2fe794be43713e",
+      "runnerTreeSha" : "eedebcc9d875b50da4c323411a4e5972dc237959",
+      "verdict" : "PASS"
     },
     {
-      "aggregateCount": 0,
-      "artifactSha256": "f32489dd2a99b2bb1eb5747f7ba3f7004acffd3eab516145d7add16ebe0af28d",
-      "detectorAvailable": true,
-      "environmentSha256": "c67cd660c318012dd04613a0c598198fa15aec6ce3cb905314be2946e130e77f",
-      "identity": {
-        "attemptId": "0806f86cc656c8eea5680ca3365d94ab2d53b0a6c4f401e245f98a97213bbfd4",
-        "environmentSha256": "c67cd660c318012dd04613a0c598198fa15aec6ce3cb905314be2946e130e77f",
-        "runnerCommitSha": "c28035c998381e7de75be8f90e61053c9393295c",
-        "runnerTreeSha": "24d9a79c82255f52313bd4a9c15308acf0afb33e",
-        "tapConfigSha256": "77d3a2ceac2ba20468c40c81874e5a34d2e93751ab70fd757fb58b2e8cec06ae",
-        "tapType": "session"
+      "aggregateCount" : 0,
+      "artifactSha256" : "f32489dd2a99b2bb1eb5747f7ba3f7004acffd3eab516145d7add16ebe0af28d",
+      "detectorAvailable" : true,
+      "environmentSha256" : "c67cd660c318012dd04613a0c598198fa15aec6ce3cb905314be2946e130e77f",
+      "identity" : {
+        "attemptId" : "0806f86cc656c8eea5680ca3365d94ab2d53b0a6c4f401e245f98a97213bbfd4",
+        "environmentSha256" : "c67cd660c318012dd04613a0c598198fa15aec6ce3cb905314be2946e130e77f",
+        "runnerCommitSha" : "3df401b8304e7775343a011f1f2fe794be43713e",
+        "runnerTreeSha" : "eedebcc9d875b50da4c323411a4e5972dc237959",
+        "tapConfigSha256" : "77d3a2ceac2ba20468c40c81874e5a34d2e93751ab70fd757fb58b2e8cec06ae",
+        "tapType" : "session"
       },
-      "legID": "sp1.systemShortcut",
-      "runnerCommitSha": "c28035c998381e7de75be8f90e61053c9393295c",
-      "runnerTreeSha": "24d9a79c82255f52313bd4a9c15308acf0afb33e",
-      "verdict": "PASS"
+      "legID" : "sp1.systemShortcut",
+      "runnerCommitSha" : "3df401b8304e7775343a011f1f2fe794be43713e",
+      "runnerTreeSha" : "eedebcc9d875b50da4c323411a4e5972dc237959",
+      "verdict" : "PASS"
     },
     {
-      "artifactSha256": "f32489dd2a99b2bb1eb5747f7ba3f7004acffd3eab516145d7add16ebe0af28d",
-      "detectorAvailable": true,
-      "environmentSha256": "c67cd660c318012dd04613a0c598198fa15aec6ce3cb905314be2946e130e77f",
-      "legID": "sp1.tap.annotated.matrix",
-      "matrix": {
-        "expectedPhysicalCode": 79,
-        "expectedTransformedCode": 80,
-        "offCount": 1,
-        "offObservedCode": 79,
-        "onCount": 1,
-        "onObservedCode": 80
+      "artifactSha256" : "f32489dd2a99b2bb1eb5747f7ba3f7004acffd3eab516145d7add16ebe0af28d",
+      "detectorAvailable" : true,
+      "environmentSha256" : "c67cd660c318012dd04613a0c598198fa15aec6ce3cb905314be2946e130e77f",
+      "legID" : "sp1.tap.annotated.matrix",
+      "matrix" : {
+        "expectedPhysicalCode" : 79,
+        "expectedTransformedCode" : 80,
+        "offCount" : 1,
+        "offObservedCode" : 79,
+        "onCount" : 1,
+        "onObservedCode" : 80
       },
-      "runnerCommitSha": "c28035c998381e7de75be8f90e61053c9393295c",
-      "runnerTreeSha": "24d9a79c82255f52313bd4a9c15308acf0afb33e",
-      "verdict": "PASS"
+      "runnerCommitSha" : "3df401b8304e7775343a011f1f2fe794be43713e",
+      "runnerTreeSha" : "eedebcc9d875b50da4c323411a4e5972dc237959",
+      "verdict" : "PASS"
     },
     {
-      "artifactSha256": "f32489dd2a99b2bb1eb5747f7ba3f7004acffd3eab516145d7add16ebe0af28d",
-      "detectorAvailable": true,
-      "environmentSha256": "c67cd660c318012dd04613a0c598198fa15aec6ce3cb905314be2946e130e77f",
-      "identity": {
-        "attemptId": "0806f86cc656c8eea5680ca3365d94ab2d53b0a6c4f401e245f98a97213bbfd4",
-        "environmentSha256": "c67cd660c318012dd04613a0c598198fa15aec6ce3cb905314be2946e130e77f",
-        "runnerCommitSha": "c28035c998381e7de75be8f90e61053c9393295c",
-        "runnerTreeSha": "24d9a79c82255f52313bd4a9c15308acf0afb33e",
-        "tapConfigSha256": "77d3a2ceac2ba20468c40c81874e5a34d2e93751ab70fd757fb58b2e8cec06ae",
-        "tapType": "session"
+      "artifactSha256" : "f32489dd2a99b2bb1eb5747f7ba3f7004acffd3eab516145d7add16ebe0af28d",
+      "detectorAvailable" : true,
+      "environmentSha256" : "c67cd660c318012dd04613a0c598198fa15aec6ce3cb905314be2946e130e77f",
+      "identity" : {
+        "attemptId" : "0806f86cc656c8eea5680ca3365d94ab2d53b0a6c4f401e245f98a97213bbfd4",
+        "environmentSha256" : "c67cd660c318012dd04613a0c598198fa15aec6ce3cb905314be2946e130e77f",
+        "runnerCommitSha" : "3df401b8304e7775343a011f1f2fe794be43713e",
+        "runnerTreeSha" : "eedebcc9d875b50da4c323411a4e5972dc237959",
+        "tapConfigSha256" : "77d3a2ceac2ba20468c40c81874e5a34d2e93751ab70fd757fb58b2e8cec06ae",
+        "tapType" : "session"
       },
-      "legID": "sp1.tap.session.matrix",
-      "matrix": {
-        "expectedPhysicalCode": 79,
-        "expectedTransformedCode": 80,
-        "offCount": 1,
-        "offObservedCode": 79,
-        "onCount": 1,
-        "onObservedCode": 80
+      "legID" : "sp1.tap.session.matrix",
+      "matrix" : {
+        "expectedPhysicalCode" : 79,
+        "expectedTransformedCode" : 80,
+        "offCount" : 1,
+        "offObservedCode" : 79,
+        "onCount" : 1,
+        "onObservedCode" : 80
       },
-      "runnerCommitSha": "c28035c998381e7de75be8f90e61053c9393295c",
-      "runnerTreeSha": "24d9a79c82255f52313bd4a9c15308acf0afb33e",
-      "verdict": "PASS"
+      "runnerCommitSha" : "3df401b8304e7775343a011f1f2fe794be43713e",
+      "runnerTreeSha" : "eedebcc9d875b50da4c323411a4e5972dc237959",
+      "verdict" : "PASS"
     },
     {
-      "artifactSha256": "83f7a2463b3fa00c73ac971decc77f277719e30d57f1df94456907605b848766",
-      "detectorAvailable": true,
-      "environmentSha256": "c67cd660c318012dd04613a0c598198fa15aec6ce3cb905314be2946e130e77f",
-      "identity": {
-        "attemptId": "0806f86cc656c8eea5680ca3365d94ab2d53b0a6c4f401e245f98a97213bbfd4",
-        "environmentSha256": "c67cd660c318012dd04613a0c598198fa15aec6ce3cb905314be2946e130e77f",
-        "runnerCommitSha": "c28035c998381e7de75be8f90e61053c9393295c",
-        "runnerTreeSha": "24d9a79c82255f52313bd4a9c15308acf0afb33e",
-        "tapConfigSha256": "77d3a2ceac2ba20468c40c81874e5a34d2e93751ab70fd757fb58b2e8cec06ae",
-        "tapType": "session"
+      "artifactSha256" : "83f7a2463b3fa00c73ac971decc77f277719e30d57f1df94456907605b848766",
+      "detectorAvailable" : true,
+      "environmentSha256" : "c67cd660c318012dd04613a0c598198fa15aec6ce3cb905314be2946e130e77f",
+      "identity" : {
+        "attemptId" : "0806f86cc656c8eea5680ca3365d94ab2d53b0a6c4f401e245f98a97213bbfd4",
+        "environmentSha256" : "c67cd660c318012dd04613a0c598198fa15aec6ce3cb905314be2946e130e77f",
+        "runnerCommitSha" : "3df401b8304e7775343a011f1f2fe794be43713e",
+        "runnerTreeSha" : "eedebcc9d875b50da4c323411a4e5972dc237959",
+        "tapConfigSha256" : "77d3a2ceac2ba20468c40c81874e5a34d2e93751ab70fd757fb58b2e8cec06ae",
+        "tapType" : "session"
       },
-      "legID": "sp1.tapReset",
-      "runnerCommitSha": "c28035c998381e7de75be8f90e61053c9393295c",
-      "runnerTreeSha": "24d9a79c82255f52313bd4a9c15308acf0afb33e",
-      "verdict": "PASS"
+      "legID" : "sp1.tapReset",
+      "runnerCommitSha" : "3df401b8304e7775343a011f1f2fe794be43713e",
+      "runnerTreeSha" : "eedebcc9d875b50da4c323411a4e5972dc237959",
+      "verdict" : "PASS"
     }
   ],
-  "o7Guarantee": "only product-stamped synthetic events are guaranteed excluded; unmarked injection indicators remain suspected, never proven, and no source-field exclusion is claimed.",
-  "runnerSourceSha256": {
-    "Spikes/Scripts/run-task-qa.sh": "662b0d9eca04cdbf53c9021fbc633e649bc96d6c874a80f67a598c5b860fcbdc",
-    "Spikes/Sources/Phase0Probe/AtomicityProbe.swift": "06f3044bf870bcb0057242681f64fd8c4d8c967adea917ae82d7a14abb198546",
-    "Spikes/Sources/Phase0Probe/AtomicityRunnerIdentity.swift": "4c618386923dd3ca544d7e1ebe54f107f04eed771c923d53e1b5f6550e556901",
-    "Spikes/Sources/Phase0Probe/SP1Probe.swift": "2e9003d415c8de9e0e326e776e4c4063480d4df63e6a54b938cf75738124edd6",
-    "Spikes/Sources/Phase0Probe/main.swift": "4f12c425094d0e4516a5bad751cda12f24fee482ca63213904bbfb36f391e0c4",
-    "Spikes/Sources/Phase0Support/AtomicReplacement.swift": "2b41ebb3195e28a094dc70407456cb51e757245286f7c963d0deeb0a1537be9b",
-    "Spikes/Sources/Phase0Support/AtomicityEvidence.swift": "9b40d0c7f07df767c93d90580a61b68c12cf97c32e916d7cba60f6e892127bf8",
-    "Spikes/Sources/Phase0Support/InputObservation.swift": "b541258aba6e318347cba070278255147bbdff8f3f1d74c69ccdae8b515e6a29"
+  "o7Guarantee" : "only product-stamped synthetic events are guaranteed excluded; unmarked injection indicators remain suspected, never proven, and no source-field exclusion is claimed.",
+  "runnerSourceSha256" : {
+    "Spikes/Scripts/run-task-qa.sh" : "662b0d9eca04cdbf53c9021fbc633e649bc96d6c874a80f67a598c5b860fcbdc",
+    "Spikes/Sources/Phase0Probe/AtomicityProbe.swift" : "06f3044bf870bcb0057242681f64fd8c4d8c967adea917ae82d7a14abb198546",
+    "Spikes/Sources/Phase0Probe/AtomicityRunnerIdentity.swift" : "4c618386923dd3ca544d7e1ebe54f107f04eed771c923d53e1b5f6550e556901",
+    "Spikes/Sources/Phase0Probe/SP1Probe.swift" : "2e9003d415c8de9e0e326e776e4c4063480d4df63e6a54b938cf75738124edd6",
+    "Spikes/Sources/Phase0Probe/main.swift" : "4f12c425094d0e4516a5bad751cda12f24fee482ca63213904bbfb36f391e0c4",
+    "Spikes/Sources/Phase0Support/AtomicReplacement.swift" : "2b41ebb3195e28a094dc70407456cb51e757245286f7c963d0deeb0a1537be9b",
+    "Spikes/Sources/Phase0Support/AtomicityEvidence.swift" : "9b40d0c7f07df767c93d90580a61b68c12cf97c32e916d7cba60f6e892127bf8",
+    "Spikes/Sources/Phase0Support/InputObservation.swift" : "b541258aba6e318347cba070278255147bbdff8f3f1d74c69ccdae8b515e6a29"
   },
-  "schemaVersion": 3,
-  "selectedTapIdentity": {
-    "attemptId": "0806f86cc656c8eea5680ca3365d94ab2d53b0a6c4f401e245f98a97213bbfd4",
-    "environmentSha256": "c67cd660c318012dd04613a0c598198fa15aec6ce3cb905314be2946e130e77f",
-    "runnerCommitSha": "c28035c998381e7de75be8f90e61053c9393295c",
-    "runnerTreeSha": "24d9a79c82255f52313bd4a9c15308acf0afb33e",
-    "tapConfigSha256": "77d3a2ceac2ba20468c40c81874e5a34d2e93751ab70fd757fb58b2e8cec06ae",
-    "tapType": "session"
+  "schemaVersion" : 3,
+  "selectedTapIdentity" : {
+    "attemptId" : "0806f86cc656c8eea5680ca3365d94ab2d53b0a6c4f401e245f98a97213bbfd4",
+    "environmentSha256" : "c67cd660c318012dd04613a0c598198fa15aec6ce3cb905314be2946e130e77f",
+    "runnerCommitSha" : "3df401b8304e7775343a011f1f2fe794be43713e",
+    "runnerTreeSha" : "eedebcc9d875b50da4c323411a4e5972dc237959",
+    "tapConfigSha256" : "77d3a2ceac2ba20468c40c81874e5a34d2e93751ab70fd757fb58b2e8cec06ae",
+    "tapType" : "session"
   },
-  "verdict": "PASS"
+  "verdict" : "PASS"
 }

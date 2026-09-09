@@ -1,15 +1,15 @@
 # SP-1 Validated Conclusion
 
-Verdict: **BLOCKED**
+Verdict: **PASS**
 
-Evidence: `sp1/evidence.json` (`2e3cb4a5673b3a78f09dc8e63f45ab5f0960ba896bf7702133d64f911f97696b`)
-Manifest: `sp1/manifest.sha256` (`bc38ba3320f597a7f06bc88ba57269f6929fdb4cb6d7fb13c583932e124251ec`)
-Runner: `a8d89d633b87b8a52a64cb00d696a3dcd03a3e99` / `58d3c82d3d204a896a2a09f39699e3907b04be91`
-Counts: PASS=0, BLOCKED=7, INCONCLUSIVE=0, FAIL=0
+Evidence: `sp1/evidence.json` (`4a8495fb1ce56150b7c72c0af71f6d9ddc9ee88194915b155711433175e1ae99`)
+Manifest: `sp1/manifest.sha256` (`1715b2371fa39e6352fd05b8b6e16c3c68b8aef0e5489e191ba08203a8bb6111`)
+Runner: `c28035c998381e7de75be8f90e61053c9393295c` / `24d9a79c82255f52313bd4a9c15308acf0afb33e`
+Counts: PASS=7, BLOCKED=0, INCONCLUSIVE=0, FAIL=0
 Dependency frozen: `false`
 
 ## Limitations
-- Input Monitoring and Karabiner were unavailable; no tap candidate is selected.
+- Selected tap identity is bound to the executed listen-only candidate.
 - O7 excludes only product-stamped synthetic events and otherwise fails closed.
 
 ## Exact rerun argv

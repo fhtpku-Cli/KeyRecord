@@ -32,6 +32,27 @@ final class G0PassedConclusionTests: XCTestCase {
         XCTAssertFalse(document.g0.blockingLegIDs.contains("sp1.tap.annotated.matrix"))
     }
 
+    func testExportConclusionsWhenRequested() throws {
+        guard let output = ProcessInfo.processInfo.environment["KEYRECORD_EXPORT_CONCLUSIONS"] else {
+            throw XCTSkip("KEYRECORD_EXPORT_CONCLUSIONS not set")
+        }
+        let repository = try repositoryRoot()
+        let root = repository.appendingPathComponent("evidence/phase0")
+        let document = try ConclusionGenerator.derive(
+            root: root,
+            repository: repository,
+            strictRepositoryBinding: false
+        )
+        let destination = URL(fileURLWithPath: output, isDirectory: true)
+        try FileManager.default.createDirectory(at: destination, withIntermediateDirectories: true)
+        var encoded = try Canonical.encode(document)
+        encoded.append(10)
+        try encoded.write(to: destination.appendingPathComponent("conclusions.json"))
+        for spike in document.spikes {
+            try Data(ConclusionGenerator.renderMarkdown(spike).utf8).write(to: destination.appendingPathComponent("\(spike.id)-CONCLUSION.md"))
+        }
+    }
+
     func testSP2IncompleteKeepsO6OpenAndG0Open() throws {
         let root = try mutatedEvidence { root in
             try forcePass(root: root, spike: "sp1", selectedTap: "session", failing: [])

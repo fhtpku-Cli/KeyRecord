@@ -14,7 +14,7 @@ Live checks were bounded metadata preflights only. No permission prompt, sleep, 
 - `sp2.frontmostIndeterminate`: PASS (`executed`)
 - `sp2.frontmostKnown`: PASS (`executed`)
 - `sp2.frontmostUnattributable`: PASS (`executed`)
-- `sp2.secureInput`: INCONCLUSIVE (`executed`)
+- `sp2.secureInput`: PASS (`executed`)
 - `sp2.sidedModifiers`: PASS (`executed`)
 - `sp2.sidedRecovery`: PASS (`executed`)
 - `sp2.sleepWake`: BLOCKED (`noninteractive_sleep_privilege_unavailable`)

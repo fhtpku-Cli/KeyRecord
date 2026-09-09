@@ -2,136 +2,153 @@
   "g0Status" : "OPEN",
   "legs" : [
     {
-      "blocker" : {
-        "blocked_by" : "input_monitoring_denied",
-        "detect_command" : [
-          "CGPreflightListenEventAccess",
-          "environment.json guiSession.tapCreate"
-        ],
-        "prerequisite" : "GUI session with Input Monitoring already granted for this executable",
-        "unblock_action" : "Grant Input Monitoring outside this probe, then rerun; this probe never prompts"
+      "artifactSha256" : "83f7a2463b3fa00c73ac971decc77f277719e30d57f1df94456907605b848766",
+      "detectorAvailable" : true,
+      "environmentSha256" : "db427331475a05c9a1f4f214c30998a97e5b37f05c9101919d3ecc182bb2413d",
+      "identity" : {
+        "attemptId" : "0806f86cc656c8eea5680ca3365d94ab2d53b0a6c4f401e245f98a97213bbfd4",
+        "environmentSha256" : "db427331475a05c9a1f4f214c30998a97e5b37f05c9101919d3ecc182bb2413d",
+        "runnerCommitSha" : "2e5938e8de5975f90a90b58edf1467664d609f11",
+        "runnerTreeSha" : "9eb3dde24675094d84bf15220cbeeb1490800f7f",
+        "tapConfigSha256" : "77d3a2ceac2ba20468c40c81874e5a34d2e93751ab70fd757fb58b2e8cec06ae",
+        "tapType" : "session"
       },
-      "detectorAvailable" : false,
-      "environmentSha256" : "6b3288f5983cbce231295762d3f8381b8467d6dbe2e74fff0e17a1aebf7215f4",
       "legID" : "sp1.autoRepeat",
-      "runnerCommitSha" : "a8d89d633b87b8a52a64cb00d696a3dcd03a3e99",
-      "runnerTreeSha" : "58d3c82d3d204a896a2a09f39699e3907b04be91",
-      "verdict" : "BLOCKED"
+      "runnerCommitSha" : "2e5938e8de5975f90a90b58edf1467664d609f11",
+      "runnerTreeSha" : "9eb3dde24675094d84bf15220cbeeb1490800f7f",
+      "verdict" : "PASS"
     },
     {
-      "blocker" : {
-        "blocked_by" : "input_monitoring_denied",
-        "detect_command" : [
-          "CGPreflightListenEventAccess",
-          "environment.json guiSession.tapCreate"
-        ],
-        "prerequisite" : "GUI session with Input Monitoring already granted for this executable",
-        "unblock_action" : "Grant Input Monitoring outside this probe, then rerun; this probe never prompts"
+      "artifactSha256" : "83f7a2463b3fa00c73ac971decc77f277719e30d57f1df94456907605b848766",
+      "detectorAvailable" : true,
+      "environmentSha256" : "db427331475a05c9a1f4f214c30998a97e5b37f05c9101919d3ecc182bb2413d",
+      "identity" : {
+        "attemptId" : "0806f86cc656c8eea5680ca3365d94ab2d53b0a6c4f401e245f98a97213bbfd4",
+        "environmentSha256" : "db427331475a05c9a1f4f214c30998a97e5b37f05c9101919d3ecc182bb2413d",
+        "runnerCommitSha" : "2e5938e8de5975f90a90b58edf1467664d609f11",
+        "runnerTreeSha" : "9eb3dde24675094d84bf15220cbeeb1490800f7f",
+        "tapConfigSha256" : "77d3a2ceac2ba20468c40c81874e5a34d2e93751ab70fd757fb58b2e8cec06ae",
+        "tapType" : "session"
       },
-      "detectorAvailable" : false,
-      "environmentSha256" : "6b3288f5983cbce231295762d3f8381b8467d6dbe2e74fff0e17a1aebf7215f4",
       "legID" : "sp1.o7Boundary",
-      "runnerCommitSha" : "a8d89d633b87b8a52a64cb00d696a3dcd03a3e99",
-      "runnerTreeSha" : "58d3c82d3d204a896a2a09f39699e3907b04be91",
-      "verdict" : "BLOCKED"
+      "runnerCommitSha" : "2e5938e8de5975f90a90b58edf1467664d609f11",
+      "runnerTreeSha" : "9eb3dde24675094d84bf15220cbeeb1490800f7f",
+      "verdict" : "PASS"
     },
     {
-      "blocker" : {
-        "blocked_by" : "input_monitoring_denied",
-        "detect_command" : [
-          "CGPreflightListenEventAccess",
-          "environment.json guiSession.tapCreate"
-        ],
-        "prerequisite" : "GUI session with Input Monitoring already granted for this executable",
-        "unblock_action" : "Grant Input Monitoring outside this probe, then rerun; this probe never prompts"
+      "artifactSha256" : "83f7a2463b3fa00c73ac971decc77f277719e30d57f1df94456907605b848766",
+      "detectorAvailable" : true,
+      "environmentSha256" : "db427331475a05c9a1f4f214c30998a97e5b37f05c9101919d3ecc182bb2413d",
+      "identity" : {
+        "attemptId" : "0806f86cc656c8eea5680ca3365d94ab2d53b0a6c4f401e245f98a97213bbfd4",
+        "environmentSha256" : "db427331475a05c9a1f4f214c30998a97e5b37f05c9101919d3ecc182bb2413d",
+        "runnerCommitSha" : "2e5938e8de5975f90a90b58edf1467664d609f11",
+        "runnerTreeSha" : "9eb3dde24675094d84bf15220cbeeb1490800f7f",
+        "tapConfigSha256" : "77d3a2ceac2ba20468c40c81874e5a34d2e93751ab70fd757fb58b2e8cec06ae",
+        "tapType" : "session"
       },
-      "detectorAvailable" : false,
-      "environmentSha256" : "6b3288f5983cbce231295762d3f8381b8467d6dbe2e74fff0e17a1aebf7215f4",
       "legID" : "sp1.productStampedDrop",
-      "runnerCommitSha" : "a8d89d633b87b8a52a64cb00d696a3dcd03a3e99",
-      "runnerTreeSha" : "58d3c82d3d204a896a2a09f39699e3907b04be91",
-      "verdict" : "BLOCKED"
+      "runnerCommitSha" : "2e5938e8de5975f90a90b58edf1467664d609f11",
+      "runnerTreeSha" : "9eb3dde24675094d84bf15220cbeeb1490800f7f",
+      "verdict" : "PASS"
     },
     {
-      "blocker" : {
-        "blocked_by" : "input_monitoring_denied",
-        "detect_command" : [
-          "CGPreflightListenEventAccess",
-          "environment.json guiSession.tapCreate"
-        ],
-        "prerequisite" : "GUI session with Input Monitoring already granted for this executable",
-        "unblock_action" : "Grant Input Monitoring outside this probe, then rerun; this probe never prompts"
+      "aggregateCount" : 0,
+      "artifactSha256" : "f32489dd2a99b2bb1eb5747f7ba3f7004acffd3eab516145d7add16ebe0af28d",
+      "detectorAvailable" : true,
+      "environmentSha256" : "db427331475a05c9a1f4f214c30998a97e5b37f05c9101919d3ecc182bb2413d",
+      "identity" : {
+        "attemptId" : "0806f86cc656c8eea5680ca3365d94ab2d53b0a6c4f401e245f98a97213bbfd4",
+        "environmentSha256" : "db427331475a05c9a1f4f214c30998a97e5b37f05c9101919d3ecc182bb2413d",
+        "runnerCommitSha" : "2e5938e8de5975f90a90b58edf1467664d609f11",
+        "runnerTreeSha" : "9eb3dde24675094d84bf15220cbeeb1490800f7f",
+        "tapConfigSha256" : "77d3a2ceac2ba20468c40c81874e5a34d2e93751ab70fd757fb58b2e8cec06ae",
+        "tapType" : "session"
       },
-      "detectorAvailable" : false,
-      "environmentSha256" : "6b3288f5983cbce231295762d3f8381b8467d6dbe2e74fff0e17a1aebf7215f4",
       "legID" : "sp1.systemShortcut",
-      "runnerCommitSha" : "a8d89d633b87b8a52a64cb00d696a3dcd03a3e99",
-      "runnerTreeSha" : "58d3c82d3d204a896a2a09f39699e3907b04be91",
-      "verdict" : "BLOCKED"
+      "runnerCommitSha" : "2e5938e8de5975f90a90b58edf1467664d609f11",
+      "runnerTreeSha" : "9eb3dde24675094d84bf15220cbeeb1490800f7f",
+      "verdict" : "PASS"
     },
     {
-      "blocker" : {
-        "blocked_by" : "input_monitoring_denied;karabiner_absent",
-        "detect_command" : [
-          "CGPreflightListenEventAccess",
-          "environment.json applications[name=Karabiner-Elements]"
-        ],
-        "prerequisite" : "Input Monitoring granted and a separately authorized supported Karabiner installation with controlled OFF/ON mapping",
-        "unblock_action" : "Grant Input Monitoring and install/configure Karabiner only through separate user-authorized actions, then rerun both OFF/ON legs"
-      },
-      "detectorAvailable" : false,
-      "environmentSha256" : "6b3288f5983cbce231295762d3f8381b8467d6dbe2e74fff0e17a1aebf7215f4",
+      "artifactSha256" : "f32489dd2a99b2bb1eb5747f7ba3f7004acffd3eab516145d7add16ebe0af28d",
+      "detectorAvailable" : true,
+      "environmentSha256" : "db427331475a05c9a1f4f214c30998a97e5b37f05c9101919d3ecc182bb2413d",
       "legID" : "sp1.tap.annotated.matrix",
-      "runnerCommitSha" : "a8d89d633b87b8a52a64cb00d696a3dcd03a3e99",
-      "runnerTreeSha" : "58d3c82d3d204a896a2a09f39699e3907b04be91",
-      "verdict" : "BLOCKED"
+      "matrix" : {
+        "expectedPhysicalCode" : 79,
+        "expectedTransformedCode" : 80,
+        "offCount" : 1,
+        "offObservedCode" : 79,
+        "onCount" : 1,
+        "onObservedCode" : 80
+      },
+      "runnerCommitSha" : "2e5938e8de5975f90a90b58edf1467664d609f11",
+      "runnerTreeSha" : "9eb3dde24675094d84bf15220cbeeb1490800f7f",
+      "verdict" : "PASS"
     },
     {
-      "blocker" : {
-        "blocked_by" : "input_monitoring_denied;karabiner_absent",
-        "detect_command" : [
-          "CGPreflightListenEventAccess",
-          "environment.json applications[name=Karabiner-Elements]"
-        ],
-        "prerequisite" : "Input Monitoring granted and a separately authorized supported Karabiner installation with controlled OFF/ON mapping",
-        "unblock_action" : "Grant Input Monitoring and install/configure Karabiner only through separate user-authorized actions, then rerun both OFF/ON legs"
+      "artifactSha256" : "f32489dd2a99b2bb1eb5747f7ba3f7004acffd3eab516145d7add16ebe0af28d",
+      "detectorAvailable" : true,
+      "environmentSha256" : "db427331475a05c9a1f4f214c30998a97e5b37f05c9101919d3ecc182bb2413d",
+      "identity" : {
+        "attemptId" : "0806f86cc656c8eea5680ca3365d94ab2d53b0a6c4f401e245f98a97213bbfd4",
+        "environmentSha256" : "db427331475a05c9a1f4f214c30998a97e5b37f05c9101919d3ecc182bb2413d",
+        "runnerCommitSha" : "2e5938e8de5975f90a90b58edf1467664d609f11",
+        "runnerTreeSha" : "9eb3dde24675094d84bf15220cbeeb1490800f7f",
+        "tapConfigSha256" : "77d3a2ceac2ba20468c40c81874e5a34d2e93751ab70fd757fb58b2e8cec06ae",
+        "tapType" : "session"
       },
-      "detectorAvailable" : false,
-      "environmentSha256" : "6b3288f5983cbce231295762d3f8381b8467d6dbe2e74fff0e17a1aebf7215f4",
       "legID" : "sp1.tap.session.matrix",
-      "runnerCommitSha" : "a8d89d633b87b8a52a64cb00d696a3dcd03a3e99",
-      "runnerTreeSha" : "58d3c82d3d204a896a2a09f39699e3907b04be91",
-      "verdict" : "BLOCKED"
+      "matrix" : {
+        "expectedPhysicalCode" : 79,
+        "expectedTransformedCode" : 80,
+        "offCount" : 1,
+        "offObservedCode" : 79,
+        "onCount" : 1,
+        "onObservedCode" : 80
+      },
+      "runnerCommitSha" : "2e5938e8de5975f90a90b58edf1467664d609f11",
+      "runnerTreeSha" : "9eb3dde24675094d84bf15220cbeeb1490800f7f",
+      "verdict" : "PASS"
     },
     {
-      "blocker" : {
-        "blocked_by" : "input_monitoring_denied",
-        "detect_command" : [
-          "CGPreflightListenEventAccess",
-          "environment.json guiSession.tapCreate"
-        ],
-        "prerequisite" : "GUI session with Input Monitoring already granted for this executable",
-        "unblock_action" : "Grant Input Monitoring outside this probe, then rerun; this probe never prompts"
+      "artifactSha256" : "83f7a2463b3fa00c73ac971decc77f277719e30d57f1df94456907605b848766",
+      "detectorAvailable" : true,
+      "environmentSha256" : "db427331475a05c9a1f4f214c30998a97e5b37f05c9101919d3ecc182bb2413d",
+      "identity" : {
+        "attemptId" : "0806f86cc656c8eea5680ca3365d94ab2d53b0a6c4f401e245f98a97213bbfd4",
+        "environmentSha256" : "db427331475a05c9a1f4f214c30998a97e5b37f05c9101919d3ecc182bb2413d",
+        "runnerCommitSha" : "2e5938e8de5975f90a90b58edf1467664d609f11",
+        "runnerTreeSha" : "9eb3dde24675094d84bf15220cbeeb1490800f7f",
+        "tapConfigSha256" : "77d3a2ceac2ba20468c40c81874e5a34d2e93751ab70fd757fb58b2e8cec06ae",
+        "tapType" : "session"
       },
-      "detectorAvailable" : false,
-      "environmentSha256" : "6b3288f5983cbce231295762d3f8381b8467d6dbe2e74fff0e17a1aebf7215f4",
       "legID" : "sp1.tapReset",
-      "runnerCommitSha" : "a8d89d633b87b8a52a64cb00d696a3dcd03a3e99",
-      "runnerTreeSha" : "58d3c82d3d204a896a2a09f39699e3907b04be91",
-      "verdict" : "BLOCKED"
+      "runnerCommitSha" : "2e5938e8de5975f90a90b58edf1467664d609f11",
+      "runnerTreeSha" : "9eb3dde24675094d84bf15220cbeeb1490800f7f",
+      "verdict" : "PASS"
     }
   ],
   "o7Guarantee" : "only product-stamped synthetic events are guaranteed excluded; unmarked injection indicators remain suspected, never proven, and no source-field exclusion is claimed.",
   "runnerSourceSha256" : {
-    "Spikes/Scripts/run-task-qa.sh" : "fb4deb3f71f65ecd39efdd493b62c6b74729f8f4c6593eff429e9910da8a3675",
+    "Spikes/Scripts/run-task-qa.sh" : "662b0d9eca04cdbf53c9021fbc633e649bc96d6c874a80f67a598c5b860fcbdc",
     "Spikes/Sources/Phase0Probe/AtomicityProbe.swift" : "06f3044bf870bcb0057242681f64fd8c4d8c967adea917ae82d7a14abb198546",
     "Spikes/Sources/Phase0Probe/AtomicityRunnerIdentity.swift" : "4c618386923dd3ca544d7e1ebe54f107f04eed771c923d53e1b5f6550e556901",
-    "Spikes/Sources/Phase0Probe/SP1Probe.swift" : "224fb0a682c936bc0689ca1dad69741251402743aac85d301a796b04814643e0",
+    "Spikes/Sources/Phase0Probe/SP1Probe.swift" : "2e9003d415c8de9e0e326e776e4c4063480d4df63e6a54b938cf75738124edd6",
     "Spikes/Sources/Phase0Probe/main.swift" : "4f12c425094d0e4516a5bad751cda12f24fee482ca63213904bbfb36f391e0c4",
     "Spikes/Sources/Phase0Support/AtomicReplacement.swift" : "2b41ebb3195e28a094dc70407456cb51e757245286f7c963d0deeb0a1537be9b",
     "Spikes/Sources/Phase0Support/AtomicityEvidence.swift" : "9b40d0c7f07df767c93d90580a61b68c12cf97c32e916d7cba60f6e892127bf8",
-    "Spikes/Sources/Phase0Support/InputObservation.swift" : "6ad7686ac12e601bf5cec26188c89211ed8765f18c49d5d40227614e776d4ac4"
+    "Spikes/Sources/Phase0Support/InputObservation.swift" : "b541258aba6e318347cba070278255147bbdff8f3f1d74c69ccdae8b515e6a29"
   },
-  "schemaVersion" : 1,
-  "verdict" : "BLOCKED"
+  "schemaVersion" : 3,
+  "selectedTapIdentity" : {
+    "attemptId" : "0806f86cc656c8eea5680ca3365d94ab2d53b0a6c4f401e245f98a97213bbfd4",
+    "environmentSha256" : "db427331475a05c9a1f4f214c30998a97e5b37f05c9101919d3ecc182bb2413d",
+    "runnerCommitSha" : "2e5938e8de5975f90a90b58edf1467664d609f11",
+    "runnerTreeSha" : "9eb3dde24675094d84bf15220cbeeb1490800f7f",
+    "tapConfigSha256" : "77d3a2ceac2ba20468c40c81874e5a34d2e93751ab70fd757fb58b2e8cec06ae",
+    "tapType" : "session"
+  },
+  "verdict" : "PASS"
 }

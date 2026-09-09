@@ -2,7 +2,8 @@
   "applications" : [
     {
       "name" : "Karabiner-Elements",
-      "status" : "absent"
+      "status" : "installed",
+      "version" : "16.3.0"
     },
     {
       "name" : "VIA",
@@ -14,23 +15,29 @@
     }
   ],
   "architecture" : "arm64",
-  "generatedAt" : "2026-09-03T18:24:02Z",
+  "generatedAt" : "2026-09-09T17:52:21Z",
   "guiSession" : {
     "status" : "available",
-    "tapCreate" : "denied"
+    "tapCreate" : "available"
   },
-  "hidAccess" : "unknown",
+  "hidAccess" : "available",
   "hidSummary" : {
-    "deviceCount" : 1,
+    "deviceCount" : 2,
     "devices" : [
       {
         "manufacturer" : "Apple",
         "product" : "Apple Internal Keyboard / Trackpad",
         "transport" : "FIFO"
+      },
+      {
+        "manufacturer" : "pqrs.org",
+        "product" : "Karabiner DriverKit VirtualHIDKeyboard 1.8.0",
+        "productID" : 591,
+        "vendorID" : 1452
       }
     ]
   },
-  "listenEventAccess" : "denied",
+  "listenEventAccess" : "available",
   "macOS" : {
     "build" : "25G76",
     "version" : "26.6.1"

@@ -1,0 +1,6 @@
+# Example sudoers fragment for SP-2 D4 (sleepWake live leg).
+# Install manually on a disposable Phase 0 test host:
+#   sudo visudo -f /etc/sudoers.d/keyrecord-phase0-d4
+#
+# Replace USERNAME with the test account. Preflight requires `sudo -n true`.
+USERNAME ALL=(ALL) NOPASSWD: /usr/bin/pmset sleepnow

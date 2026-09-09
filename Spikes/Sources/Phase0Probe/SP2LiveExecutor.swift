@@ -6,20 +6,20 @@ import Phase0Support
 
 struct ListenOnlySP2LiveExecutor: SP2LiveScenarioExecuting {
     func execute(d1: Bool, d3: Bool, d4: Bool, secureHelper: SecureInputState?) -> SP2LiveExecution {
+        _ = secureHelper
         guard SP2LiveArming.isArmed else {
             return SP2LiveExecution(armed: false, completed: false, secureInputEnabled: false, sleepWakeConfirmed: false)
         }
         guard d1 else {
             return SP2LiveExecution(armed: true, completed: false, secureInputEnabled: false, sleepWakeConfirmed: false)
         }
-        let secureInputEnabled = d3 && secureHelper == .enabled
-        let completed = SP2LiveListenRuntime.run(secureInputEnabled: secureInputEnabled, sleepWakeAllowed: d4)
+        let completed = SP2LiveListenRuntime.run(d3Allowed: d3, d4Allowed: d4)
         return SP2LiveExecution(
             aggregate: completed.aggregate,
             armed: true,
             completed: completed.finished,
-            secureInputEnabled: secureInputEnabled,
-            sleepWakeConfirmed: false
+            secureInputEnabled: completed.secureInputEnabled,
+            sleepWakeConfirmed: completed.sleepWakeConfirmed
         )
     }
 }
@@ -34,27 +34,33 @@ private enum SP2LiveListenRuntime {
     struct Result {
         var aggregate: SP2LiveAggregateV2
         var finished: Bool
+        var secureInputEnabled: Bool
+        var sleepWakeConfirmed: Bool
     }
+
+    static let secureHelperPath = "/usr/local/libexec/keyrecord-secure-input-status"
 
     static func windowSeconds() -> CFTimeInterval {
         let raw = ProcessInfo.processInfo.environment["KEYRECORD_SP2_WINDOW_SECONDS"].flatMap(Double.init) ?? 15
         return min(max(raw, 1), 30)
     }
 
-    static func run(secureInputEnabled: Bool, sleepWakeAllowed: Bool) -> Result {
-        _ = sleepWakeAllowed
+    static func d3Seconds() -> CFTimeInterval {
+        let raw = ProcessInfo.processInfo.environment["KEYRECORD_SP2_D3_SECONDS"].flatMap(Double.init) ?? 15
+        return min(max(raw, 1), 60)
+    }
+
+    static func run(d3Allowed: Bool, d4Allowed: Bool) -> Result {
         guard CGPreflightListenEventAccess() else {
-            return Result(aggregate: SP2LiveAggregateV2(), finished: false)
+            return Result(aggregate: SP2LiveAggregateV2(), finished: false, secureInputEnabled: false, sleepWakeConfirmed: false)
         }
 
         var reducer = SP2LiveAggregateV2Reducer()
         var privacy = PrivacyTransitionModel()
         var modifiers = ModifierReconstructionModel()
-        let helperPath = "/usr/local/libexec/keyrecord-secure-input-status"
 
         func secureInput() -> SecureInputState {
-            if secureInputEnabled { return .enabled }
-            return readSecureInputHelper(at: helperPath) ?? .unknown
+            readSecureInputHelper(at: secureHelperPath) ?? .unknown
         }
 
         func observeTerminalKeyDown() {
@@ -91,19 +97,19 @@ private enum SP2LiveListenRuntime {
             for: windowSeconds(),
             onKeyDown: { _ in observeTerminalKeyDown() },
             onFlagsChanged: { _ in }
-        ) else { return Result(aggregate: reducer.aggregate, finished: false) }
+        ) else { return Result(aggregate: reducer.aggregate, finished: false, secureInputEnabled: false, sleepWakeConfirmed: false) }
 
         guard collectEvents(
             for: windowSeconds(),
             onKeyDown: { _ in observeTerminalKeyDown() },
             onFlagsChanged: { _ in }
-        ) else { return Result(aggregate: reducer.aggregate, finished: false) }
+        ) else { return Result(aggregate: reducer.aggregate, finished: false, secureInputEnabled: false, sleepWakeConfirmed: false) }
 
         guard collectEvents(
             for: windowSeconds(),
             onKeyDown: { _ in },
             onFlagsChanged: { flags in observeFlagsChanged(flags) }
-        ) else { return Result(aggregate: reducer.aggregate, finished: false) }
+        ) else { return Result(aggregate: reducer.aggregate, finished: false, secureInputEnabled: false, sleepWakeConfirmed: false) }
 
         performTapReset()
 
@@ -111,9 +117,62 @@ private enum SP2LiveListenRuntime {
             for: windowSeconds(),
             onKeyDown: { _ in },
             onFlagsChanged: { flags in observeFlagsChanged(flags) }
-        ) else { return Result(aggregate: reducer.aggregate, finished: false) }
+        ) else { return Result(aggregate: reducer.aggregate, finished: false, secureInputEnabled: false, sleepWakeConfirmed: false) }
 
-        return Result(aggregate: reducer.aggregate, finished: true)
+        let secureInputEnabled = d3Allowed ? pollSecureInputEnabled(seconds: d3Seconds()) : false
+        let sleepWakeConfirmed = d4Allowed ? confirmSleepWakeCycle() : false
+
+        return Result(
+            aggregate: reducer.aggregate,
+            finished: true,
+            secureInputEnabled: secureInputEnabled,
+            sleepWakeConfirmed: sleepWakeConfirmed
+        )
+    }
+
+    private static func pollSecureInputEnabled(seconds: CFTimeInterval) -> Bool {
+        let deadline = CFAbsoluteTimeGetCurrent() + seconds
+        while CFAbsoluteTimeGetCurrent() < deadline {
+            if readSecureInputHelper(at: secureHelperPath) == .enabled { return true }
+            Thread.sleep(forTimeInterval: 0.25)
+        }
+        return readSecureInputHelper(at: secureHelperPath) == .enabled
+    }
+
+    private static func confirmSleepWakeCycle() -> Bool {
+        guard ProcessInfo.processInfo.environment["KEYRECORD_SP2_D4_LIVE"] == "1" else { return false }
+        let box = SleepWakeWitnessBox()
+        let center = NSWorkspace.shared.notificationCenter
+        let sleepObserver = center.addObserver(
+            forName: NSWorkspace.willSleepNotification,
+            object: nil,
+            queue: nil
+        ) { _ in box.markSleep() }
+        let wakeObserver = center.addObserver(
+            forName: NSWorkspace.didWakeNotification,
+            object: nil,
+            queue: nil
+        ) { _ in box.markWake() }
+        defer {
+            center.removeObserver(sleepObserver)
+            center.removeObserver(wakeObserver)
+        }
+
+        DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + 2) {
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: "/usr/bin/sudo")
+            process.arguments = ["-n", "/usr/bin/pmset", "sleepnow"]
+            process.standardOutput = FileHandle.nullDevice
+            process.standardError = FileHandle.nullDevice
+            try? process.run()
+        }
+
+        let deadline = Date().addingTimeInterval(180)
+        while Date() < deadline {
+            if box.didSleep, box.didWake { return true }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.2))
+        }
+        return box.didSleep && box.didWake
     }
 
     private static func frontmostAttribution(_ state: FrontmostState) -> SP2FrontmostAttribution {
@@ -179,6 +238,36 @@ private enum SP2LiveListenRuntime {
         CFRunLoopRemoveSource(CFRunLoopGetCurrent(), source, .commonModes)
         CFMachPortInvalidate(tap)
         return true
+    }
+}
+
+private final class SleepWakeWitnessBox: @unchecked Sendable {
+    private var lock = os_unfair_lock()
+    private var _didSleep = false
+    private var _didWake = false
+
+    var didSleep: Bool {
+        os_unfair_lock_lock(&lock)
+        defer { os_unfair_lock_unlock(&lock) }
+        return _didSleep
+    }
+
+    var didWake: Bool {
+        os_unfair_lock_lock(&lock)
+        defer { os_unfair_lock_unlock(&lock) }
+        return _didWake
+    }
+
+    func markSleep() {
+        os_unfair_lock_lock(&lock)
+        _didSleep = true
+        os_unfair_lock_unlock(&lock)
+    }
+
+    func markWake() {
+        os_unfair_lock_lock(&lock)
+        _didWake = true
+        os_unfair_lock_unlock(&lock)
     }
 }
 

@@ -3,7 +3,7 @@
   "fnRecoveredKnownActive" : 1,
   "fnRecoveredKnownNone" : 1,
   "fnUnknownAfterReset" : 1,
-  "knownAttributable" : 2,
+  "knownAttributable" : 1,
   "knownUnattributable" : 1,
   "schemaVersion" : 2,
   "tapResets" : 1

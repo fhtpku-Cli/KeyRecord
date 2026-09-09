@@ -22,6 +22,8 @@ fi
 if [[ ! -x "$BUILD_BIN" ]]; then
   swift build --package-path Spikes -c release --product EvidenceValidator
 fi
+mkdir -p "$DEST"
+cp "$ENV_SRC" "$DEST/environment.json"
 "$BUILD_BIN" "$SP2_SRC"
 
 stage="$(mktemp -d "$STAGING/.promote-sp2.XXXXXX")"
@@ -35,7 +37,6 @@ if [[ -d "$DEST/sp2" ]]; then
   mv "$DEST/sp2" "$stage/sp2.previous"
 fi
 mv "$stage/sp2" "$DEST/sp2"
-cp "$stage/environment.json" "$DEST/environment.json"
 echo "PROMOTED sp2=$DEST/sp2 environment=$DEST/environment.json"
 echo "verdict=$(python3 -c "import json; print(json.load(open('$DEST/sp2/evidence.json'))['verdict'])")"
 echo "o6=$(python3 -c "import json; print(json.load(open('$DEST/sp2/evidence.json'))['o6Status'])")"

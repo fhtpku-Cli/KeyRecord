@@ -4,6 +4,50 @@ import XCTest
 @testable import Phase0Support
 
 final class SP6ANamespaceValidatorTests: XCTestCase {
+    func testLegacyHistoryAnchorRejectsEveryDescendantPathTouch() throws {
+        for scenario in SP6AAnchorAttackScenario.allCases where scenario != .deleteAndReadd {
+            let fixture = try SP6ATestDirectory.make()
+            defer { fixture.remove() }
+            try fixture.commitLegacyAnchorAttack(scenario)
+
+            XCTAssertEqual(
+                legacyErrorCode(fixture), "sp6a_legacy_history_anchor_descendant_touch",
+                "legacy descendant attack unexpectedly validated: \(scenario.rawValue)"
+            )
+        }
+    }
+
+    func testLegacyHistoryAnchorRejectsDeleteAndReadd() throws {
+        let fixture = try SP6ATestDirectory.make()
+        defer { fixture.remove() }
+        try fixture.commitLegacyAnchorAttack(.deleteAndReadd)
+
+        XCTAssertEqual(legacyErrorCode(fixture), "sp6a_legacy_history_anchor_descendant_touch")
+    }
+
+    func testLegacyHistoryAnchorRejectsShallowHistoryAndWorkingTreeForgery() throws {
+        let shallowFixture = try SP6ATestDirectory.make()
+        defer { shallowFixture.remove() }
+        try shallowFixture.markRepositoryShallow()
+        let evidence = try JSONDecoder().decode(
+            SP6AEvidence.self,
+            from: Data(contentsOf: shallowFixture.output.appendingPathComponent("evidence.json"))
+        )
+        XCTAssertEqual(errorCode {
+            try SP6ADirectoryValidator.validateHistoryAnchor(
+                evidence, directory: shallowFixture.output, repository: shallowFixture.repository
+            )
+        }, "sp6a_legacy_history_anchor_history_incomplete")
+
+        let bytesFixture = try SP6ATestDirectory.make()
+        defer { bytesFixture.remove() }
+        try bytesFixture.rewrite(
+            SP6ANamespaceHistoryContract.legacyAnchorArtifactName,
+            replacing: "\"schemaVersion\" : 1", with: "\"schemaVersion\" : 2", remanifest: true
+        )
+        XCTAssertEqual(legacyErrorCode(bytesFixture), "sp6a_legacy_history_anchor_hash_mismatch")
+    }
+
     func testHistoryAnchorRejectsEveryDescendantPathTouch() throws {
         for scenario in SP6AAnchorAttackScenario.allCases where scenario != .deleteAndReadd {
             let fixture = try SP6ATestDirectory.make()
@@ -237,6 +281,23 @@ final class SP6ANamespaceValidatorTests: XCTestCase {
                 errorCode(fixture),
                 mutation < 2 ? "sp6a_crypto_case_set_mismatch" : "sp6a_crypto_canonical_mismatch"
             )
+        }
+    }
+
+    private func legacyErrorCode(_ fixture: SP6ATestDirectory) -> String? {
+        do {
+            let evidence = try JSONDecoder().decode(
+                SP6AEvidence.self,
+                from: Data(contentsOf: fixture.output.appendingPathComponent("evidence.json"))
+            )
+            try SP6ADirectoryValidator.validateHistoryAnchor(
+                evidence, directory: fixture.output, repository: fixture.repository
+            )
+            return nil
+        } catch let error as ValidatorError {
+            return error.code
+        } catch {
+            return "unexpected"
         }
     }
 

@@ -140,6 +140,18 @@ public enum ConclusionValidator {
               isCanonicalCommit(document.generatorCommitSha) else {
             throw ValidatorError("noncanonical_commit_sha")
         }
+        guard try git.run(
+            ["merge-base", "--is-ancestor", document.sourceEvidenceCommitSha, document.generatorCommitSha],
+            acceptedStatuses: [0, 1]
+        ).status == 0 else {
+            throw ValidatorError("source_evidence_not_ancestor_of_generator")
+        }
+        guard try git.run(
+            ["merge-base", "--is-ancestor", document.generatorCommitSha, "HEAD"],
+            acceptedStatuses: [0, 1]
+        ).status == 0 else {
+            throw ValidatorError("generator_commit_not_ancestor_of_head")
+        }
         guard try git.text(["rev-parse", "\(document.sourceEvidenceCommitSha)^{tree}"]) == document.sourceEvidenceTreeSha else { throw ValidatorError("source_manifest_rebind") }
         let blob = try git.run(["cat-file", "blob", "\(document.sourceEvidenceCommitSha):evidence/phase0/manifest.sha256"]).stdout
         guard Canonical.sha256(blob) == document.sourceRootManifestSha256 else { throw ValidatorError("source_manifest_rebind") }

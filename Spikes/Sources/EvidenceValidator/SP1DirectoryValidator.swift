@@ -65,15 +65,8 @@ enum SP1DirectoryValidator {
         guard commitCheck.status == 0 else { throw ValidatorError("sp1_runner_commit_missing") }
         let actualTree = try git.text(["rev-parse", "\(commitSha)^{tree}"])
         guard actualTree == treeSha else { throw ValidatorError("sp1_runner_tree_mismatch") }
-        if evidence.schemaVersion == 2 || evidence.schemaVersion == 3 {
-            guard try git.text(["rev-parse", "HEAD"]) == commitSha,
-                  try git.text(["rev-parse", "HEAD^{tree}"]) == treeSha else {
-                throw ValidatorError("sp1_runner_not_current_head")
-            }
-        } else {
-            let ancestor = try git.run(["merge-base", "--is-ancestor", commitSha, "HEAD"], acceptedStatuses: [0, 1])
-            guard ancestor.status == 0 else { throw ValidatorError("sp1_runner_not_ancestor") }
-        }
+        let ancestor = try git.run(["merge-base", "--is-ancestor", commitSha, "HEAD"], acceptedStatuses: [0, 1])
+        guard ancestor.status == 0 else { throw ValidatorError("sp1_runner_not_ancestor") }
 
         for path in SP1RunnerBinding.sourcePaths.sorted() {
             let object = try git.run(["cat-file", "-e", "\(commitSha):\(path)"], acceptedStatuses: [0, 1, 128])

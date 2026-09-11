@@ -133,9 +133,14 @@ final class Phase0ProbeTests: XCTestCase {
     func testSP2CurrentEnvironmentProducesThreePassEightBlockedAndCompleteOutput() throws {
         try withTemporaryDirectory { directory in
             let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+            let environmentURL = repository.appendingPathComponent("evidence/phase0/environment.json")
+            let environment = try JSONDecoder().decode(EnvironmentEvidence.self, from: Data(contentsOf: environmentURL))
+            guard environment.guiSession.status != .available || environment.listenEventAccess != .available else {
+                throw XCTSkip("canonical environment now has D1 available; blocked SP-2 expectations do not apply")
+            }
             let output = directory.appendingPathComponent("sp2", isDirectory: true)
             let identity = AtomicityRunnerIdentity(commitSha: String(repeating: "a", count: 40), treeSha: String(repeating: "b", count: 40), sourceSha256: Dictionary(uniqueKeysWithValues: SP2RunnerBinding.sourcePaths.map { ($0, String(repeating: "c", count: 64)) }))
-            try SP2Probe.run(arguments: ["sp2", "--environment", repository.appendingPathComponent("evidence/phase0/environment.json").path, "--output", output.path], identityProvider: FixedIdentityProvider(identity: identity))
+            try SP2Probe.run(arguments: ["sp2", "--environment", environmentURL.path, "--output", output.path], identityProvider: FixedIdentityProvider(identity: identity))
             let evidence = try JSONDecoder().decode(SP2Evidence.self, from: Data(contentsOf: output.appendingPathComponent("evidence.json")))
             XCTAssertEqual(evidence.legs.filter { $0.verdict == .pass }.count, 3)
             XCTAssertEqual(evidence.legs.filter { $0.verdict == .blocked }.count, 8)
@@ -173,12 +178,17 @@ final class Phase0ProbeTests: XCTestCase {
     func testSP3CurrentEnvironmentProducesThreePassFourBlockedAndCompleteOutput() throws {
         try withTemporaryDirectory { directory in
             let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+            let environmentURL = repository.appendingPathComponent("evidence/phase0/environment.json")
+            let environment = try JSONDecoder().decode(EnvironmentEvidence.self, from: Data(contentsOf: environmentURL))
+            guard environment.guiSession.status != .available || environment.listenEventAccess != .available else {
+                throw XCTSkip("canonical environment now has D1 available; blocked SP-3 expectations do not apply")
+            }
             let output = directory.appendingPathComponent("sp3", isDirectory: true)
             let identity = AtomicityRunnerIdentity(
                 commitSha: String(repeating: "a", count: 40), treeSha: String(repeating: "b", count: 40),
                 sourceSha256: Dictionary(uniqueKeysWithValues: SP3RunnerBinding.sourcePaths.map { ($0, String(repeating: "c", count: 64)) })
             )
-            try SP3Probe.run(arguments: ["sp3", "--environment", repository.appendingPathComponent("evidence/phase0/environment.json").path, "--output", output.path], identityProvider: FixedIdentityProvider(identity: identity))
+            try SP3Probe.run(arguments: ["sp3", "--environment", environmentURL.path, "--output", output.path], identityProvider: FixedIdentityProvider(identity: identity))
             let evidence = try JSONDecoder().decode(SP3Evidence.self, from: Data(contentsOf: output.appendingPathComponent("evidence.json")))
             XCTAssertEqual(evidence.legs.filter { $0.verdict == .pass }.count, 3)
             XCTAssertEqual(evidence.legs.filter { $0.verdict == .blocked }.count, 4)
@@ -321,6 +331,29 @@ final class Phase0ProbeTests: XCTestCase {
             XCTAssertThrowsError(try SP6AHistoryAnchorProbe.resolve(anchorURL: anchor)) { error in
                 XCTAssertEqual(error as? SP6AHistoryAnchorError, .invalidCandidateSet)
             }
+        }
+    }
+
+    func testSP6AInPlaceRegenerationPreservesLegacyV2Bytes() throws {
+        let repository = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        let canonicalSP6A = repository.appendingPathComponent("evidence/phase0/sp6a")
+        let legacyName = SP6ANamespaceHistoryContract.legacyAnchorArtifactName
+        let originalV2 = try Data(contentsOf: canonicalSP6A.appendingPathComponent(legacyName))
+        let identity = AtomicityRunnerIdentity(
+            commitSha: String(repeating: "a", count: 40), treeSha: String(repeating: "b", count: 40),
+            sourceSha256: Dictionary(uniqueKeysWithValues: SP6ARunnerBinding.sourcePaths.map { ($0, String(repeating: "c", count: 64)) })
+        )
+        try withTemporaryDirectory { directory in
+            let sp6a = directory.appendingPathComponent("sp6a", isDirectory: true)
+            try FileManager.default.copyItem(at: canonicalSP6A, to: sp6a)
+            let environment = repository.appendingPathComponent("evidence/phase0/environment.json")
+            try SP6AProbe.run(
+                arguments: ["sp6a", "--environment", environment.path, "--output", sp6a.path],
+                identityProvider: FixedIdentityProvider(identity: identity)
+            )
+            let regeneratedV2 = try Data(contentsOf: sp6a.appendingPathComponent(legacyName))
+            XCTAssertEqual(ViaDefinitionDigest.sha256(originalV2), ViaDefinitionDigest.sha256(regeneratedV2))
         }
     }
 

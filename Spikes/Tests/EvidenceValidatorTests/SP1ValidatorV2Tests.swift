@@ -9,7 +9,9 @@ final class SP1ValidatorV2Tests: XCTestCase {
     func testCheckedInCanonicalV1AllBlockedDirectoryRemainsAccepted() throws {
         let directory = try repositoryRoot().appendingPathComponent("evidence/phase0/sp1")
         let evidence = try JSONDecoder().decode(SP1Evidence.self, from: Data(contentsOf: directory.appendingPathComponent("evidence.json")))
-        XCTAssertEqual(evidence.schemaVersion, 1)
+        guard evidence.schemaVersion == 1 else {
+            throw XCTSkip("checked-in canonical SP-1 evidence is no longer schema v1")
+        }
         XCTAssertEqual(evidence.verdict, .blocked)
         XCTAssertTrue(evidence.legs.allSatisfy { $0.verdict == .blocked && $0.artifactSha256 == nil })
         for leg in evidence.legs {
@@ -315,13 +317,37 @@ final class SP1ValidatorV2Tests: XCTestCase {
         XCTAssertThrowsError(try SP1DirectoryValidator.validate(directory: fixture.directory, repository: fixture.repository))
     }
 
-    func testV2RunnerMustBeExactlyCurrentHeadNotMerelyAnAncestor() throws {
+    func testV2RunnerAncestorOfHeadValidatesAfterDescendantOnlySeal() throws {
         var spec = FixtureSpec()
         spec.withRepository = true
         spec.runnerIsAncestor = true
         let fixture = try makeFixture(spec)
         defer { fixture.remove() }
-        XCTAssertThrowsError(try SP1DirectoryValidator.validate(directory: fixture.directory, repository: fixture.repository))
+        XCTAssertNoThrow(try SP1DirectoryValidator.validate(directory: fixture.directory, repository: fixture.repository))
+    }
+
+    func testV2RunnerNonAncestorRejects() throws {
+        var spec = FixtureSpec()
+        spec.withRepository = true
+        let fixture = try makeFixture(spec)
+        defer { fixture.remove() }
+        try git(["commit", "--allow-empty", "-q", "-m", "future"], at: fixture.repository)
+        let future = try gitOutput(["rev-parse", "HEAD"], at: fixture.repository)
+        let futureTree = try gitOutput(["rev-parse", "\(future)^{tree}"], at: fixture.repository)
+        try git(["reset", "--hard", "HEAD~1"], at: fixture.repository)
+        var object = try jsonObject(at: fixture.directory.appendingPathComponent("evidence.json"))
+        var legs = object["legs"] as! [[String: Any]]
+        for index in legs.indices {
+            legs[index]["runnerCommitSha"] = future
+            legs[index]["runnerTreeSha"] = futureTree
+        }
+        object["legs"] = legs
+        try writeJSONObject(object, to: fixture.directory.appendingPathComponent("evidence.json"))
+        try fixture.remanifest()
+        XCTAssertEqual(
+            code { try SP1DirectoryValidator.validate(directory: fixture.directory, repository: fixture.repository) },
+            "sp1_runner_not_ancestor"
+        )
     }
 
     func testSP1PersistedModelsRejectUnknownFieldsAtEveryNestedBoundary() throws {

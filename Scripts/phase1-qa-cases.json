@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "cases": [
+    {
+      "task": 1,
+      "case": "happy",
+      "argv": ["swift", "test", "--package-path", "Spikes", "--scratch-path", "{attempt}/build/spikes", "--filter", "CurrentBaselineTests/testHappy|Phase1QARunnerCliTests/testHappy"],
+      "expectedKind": "xctest",
+      "timeoutSeconds": 1200,
+      "minTestCount": 2
+    },
+    {
+      "task": 1,
+      "case": "failure",
+      "argv": ["swift", "test", "--package-path", "Spikes", "--scratch-path", "{attempt}/build/spikes", "--filter", "CurrentBaselineTests/testFailure|Phase1QARunnerCliTests/testFailure"],
+      "expectedKind": "xctest",
+      "timeoutSeconds": 1200,
+      "minTestCount": 22
+    }
+  ]
+}

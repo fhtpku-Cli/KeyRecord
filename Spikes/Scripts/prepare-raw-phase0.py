@@ -276,15 +276,17 @@ def sync_run_all_receipt() -> None:
         "privacy-audit.json",
         "run-all.json",
     ]
-    commit = resolve_binding_commit()
-    tree = subprocess.check_output(
-        ["git", "rev-parse", f"{commit}^{{tree}}"], cwd=REPO, text=True
+    run_all_commit = canonicalize_commit("HEAD")
+    run_all_tree = subprocess.check_output(
+        ["git", "rev-parse", f"{run_all_commit}^{{tree}}"], cwd=REPO, text=True
     ).strip()
-    run_all["runnerCommitSha"] = commit
-    run_all["runnerTreeSha"] = tree
+    run_all["runnerCommitSha"] = run_all_commit
+    run_all["runnerTreeSha"] = run_all_tree
     sources = {}
     for path in collect_binding_paths():
-        blob = subprocess.check_output(["git", "cat-file", "blob", f"{commit}:{path}"], cwd=REPO)
+        blob = subprocess.check_output(
+            ["git", "cat-file", "blob", f"{run_all_commit}:{path}"], cwd=REPO
+        )
         sources[path] = hashlib.sha256(blob).hexdigest()
     run_all["runnerSourceSha256"] = sources
     sp6a_manifest = PHASE0 / "sp6a" / "manifest.sha256"

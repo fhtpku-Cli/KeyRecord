@@ -94,7 +94,7 @@ final class SP6ANamespaceValidatorTests: XCTestCase {
             try SP6ADirectoryValidator.validateHistoryAnchor(
                 evidence, directory: shallowFixture.output, repository: shallowFixture.repository
             )
-        }, "sp6a_history_anchor_history_incomplete")
+        }, "sp6a_legacy_history_anchor_history_incomplete")
     }
 
     func testHistoryAnchorMetadataAndBlobForgeriesReject() throws {

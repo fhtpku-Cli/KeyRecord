@@ -94,7 +94,7 @@ EOF
   tmp_src="${TMPDIR:-/tmp}/keyrecord-phase0-raw.$$"
   tmp_out="${TMPDIR:-/tmp}/keyrecord-phase0-conclusions.$$"
   rm -rf "$tmp_src" "$tmp_out"
-  mkdir -p "$tmp_src" "$tmp_out"
+  mkdir -p "$tmp_src"
   git archive "$commit" evidence/phase0 | tar -x -C "$tmp_src"
   "$validator" generate-conclusions \
     --source "$tmp_src/evidence/phase0" \

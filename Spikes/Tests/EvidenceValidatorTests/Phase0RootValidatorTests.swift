@@ -114,6 +114,16 @@ final class Phase0RootValidatorTests: XCTestCase {
         for index in evidence.legs.indices {
             evidence.legs[index].runnerCommitSha = commit
             evidence.legs[index].runnerTreeSha = tree
+            if var identity = evidence.legs[index].identity {
+                identity.runnerCommitSha = commit
+                identity.runnerTreeSha = tree
+                evidence.legs[index].identity = identity
+            }
+        }
+        if var identity = evidence.selectedTapIdentity {
+            identity.runnerCommitSha = commit
+            identity.runnerTreeSha = tree
+            evidence.selectedTapIdentity = identity
         }
         evidence.runnerSourceSha256 = try Dictionary(uniqueKeysWithValues: SP1RunnerBinding.sourcePaths.map { path in
             (path, Canonical.sha256(try gitBlob(commit: commit, path: path, repository: repository)))

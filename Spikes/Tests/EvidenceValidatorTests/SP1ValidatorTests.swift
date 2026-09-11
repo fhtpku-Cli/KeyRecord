@@ -98,6 +98,82 @@ final class SP1ValidatorTests: XCTestCase {
         )
     }
 
+    func testV3RunnerCommitAncestorOfHeadValidatesAfterDescendantOnlySeal() throws {
+        let fixture = try runnerFixture()
+        defer { fixture.remove() }
+        let runnerCommit = try gitOutput(["rev-parse", "HEAD"], fixture.root)
+        let runnerTree = try gitOutput(["rev-parse", "HEAD^{tree}"], fixture.root)
+        try Data("descendant-only\n".utf8).write(to: fixture.root.appendingPathComponent("descendant.txt"))
+        try git(["add", "descendant.txt"], fixture.root)
+        try git(["commit", "-q", "-m", "descendant-only"], fixture.root)
+        XCTAssertNotEqual(try gitOutput(["rev-parse", "HEAD"], fixture.root), runnerCommit)
+        var evidence = fixture.evidence
+        for index in evidence.legs.indices {
+            evidence.legs[index].runnerCommitSha = runnerCommit
+            evidence.legs[index].runnerTreeSha = runnerTree
+            if var identity = evidence.legs[index].identity {
+                identity.runnerCommitSha = runnerCommit
+                identity.runnerTreeSha = runnerTree
+                evidence.legs[index].identity = identity
+            }
+        }
+        if var identity = evidence.selectedTapIdentity {
+            identity.runnerCommitSha = runnerCommit
+            identity.runnerTreeSha = runnerTree
+            evidence.selectedTapIdentity = identity
+        }
+        XCTAssertNoThrow(try SP1DirectoryValidator.validateRunnerBinding(evidence, repository: fixture.root))
+    }
+
+    func testV3RunnerSourceDriftRejectsAfterDescendantOnlySeal() throws {
+        let fixture = try runnerFixture()
+        defer { fixture.remove() }
+        let runnerCommit = try gitOutput(["rev-parse", "HEAD"], fixture.root)
+        let runnerTree = try gitOutput(["rev-parse", "HEAD^{tree}"], fixture.root)
+        try Data("descendant-only\n".utf8).write(to: fixture.root.appendingPathComponent("descendant.txt"))
+        try git(["add", "descendant.txt"], fixture.root)
+        try git(["commit", "-q", "-m", "descendant-only"], fixture.root)
+        var evidence = fixture.evidence
+        for index in evidence.legs.indices {
+            evidence.legs[index].runnerCommitSha = runnerCommit
+            evidence.legs[index].runnerTreeSha = runnerTree
+        }
+        let path = SP1RunnerBinding.sourcePaths.sorted()[0]
+        try Data("drift\n".utf8).write(to: fixture.root.appendingPathComponent(path))
+        XCTAssertEqual(
+            code { try SP1DirectoryValidator.validateRunnerBinding(evidence, repository: fixture.root) },
+            "sp1_runner_source_dirty"
+        )
+    }
+
+    func testV3RunnerCommitMustBeAncestorOfHead() throws {
+        let fixture = try runnerFixture()
+        defer { fixture.remove() }
+        try git(["commit", "--allow-empty", "-q", "-m", "future"], fixture.root)
+        let future = try gitOutput(["rev-parse", "HEAD"], fixture.root)
+        let futureTree = try gitOutput(["rev-parse", "\(future)^{tree}"], fixture.root)
+        try git(["reset", "--hard", "HEAD~1"], fixture.root)
+        var evidence = fixture.evidence
+        for index in evidence.legs.indices {
+            evidence.legs[index].runnerCommitSha = future
+            evidence.legs[index].runnerTreeSha = futureTree
+            if var identity = evidence.legs[index].identity {
+                identity.runnerCommitSha = future
+                identity.runnerTreeSha = futureTree
+                evidence.legs[index].identity = identity
+            }
+        }
+        if var identity = evidence.selectedTapIdentity {
+            identity.runnerCommitSha = future
+            identity.runnerTreeSha = futureTree
+            evidence.selectedTapIdentity = identity
+        }
+        XCTAssertEqual(
+            code { try SP1DirectoryValidator.validateRunnerBinding(evidence, repository: fixture.root) },
+            "sp1_runner_not_ancestor"
+        )
+    }
+
     func testPassEvidenceRejectsMixedLastLegRunnerAndEnvironmentIdentity() throws {
         let fixture = try runnerFixture()
         defer { fixture.remove() }

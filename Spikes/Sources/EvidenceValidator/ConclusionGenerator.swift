@@ -115,10 +115,15 @@ public enum ConclusionGenerator {
         })
         let spikes = try ConclusionContract.spikeIDs.map { id in try spike(id, root: root) }
         let byID = Dictionary(uniqueKeysWithValues: spikes.map { ($0.id, $0) })
-        let blockers = try allBlockedLegIDs(root)
-        let g0Blocked = blockers.filter { $0.hasPrefix("sp1.") || $0.hasPrefix("sp2.") }.sorted()
-        let g0Passed = byID["SP-1"]?.verdict == .pass && byID["SP-2"]?.verdict == .pass
-        let g0 = ValidatedG0(status: g0Passed ? .passed : .open, reasons: g0Passed ? [] : g0Blocked.map { "required live leg \($0) is not PASS" }, blockingLegIDs: g0Blocked, candidateSelection: nil)
+        let selectedTap = try selectedTapType(root)
+        let g0Blocked = try g0BlockingLegIDs(root, selectedTapType: selectedTap)
+        let g0Passed = byID["SP-1"]?.verdict == .pass && byID["SP-2"]?.verdict == .pass && selectedTap != nil
+        let g0 = ValidatedG0(
+            status: g0Passed ? .passed : .open,
+            reasons: g0Passed ? [] : g0Blocked.map { "required live leg \($0) is not PASS" },
+            blockingLegIDs: g0Blocked,
+            candidateSelection: g0Passed ? selectedTap : nil
+        )
         let manifest = root.appendingPathComponent("manifest.sha256")
         let sourceManifestHash: String
         if let sourceManifestSha256 { sourceManifestHash = sourceManifestSha256 }
@@ -136,16 +141,25 @@ public enum ConclusionGenerator {
         let evidencePath = "\(directory)/evidence.json", manifestPath = "\(directory)/manifest.sha256"
         let evidenceData = try Data(contentsOf: root.appendingPathComponent(evidencePath))
         let manifestData = try Data(contentsOf: root.appendingPathComponent(manifestPath))
-        let legs = try parseLegs(evidenceData)
-        guard let first = legs.first, !legs.isEmpty else { throw ValidatorError("conclusion_missing_legs", id) }
-        guard legs.allSatisfy({ $0.runnerCommit == first.runnerCommit && $0.runnerTree == first.runnerTree }) else { throw ValidatorError("conclusion_mixed_runner", id) }
+        let allLegs = try parseLegs(evidenceData)
+        guard let first = allLegs.first, !allLegs.isEmpty else { throw ValidatorError("conclusion_missing_legs", id) }
+        guard allLegs.allSatisfy({ $0.runnerCommit == first.runnerCommit && $0.runnerTree == first.runnerTree }) else { throw ValidatorError("conclusion_mixed_runner", id) }
+        let legs: [RawConclusionLeg]
+        if id == "SP-1", let selected = try selectedTapType(from: evidenceData) {
+            legs = allLegs.filter { leg in
+                if leg.id.hasPrefix("sp1.tap.") { return leg.id == "sp1.tap.\(selected).matrix" }
+                return true
+            }
+        } else {
+            legs = allLegs
+        }
         let verdict = ConclusionDeriver.aggregate(legs.map(\.verdict))
-        let limits = limitations[id] ?? []
+        let limits = limitations(for: id, verdict: verdict)
         return ValidatedSpikeConclusion(id: id, verdict: verdict,
             evidence: .init(path: evidencePath, sha256: Canonical.sha256(evidenceData), manifestPath: manifestPath, manifestSha256: Canonical.sha256(manifestData)),
             runnerCommitSha: first.runnerCommit, runnerTreeSha: first.runnerTree,
-            passCount: legs.filter { $0.verdict == .pass }.count, blockedCount: legs.filter { $0.verdict == .blocked }.count,
-            inconclusiveCount: legs.filter { $0.verdict == .inconclusive }.count, failCount: legs.filter { $0.verdict == .fail }.count,
+            passCount: allLegs.filter { $0.verdict == .pass }.count, blockedCount: allLegs.filter { $0.verdict == .blocked }.count,
+            inconclusiveCount: allLegs.filter { $0.verdict == .inconclusive }.count, failCount: allLegs.filter { $0.verdict == .fail }.count,
             limitations: limits, rerunArgv: ["swift", "run", "--package-path", "Spikes", "Phase0Probe", directory, "--environment", "evidence/phase0/environment.json", "--output", "<output>/\(directory)"], dependencyFrozen: false)
     }
 
@@ -158,10 +172,29 @@ public enum ConclusionGenerator {
         }
     }
 
-    private static func allBlockedLegIDs(_ root: URL) throws -> [String] {
-        try ConclusionContract.spikeIDs.flatMap { id in
-            try parseLegs(Data(contentsOf: root.appendingPathComponent("\(directoryName(id))/evidence.json"))).filter { $0.verdict != .pass }.map(\.id)
+    private static func selectedTapType(_ root: URL) throws -> String? {
+        try selectedTapType(from: Data(contentsOf: root.appendingPathComponent("sp1/evidence.json")))
+    }
+
+    private static func selectedTapType(from data: Data) throws -> String? {
+        guard let object = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let selected = object["selectedTapIdentity"] as? [String: Any],
+              let tapType = selected["tapType"] as? String, tapType == "session" || tapType == "annotated" else {
+            return nil
         }
+        return tapType
+    }
+
+    private static func g0BlockingLegIDs(_ root: URL, selectedTapType: String?) throws -> [String] {
+        let sp1 = try parseLegs(Data(contentsOf: root.appendingPathComponent("sp1/evidence.json"))).filter { leg in
+            if leg.id.hasPrefix("sp1.tap.") {
+                guard let selectedTapType else { return true }
+                return leg.id == "sp1.tap.\(selectedTapType).matrix"
+            }
+            return true
+        }
+        let sp2 = try parseLegs(Data(contentsOf: root.appendingPathComponent("sp2/evidence.json")))
+        return (sp1 + sp2).filter { $0.verdict != .pass }.map(\.id).sorted()
     }
 
     private static func oItems(g0Blocked: [String]) -> [ValidatedOItemDisposition] {
@@ -171,7 +204,15 @@ public enum ConclusionGenerator {
             .init(id: "O3", status: "FUTURE_REAL_DEVICE", evidencePaths: [], blockerRefs: ["VIA_GENERATION", "VIAL_BETA"], semantics: "At least three approved real keyboards remain future inputs."),
             .init(id: "O4", status: "EVIDENCE_OR_BLOCKED", evidencePaths: ["sp3/evidence.json", "sp4a/evidence.json", "sp4b/evidence.json", "sp5a/evidence.json", "sp5b/evidence.json"], blockerRefs: ["KARABINER_STABLE", "VIA_GENERATION", "VIAL_BETA"], semantics: "Each independent version axis is evidence-backed or blocked; no compatibility is inferred."),
             .init(id: "O5", status: "REPRESENTED", evidencePaths: ConclusionContract.spikeIDs.map { "\(directoryName($0))/evidence.json" }, blockerRefs: [], semantics: "Spike details are represented without freezing production APIs."),
-            .init(id: "O6", status: "OPEN", evidencePaths: ["sp2/evidence.json"], blockerRefs: g0Blocked.filter { $0.hasPrefix("sp2.") }, semantics: "OPEN until every SP-2 row, including Fn live recovery, passes."),
+            .init(
+                id: "O6",
+                status: g0Blocked.contains(where: { $0.hasPrefix("sp2.") }) ? "OPEN" : "RESOLVED",
+                evidencePaths: ["sp2/evidence.json"],
+                blockerRefs: g0Blocked.filter { $0.hasPrefix("sp2.") },
+                semantics: g0Blocked.contains(where: { $0.hasPrefix("sp2.") })
+                    ? "OPEN until every SP-2 row, including Fn live recovery, passes."
+                    : "RESOLVED because every required SP-2 row passed."
+            ),
             .init(id: "O7", status: "CONSERVATIVE", evidencePaths: ["sp1/evidence.json"], blockerRefs: g0Blocked.filter { $0.hasPrefix("sp1.") }, semantics: "Fail closed: only product-stamped synthetic events are guaranteed excluded; unmarked injection remains unproven."),
         ]
     }
@@ -216,17 +257,34 @@ public enum ConclusionGenerator {
         return commit
     }
 
-    private static let limitations: [String: [String]] = [
-        "SP-1": ["Input Monitoring and Karabiner were unavailable; no tap candidate is selected.", "O7 excludes only product-stamped synthetic events and otherwise fails closed."],
-        "SP-2": ["Live attribution, Secure Input, sleep/wake, tap-reset, sided recovery, and Fn recovery remain blocked.", "O6 remains OPEN."],
-        "SP-3": ["Schema/version sampling, live reload, and <=2s p95 disable latency remain blocked."],
-        "SP-4A": ["PASS covers V2/V3 definition schema parsing only; it proves no protocol, keycode, importer, or device compatibility."],
-        "SP-4B": ["Synthetic layout round-trip proves no official importer, device protocol, firmware keycode, or deployment compatibility."],
-        "SP-5A": ["Synthetic .vil round-trip proves no official importer or real-device compatibility."],
-        "SP-5B": ["Replay and deny-all construction prove no live HID behavior; outbound reports are not literally read-only."],
-        "SP-6A": ["Data-protection Keychain selection and lifecycle remain blocked; no plaintext fallback is permitted."],
-        "SP-6B": ["Intel timing remains blocked and the production dependency/API is not frozen."],
-    ]
+    private static func limitations(for id: String, verdict: Verdict) -> [String] {
+        switch id {
+        case "SP-1":
+            return verdict == .pass
+                ? ["Selected tap identity is bound to the executed listen-only candidate.", "O7 excludes only product-stamped synthetic events and otherwise fails closed."]
+                : ["Input Monitoring and Karabiner were unavailable; no tap candidate is selected.", "O7 excludes only product-stamped synthetic events and otherwise fails closed."]
+        case "SP-2":
+            return verdict == .pass
+                ? ["Live aggregate counters are privacy-safe counts only; no keystream or timestamp is persisted.", "O6 is RESOLVED."]
+                : ["Live attribution, Secure Input, sleep/wake, tap-reset, sided recovery, and Fn recovery remain blocked.", "O6 remains OPEN."]
+        case "SP-3":
+            return ["Schema/version sampling, live reload, and <=2s p95 disable latency remain blocked."]
+        case "SP-4A":
+            return ["PASS covers V2/V3 definition schema parsing only; it proves no protocol, keycode, importer, or device compatibility."]
+        case "SP-4B":
+            return ["Synthetic layout round-trip proves no official importer, device protocol, firmware keycode, or deployment compatibility."]
+        case "SP-5A":
+            return ["Synthetic .vil round-trip proves no official importer or real-device compatibility."]
+        case "SP-5B":
+            return ["Replay and deny-all construction prove no live HID behavior; outbound reports are not literally read-only."]
+        case "SP-6A":
+            return ["Data-protection Keychain selection and lifecycle remain blocked; no plaintext fallback is permitted."]
+        case "SP-6B":
+            return ["Intel timing remains blocked and the production dependency/API is not frozen."]
+        default:
+            return ["No additional limitations recorded."]
+        }
+    }
 
     static func renderMarkdown(_ spike: ValidatedSpikeConclusion) -> String {
         let limits = spike.limitations.map { "- \($0)" }.joined(separator: "\n")

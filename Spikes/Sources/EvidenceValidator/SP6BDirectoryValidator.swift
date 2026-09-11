@@ -112,9 +112,17 @@ enum SP6BDirectoryValidator {
     }
 
     private static func validateBindings(_ evidence: SP6BEvidence, directory: URL, repository: URL) throws {
-        guard let environment = try? Data(contentsOf: repository.appendingPathComponent("evidence/phase0/environment.json")) else { throw ValidatorError("sp6b_environment_missing") }
-        let hash = Canonical.sha256(environment)
-        guard evidence.legs.allSatisfy({ $0.environmentSha256 == hash }) else { throw ValidatorError("sp6b_environment_hash_mismatch") }
+        guard let executionEnvironment = evidence.legs.first?.environmentSha256 else { throw ValidatorError("sp6b_environment_missing") }
+        guard evidence.legs.allSatisfy({ $0.environmentSha256 == executionEnvironment }),
+              executionEnvironment == SP6BHistoricalSealContract.executionEnvironmentSha256 else {
+            throw ValidatorError("sp6b_environment_hash_mismatch")
+        }
+        let armURL = directory.appendingPathComponent("arm-benchmark.json")
+        guard let armData = try? Data(contentsOf: armURL),
+              let armObject = try? JSONSerialization.jsonObject(with: armData) as? [String: Any],
+              armObject["environmentSha256"] as? String == executionEnvironment else {
+            throw ValidatorError("sp6b_environment_hash_mismatch")
+        }
         for leg in evidence.legs where leg.verdict == .pass {
             guard let expected = SP6BDirectoryLayout.legArtifacts[leg.legID], leg.artifactPath == expected,
                   let bytes = try? Data(contentsOf: directory.appendingPathComponent(expected)), leg.artifactSha256 == Canonical.sha256(bytes) else {

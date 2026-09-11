@@ -96,9 +96,16 @@ public struct SP6ANamespaceHistoryAnchor: Codable, Equatable, Sendable {
 
 public enum SP6ANamespaceHistoryContract {
     public static let expectedAttemptCount = 11
-    public static let anchorPath = "evidence/phase0/sp6a/namespace-attempt-history-v2.json"
-    public static let anchorArtifactName = "namespace-attempt-history-v2.json"
+    public static let anchorPath = "evidence/phase0/sp6a/namespace-attempt-history-v3.json"
+    public static let anchorArtifactName = "namespace-attempt-history-v3.json"
     public static let metadataArtifactName = "history-anchor.json"
+    /// Immutable prior anchor artifact; retained in git history only — never mutated after its anchor commit.
+    public static let legacyAnchorArtifactName = "namespace-attempt-history-v2.json"
+    public static let legacyAnchorPath = "evidence/phase0/sp6a/namespace-attempt-history-v2.json"
+    public static let legacyAnchorCommitSha = "090e2eb55e44763dbf4a31c30ee3a9e59cb59212"
+    public static let legacyAnchorTreeSha = "9a6400040668a0d59bf485c2a6884807e6b19d56"
+    public static let legacyAnchorBlobSha1 = "ad8d2c3d40d8215518cfac7a141e5601da1e84c3"
+    public static let legacyAnchorFileSha256 = "c944feb30eeede44d807f7e9d617e144eb50d6b7b59ff1b067b020296eab8833"
 }
 
 public enum SP6ANamespaceDerivation {

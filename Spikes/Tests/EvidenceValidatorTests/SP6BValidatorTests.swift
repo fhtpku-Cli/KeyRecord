@@ -37,6 +37,36 @@ final class SP6BValidatorTests: XCTestCase {
         try assertRejects(fixture, code: "sp6b_candidate_provenance")
     }
 
+    func testCoordinatedProvenanceRebindWithBackdatedCommitRejects() throws {
+        let fixture = try SP6BIntegrityFixture.make()
+        defer { fixture.remove() }
+        let forgedRunner = "e4f7c383481ff402329a1c2e3bfe5fc14fcbe2e4"
+        let forgedTree = "2b5c66212d6e4205cdb270ba1726e1e529316a1e"
+        let forgedEnvironment = "c67cd660c318012dd04613a0c598198fa15aec6ce3cb905314be2946e130e77f"
+        let forgedSources = try fixture.runnerSourceHashes(runner: forgedRunner)
+        try fixture.replaceJSON(path: "evidence.json") { root in
+            root["runnerSourceSha256"] = forgedSources
+            var legs = root["legs"] as! [[String: Any]]
+            for index in legs.indices {
+                legs[index]["runnerCommitSha"] = forgedRunner
+                legs[index]["runnerTreeSha"] = forgedTree
+                legs[index]["environmentSha256"] = forgedEnvironment
+            }
+            root["legs"] = legs
+        }
+        try fixture.replaceJSON(path: "arm-benchmark.json") { $0["environmentSha256"] = forgedEnvironment }
+        try fixture.remanifest()
+        try fixture.commitSp6bDirectory(
+            message: "attack: coordinated provenance rebind",
+            authorDate: "2026-09-05T08:38:00Z",
+            committerDate: "2026-09-05T08:38:00Z"
+        )
+        try assertRejectsAny(
+            fixture,
+            codes: ["sp6b_environment_hash_mismatch", "sp6b_evidence_runner_rewrite", "sp6b_seal_blob_mismatch"]
+        )
+    }
+
     func testArbitraryNVDDispositionRejects() throws {
         let fixture = try SP6BIntegrityFixture.make()
         defer { fixture.remove() }
@@ -75,6 +105,19 @@ final class SP6BValidatorTests: XCTestCase {
         })
         try fixture.remanifest()
         try assertRejects(fixture, code: "sp6b_build_archive_hash")
+    }
+
+    private func assertRejectsAny(
+        _ fixture: SP6BIntegrityFixture, codes: [String],
+        file: StaticString = #filePath, line: UInt = #line
+    ) throws {
+        XCTAssertThrowsError(
+            try SP6BDirectoryValidator.validate(directory: fixture.output, repository: fixture.repository),
+            file: file, line: line
+        ) { error in
+            let code = (error as? ValidatorError)?.code
+            XCTAssertTrue(codes.contains(code ?? ""), "expected one of \(codes), got \(code ?? "nil")", file: file, line: line)
+        }
     }
 
     private func assertRejects(
@@ -143,6 +186,41 @@ private struct SP6BIntegrityFixture {
         try Data((rows.joined(separator: "\n") + "\n").utf8).write(to: output.appendingPathComponent("manifest.sha256"))
     }
 
+    func commitSp6bDirectory(message: String, authorDate: String, committerDate: String) throws {
+        let destination = repository.appendingPathComponent("evidence/phase0/sp6b")
+        if FileManager.default.fileExists(atPath: destination.path) {
+            try FileManager.default.removeItem(at: destination)
+        }
+        try FileManager.default.copyItem(at: output, to: destination)
+        var environment = ProcessInfo.processInfo.environment
+        environment["GIT_AUTHOR_DATE"] = authorDate
+        environment["GIT_COMMITTER_DATE"] = committerDate
+        environment["GIT_AUTHOR_NAME"] = environment["GIT_AUTHOR_NAME"] ?? "KeyRecord Test"
+        environment["GIT_AUTHOR_EMAIL"] = environment["GIT_AUTHOR_EMAIL"] ?? "test@keyrecord.local"
+        environment["GIT_COMMITTER_NAME"] = environment["GIT_COMMITTER_NAME"] ?? environment["GIT_AUTHOR_NAME"]
+        environment["GIT_COMMITTER_EMAIL"] = environment["GIT_COMMITTER_EMAIL"] ?? environment["GIT_AUTHOR_EMAIL"]
+        try runGit(["-c", "user.name=KeyRecord Test", "-c", "user.email=test@keyrecord.local", "add", "evidence/phase0/sp6b"], environment: environment)
+        try runGit(["-c", "user.name=KeyRecord Test", "-c", "user.email=test@keyrecord.local", "commit", "-m", message], environment: environment)
+    }
+
+    func runnerSourceHashes(runner: String) throws -> [String: String] {
+        var sources: [String: String] = [:]
+        for path in SP6BRunnerBinding.sourcePaths.sorted() {
+            let process = Process()
+            let pipe = Pipe()
+            process.executableURL = URL(fileURLWithPath: "/usr/bin/git")
+            process.arguments = ["cat-file", "blob", "\(runner):\(path)"]
+            process.currentDirectoryURL = repository
+            process.standardOutput = pipe
+            process.standardError = Pipe()
+            try process.run()
+            process.waitUntilExit()
+            guard process.terminationStatus == 0 else { throw CocoaError(.executableNotLoadable) }
+            sources[path] = Canonical.sha256(pipe.fileHandleForReading.readDataToEndOfFile())
+        }
+        return sources
+    }
+
     func writeUnrelatedUniversalArchive(to destination: URL) throws {
         let source = container.appendingPathComponent("unrelated.c")
         try Data("int unrelated(void) { return 7; }\n".utf8).write(to: source)
@@ -161,6 +239,17 @@ private struct SP6BIntegrityFixture {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: executable)
         process.arguments = arguments
+        try process.run()
+        process.waitUntilExit()
+        guard process.terminationStatus == 0 else { throw CocoaError(.executableNotLoadable) }
+    }
+
+    private func runGit(_ arguments: [String], environment: [String: String]) throws {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/git")
+        process.arguments = arguments
+        process.currentDirectoryURL = repository
+        process.environment = environment
         try process.run()
         process.waitUntilExit()
         guard process.terminationStatus == 0 else { throw CocoaError(.executableNotLoadable) }

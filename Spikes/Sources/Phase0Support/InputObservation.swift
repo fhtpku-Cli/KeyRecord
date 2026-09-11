@@ -353,6 +353,101 @@ public enum SP1CanonicalBlockers {
         prerequisite: "An implemented OFF/ON matrix executor",
         unblockAction: "Permissions and installation alone cannot enable execution; implement the matrix executor before any evidentiary run is possible"
     )
+
+    public static let liveExecutionNotArmed = SP1Blocker(
+        blockedBy: "live_execution_not_armed",
+        detectCommand: ["KEYRECORD_SP1_LIVE_EXECUTION"],
+        prerequisite: "Explicit live execution arming on an authorized dedicated test host",
+        unblockAction: "Set KEYRECORD_SP1_LIVE_EXECUTION=1 only after Input Monitoring and isolated Karabiner prerequisites exist on the dedicated host; this probe never prompts"
+    )
+}
+
+public enum SP1IsolatedKarabinerMapping {
+    public static let profileName = "KeyRecord-Phase0-SP1"
+    public static let expectedPhysicalCode: UInt16 = 79
+    public static let expectedTransformedCode: UInt16 = 80
+    public static let controlledShortcutCount = 2
+}
+
+public struct SP1TapConfiguration: Equatable, Sendable {
+    public static func sha256(tapType: String) -> String {
+        let object: [String: Any] = [
+            "eventsOfInterest": ["flagsChanged", "keyDown", "keyUp"],
+            "options": "listenOnly",
+            "place": "headInsertEventTap",
+            "tapType": tapType,
+        ]
+        let data = try! JSONSerialization.data(withJSONObject: object, options: [.sortedKeys])
+        return AtomicityDigest.sha256(data)
+    }
+}
+
+public enum SP1AttemptIdentity {
+    public static func attemptID(
+        runnerCommitSha: String,
+        runnerTreeSha: String,
+        environmentSha256: String,
+        tapConfigSha256: String,
+        nonce: String
+    ) -> String {
+        let object: [String: String] = [
+            "environmentSha256": environmentSha256,
+            "nonce": nonce,
+            "runnerCommitSha": runnerCommitSha,
+            "runnerTreeSha": runnerTreeSha,
+            "tapConfigSha256": tapConfigSha256,
+        ]
+        let data = try! JSONSerialization.data(withJSONObject: object, options: [.sortedKeys])
+        return AtomicityDigest.sha256(data)
+    }
+}
+
+public enum SP1TapSelection {
+    public static func select(sessionPasses: Bool, annotatedPasses: Bool) -> String? {
+        if sessionPasses { return "session" }
+        if annotatedPasses { return "annotated" }
+        return nil
+    }
+}
+
+public struct SP1ShortcutExecution: Equatable, Sendable {
+    public var observedCount: Int
+    public var absentCount: Int
+    public var unmarkedCount: Int
+    public var armed: Bool
+    public var completed: Bool
+
+    public init(observedCount: Int, absentCount: Int, unmarkedCount: Int, armed: Bool, completed: Bool) {
+        self.observedCount = observedCount
+        self.absentCount = absentCount
+        self.unmarkedCount = unmarkedCount
+        self.armed = armed
+        self.completed = completed
+    }
+
+    public var isPass: Bool {
+        armed && completed && observedCount >= 0 && absentCount >= 0
+            && observedCount + absentCount == SP1IsolatedKarabinerMapping.controlledShortcutCount
+    }
+}
+
+public struct SP1MatrixExecution: Equatable, Sendable {
+    public var observation: TapMatrixObservation?
+    public var armed: Bool
+    public var completed: Bool
+
+    public init(observation: TapMatrixObservation?, armed: Bool, completed: Bool) {
+        self.observation = observation
+        self.armed = armed
+        self.completed = completed
+    }
+
+    public var passes: Bool { armed && completed && observation?.passes == true }
+}
+
+public enum SP1LiveArming {
+    public static let environmentKey = "KEYRECORD_SP1_LIVE_EXECUTION"
+    public static var isArmed: Bool { ProcessInfo.processInfo.environment[environmentKey] == "1" }
 }
 
 public struct TapMatrixObservation: Codable, Equatable, Sendable {
@@ -377,7 +472,7 @@ public struct TapMatrixObservation: Codable, Equatable, Sendable {
         expectedPhysicalCode = try values.decode(UInt16.self, forKey: .expectedPhysicalCode)
         expectedTransformedCode = try values.decode(UInt16.self, forKey: .expectedTransformedCode)
     }
-    var passes: Bool { offObservedCode == expectedPhysicalCode && offCount == 1 && onObservedCode == expectedTransformedCode && onCount == 1 }
+    public var passes: Bool { offObservedCode == expectedPhysicalCode && offCount == 1 && onObservedCode == expectedTransformedCode && onCount == 1 }
 }
 
 public struct SP1Leg: Codable, Equatable, Sendable {
@@ -449,7 +544,7 @@ public struct SP1Evidence: Codable, Equatable, Sendable {
         let grouped = Dictionary(grouping: legs, by: \.legID)
         if grouped.values.contains(where: { $0.count != 1 }) { throw SP1ValidationError.duplicateLeg }
         guard Set(grouped.keys) == Self.requiredLegIDs else { throw SP1ValidationError.missingLeg }
-        guard schemaVersion == 1 || schemaVersion == 2, g0Status == .open, o7Guarantee == O7Boundary.guarantee else { throw SP1ValidationError.invalidO7 }
+        guard schemaVersion == 1 || schemaVersion == 2 || schemaVersion == 3, g0Status == .open, o7Guarantee == O7Boundary.guarantee else { throw SP1ValidationError.invalidO7 }
         guard !runnerSourceSha256.isEmpty, runnerSourceSha256.values.allSatisfy(\.isLowercaseSHA256) else { throw SP1ValidationError.invalidProvenance }
         guard Set(legs.map(\.runnerCommitSha)).count == 1,
               Set(legs.map(\.runnerTreeSha)).count == 1,
@@ -470,21 +565,26 @@ public struct SP1Evidence: Codable, Equatable, Sendable {
             return (hash, leg)
         }, by: \.hash)
         for owners in artifactOwners.values where owners.count > 1 {
-            guard schemaVersion == 2, owners.allSatisfy({ Self.syntheticLegIDs.contains($0.leg.legID) }) else {
-                throw SP1ValidationError.reusedEvidence
-            }
+            let synthetic = owners.allSatisfy { Self.syntheticLegIDs.contains($0.leg.legID) }
+            let live = owners.allSatisfy { !Self.syntheticLegIDs.contains($0.leg.legID) }
+            if schemaVersion == 2, synthetic { continue }
+            if schemaVersion == 3, synthetic || live { continue }
+            throw SP1ValidationError.reusedEvidence
         }
         let passingMatrices = legs.filter { Self.matrixIDs.contains($0.legID) && $0.verdict == .pass }
         if selectedTapIdentity == nil {
             guard passingMatrices.isEmpty else { throw SP1ValidationError.invalidSelection }
             guard verdict == Self.aggregate(legs.map(\.verdict)) else { throw SP1ValidationError.invalidAggregate }
         } else {
-            guard passingMatrices.count == 1, let selected = selectedTapIdentity, passingMatrices[0].matrix?.passes == true else { throw SP1ValidationError.invalidMatrix }
+            guard let selected = selectedTapIdentity else { throw SP1ValidationError.invalidSelection }
+            let selectedLegID = "sp1.tap.\(selected.tapType).matrix"
+            guard let selectedLeg = legs.first(where: { $0.legID == selectedLegID }),
+                  selectedLeg.verdict == .pass, selectedLeg.matrix?.passes == true else {
+                throw SP1ValidationError.invalidMatrix
+            }
             guard !selected.tapType.isEmpty, !selected.attemptID.isEmpty, selected.runnerCommitSha.isLowercaseGitSHA1,
                   selected.runnerTreeSha.isLowercaseGitSHA1, selected.environmentSha256.isLowercaseSHA256,
                   selected.tapConfigSha256.isLowercaseSHA256 else { throw SP1ValidationError.invalidProvenance }
-            let selectedLegID = "sp1.tap.\(selected.tapType).matrix"
-            guard passingMatrices[0].legID == selectedLegID else { throw SP1ValidationError.invalidSelection }
             let bound = legs.filter { $0.legID == selectedLegID || !Self.matrixIDs.contains($0.legID) }
             for leg in bound {
                 guard leg.identity == selected,

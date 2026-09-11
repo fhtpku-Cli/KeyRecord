@@ -60,7 +60,9 @@ public enum ConclusionValidator {
             try bind(spike.evidence.path, spike.evidence.sha256, root: root)
             try bind(spike.evidence.manifestPath, spike.evidence.manifestSha256, root: root)
         }
-        guard document.oItems.first(where: { $0.id == "O6" })?.status == "OPEN" || document.spikes.first(where: { $0.id == "SP-2" })?.verdict == .pass else { throw ValidatorError("o6_closed_without_sp2") }
+        let sp2Pass = document.spikes.first(where: { $0.id == "SP-2" })?.verdict == .pass
+        let o6Status = document.oItems.first(where: { $0.id == "O6" })?.status
+        guard (o6Status == "OPEN" && !sp2Pass) || (o6Status == "RESOLVED" && sp2Pass) else { throw ValidatorError("o6_closed_without_sp2") }
         guard document.oItems.first(where: { $0.id == "O7" })?.semantics.contains("Fail closed") == true else { throw ValidatorError("privacy_semantics_weakened") }
         for row in document.o4Matrix {
             let evidence = row.evidencePath != nil && row.evidenceSha256 != nil && row.blockedRef == nil
@@ -68,7 +70,17 @@ public enum ConclusionValidator {
             guard evidence != blocked else { throw ValidatorError("invalid_o4_xor", row.id) }
             if let path = row.evidencePath, let hash = row.evidenceSha256 { try bind(path, hash, root: root) }
         }
-        guard document.g0.status == .open, document.g0.candidateSelection == nil, !document.g0.blockingLegIDs.isEmpty else { throw ValidatorError("g0_forced_passed") }
+        let sp1Pass = document.spikes.first(where: { $0.id == "SP-1" })?.verdict == .pass
+        if document.g0.status == .passed {
+            guard sp1Pass, sp2Pass, document.g0.blockingLegIDs.isEmpty, document.g0.reasons.isEmpty,
+                  document.g0.candidateSelection != nil, document.g0.candidateSelection?.isEmpty == false else {
+                throw ValidatorError("g0_unearned_passed")
+            }
+        } else {
+            guard document.g0.status == .open, document.g0.candidateSelection == nil, !document.g0.blockingLegIDs.isEmpty else {
+                throw ValidatorError("g0_forced_passed")
+            }
+        }
         guard document.downstreamBlocks.allSatisfy({ !$0.causedBy.isEmpty && !$0.artifactRefs.isEmpty && !$0.rerunArgv.isEmpty && $0.rerunArgv.allSatisfy { !$0.isEmpty && $0.allSatisfy { !$0.isEmpty } } }) else { throw ValidatorError("incomplete_downstream_block") }
         let forbidden = document.spikes.flatMap(\.limitations).joined(separator: " ").lowercased()
         guard !forbidden.contains("official importer compatible") && !forbidden.contains("device compatible") else { throw ValidatorError("unsupported_compatibility_claim") }
@@ -127,6 +139,18 @@ public enum ConclusionValidator {
         guard isCanonicalCommit(document.sourceEvidenceCommitSha),
               isCanonicalCommit(document.generatorCommitSha) else {
             throw ValidatorError("noncanonical_commit_sha")
+        }
+        guard try git.run(
+            ["merge-base", "--is-ancestor", document.sourceEvidenceCommitSha, document.generatorCommitSha],
+            acceptedStatuses: [0, 1]
+        ).status == 0 else {
+            throw ValidatorError("source_evidence_not_ancestor_of_generator")
+        }
+        guard try git.run(
+            ["merge-base", "--is-ancestor", document.generatorCommitSha, "HEAD"],
+            acceptedStatuses: [0, 1]
+        ).status == 0 else {
+            throw ValidatorError("generator_commit_not_ancestor_of_head")
         }
         guard try git.text(["rev-parse", "\(document.sourceEvidenceCommitSha)^{tree}"]) == document.sourceEvidenceTreeSha else { throw ValidatorError("source_manifest_rebind") }
         let blob = try git.run(["cat-file", "blob", "\(document.sourceEvidenceCommitSha):evidence/phase0/manifest.sha256"]).stdout

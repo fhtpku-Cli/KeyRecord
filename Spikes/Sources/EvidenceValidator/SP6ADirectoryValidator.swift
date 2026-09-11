@@ -98,6 +98,7 @@ enum SP6ADirectoryValidator {
     static func validateHistoryAnchor(_ evidence: SP6AEvidence, directory: URL, repository: URL) throws {
         let keychain = try decodeKeychain(directory)
         try SP6ANamespaceValidator.validateHistoryContract(keychain)
+        try SP6ALegacyHistoryAnchorValidator.validate(directory: directory, repository: repository)
         let anchor: SP6ANamespaceHistoryAnchor = try exactDecode(
             directory, SP6ANamespaceHistoryContract.metadataArtifactName,
             code: "sp6a_history_anchor_contract_invalid"

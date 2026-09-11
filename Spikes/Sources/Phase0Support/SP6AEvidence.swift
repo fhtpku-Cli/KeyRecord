@@ -107,6 +107,7 @@ public enum SP6ARunnerBinding {
         "Spikes/Sources/EvidenceValidator/AtomicityHistoricalValidator.swift", "Spikes/Sources/EvidenceValidator/Canonical.swift",
         "Spikes/Sources/EvidenceValidator/EvidenceValidatorCommand.swift", "Spikes/Sources/EvidenceValidator/GitRunner.swift",
         "Spikes/Sources/EvidenceValidator/SP6ADirectoryValidator.swift", "Spikes/Sources/EvidenceValidator/SP6AHistoryAnchorValidator.swift",
+        "Spikes/Sources/EvidenceValidator/SP6ALegacyHistoryAnchorValidator.swift",
         "Spikes/Sources/EvidenceValidator/SP6ANamespaceValidator.swift",
         "Spikes/Sources/EvidenceValidator/ValidatorError.swift",
         "Spikes/Tests/EvidenceValidatorTests/SP6ANamespaceValidatorTests.swift",
@@ -119,7 +120,10 @@ public enum SP6ARunnerBinding {
 public enum SP6ADirectoryLayout {
     public static let artifactNames: Set<String> = [
         "SP-6A-CONCLUSION.md", "atomicity-citation.json", "crypto.json", "evidence.json", "history-anchor.json",
-        "keychain.json", "locator.json", "namespace-attempt-history-v2.json", "path-canary.json", "security-audit.md",
+        "keychain.json", "locator.json",
+        SP6ANamespaceHistoryContract.legacyAnchorArtifactName,
+        SP6ANamespaceHistoryContract.anchorArtifactName,
+        "path-canary.json", "security-audit.md",
     ]
     public static let allNames = artifactNames.union(["manifest.sha256"])
     public static let boundArtifactNames = artifactNames.subtracting(["SP-6A-CONCLUSION.md", "evidence.json"])

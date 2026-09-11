@@ -15,7 +15,31 @@ enum SP6AProbe {
         let anchorURL = anchored ? URL(fileURLWithPath: arguments[6]) : nil
         let anchorBytes = try anchorURL.map(boundedFile)
         let resolvedHistoryAnchor = try anchorURL.map(SP6AHistoryAnchorProbe.resolve)
+        let legacyV2 = try legacyHistoryBytes(environmentURL: environmentURL, output: output)
         try invalidate(output)
+        do {
+            try runValidated(
+                environmentURL: environmentURL,
+                output: output,
+                anchorBytes: anchorBytes,
+                resolvedHistoryAnchor: resolvedHistoryAnchor,
+                legacyV2: legacyV2,
+                identityProvider: identityProvider
+            )
+        } catch {
+            try invalidate(output)
+            throw error
+        }
+    }
+
+    private static func runValidated(
+        environmentURL: URL,
+        output: URL,
+        anchorBytes: Data?,
+        resolvedHistoryAnchor: SP6ANamespaceHistoryAnchor?,
+        legacyV2: Data,
+        identityProvider: (any AtomicityRunnerIdentityProviding)?
+    ) throws {
         let environmentData = try boundedFile(environmentURL)
         _ = try JSONDecoder().decode(EnvironmentEvidence.self, from: environmentData)
         let anchoredHistory = try anchorBytes.map { try JSONDecoder().decode(SP6ANamespaceAttemptHistory.self, from: $0) }
@@ -49,6 +73,7 @@ enum SP6AProbe {
         let artifacts: [String: Data] = [
             "crypto.json": try encoded(crypto), "locator.json": try encoded(locator), "path-canary.json": try encoded(pathCanary),
             "keychain.json": try encoded(keychain), "atomicity-citation.json": try encoded(citation), "security-audit.md": Data(audit.utf8),
+            SP6ANamespaceHistoryContract.legacyAnchorArtifactName: legacyV2,
             SP6ANamespaceHistoryContract.anchorArtifactName: try (anchorBytes ?? encoded(keychain.attemptHistory)),
             SP6ANamespaceHistoryContract.metadataArtifactName: try encoded(historyAnchor),
         ]
@@ -154,6 +179,30 @@ enum SP6AProbe {
         let values = try url.resourceValues(forKeys: [.isRegularFileKey, .isSymbolicLinkKey, .fileSizeKey])
         guard values.isRegularFile == true, values.isSymbolicLink != true, (values.fileSize ?? Int.max) <= 1_048_576 else { throw SP6AProbeError.invalidFile }
         return try Data(contentsOf: url, options: .mappedIfSafe)
+    }
+
+    private static func legacyHistoryBytes(environmentURL: URL, output: URL) throws -> Data {
+        let repository = try? repositoryRoot()
+        var candidates = [
+            output.appendingPathComponent(SP6ANamespaceHistoryContract.legacyAnchorArtifactName),
+            environmentURL.deletingLastPathComponent().appendingPathComponent("sp6a/\(SP6ANamespaceHistoryContract.legacyAnchorArtifactName)"),
+        ]
+        if let repository {
+            candidates.append(repository.appendingPathComponent("evidence/phase0/sp6a/\(SP6ANamespaceHistoryContract.legacyAnchorArtifactName)"))
+        }
+        for url in candidates where FileManager.default.fileExists(atPath: url.path) {
+            return try boundedFile(url)
+        }
+        throw SP6AProbeError.invalidFile
+    }
+
+    private static func repositoryRoot() throws -> URL {
+        var value = URL(fileURLWithPath: FileManager.default.currentDirectoryPath).standardizedFileURL
+        while value.path != "/" {
+            if FileManager.default.fileExists(atPath: value.appendingPathComponent(".git").path) { return value }
+            value.deleteLastPathComponent()
+        }
+        throw SP6AProbeError.invalidFile
     }
 }
 

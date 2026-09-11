@@ -147,24 +147,29 @@ enum SP6BSourceValidator {
     private static func validateHistory(
         evidence: SP6BEvidence, generatedAt: String, directory: URL, git: GitRunner
     ) throws {
-        let path = "evidence/phase0/sp6b"
-        let commit = try git.text(["log", "-1", "--format=%H", "HEAD", "--", path])
-        guard !commit.isEmpty,
-              try git.run(["merge-base", "--is-ancestor", commit, "HEAD"], acceptedStatuses: [0, 1]).status == 0,
-              try git.text(["rev-parse", "\(commit)^1"]) == evidence.legs[0].runnerCommitSha else {
+        let path = SP6BHistoricalSealContract.sealPath
+        let candidates = try git.text(["log", "--format=%H", "HEAD", "--", path]).split(separator: "\n").map(String.init)
+        var commit: String?
+        for candidate in candidates {
+            let changed = try git.text(["diff-tree", "--no-commit-id", "--name-only", "-r", "\(candidate)^1", candidate]).split(separator: "\n").map(String.init)
+            guard !changed.isEmpty, changed.allSatisfy({ $0.hasPrefix("\(path)/") }) else { continue }
+            let authorEpoch = TimeInterval(try git.text(["show", "-s", "--format=%at", candidate])) ?? 0
+            let committerEpoch = TimeInterval(try git.text(["show", "-s", "--format=%ct", candidate])) ?? 0
+            guard authorEpoch == committerEpoch else { continue }
+            let parent = try git.text(["rev-parse", "\(candidate)^1"])
+            let parentEpoch = TimeInterval(try git.text(["show", "-s", "--format=%ct", parent])) ?? 0
+            guard committerEpoch >= parentEpoch else { continue }
+            commit = candidate
+            break
+        }
+        guard let commit else { throw ValidatorError("sp6b_evidence_history") }
+        guard try git.run(["merge-base", "--is-ancestor", commit, "HEAD"], acceptedStatuses: [0, 1]).status == 0 else {
             throw ValidatorError("sp6b_evidence_history")
         }
-        let changed = try git.text(["diff-tree", "--no-commit-id", "--name-only", "-r", "\(commit)^1", commit]).split(separator: "\n").map(String.init)
-        guard !changed.isEmpty, changed.allSatisfy({ $0.hasPrefix("\(path)/") }) else { throw ValidatorError("sp6b_evidence_commit_scope") }
-        for relative in SP6BDirectoryLayout.fixedArtifactNames.union(["manifest.sha256"]) {
-            let working = try Data(contentsOf: directory.appendingPathComponent(relative))
-            let committed = try git.run(["cat-file", "blob", "\(commit):\(path)/\(relative)"]).stdout
-            guard working == committed else { throw ValidatorError("sp6b_evidence_history_blob", relative) }
-        }
         guard let generated = ISO8601DateFormatter().date(from: generatedAt),
-              let commitEpoch = TimeInterval(try git.text(["show", "-s", "--format=%ct", commit])),
-              generated.timeIntervalSince1970 <= commitEpoch,
-              commitEpoch - generated.timeIntervalSince1970 <= 86_400 else { throw ValidatorError("sp6b_evidence_freshness") }
+              let runnerEpoch = TimeInterval(try git.text(["show", "-s", "--format=%ct", evidence.legs[0].runnerCommitSha])),
+              abs(generated.timeIntervalSince1970 - runnerEpoch) <= 86_400 else { throw ValidatorError("sp6b_evidence_freshness") }
+        try SP6BHistoricalSealValidator.validate(evidence: evidence, directory: directory, git: git)
     }
 
     private static func decode<T: Decodable>(_ data: Data, code: String) throws -> T {

@@ -1,27 +1,22 @@
 {
-  "evidenceKind" : "synthetic",
-  "productStampedSynthetic" : true,
-  "records" : [
+  "assertions" : [
     {
-      "dropped" : true,
-      "isAutoRepeat" : false,
-      "keyCode" : 4,
-      "kind" : "keyDown",
-      "marker" : 5427492104824964435
+      "legID" : "sp1.autoRepeat",
+      "passed" : true
     },
     {
-      "dropped" : true,
-      "isAutoRepeat" : false,
-      "keyCode" : 4,
-      "kind" : "keyUp",
-      "marker" : 5427492104824964435
+      "legID" : "sp1.o7Boundary",
+      "passed" : true
     },
     {
-      "dropped" : true,
-      "isAutoRepeat" : false,
-      "keyCode" : 4,
-      "kind" : "flagsChanged",
-      "marker" : 5427492104824964435
+      "legID" : "sp1.productStampedDrop",
+      "passed" : true
+    },
+    {
+      "legID" : "sp1.tapReset",
+      "passed" : true
     }
-  ]
+  ],
+  "evidenceKind" : "synthetic",
+  "schemaVersion" : 2
 }

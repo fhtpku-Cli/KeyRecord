@@ -3,10 +3,16 @@ import Darwin
 import Foundation
 import Phase0Support
 
+protocol SP2LiveScenarioExecuting: Sendable {
+    func execute(d1: Bool, d3: Bool, d4: Bool, secureHelper: SecureInputState?) -> SP2LiveExecution
+}
+
 enum SP2Probe {
     static func run(
         arguments: [String],
-        identityProvider: any AtomicityRunnerIdentityProviding = GitAtomicityRunnerIdentityProvider(sourcePaths: SP2RunnerBinding.sourcePaths.sorted())
+        identityProvider: any AtomicityRunnerIdentityProviding = GitAtomicityRunnerIdentityProvider(sourcePaths: SP2RunnerBinding.sourcePaths.sorted()),
+        liveExecutor: any SP2LiveScenarioExecuting = ProcessEnvironmentSP2LiveExecutor(),
+        secureHelperProvider: @Sendable () -> SecureInputState? = { safeSecureInputHelperState() }
     ) throws {
         guard arguments.count == 5, arguments[0] == "sp2", arguments[1] == "--environment",
               arguments[3] == "--output" else { throw ProbeError.usage }
@@ -19,7 +25,7 @@ enum SP2Probe {
         let environmentHash = AtomicityDigest.sha256(environmentData)
         let d1 = environment.guiSession.status == .available && environment.listenEventAccess == .available
             && environment.guiSession.tapCreate == .available
-        let secureHelper = safeSecureInputHelperState()
+        let secureHelper = secureHelperProvider()
         let d3 = environment.guiSession.status == .available && secureHelper != nil
         let d4 = environment.guiSession.status == .available && environment.sudoNonInteractive
         if environment.guiSession.status == .available { _ = boundedFrontmostMetadataPreflight() }
@@ -29,7 +35,10 @@ enum SP2Probe {
         let modifiers = modelExecution.modifiers
         let privacyData = try encoded(privacy)
         let modifierData = try encoded(modifiers)
-        let liveData = try encoded(SP2AggregateArtifact(evidenceKind: .live))
+        let v2Live = SP2LiveArming.v2Enabled
+        let liveExecution = v2Live ? liveExecutor.execute(d1: d1, d3: d3, d4: d4, secureHelper: secureHelper) : nil
+        let liveData = try liveExecution.map { try $0.aggregate.canonicalData() }
+            ?? encoded(SP2AggregateArtifact(evidenceKind: .live))
         let hashes = [
             "privacy-model.json": AtomicityDigest.sha256(privacyData),
             "modifier-model.json": AtomicityDigest.sha256(modifierData),
@@ -42,10 +51,21 @@ enum SP2Probe {
             if !available {
                 return blockedLeg(legID, rule: rule, identity: identity, environmentHash: environmentHash)
             }
+            if v2Live, rule.evidenceKind == .live, liveExecution?.armed != true {
+                return SP2Leg(
+                    legID: legID, evidenceKind: rule.evidenceKind, detectorID: rule.detectorID,
+                    detectorAvailable: false, verdict: .blocked, blocker: SP2CanonicalBlockers.liveExecutionNotArmed,
+                    runnerCommitSha: identity.commitSha, runnerTreeSha: identity.treeSha,
+                    environmentSha256: environmentHash, command: [], exitStatus: nil, artifactSha256: nil,
+                    dataDelta: 0, metaDelta: 0
+                )
+            }
             let artifactName = rule.evidenceKind == .live ? "live-aggregate-counts.json"
                 : (legID.contains("sided") || legID.contains("fnRecoveryModel") ? "modifier-model.json" : "privacy-model.json")
             let verdict: Verdict
-            if rule.evidenceKind == .live {
+            if rule.evidenceKind == .live, let liveExecution {
+                verdict = Self.liveVerdict(legID, execution: liveExecution)
+            } else if rule.evidenceKind == .live {
                 verdict = .inconclusive
             } else {
                 verdict = modelExecution.assertions[legID] == true ? .pass : .fail
@@ -59,13 +79,15 @@ enum SP2Probe {
                 exitStatus: 0, artifactPath: artifactName, artifactSha256: hashes[artifactName], dataDelta: delta, metaDelta: delta
             )
         }
+        let verdict = aggregate(legs.map(\.verdict))
+        let allPass = legs.allSatisfy { $0.verdict == .pass }
         let report = SP2Evidence(
-            legs: legs, verdict: aggregate(legs.map(\.verdict)), o6Status: .open, g0Status: .open,
+            legs: legs, verdict: verdict, o6Status: allPass ? .resolved : .open, g0Status: .open,
             runnerSourceSha256: identity.sourceSha256
         )
         try report.validate()
         try publish(report: report, privacyData: privacyData, modifierData: modifierData, liveData: liveData, output: output)
-        print("SP2=\(report.verdict.rawValue) pass=\(legs.filter { $0.verdict == .pass }.count) blocked=\(legs.filter { $0.verdict == .blocked }.count) o6=OPEN g0=OPEN output=\(output.path)")
+        print("SP2=\(report.verdict.rawValue) pass=\(legs.filter { $0.verdict == .pass }.count) blocked=\(legs.filter { $0.verdict == .blocked }.count) o6=\(report.o6Status.rawValue) g0=OPEN output=\(output.path)")
     }
 
     private static func blockedLeg(_ legID: String, rule: Phase0Registry.LegRule,
@@ -132,7 +154,7 @@ enum SP2Probe {
             try modifierData.write(to: temporary.appendingPathComponent("modifier-model.json"))
             try liveData.write(to: temporary.appendingPathComponent("live-aggregate-counts.json"))
             let rows = report.legs.map { "- `\($0.legID)`: \($0.verdict.rawValue) (`\($0.blocker?.blockedBy ?? "executed")`)" }.joined(separator: "\n")
-            let conclusion = "# SP-2 conclusion\n\nVerdict: **\(report.verdict.rawValue)**\n\nO6: **OPEN**\n\nG0: **OPEN**\n\nLive checks were bounded metadata preflights only. No permission prompt, sleep, persistent monitor, event detail, key, text, sequence, or exact timestamp was recorded.\n\n\(rows)\n"
+            let conclusion = "# SP-2 conclusion\n\nVerdict: **\(report.verdict.rawValue)**\n\nO6: **\(report.o6Status.rawValue)**\n\nG0: **\(report.g0Status.rawValue)**\n\nLive checks were bounded metadata preflights only. No permission prompt, sleep, persistent monitor, event detail, key, text, sequence, or exact timestamp was recorded.\n\n\(rows)\n"
             try Data(conclusion.utf8).write(to: temporary.appendingPathComponent("SP-2-CONCLUSION.md"))
             try writeManifest(in: temporary)
             try FileManager.default.moveItem(at: temporary, to: output)
@@ -164,11 +186,30 @@ enum SP2Probe {
             try? FileManager.default.removeItem(at: parent.appendingPathComponent(name))
         }
     }
+    private static func liveVerdict(_ legID: String, execution: SP2LiveExecution) -> Verdict {
+        let passes: Bool
+        switch legID {
+        case "sp2.frontmostKnown": passes = execution.frontmostKnownPasses
+        case "sp2.frontmostUnattributable": passes = execution.frontmostUnattributablePasses
+        case "sp2.fnRecoveryLive": passes = execution.fnRecoveryLivePasses
+        case "sp2.secureInput": passes = execution.secureInputPasses
+        case "sp2.sleepWake": passes = execution.sleepWakePasses
+        default: passes = false
+        }
+        return passes ? .pass : .inconclusive
+    }
+
     private static func aggregate(_ verdicts: [Verdict]) -> Verdict {
         verdicts.max { precedence($0) < precedence($1) } ?? .blocked
     }
     private static func precedence(_ verdict: Verdict) -> Int {
         switch verdict { case .pass: 0; case .inconclusive: 1; case .blocked: 2; case .fail: 3 }
+    }
+}
+
+extension SP2Probe {
+    static func boundedFrontmostMetadataPreflightForExecutor() -> FrontmostState {
+        boundedFrontmostMetadataPreflight()
     }
 }
 

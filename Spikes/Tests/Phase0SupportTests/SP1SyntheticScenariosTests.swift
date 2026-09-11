@@ -105,7 +105,8 @@ final class SP1SyntheticScenariosTests: XCTestCase {
     func testSchema2StillRequiresOpenG0ExactO7GuaranteeAndSupportedVersion() {
         assertReject(.invalidO7, mutate(schema2Report(sharedSyntheticHash: false)) { $0.o7Guarantee = "weakened" })
         assertReject(.invalidO7, mutate(schema2Report(sharedSyntheticHash: false)) { $0.g0Status = .passed })
-        assertReject(.invalidO7, mutate(schema2Report(sharedSyntheticHash: false)) { $0.schemaVersion = 3 })
+        assertReject(.invalidO7, mutate(schema2Report(sharedSyntheticHash: false)) { $0.schemaVersion = 4 })
+        XCTAssertNoThrow(try mutate(schema2Report(sharedSyntheticHash: false)) { $0.schemaVersion = 3 }.validate())
     }
 
     private func schema2Report(sharedSyntheticHash: Bool) -> SP1Evidence {

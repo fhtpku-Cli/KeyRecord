@@ -105,6 +105,14 @@ public enum SP6BRunnerBinding {
     ]
 }
 
+public enum SP6BHistoricalSealContract {
+    public static let sealCommitSha = "7a394243bb498de43478d436ffe3839795c749ad"
+    public static let runnerCommitSha = "b19a3436606a2cbafadf38140d96824dac39f2ec"
+    public static let runnerTreeSha = "97b003dda9d6519b74f7402585b765b84d051093"
+    public static let executionEnvironmentSha256 = "6b3288f5983cbce231295762d3f8381b8467d6dbe2e74fff0e17a1aebf7215f4"
+    public static let sealPath = "evidence/phase0/sp6b"
+}
+
 public enum SP6BDirectoryLayout {
     public static let fixedArtifactNames: Set<String> = [
         "SP-6B-CONCLUSION.md", "arm-benchmark.json", "build/argon2-universal.a", "build/build.json",

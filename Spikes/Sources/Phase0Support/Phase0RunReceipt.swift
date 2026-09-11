@@ -111,6 +111,7 @@ public enum Phase0RunBinding {
         "Spikes/Sources/EvidenceValidator/SP6AHistoryAnchorValidator.swift", "Spikes/Sources/EvidenceValidator/SP6ANamespaceValidator.swift",
         "Spikes/Sources/EvidenceValidator/SP6BDirectoryValidator.swift", "Spikes/Sources/EvidenceValidator/SP6BBenchmarkValidator.swift",
         "Spikes/Sources/EvidenceValidator/SP6BBuildValidator.swift", "Spikes/Sources/EvidenceValidator/SP6BNVDValidator.swift",
+        "Spikes/Sources/EvidenceValidator/SP6BHistoricalSealValidator.swift",
         "Spikes/Sources/EvidenceValidator/ReceiptValidator.swift", "Spikes/Sources/EvidenceValidator/SP6BSourceValidator.swift",
         "Spikes/Sources/EvidenceValidator/ValidatorError.swift",
         "Spikes/Sources/Phase0Probe/AtomicityRunnerIdentity.swift", "Spikes/Sources/Phase0Probe/RunAllProbe.swift",

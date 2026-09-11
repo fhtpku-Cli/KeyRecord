@@ -24,6 +24,11 @@ query="Spikes/Sources/Phase0Support/VialQuery.swift"
 [[ "$(awk '/public enum VialQuery:/{inside=1; next} inside && /^}/{exit} inside && /^[[:space:]]*case /{count++} END{print count+0}' "$query")" -eq 4 ]] || { printf 'SOURCE_BOUNDARY_AUDIT=FAIL reason=vial_case_set\n' >&2; exit 1; }
 /usr/bin/grep -Fq 'default: throw VialQueryError.invalidQuery' "$query" || { printf 'SOURCE_BOUNDARY_AUDIT=FAIL reason=deny_all_default\n' >&2; exit 1; }
 if /usr/bin/grep -Rq 'IOHIDDeviceSetReport' Spikes/Sources; then printf 'SOURCE_BOUNDARY_AUDIT=FAIL reason=device_write_symbol\n' >&2; exit 1; fi
+if /usr/bin/grep -REn --include='*.swift' 'CGEventPost[[:space:]]*\(|CGEventPostToPid[[:space:]]*\(|CGEventPostToPSN[[:space:]]*\(|CGEvent\.post[[:space:]]*\(' "$source_root" >"$tmp_dir/cgevent-post"; then
+  printf 'SOURCE_BOUNDARY_AUDIT=FAIL reason=cgevent_post\n' >&2
+  cat "$tmp_dir/cgevent-post" >&2
+  exit 1
+fi
 if /usr/bin/grep -Eq '\.package[[:space:]]*\(' Spikes/Package.swift; then printf 'SOURCE_BOUNDARY_AUDIT=FAIL reason=external_package\n' >&2; exit 1; fi
 if /usr/bin/grep -Eq 'KeyRecord(App|Core|Capture|Store|Backends)' Spikes/Package.swift; then printf 'SOURCE_BOUNDARY_AUDIT=FAIL reason=production_target\n' >&2; exit 1; fi
 printf 'SOURCE_BOUNDARY_AUDIT=PASS vial=whitelist-only production_targets=0 external_packages=0\n'

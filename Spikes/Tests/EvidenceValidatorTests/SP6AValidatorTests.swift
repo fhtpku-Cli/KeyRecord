@@ -279,12 +279,9 @@ struct SP6ATestDirectory {
         let repository = container.appendingPathComponent("repo"), output = repository.appendingPathComponent("sp6a")
         try FileManager.default.createDirectory(at: container, withIntermediateDirectories: false)
         try runGit(["clone", "-q", source.path, repository.path], source)
-        let anchorAdds = try gitOutput([
-            "log", "--format=%H", "--diff-filter=A", "HEAD", "--", SP6ANamespaceHistoryContract.anchorPath,
-        ], repository).split(separator: "\n")
-        if let anchorAdd = anchorAdds.first {
-            try runGit(["checkout", "-q", "\(anchorAdd)^"], repository)
-        }
+        try runGit([
+            "checkout", "-q", "-B", "fixture-sp6a", SP6ANamespaceHistoryContract.legacyAnchorCommitSha,
+        ], repository)
         for path in SP6ARunnerBinding.sourcePaths {
             let destination = repository.appendingPathComponent(path)
             try FileManager.default.createDirectory(at: destination.deletingLastPathComponent(), withIntermediateDirectories: true)
@@ -324,6 +321,10 @@ struct SP6ATestDirectory {
         attempts.append(generationReceipt)
         let history = SP6ANamespaceAttemptHistory(attempts: attempts)
         let historyData = try pretty(history)
+        let legacyV2URL = source.appendingPathComponent("evidence/phase0/sp6a/\(SP6ANamespaceHistoryContract.legacyAnchorArtifactName)")
+        let legacyV2Data = FileManager.default.fileExists(atPath: legacyV2URL.path)
+            ? try Data(contentsOf: legacyV2URL)
+            : try Data(contentsOf: repository.appendingPathComponent("evidence/phase0/sp6a/\(SP6ANamespaceHistoryContract.legacyAnchorArtifactName)"))
         let anchorInRepository = repository.appendingPathComponent(SP6ANamespaceHistoryContract.anchorPath)
         try FileManager.default.createDirectory(at: anchorInRepository.deletingLastPathComponent(), withIntermediateDirectories: true)
         try historyData.write(to: anchorInRepository)
@@ -358,6 +359,7 @@ struct SP6ATestDirectory {
             "crypto.json": try pretty(SP6AScenarios.crypto()), "locator.json": try pretty(SP6AScenarios.locator()),
             "path-canary.json": try pretty(SP6AScenarios.pathCanary()), "keychain.json": try pretty(keychain),
             "atomicity-citation.json": try pretty(SP6AAtomicityCitation.expected), "security-audit.md": Data(SecurityAuditFixture.valid.utf8),
+            SP6ANamespaceHistoryContract.legacyAnchorArtifactName: legacyV2Data,
             SP6ANamespaceHistoryContract.anchorArtifactName: historyData,
             SP6ANamespaceHistoryContract.metadataArtifactName: try pretty(historyAnchor),
         ]
@@ -436,6 +438,40 @@ struct SP6ATestDirectory {
     func writeHistoryAnchor(_ value: SP6ANamespaceHistoryAnchor) throws {
         try Self.pretty(value).write(to: output.appendingPathComponent(SP6ANamespaceHistoryContract.metadataArtifactName))
     }
+    func commitLegacyAnchorAttack(_ scenario: SP6AAnchorAttackScenario) throws {
+        let path = SP6ANamespaceHistoryContract.legacyAnchorPath
+        let anchor = repository.appendingPathComponent(path)
+        let canonical = try Data(contentsOf: output.appendingPathComponent(SP6ANamespaceHistoryContract.legacyAnchorArtifactName))
+        func commit(_ message: String) throws {
+            try Self.runGit(["add", "-A"], repository)
+            try Self.runGit([
+                "-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid",
+                "commit", "-q", "-m", message,
+            ], repository)
+        }
+        switch scenario {
+        case .changedBytes:
+            try Data("legacy descendant replacement\n".utf8).write(to: anchor)
+            try commit("descendant changes legacy anchor")
+        case .restoredBytes:
+            try Data("temporary legacy replacement\n".utf8).write(to: anchor)
+            try commit("descendant changes legacy anchor")
+            try canonical.write(to: anchor)
+            try commit("descendant restores legacy anchor")
+        case .deleteAndReadd:
+            try FileManager.default.removeItem(at: anchor)
+            try commit("descendant deletes legacy anchor")
+            try canonical.write(to: anchor)
+            try commit("descendant readds legacy anchor")
+        case .renameCycle:
+            let moved = repository.appendingPathComponent("\(path).moved")
+            try FileManager.default.moveItem(at: anchor, to: moved)
+            try commit("descendant renames legacy anchor")
+            try FileManager.default.moveItem(at: moved, to: anchor)
+            try commit("descendant restores legacy anchor path")
+        }
+    }
+
     func commitAnchorAttack(_ scenario: SP6AAnchorAttackScenario) throws {
         let path = SP6ANamespaceHistoryContract.anchorPath
         let anchor = repository.appendingPathComponent(path)

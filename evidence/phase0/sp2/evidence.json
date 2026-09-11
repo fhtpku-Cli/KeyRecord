@@ -2,52 +2,46 @@
   "g0Status" : "OPEN",
   "legs" : [
     {
-      "blocker" : {
-        "blocked_by" : "input_monitoring_denied",
-        "detect_command" : [
-          "CGPreflightListenEventAccess",
-          "environment.json guiSession.tapCreate"
-        ],
-        "prerequisite" : "GUI session with Input Monitoring already granted",
-        "unblock_action" : "Grant Input Monitoring outside this probe, then rerun; this probe never prompts"
-      },
+      "artifactPath" : "privacy-model.json",
+      "artifactSha256" : "421aeba58ec08084fa9352a731cb83df57222e4cdf72b01e868f581a8f1b87bb",
       "command" : [
-
+        "Phase0Probe",
+        "sp2",
+        "bounded",
+        "sp2.excludedApp"
       ],
       "dataDelta" : 0,
-      "detectorAvailable" : false,
+      "detectorAvailable" : true,
       "detectorID" : "D1",
-      "environmentSha256" : "6b3288f5983cbce231295762d3f8381b8467d6dbe2e74fff0e17a1aebf7215f4",
+      "environmentSha256" : "c67cd660c318012dd04613a0c598198fa15aec6ce3cb905314be2946e130e77f",
       "evidenceKind" : "synthetic",
+      "exitStatus" : 0,
       "legID" : "sp2.excludedApp",
       "metaDelta" : 0,
-      "runnerCommitSha" : "a8d89d633b87b8a52a64cb00d696a3dcd03a3e99",
-      "runnerTreeSha" : "58d3c82d3d204a896a2a09f39699e3907b04be91",
-      "verdict" : "BLOCKED"
+      "runnerCommitSha" : "7b3719edc968ed7318cbcc22ef78a341dc0e5f3d",
+      "runnerTreeSha" : "cd47eb21daa84a79560b2e7a11d624b63d6a19dc",
+      "verdict" : "PASS"
     },
     {
-      "blocker" : {
-        "blocked_by" : "input_monitoring_denied",
-        "detect_command" : [
-          "CGPreflightListenEventAccess",
-          "environment.json guiSession.tapCreate"
-        ],
-        "prerequisite" : "GUI session with Input Monitoring already granted",
-        "unblock_action" : "Grant Input Monitoring outside this probe, then rerun; this probe never prompts"
-      },
+      "artifactPath" : "live-aggregate-counts.json",
+      "artifactSha256" : "826543f8aa6dba74c3c1b625751bff2f775f27e1254f1c7de3f74fccab0ad3f8",
       "command" : [
-
+        "Phase0Probe",
+        "sp2",
+        "bounded",
+        "sp2.fnRecoveryLive"
       ],
       "dataDelta" : 0,
-      "detectorAvailable" : false,
+      "detectorAvailable" : true,
       "detectorID" : "D1",
-      "environmentSha256" : "6b3288f5983cbce231295762d3f8381b8467d6dbe2e74fff0e17a1aebf7215f4",
+      "environmentSha256" : "c67cd660c318012dd04613a0c598198fa15aec6ce3cb905314be2946e130e77f",
       "evidenceKind" : "live",
+      "exitStatus" : 0,
       "legID" : "sp2.fnRecoveryLive",
       "metaDelta" : 0,
-      "runnerCommitSha" : "a8d89d633b87b8a52a64cb00d696a3dcd03a3e99",
-      "runnerTreeSha" : "58d3c82d3d204a896a2a09f39699e3907b04be91",
-      "verdict" : "BLOCKED"
+      "runnerCommitSha" : "7b3719edc968ed7318cbcc22ef78a341dc0e5f3d",
+      "runnerTreeSha" : "cd47eb21daa84a79560b2e7a11d624b63d6a19dc",
+      "verdict" : "PASS"
     },
     {
       "artifactPath" : "modifier-model.json",
@@ -61,13 +55,13 @@
       "dataDelta" : 0,
       "detectorAvailable" : true,
       "detectorID" : "D0",
-      "environmentSha256" : "6b3288f5983cbce231295762d3f8381b8467d6dbe2e74fff0e17a1aebf7215f4",
+      "environmentSha256" : "c67cd660c318012dd04613a0c598198fa15aec6ce3cb905314be2946e130e77f",
       "evidenceKind" : "fixture",
       "exitStatus" : 0,
       "legID" : "sp2.fnRecoveryModel",
       "metaDelta" : 0,
-      "runnerCommitSha" : "a8d89d633b87b8a52a64cb00d696a3dcd03a3e99",
-      "runnerTreeSha" : "58d3c82d3d204a896a2a09f39699e3907b04be91",
+      "runnerCommitSha" : "7b3719edc968ed7318cbcc22ef78a341dc0e5f3d",
+      "runnerTreeSha" : "cd47eb21daa84a79560b2e7a11d624b63d6a19dc",
       "verdict" : "PASS"
     },
     {
@@ -82,87 +76,77 @@
       "dataDelta" : 0,
       "detectorAvailable" : true,
       "detectorID" : "D0",
-      "environmentSha256" : "6b3288f5983cbce231295762d3f8381b8467d6dbe2e74fff0e17a1aebf7215f4",
+      "environmentSha256" : "c67cd660c318012dd04613a0c598198fa15aec6ce3cb905314be2946e130e77f",
       "evidenceKind" : "fixture",
       "exitStatus" : 0,
       "legID" : "sp2.frontmostIndeterminate",
       "metaDelta" : 0,
-      "runnerCommitSha" : "a8d89d633b87b8a52a64cb00d696a3dcd03a3e99",
-      "runnerTreeSha" : "58d3c82d3d204a896a2a09f39699e3907b04be91",
+      "runnerCommitSha" : "7b3719edc968ed7318cbcc22ef78a341dc0e5f3d",
+      "runnerTreeSha" : "cd47eb21daa84a79560b2e7a11d624b63d6a19dc",
       "verdict" : "PASS"
     },
     {
-      "blocker" : {
-        "blocked_by" : "input_monitoring_denied",
-        "detect_command" : [
-          "CGPreflightListenEventAccess",
-          "environment.json guiSession.tapCreate"
-        ],
-        "prerequisite" : "GUI session with Input Monitoring already granted",
-        "unblock_action" : "Grant Input Monitoring outside this probe, then rerun; this probe never prompts"
-      },
+      "artifactPath" : "live-aggregate-counts.json",
+      "artifactSha256" : "826543f8aa6dba74c3c1b625751bff2f775f27e1254f1c7de3f74fccab0ad3f8",
       "command" : [
-
+        "Phase0Probe",
+        "sp2",
+        "bounded",
+        "sp2.frontmostKnown"
       ],
-      "dataDelta" : 0,
-      "detectorAvailable" : false,
+      "dataDelta" : 1,
+      "detectorAvailable" : true,
       "detectorID" : "D1",
-      "environmentSha256" : "6b3288f5983cbce231295762d3f8381b8467d6dbe2e74fff0e17a1aebf7215f4",
+      "environmentSha256" : "c67cd660c318012dd04613a0c598198fa15aec6ce3cb905314be2946e130e77f",
       "evidenceKind" : "live",
+      "exitStatus" : 0,
       "legID" : "sp2.frontmostKnown",
-      "metaDelta" : 0,
-      "runnerCommitSha" : "a8d89d633b87b8a52a64cb00d696a3dcd03a3e99",
-      "runnerTreeSha" : "58d3c82d3d204a896a2a09f39699e3907b04be91",
-      "verdict" : "BLOCKED"
+      "metaDelta" : 1,
+      "runnerCommitSha" : "7b3719edc968ed7318cbcc22ef78a341dc0e5f3d",
+      "runnerTreeSha" : "cd47eb21daa84a79560b2e7a11d624b63d6a19dc",
+      "verdict" : "PASS"
     },
     {
-      "blocker" : {
-        "blocked_by" : "input_monitoring_denied",
-        "detect_command" : [
-          "CGPreflightListenEventAccess",
-          "environment.json guiSession.tapCreate"
-        ],
-        "prerequisite" : "GUI session with Input Monitoring already granted",
-        "unblock_action" : "Grant Input Monitoring outside this probe, then rerun; this probe never prompts"
-      },
+      "artifactPath" : "live-aggregate-counts.json",
+      "artifactSha256" : "826543f8aa6dba74c3c1b625751bff2f775f27e1254f1c7de3f74fccab0ad3f8",
       "command" : [
-
+        "Phase0Probe",
+        "sp2",
+        "bounded",
+        "sp2.frontmostUnattributable"
       ],
-      "dataDelta" : 0,
-      "detectorAvailable" : false,
+      "dataDelta" : 1,
+      "detectorAvailable" : true,
       "detectorID" : "D1",
-      "environmentSha256" : "6b3288f5983cbce231295762d3f8381b8467d6dbe2e74fff0e17a1aebf7215f4",
+      "environmentSha256" : "c67cd660c318012dd04613a0c598198fa15aec6ce3cb905314be2946e130e77f",
       "evidenceKind" : "live",
+      "exitStatus" : 0,
       "legID" : "sp2.frontmostUnattributable",
-      "metaDelta" : 0,
-      "runnerCommitSha" : "a8d89d633b87b8a52a64cb00d696a3dcd03a3e99",
-      "runnerTreeSha" : "58d3c82d3d204a896a2a09f39699e3907b04be91",
-      "verdict" : "BLOCKED"
+      "metaDelta" : 1,
+      "runnerCommitSha" : "7b3719edc968ed7318cbcc22ef78a341dc0e5f3d",
+      "runnerTreeSha" : "cd47eb21daa84a79560b2e7a11d624b63d6a19dc",
+      "verdict" : "PASS"
     },
     {
-      "blocker" : {
-        "blocked_by" : "secure_input_helper_unavailable",
-        "detect_command" : [
-          "test",
-          "-x",
-          "/usr/local/libexec/keyrecord-secure-input-status"
-        ],
-        "prerequisite" : "Already-installed safe Secure Event Input status helper",
-        "unblock_action" : "Install and authorize the reviewed helper separately, then rerun"
-      },
+      "artifactPath" : "live-aggregate-counts.json",
+      "artifactSha256" : "826543f8aa6dba74c3c1b625751bff2f775f27e1254f1c7de3f74fccab0ad3f8",
       "command" : [
-
+        "Phase0Probe",
+        "sp2",
+        "bounded",
+        "sp2.secureInput"
       ],
       "dataDelta" : 0,
-      "detectorAvailable" : false,
+      "detectorAvailable" : true,
       "detectorID" : "D3",
-      "environmentSha256" : "6b3288f5983cbce231295762d3f8381b8467d6dbe2e74fff0e17a1aebf7215f4",
+      "environmentSha256" : "c67cd660c318012dd04613a0c598198fa15aec6ce3cb905314be2946e130e77f",
       "evidenceKind" : "live",
+      "exitStatus" : 0,
       "legID" : "sp2.secureInput",
       "metaDelta" : 0,
-      "runnerCommitSha" : "a8d89d633b87b8a52a64cb00d696a3dcd03a3e99",
-      "runnerTreeSha" : "58d3c82d3d204a896a2a09f39699e3907b04be91",
-      "verdict" : "BLOCKED"
+      "runnerCommitSha" : "7b3719edc968ed7318cbcc22ef78a341dc0e5f3d",
+      "runnerTreeSha" : "cd47eb21daa84a79560b2e7a11d624b63d6a19dc",
+      "verdict" : "PASS"
     },
     {
       "artifactPath" : "modifier-model.json",
@@ -176,109 +160,100 @@
       "dataDelta" : 0,
       "detectorAvailable" : true,
       "detectorID" : "D0",
-      "environmentSha256" : "6b3288f5983cbce231295762d3f8381b8467d6dbe2e74fff0e17a1aebf7215f4",
+      "environmentSha256" : "c67cd660c318012dd04613a0c598198fa15aec6ce3cb905314be2946e130e77f",
       "evidenceKind" : "fixture",
       "exitStatus" : 0,
       "legID" : "sp2.sidedModifiers",
       "metaDelta" : 0,
-      "runnerCommitSha" : "a8d89d633b87b8a52a64cb00d696a3dcd03a3e99",
-      "runnerTreeSha" : "58d3c82d3d204a896a2a09f39699e3907b04be91",
+      "runnerCommitSha" : "7b3719edc968ed7318cbcc22ef78a341dc0e5f3d",
+      "runnerTreeSha" : "cd47eb21daa84a79560b2e7a11d624b63d6a19dc",
       "verdict" : "PASS"
     },
     {
-      "blocker" : {
-        "blocked_by" : "input_monitoring_denied",
-        "detect_command" : [
-          "CGPreflightListenEventAccess",
-          "environment.json guiSession.tapCreate"
-        ],
-        "prerequisite" : "GUI session with Input Monitoring already granted",
-        "unblock_action" : "Grant Input Monitoring outside this probe, then rerun; this probe never prompts"
-      },
+      "artifactPath" : "modifier-model.json",
+      "artifactSha256" : "0a92dd8282be5bfb9e00a20839ec014fe4440528f1154b00762d9ee8d5dc34f8",
       "command" : [
-
+        "Phase0Probe",
+        "sp2",
+        "bounded",
+        "sp2.sidedRecovery"
       ],
       "dataDelta" : 0,
-      "detectorAvailable" : false,
+      "detectorAvailable" : true,
       "detectorID" : "D1",
-      "environmentSha256" : "6b3288f5983cbce231295762d3f8381b8467d6dbe2e74fff0e17a1aebf7215f4",
+      "environmentSha256" : "c67cd660c318012dd04613a0c598198fa15aec6ce3cb905314be2946e130e77f",
       "evidenceKind" : "synthetic",
+      "exitStatus" : 0,
       "legID" : "sp2.sidedRecovery",
       "metaDelta" : 0,
-      "runnerCommitSha" : "a8d89d633b87b8a52a64cb00d696a3dcd03a3e99",
-      "runnerTreeSha" : "58d3c82d3d204a896a2a09f39699e3907b04be91",
-      "verdict" : "BLOCKED"
+      "runnerCommitSha" : "7b3719edc968ed7318cbcc22ef78a341dc0e5f3d",
+      "runnerTreeSha" : "cd47eb21daa84a79560b2e7a11d624b63d6a19dc",
+      "verdict" : "PASS"
     },
     {
-      "blocker" : {
-        "blocked_by" : "noninteractive_sleep_privilege_unavailable",
-        "detect_command" : [
-          "sudo",
-          "-n",
-          "true"
-        ],
-        "prerequisite" : "Separately authorized non-interactive sleep/wake test host",
-        "unblock_action" : "Provision a disposable authorized test host; this probe never sleeps the current host"
-      },
+      "artifactPath" : "live-aggregate-counts.json",
+      "artifactSha256" : "826543f8aa6dba74c3c1b625751bff2f775f27e1254f1c7de3f74fccab0ad3f8",
       "command" : [
-
+        "Phase0Probe",
+        "sp2",
+        "bounded",
+        "sp2.sleepWake"
       ],
       "dataDelta" : 0,
-      "detectorAvailable" : false,
+      "detectorAvailable" : true,
       "detectorID" : "D4",
-      "environmentSha256" : "6b3288f5983cbce231295762d3f8381b8467d6dbe2e74fff0e17a1aebf7215f4",
+      "environmentSha256" : "c67cd660c318012dd04613a0c598198fa15aec6ce3cb905314be2946e130e77f",
       "evidenceKind" : "live",
+      "exitStatus" : 0,
       "legID" : "sp2.sleepWake",
       "metaDelta" : 0,
-      "runnerCommitSha" : "a8d89d633b87b8a52a64cb00d696a3dcd03a3e99",
-      "runnerTreeSha" : "58d3c82d3d204a896a2a09f39699e3907b04be91",
-      "verdict" : "BLOCKED"
+      "runnerCommitSha" : "7b3719edc968ed7318cbcc22ef78a341dc0e5f3d",
+      "runnerTreeSha" : "cd47eb21daa84a79560b2e7a11d624b63d6a19dc",
+      "verdict" : "PASS"
     },
     {
-      "blocker" : {
-        "blocked_by" : "input_monitoring_denied",
-        "detect_command" : [
-          "CGPreflightListenEventAccess",
-          "environment.json guiSession.tapCreate"
-        ],
-        "prerequisite" : "GUI session with Input Monitoring already granted",
-        "unblock_action" : "Grant Input Monitoring outside this probe, then rerun; this probe never prompts"
-      },
+      "artifactPath" : "privacy-model.json",
+      "artifactSha256" : "421aeba58ec08084fa9352a731cb83df57222e4cdf72b01e868f581a8f1b87bb",
       "command" : [
-
+        "Phase0Probe",
+        "sp2",
+        "bounded",
+        "sp2.tapReset"
       ],
       "dataDelta" : 0,
-      "detectorAvailable" : false,
+      "detectorAvailable" : true,
       "detectorID" : "D1",
-      "environmentSha256" : "6b3288f5983cbce231295762d3f8381b8467d6dbe2e74fff0e17a1aebf7215f4",
+      "environmentSha256" : "c67cd660c318012dd04613a0c598198fa15aec6ce3cb905314be2946e130e77f",
       "evidenceKind" : "synthetic",
+      "exitStatus" : 0,
       "legID" : "sp2.tapReset",
       "metaDelta" : 0,
-      "runnerCommitSha" : "a8d89d633b87b8a52a64cb00d696a3dcd03a3e99",
-      "runnerTreeSha" : "58d3c82d3d204a896a2a09f39699e3907b04be91",
-      "verdict" : "BLOCKED"
+      "runnerCommitSha" : "7b3719edc968ed7318cbcc22ef78a341dc0e5f3d",
+      "runnerTreeSha" : "cd47eb21daa84a79560b2e7a11d624b63d6a19dc",
+      "verdict" : "PASS"
     }
   ],
-  "o6Status" : "OPEN",
+  "o6Status" : "RESOLVED",
   "runnerSourceSha256" : {
-    "Spikes/Scripts/run-task-qa.sh" : "fb4deb3f71f65ecd39efdd493b62c6b74729f8f4c6593eff429e9910da8a3675",
+    "Spikes/Scripts/run-task-qa.sh" : "662b0d9eca04cdbf53c9021fbc633e649bc96d6c874a80f67a598c5b860fcbdc",
     "Spikes/Sources/EvidenceValidator/Canonical.swift" : "ab34555220fea7b5fcbc667e6a082ac98d5de0820c06cdf45f400d559320b2d8",
-    "Spikes/Sources/EvidenceValidator/EvidenceValidatorCommand.swift" : "5f4067e17792e445115246400da809234104789fbd4814a45c216e25a1c43f62",
+    "Spikes/Sources/EvidenceValidator/EvidenceValidatorCommand.swift" : "cb6dc3199b4e43a3b284d33445092c8af9af3b97ce72cf38dca64b04d1fb449c",
     "Spikes/Sources/EvidenceValidator/GitRunner.swift" : "6fda6a7ed8be9eed7bbfe9b86382810ac6887c2490c5a410b6ca3deb6491a1ad",
-    "Spikes/Sources/EvidenceValidator/SP2DirectoryValidator.swift" : "bd189ab0c1117ab00236048bee39aa4b13717e604b635c3ad3ae4cba981207ca",
+    "Spikes/Sources/EvidenceValidator/SP2DirectoryValidator.swift" : "146bdd00e6c8a568e92680ea49af44df244a2191ec126c9cab8ab6abf236d7d5",
     "Spikes/Sources/EvidenceValidator/ValidatorError.swift" : "10f9b207d208fb8d586014be8472a78a726b231f9b82bd626bd8fbe63335f11b",
     "Spikes/Sources/Phase0Probe/AtomicityRunnerIdentity.swift" : "4c618386923dd3ca544d7e1ebe54f107f04eed771c923d53e1b5f6550e556901",
-    "Spikes/Sources/Phase0Probe/SP2Probe.swift" : "79e993c70a9f4f920a1ecba6a9424b4fe79aba6f4b17c033dee847fe46d43442",
+    "Spikes/Sources/Phase0Probe/SP2LiveExecutor.swift" : "feaea249f00c4c2afb2dc138a3482a9d840dfcc3b3c178bec69acdc56026897f",
+    "Spikes/Sources/Phase0Probe/SP2Probe.swift" : "19fdd608e3eef620c10a20b2ceb8eac80520ff0dbe44e719039ea58787a027d7",
     "Spikes/Sources/Phase0Probe/main.swift" : "4f12c425094d0e4516a5bad751cda12f24fee482ca63213904bbfb36f391e0c4",
     "Spikes/Sources/Phase0Support/EvidenceDocuments.swift" : "86545c274ba1be4b8575a4cf7147023751801ac19f0206854dbdd3681395ddc1",
     "Spikes/Sources/Phase0Support/EvidenceModels.swift" : "0fbbc70c7e9841f24da2e1f3627e5d99e587c2d5f86fc8a84cb1a48ddc5c5efa",
     "Spikes/Sources/Phase0Support/ModifierReconstruction.swift" : "4411773596a5d0950512a0e32c010e3f32585ef8e32bd78d81230e07dd87ec6f",
     "Spikes/Sources/Phase0Support/PrivacyTransition.swift" : "c4d2ebb5c21e4557dd44139821b3140f343e7870da8149671fe99d3c40b34b81",
     "Spikes/Sources/Phase0Support/Registries.swift" : "7b3bcb90f3f96ec5c0aea80acf45a16008e6cf5fc0b6b79a9ad0be0900c057fa",
-    "Spikes/Sources/Phase0Support/SP2Evidence.swift" : "18da4af9402782532e2a7519ca8ebe3d5c68ebdc9ad2f84c8af0c2da2927d083",
+    "Spikes/Sources/Phase0Support/SP2Evidence.swift" : "599959a2531ca6393b9d05af4bb5e7c85b4ce94b82b1d68602ad5e749ec1b52b",
     "Spikes/Sources/Phase0Support/SP2ModelScenarios.swift" : "6992f6254243b81630c45da3afb0f97d3b9f1928907a776464c361da398242ee"
   },
   "schemaVersion" : 1,
   "spikeID" : "SP-2",
-  "verdict" : "BLOCKED"
+  "verdict" : "PASS"
 }

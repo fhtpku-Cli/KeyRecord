@@ -81,38 +81,6 @@ SP2_SOURCE_PATHS = sorted(
     ]
 )
 
-SP6B_SOURCE_PATHS = sorted(
-    [
-        "Spikes/Scripts/argon-bench.c",
-        "Spikes/Scripts/argon-swift-vector.swift",
-        "Spikes/Scripts/argon-vector.c",
-        "Spikes/Scripts/audit-argon-sources.sh",
-        "Spikes/Scripts/audit-security.sh",
-        "Spikes/Scripts/benchmark-argon-arm.sh",
-        "Spikes/Scripts/build-argon-universal.sh",
-        "Spikes/Scripts/capture-argon-advisories.sh",
-        "Spikes/Scripts/run-sp6b.sh",
-        "Spikes/Scripts/run-task-qa.sh",
-        "Spikes/Scripts/sp6b-nvd-review.json",
-        "Spikes/Scripts/sp6b-source-contract.json",
-        "Spikes/Scripts/task-11-qa.sh",
-        "Spikes/Sources/EvidenceValidator/EvidenceValidatorCommand.swift",
-        "Spikes/Sources/EvidenceValidator/SP6BBenchmarkValidator.swift",
-        "Spikes/Sources/EvidenceValidator/SP6BBuildValidator.swift",
-        "Spikes/Sources/EvidenceValidator/SP6BDirectoryValidator.swift",
-        "Spikes/Sources/EvidenceValidator/SP6BNVDValidator.swift",
-        "Spikes/Sources/EvidenceValidator/SP6BSourceValidator.swift",
-        "Spikes/Sources/Phase0Probe/SP6BProbe.swift",
-        "Spikes/Sources/Phase0Probe/main.swift",
-        "Spikes/Sources/Phase0Support/Argon2Candidate.swift",
-        "Spikes/Sources/Phase0Support/D12Fixture.swift",
-        "Spikes/Sources/Phase0Support/D12Snapshot.swift",
-        "Spikes/Sources/Phase0Support/SP6BEvidence.swift",
-        "Spikes/Tests/EvidenceValidatorTests/SP6BValidatorTests.swift",
-        "Spikes/Tests/Phase0SupportTests/Argon2AuditTests.swift",
-    ]
-)
-
 
 def write_swift_json(path: Path, value: object) -> None:
     text = json.dumps(value, indent=2, sort_keys=True, ensure_ascii=False)
@@ -144,65 +112,6 @@ def remanifest_directory(directory: Path) -> None:
     )
     lines = [f"{sha256_file(directory / name)}  {name}" for name in names]
     (directory / "manifest.sha256").write_text("\n".join(lines) + "\n", encoding="utf-8")
-
-
-def remanifest_sp6b(directory: Path) -> None:
-    names = sorted(
-        str(path.relative_to(directory)).replace("\\", "/")
-        for path in directory.rglob("*")
-        if path.is_file() and path.name != "manifest.sha256"
-    )
-    lines = [f"{sha256_file(directory / name)}  {name}" for name in names]
-    (directory / "manifest.sha256").write_text("\n".join(lines) + "\n", encoding="utf-8")
-
-
-def sync_sp6b_runner(directory: Path, commit: str, tree: str) -> None:
-    evidence_path = directory / "evidence.json"
-    if not evidence_path.exists():
-        return
-    evidence = json.loads(evidence_path.read_text(encoding="utf-8"))
-    for leg in evidence.get("legs", []):
-        leg["runnerCommitSha"] = commit
-        leg["runnerTreeSha"] = tree
-    evidence["runnerSourceSha256"] = source_hashes(commit, SP6B_SOURCE_PATHS)
-    evidence_path.write_text(json.dumps(evidence, indent=2) + "\n", encoding="utf-8")
-    print(f"synced sp6b/evidence.json runner binding to {commit[:12]}")
-
-
-def sync_sp6b_leg_hashes(directory: Path) -> None:
-    evidence_path = directory / "evidence.json"
-    if not evidence_path.exists():
-        return
-    evidence = json.loads(evidence_path.read_text(encoding="utf-8"))
-    changed = False
-    for leg in evidence.get("legs", []):
-        artifact_path = leg.get("artifactPath")
-        if not artifact_path:
-            continue
-        artifact = directory / artifact_path
-        if not artifact.is_file():
-            continue
-        digest = sha256_file(artifact)
-        if leg.get("artifactSha256") != digest:
-            leg["artifactSha256"] = digest
-            changed = True
-    if changed:
-        evidence_path.write_text(json.dumps(evidence, indent=2) + "\n", encoding="utf-8")
-        print("synced sp6b/evidence.json artifact hashes")
-
-
-def sync_sp6b_directory() -> None:
-    sp6b_dir = PHASE0 / "sp6b"
-    if not sp6b_dir.exists():
-        return
-    commit = canonicalize_commit("HEAD")
-    tree = subprocess.check_output(
-        ["git", "rev-parse", f"{commit}^{{tree}}"], cwd=REPO, text=True
-    ).strip()
-    sync_sp6b_runner(sp6b_dir, commit, tree)
-    sync_sp6b_leg_hashes(sp6b_dir)
-    remanifest_sp6b(sp6b_dir)
-    print("remanifested sp6b directory")
 
 
 def canonicalize_commit(ref: str) -> str:
@@ -395,10 +304,6 @@ def sync_run_all_receipt() -> None:
 
 
 def main() -> int:
-    if len(sys.argv) > 1 and sys.argv[1] == "--sp6b-only":
-        sync_sp6b_directory()
-        return 0
-
     for name in CONCLUSION_FILES:
         path = PHASE0 / name
         if path.exists():

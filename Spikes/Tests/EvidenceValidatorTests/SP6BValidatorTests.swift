@@ -37,6 +37,32 @@ final class SP6BValidatorTests: XCTestCase {
         try assertRejects(fixture, code: "sp6b_candidate_provenance")
     }
 
+    func testCoordinatedProvenanceRebindWithBackdatedCommitRejects() throws {
+        let fixture = try SP6BIntegrityFixture.make()
+        defer { fixture.remove() }
+        let forgedRunner = "e4f7c383481ff402329a1c2e3bfe5fc14fcbe2e4"
+        let forgedTree = "2b5c66212d6e4205cdb270ba1726e1e529316a1e"
+        let forgedEnvironment = "c67cd660c318012dd04613a0c598198fa15aec6ce3cb905314be2946e130e77f"
+        try fixture.replaceJSON(path: "evidence.json") { root in
+            root["runnerSourceSha256"] = [String: String]()
+            var legs = root["legs"] as! [[String: Any]]
+            for index in legs.indices {
+                legs[index]["runnerCommitSha"] = forgedRunner
+                legs[index]["runnerTreeSha"] = forgedTree
+                legs[index]["environmentSha256"] = forgedEnvironment
+            }
+            root["legs"] = legs
+        }
+        try fixture.replaceJSON(path: "arm-benchmark.json") { $0["environmentSha256"] = forgedEnvironment }
+        try fixture.remanifest()
+        try fixture.commitSp6bDirectory(
+            message: "attack: coordinated provenance rebind",
+            authorDate: "2026-09-05T08:38:00Z",
+            committerDate: "2026-09-05T08:38:00Z"
+        )
+        try assertRejects(fixture, code: "sp6b_evidence_runner_rewrite")
+    }
+
     func testArbitraryNVDDispositionRejects() throws {
         let fixture = try SP6BIntegrityFixture.make()
         defer { fixture.remove() }
@@ -143,6 +169,19 @@ private struct SP6BIntegrityFixture {
         try Data((rows.joined(separator: "\n") + "\n").utf8).write(to: output.appendingPathComponent("manifest.sha256"))
     }
 
+    func commitSp6bDirectory(message: String, authorDate: String, committerDate: String) throws {
+        let destination = repository.appendingPathComponent("evidence/phase0/sp6b")
+        if FileManager.default.fileExists(atPath: destination.path) {
+            try FileManager.default.removeItem(at: destination)
+        }
+        try FileManager.default.copyItem(at: output, to: destination)
+        var environment = ProcessInfo.processInfo.environment
+        environment["GIT_AUTHOR_DATE"] = authorDate
+        environment["GIT_COMMITTER_DATE"] = committerDate
+        try runGit(["add", "evidence/phase0/sp6b"], environment: environment)
+        try runGit(["commit", "-m", message], environment: environment)
+    }
+
     func writeUnrelatedUniversalArchive(to destination: URL) throws {
         let source = container.appendingPathComponent("unrelated.c")
         try Data("int unrelated(void) { return 7; }\n".utf8).write(to: source)
@@ -161,6 +200,17 @@ private struct SP6BIntegrityFixture {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: executable)
         process.arguments = arguments
+        try process.run()
+        process.waitUntilExit()
+        guard process.terminationStatus == 0 else { throw CocoaError(.executableNotLoadable) }
+    }
+
+    private func runGit(_ arguments: [String], environment: [String: String]) throws {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/git")
+        process.arguments = arguments
+        process.currentDirectoryURL = repository
+        process.environment = environment
         try process.run()
         process.waitUntilExit()
         guard process.terminationStatus == 0 else { throw CocoaError(.executableNotLoadable) }

@@ -1,9 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
-# Registry schemaVersion=1: cases contain task, case, exact argv, expectedKind
-# (xctest), timeoutSeconds, minTestCount. Only {attempt}/build/spikes is expanded.
-# No CLI command override or eval. Ruby's standard library supplies JSON, exclusive
-# receipts and process-group timeouts; missing Ruby is BLOCKED, never PASS.
+# Trust model: the committed, operator-controlled registry maps task/case to exact
+# XCTest argv. The dispatcher never evaluates arbitrary command strings or CLI
+# overrides. Fabricated stdout from a tampered registry is outside this trust model;
+# unknown schema fields are rejected. This is not a hostile same-UID sandbox.
+# SchemaVersion=1 allows only schemaVersion/cases; entries require task, case, argv,
+# expectedKind (xctest), minTestCount, and optional timeoutSeconds (default 1200).
+# Only {attempt}/build/spikes is expanded. Runner exits: PASS=0, FAIL=1, BLOCKED=2;
+# receipts retain raw child exits. Ruby supplies JSON and process-group timeouts.
 command -v ruby >/dev/null || { printf 'outcome=BLOCKED code=missing_ruby\n' >&2; exit 2; }
 exec ruby - "$0" "$@" <<'RUBY'
 require 'json'
@@ -23,15 +27,23 @@ def safe_directory(path, root)
   current = ''
   path.split('/').reject(&:empty?).each do |component|
     current += '/' + component
-    reject('invalid_attempt') if File.symlink?(current)
     begin
-      Dir.mkdir(current, 0700) unless File.exist?(current)
-    rescue Errno::EEXIST
-      # Another creator must still satisfy the same ownership/type checks below.
+      before = File.lstat(current)
+    rescue Errno::ENOENT
+      before = nil
     end
-    reject('invalid_attempt') unless File.directory?(current) && !File.symlink?(current)
+    reject('invalid_attempt') if before && before.symlink?
+    unless before
+      begin
+        Dir.mkdir(current, 0700)
+      rescue Errno::EEXIST
+        # A concurrent creator must still pass the non-following check below.
+      end
+    end
+    stat = File.lstat(current)
+    reject('invalid_attempt') unless stat.directory? && !stat.symlink?
     if current.start_with?(root + '/')
-      reject('invalid_attempt') unless File.stat(current).uid == Process.uid && File.writable?(current)
+      reject('invalid_attempt') unless stat.uid == Process.uid && File.writable?(current)
     end
   end
   reject('invalid_attempt') unless File.realpath(path) == path
@@ -53,15 +65,27 @@ begin
     reject('invalid_arguments')
   end
   registry = JSON.parse(File.read(File.join(root, 'Scripts/phase1-qa-cases.json'), encoding: 'UTF-8'))
-  reject('invalid_registry') unless registry['schemaVersion'] == 1 && registry['cases'].is_a?(Array)
-  entries = registry['cases'].select { |e| e.is_a?(Hash) && e['task'] == task.to_i && e['case'] == name }
+  reject('invalid_registry') unless registry.is_a?(Hash) && registry.keys.sort == %w[cases schemaVersion]
+  reject('invalid_registry') unless registry['schemaVersion'].is_a?(Integer) && registry['schemaVersion'] == 1 && registry['cases'].is_a?(Array)
+  required = %w[task case argv expectedKind minTestCount]
+  registry['cases'].each do |candidate|
+    reject('invalid_registry') unless candidate.is_a?(Hash)
+    reject('invalid_registry') unless (required - candidate.keys).empty? && (candidate.keys - required - ['timeoutSeconds']).empty?
+    reject('invalid_registry') unless candidate['task'].is_a?(Integer) && candidate['task'] > 0 && %w[happy failure].include?(candidate['case'])
+    reject('invalid_registry') unless candidate['expectedKind'] == 'xctest' && candidate['minTestCount'].is_a?(Integer) && candidate['minTestCount'] > 0
+    args = candidate['argv']
+    reject('invalid_registry') unless args.is_a?(Array) && !args.empty? && args.all? { |v| v.is_a?(String) && !v.empty? && !v.include?("\0") }
+    seconds = candidate.fetch('timeoutSeconds', 1200)
+    reject('invalid_registry') unless (seconds.is_a?(Integer) || seconds.is_a?(Float)) && seconds.finite? && seconds > 0
+  end
+  identities = registry['cases'].map { |e| [e['task'], e['case']] }
+  reject('invalid_registry') unless identities.uniq.length == identities.length
+  entries = registry['cases'].select { |e| e['task'] == task.to_i && e['case'] == name }
   reject('unknown_task_case') if entries.empty?
   reject('invalid_registry') unless entries.length == 1
   entry = entries.first
   argv = entry['argv']
   minimum = entry['minTestCount']
-  reject('invalid_registry') unless entry['expectedKind'] == 'xctest' && minimum.is_a?(Integer) && minimum > 0
-  reject('invalid_registry') unless argv.is_a?(Array) && !argv.empty? && argv.all? { |v| v.is_a?(String) && !v.empty? && !v.include?("\0") }
   timeout = Float(ENV.fetch('PHASE1_QA_TIMEOUT_SECONDS', entry.fetch('timeoutSeconds', 1200)))
   reject('invalid_timeout') unless timeout.finite? && timeout > 0
   safe_directory(attempt, root)
@@ -79,6 +103,7 @@ begin
   stderr = File.open(File.join(result, 'stderr'), File::WRONLY | File::CREAT | File::EXCL, 0600)
   pid = nil
   timed_out = false
+  missing_executable = false
   started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
   begin
     pid = Process.spawn({'PHASE1_QA_ATTEMPT' => attempt}, [argv.first, argv.first], *argv.drop(1), chdir: root, out: stdout, err: stderr, pgroup: true)
@@ -96,6 +121,7 @@ begin
     child_exit = status.exitstatus || 128 + status.termsig
   rescue Errno::ENOENT, Errno::EACCES => error
     stderr.puts(error.class.name)
+    missing_executable = true
     child_exit = 127
   ensure
     # The child owns a fresh group; reap descendants even if its leader exits first.
@@ -115,7 +141,7 @@ begin
   failed = [counts.map { |c| c[2].to_i }.max || 0, text.scan(/Test Case .* failed/).length].max
   completed = text.scan(/Test Case .* (?:passed|failed|skipped) \(/).length
   code = if timed_out then 'child_timeout'
-         elsif child_exit == 127 then 'missing_executable'
+         elsif missing_executable then 'missing_executable'
          elsif child_exit != 0 then 'child_failed'
          elsif skipped > 0 then 'skipped_tests'
          elsif failed > 0 then 'assertions_failed'
@@ -123,8 +149,8 @@ begin
          elsif completed != executed then 'incomplete_test_output'
          else 'assertions_passed'
          end
-  outcome = code == 'assertions_passed' ? 'PASS' : (child_exit == 127 ? 'BLOCKED' : 'FAIL')
-  exit_status = outcome == 'PASS' ? 0 : (outcome == 'BLOCKED' ? 2 : (child_exit.zero? ? 1 : child_exit))
+  outcome = code == 'assertions_passed' ? 'PASS' : (missing_executable ? 'BLOCKED' : 'FAIL')
+  exit_status = {'PASS' => 0, 'FAIL' => 1, 'BLOCKED' => 2}.fetch(outcome)
   exclusive(File.join(result, 'exit-status'), child_exit.to_s + "\n")
   summary = {outcome: outcome, code: code, childExitStatus: child_exit, runnerExitStatus: exit_status, executed: executed, skipped: skipped, failed: failed, timedOut: timed_out, timeoutSeconds: timeout, argv: argv}
   exclusive(File.join(result, 'assertion-summary.json'), JSON.pretty_generate(summary) + "\n")

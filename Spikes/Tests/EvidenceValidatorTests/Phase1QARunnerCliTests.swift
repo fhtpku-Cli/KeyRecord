@@ -47,13 +47,20 @@ final class Phase1QARunnerCliTests: XCTestCase {
     }
 
     func testFailureSymlinkAttempt() throws {
+        // Given: the link targets a sibling outside the copied dispatcher's root.
         let fixture = try makeFixture()
         defer { try? FileManager.default.removeItem(at: fixture) }
+        let target = fixture.deletingLastPathComponent().appendingPathComponent(fixture.lastPathComponent + "-target")
+        try FileManager.default.createDirectory(at: target, withIntermediateDirectories: false)
+        defer { try? FileManager.default.removeItem(at: target) }
         let link = fixture.appendingPathComponent("link")
-        try FileManager.default.createSymbolicLink(at: link, withDestinationURL: fixture)
-        let result = try run(["task", "1", "happy", "--attempt", link.path + "/attempt"], fixture: fixture)
+        try FileManager.default.createSymbolicLink(at: link, withDestinationURL: target)
+        // When
+        let result = try run(["task", "1", "happy", "--attempt", link.path + "/must-not-create/attempt"], fixture: fixture)
+        // Then
         assertFailure(result, code: "invalid_attempt")
-        XCTAssertFalse(FileManager.default.fileExists(atPath: fixture.path + "/attempt/task-1/happy/assertion-summary.json"))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: target.path + "/must-not-create"))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: link.path + "/must-not-create/attempt/task-1/happy/assertion-summary.json"))
     }
 
     func testFailureReusedResult() throws {
@@ -73,17 +80,85 @@ final class Phase1QARunnerCliTests: XCTestCase {
     func testFailureSkippedTests() throws { try rejectedChild(["/usr/bin/printf", "Test Case '-[Probe test]' skipped (0 seconds).\nExecuted 1 test, with 1 test skipped and 0 failures\n"], code: "skipped_tests") }
     func testFailureSkipCountOnly() throws { try rejectedChild(["/usr/bin/printf", "Executed 1 test, with 1 test skipped and 0 failures\n"], code: "skipped_tests") }
     func testFailureCountWithoutCases() throws { try rejectedChild(["/usr/bin/printf", "Executed 1 test, with 0 failures\n"], code: "incomplete_test_output") }
-    func testFailureChildExit() throws { try rejectedChild(["/usr/bin/false"], code: "child_failed", childStatus: 1) }
+    func testFailureChildExit() throws {
+        try rejectedChild(["/usr/bin/false"], code: "child_failed", childStatus: 1)
+        for status in [2, 42, 127] {
+            try rejectedChild(["/bin/bash", "-c", "exit \(status)"], code: "child_failed", childStatus: status)
+        }
+    }
     func testFailureTimeoutKillsChild() throws {
         let started = ContinuousClock.now
         try rejectedChild(["/bin/sleep", "60"], code: "child_timeout", childStatus: 137, timeout: 0.2)
         XCTAssertLessThan(started.duration(to: .now), .seconds(5))
     }
 
+    func testMissingExecutableIsBlocked() throws {
+        // Given
+        let fixture = try makeFixture()
+        defer { try? FileManager.default.removeItem(at: fixture) }
+        try registry([fixture.path + "/missing-executable"], at: fixture)
+        // When
+        let result = try run(["task", "1", "happy", "--attempt", fixture.path + "/attempt"], fixture: fixture)
+        // Then
+        XCTAssertEqual(result.status, 2, result.output)
+        XCTAssertTrue(result.output.contains("outcome=BLOCKED code=missing_executable"), result.output)
+        let summary = try receipt(fixture)
+        XCTAssertEqual(summary.outcome, "BLOCKED")
+        XCTAssertEqual(summary.runnerExitStatus, 2)
+        XCTAssertEqual(summary.childExitStatus, 127)
+        XCTAssertEqual(try String(contentsOf: fixture.appendingPathComponent("attempt/task-1/happy/exit-status"), encoding: .utf8), "127\n")
+    }
+
+    func testRegistryRejectsUnknownTopLevelKey() throws {
+        try rejectedRegistry("{\"schemaVersion\":1,\"cases\":[\(registryEntry)],\"minTests\":999}")
+    }
+
+    func testRegistryRejectsUnknownCaseKey() throws {
+        let entry = registryEntry.dropLast() + ",\"minTests\":999}"
+        try rejectedRegistry("{\"schemaVersion\":1,\"cases\":[\(entry)]}")
+    }
+
+    func testRegistryRejectsMalformedTypes() throws {
+        for document in ["[]", "null", "{\"schemaVersion\":1.0,\"cases\":[]}", "{\"schemaVersion\":1,\"cases\":{}}"] {
+            try rejectedRegistry(document)
+        }
+        let mutations = [
+            ("\"task\":1", "\"task\":1.0"), ("\"task\":1", "\"task\":\"1\""),
+            ("\"case\":\"happy\"", "\"case\":1"), ("\"expectedKind\":\"xctest\"", "\"expectedKind\":null"),
+            ("\"minTestCount\":1", "\"minTestCount\":true"), ("\"minTestCount\":1", "\"minTestCount\":1.0"),
+            ("\"timeoutSeconds\":10", "\"timeoutSeconds\":\"10\""), ("\"timeoutSeconds\":10", "\"timeoutSeconds\":null")
+        ]
+        for (from, to) in mutations {
+            let entry = registryEntry.replacingOccurrences(of: from, with: to)
+            try rejectedRegistry("{\"schemaVersion\":1,\"cases\":[\(entry)]}")
+        }
+        try rejectedRegistry("{\"schemaVersion\":1,\"cases\":[\(registryEntry),false]}")
+    }
+
+    private var registryEntry: String {
+        "{\"task\":1,\"case\":\"happy\",\"argv\":[\"/usr/bin/touch\",\"{marker}\"],\"expectedKind\":\"xctest\",\"minTestCount\":1,\"timeoutSeconds\":10}"
+    }
+
+    private func rejectedRegistry(_ document: String) throws {
+        // Given: a child marker would reveal dispatch before schema rejection.
+        let fixture = try makeFixture()
+        defer { try? FileManager.default.removeItem(at: fixture) }
+        let marker = fixture.appendingPathComponent("child-spawned")
+        try Data(document.replacingOccurrences(of: "{marker}", with: marker.path).utf8)
+            .write(to: fixture.appendingPathComponent("Scripts/phase1-qa-cases.json"))
+        // When
+        let result = try run(["task", "1", "happy", "--attempt", fixture.path + "/attempt"], fixture: fixture)
+        // Then
+        assertFailure(result, code: "invalid_registry")
+        XCTAssertFalse(FileManager.default.fileExists(atPath: marker.path))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: fixture.path + "/attempt"))
+    }
+
     private struct Summary: Decodable {
         let outcome: String
         let code: String
         let childExitStatus: Int
+        let runnerExitStatus: Int
         let executed: Int
         let skipped: Int
     }
@@ -120,7 +195,7 @@ final class Phase1QARunnerCliTests: XCTestCase {
     }
 
     private func assertFailure(_ result: Result, code: String) {
-        XCTAssertNotEqual(result.status, 0, result.output)
+        XCTAssertEqual(result.status, 1, result.output)
         XCTAssertTrue(result.output.contains("code=\(code)"), result.output)
         XCTAssertFalse(result.output.contains("outcome=PASS"), result.output)
     }
@@ -154,5 +229,7 @@ final class Phase1QARunnerCliTests: XCTestCase {
         XCTAssertEqual(summary.outcome, "FAIL")
         XCTAssertEqual(summary.code, code)
         XCTAssertEqual(summary.childExitStatus, childStatus)
+        XCTAssertEqual(summary.runnerExitStatus, 1)
+        XCTAssertEqual(try String(contentsOf: fixture.appendingPathComponent("attempt/task-1/happy/exit-status"), encoding: .utf8), "\(childStatus)\n")
     }
 }

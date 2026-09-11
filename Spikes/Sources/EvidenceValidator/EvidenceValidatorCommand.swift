@@ -19,6 +19,20 @@ public enum EvidenceValidatorCommand {
         guard let command = arguments.first else { throw ValidatorError("usage", usage) }
         switch command {
         case "help", "--help": print(usage)
+        case "current-readiness":
+            let options = try Options(Array(arguments.dropFirst()))
+            let historical = try options.required("--historical")
+            let lifecycle = try options.required("--lifecycle")
+            let output = try options.required("--output")
+            try options.rejectUnused()
+            let document = try CurrentReadinessValidator.generate(repository: url("."), historical: historical, lifecycle: lifecycle, output: url(output))
+            print("CURRENT_READINESS=\(document.status.rawValue) output=\(output)")
+            Foundation.exit(document.status.exitStatus)
+        case "verify-current-readiness":
+            guard arguments.count == 2 else { throw ValidatorError("usage", usage) }
+            let document = try CurrentReadinessValidator.validate(url(arguments[1]), repository: url("."))
+            print("CURRENT_READINESS=\(document.status.rawValue) verified=true")
+            Foundation.exit(document.status.exitStatus)
         case "validate":
             guard arguments.count == 2 else { throw ValidatorError("usage", usage) }
             try printReport(validateDirectory(url(arguments[1])))

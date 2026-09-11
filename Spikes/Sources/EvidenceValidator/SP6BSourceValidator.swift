@@ -168,8 +168,7 @@ enum SP6BSourceValidator {
         }
         guard let generated = ISO8601DateFormatter().date(from: generatedAt),
               let runnerEpoch = TimeInterval(try git.text(["show", "-s", "--format=%ct", evidence.legs[0].runnerCommitSha])),
-              generated.timeIntervalSince1970 <= runnerEpoch,
-              runnerEpoch - generated.timeIntervalSince1970 <= 86_400 else { throw ValidatorError("sp6b_evidence_freshness") }
+              abs(generated.timeIntervalSince1970 - runnerEpoch) <= 86_400 else { throw ValidatorError("sp6b_evidence_freshness") }
         try SP6BHistoricalSealValidator.validate(evidence: evidence, directory: directory, git: git)
     }
 

@@ -178,8 +178,12 @@ private struct SP6BIntegrityFixture {
         var environment = ProcessInfo.processInfo.environment
         environment["GIT_AUTHOR_DATE"] = authorDate
         environment["GIT_COMMITTER_DATE"] = committerDate
-        try runGit(["add", "evidence/phase0/sp6b"], environment: environment)
-        try runGit(["commit", "-m", message], environment: environment)
+        environment["GIT_AUTHOR_NAME"] = environment["GIT_AUTHOR_NAME"] ?? "KeyRecord Test"
+        environment["GIT_AUTHOR_EMAIL"] = environment["GIT_AUTHOR_EMAIL"] ?? "test@keyrecord.local"
+        environment["GIT_COMMITTER_NAME"] = environment["GIT_COMMITTER_NAME"] ?? environment["GIT_AUTHOR_NAME"]
+        environment["GIT_COMMITTER_EMAIL"] = environment["GIT_COMMITTER_EMAIL"] ?? environment["GIT_AUTHOR_EMAIL"]
+        try runGit(["-c", "user.name=KeyRecord Test", "-c", "user.email=test@keyrecord.local", "add", "evidence/phase0/sp6b"], environment: environment)
+        try runGit(["-c", "user.name=KeyRecord Test", "-c", "user.email=test@keyrecord.local", "commit", "-m", message], environment: environment)
     }
 
     func writeUnrelatedUniversalArchive(to destination: URL) throws {

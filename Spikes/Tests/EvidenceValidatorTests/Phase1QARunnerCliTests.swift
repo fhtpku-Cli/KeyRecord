@@ -24,6 +24,49 @@ final class Phase1QARunnerCliTests: XCTestCase {
         XCTAssertEqual(summary.skipped, 0)
     }
 
+    func testHappyNestedAttemptTokenExpansion() throws {
+        for suffix in ["/build/root", "/build/app", "/build/ui/nested file", "//preserve//suffix"] {
+            try expandedAttemptToken(suffix: suffix)
+        }
+    }
+
+    func testHappyExactAttemptTokenExpansion() throws {
+        try expandedAttemptToken(suffix: "")
+    }
+
+    func testFailureDisallowedBraceTokensNeverSpawn() throws {
+        // Given: each malformed token follows a marker argument that would prove child execution.
+        for token in ["{root}", "{attempt}{attempt}", "{attempt}x", "/x/{attempt}", "{attempt}/build/{root}", "{attempt}/{attempt}", "{}", "prefix{root}suffix"] {
+            let fixture = try makeFixture()
+            defer { try? FileManager.default.removeItem(at: fixture) }
+            let marker = fixture.appendingPathComponent("child-spawned")
+            try registry(["/bin/sh", "-c", "/usr/bin/touch \"$1\"", "token-probe", marker.path, token], at: fixture)
+            // When
+            let result = try run(["task", "1", "happy", "--attempt", fixture.path + "/attempt"], fixture: fixture)
+            // Then: rejection precedes both child spawn and attempt/receipt creation.
+            assertFailure(result, code: "invalid_registry")
+            XCTAssertFalse(FileManager.default.fileExists(atPath: marker.path))
+            XCTAssertFalse(FileManager.default.fileExists(atPath: fixture.path + "/attempt"))
+        }
+    }
+
+    private func expandedAttemptToken(suffix: String) throws {
+        // Given: a copied registry and a child that reports its actual argument without fabricating XCTest output.
+        let fixture = try makeFixture()
+        defer { try? FileManager.default.removeItem(at: fixture) }
+        let attempt = fixture.path + "/attempt"
+        try registry(["/usr/bin/printf", "%s", "{attempt}" + suffix], at: fixture)
+        // When
+        let result = try run(["task", "1", "happy", "--attempt", attempt], fixture: fixture)
+        // Then: receipts and the child agree byte-for-byte; no normalization of the suffix.
+        assertFailure(result, code: "insufficient_tests")
+        let directory = URL(fileURLWithPath: attempt + "/task-1/happy")
+        let command = try JSONDecoder().decode([String].self, from: Data(contentsOf: directory.appendingPathComponent("command.json")))
+        XCTAssertEqual(command, ["/usr/bin/printf", "%s", attempt + suffix])
+        XCTAssertEqual(try String(contentsOf: directory.appendingPathComponent("stdout"), encoding: .utf8), attempt + suffix)
+        XCTAssertEqual(try receipt(fixture).childExitStatus, 0)
+    }
+
     func testFailureUnknownTask() throws { try reject(["task", "99", "happy"], code: "unknown_task_case") }
     func testFailureUnknownCase() throws { try reject(["task", "1", "other"], code: "unknown_task_case") }
     func testFailureUnknownMode() throws { try reject(["other"], code: "invalid_arguments") }

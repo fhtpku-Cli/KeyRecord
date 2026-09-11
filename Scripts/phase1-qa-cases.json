@@ -16,6 +16,22 @@
       "expectedKind": "xctest",
       "timeoutSeconds": 1200,
       "minTestCount": 22
+    },
+    {
+      "task": 5,
+      "case": "happy",
+      "argv": ["swift", "test", "--package-path", ".", "--scratch-path", "{attempt}/build/root", "--filter", "ProductBoundaryTests|DomainSchemaTests"],
+      "expectedKind": "xctest",
+      "timeoutSeconds": 1200,
+      "minTestCount": 17
+    },
+    {
+      "task": 5,
+      "case": "failure",
+      "argv": ["swift", "test", "--package-path", ".", "--scratch-path", "{attempt}/build/root", "--filter", "DomainSchemaTests/testFailure|ProductBoundaryTests/testFailure"],
+      "expectedKind": "xctest",
+      "timeoutSeconds": 1200,
+      "minTestCount": 7
     }
   ]
 }

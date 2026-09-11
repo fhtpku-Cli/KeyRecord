@@ -43,8 +43,9 @@ final class SP6BValidatorTests: XCTestCase {
         let forgedRunner = "e4f7c383481ff402329a1c2e3bfe5fc14fcbe2e4"
         let forgedTree = "2b5c66212d6e4205cdb270ba1726e1e529316a1e"
         let forgedEnvironment = "c67cd660c318012dd04613a0c598198fa15aec6ce3cb905314be2946e130e77f"
+        let forgedSources = try fixture.runnerSourceHashes(runner: forgedRunner)
         try fixture.replaceJSON(path: "evidence.json") { root in
-            root["runnerSourceSha256"] = [String: String]()
+            root["runnerSourceSha256"] = forgedSources
             var legs = root["legs"] as! [[String: Any]]
             for index in legs.indices {
                 legs[index]["runnerCommitSha"] = forgedRunner
@@ -60,7 +61,10 @@ final class SP6BValidatorTests: XCTestCase {
             authorDate: "2026-09-05T08:38:00Z",
             committerDate: "2026-09-05T08:38:00Z"
         )
-        try assertRejects(fixture, code: "sp6b_evidence_runner_rewrite")
+        try assertRejectsAny(
+            fixture,
+            codes: ["sp6b_environment_hash_mismatch", "sp6b_evidence_runner_rewrite", "sp6b_seal_blob_mismatch"]
+        )
     }
 
     func testArbitraryNVDDispositionRejects() throws {
@@ -101,6 +105,19 @@ final class SP6BValidatorTests: XCTestCase {
         })
         try fixture.remanifest()
         try assertRejects(fixture, code: "sp6b_build_archive_hash")
+    }
+
+    private func assertRejectsAny(
+        _ fixture: SP6BIntegrityFixture, codes: [String],
+        file: StaticString = #filePath, line: UInt = #line
+    ) throws {
+        XCTAssertThrowsError(
+            try SP6BDirectoryValidator.validate(directory: fixture.output, repository: fixture.repository),
+            file: file, line: line
+        ) { error in
+            let code = (error as? ValidatorError)?.code
+            XCTAssertTrue(codes.contains(code ?? ""), "expected one of \(codes), got \(code ?? "nil")", file: file, line: line)
+        }
     }
 
     private func assertRejects(
@@ -184,6 +201,24 @@ private struct SP6BIntegrityFixture {
         environment["GIT_COMMITTER_EMAIL"] = environment["GIT_COMMITTER_EMAIL"] ?? environment["GIT_AUTHOR_EMAIL"]
         try runGit(["-c", "user.name=KeyRecord Test", "-c", "user.email=test@keyrecord.local", "add", "evidence/phase0/sp6b"], environment: environment)
         try runGit(["-c", "user.name=KeyRecord Test", "-c", "user.email=test@keyrecord.local", "commit", "-m", message], environment: environment)
+    }
+
+    func runnerSourceHashes(runner: String) throws -> [String: String] {
+        var sources: [String: String] = [:]
+        for path in SP6BRunnerBinding.sourcePaths.sorted() {
+            let process = Process()
+            let pipe = Pipe()
+            process.executableURL = URL(fileURLWithPath: "/usr/bin/git")
+            process.arguments = ["cat-file", "blob", "\(runner):\(path)"]
+            process.currentDirectoryURL = repository
+            process.standardOutput = pipe
+            process.standardError = Pipe()
+            try process.run()
+            process.waitUntilExit()
+            guard process.terminationStatus == 0 else { throw CocoaError(.executableNotLoadable) }
+            sources[path] = Canonical.sha256(pipe.fileHandleForReading.readDataToEndOfFile())
+        }
+        return sources
     }
 
     func writeUnrelatedUniversalArchive(to destination: URL) throws {

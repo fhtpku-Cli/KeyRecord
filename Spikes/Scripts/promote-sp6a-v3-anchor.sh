@@ -75,14 +75,14 @@ regenerate_sp6a() {
 }
 
 refresh_phase0_tail() {
-  export KEYRECORD_BINDING_COMMIT="$(git rev-parse HEAD~2)"
+  export KEYRECORD_BINDING_COMMIT="$(git rev-list -1 HEAD --grep='ancestor binding, SP-6A regen')"
   python3 Spikes/Scripts/prepare-raw-phase0.py
   local validator tmp_out commit
   validator="$(build_validator)"
   validator="Spikes/$validator"
   commit="$(git rev-parse HEAD)"
-  git add evidence/phase0
-  if ! git diff --cached --quiet -- evidence/phase0; then
+  git add evidence/phase0 Spikes/Scripts/prepare-raw-phase0.py Spikes/Scripts/promote-sp6a-v3-anchor.sh
+  if ! git diff --cached --quiet; then
     git commit -m "$(cat <<'EOF'
 chore(evidence): seal raw phase0 for conclusion generation
 
@@ -94,6 +94,7 @@ EOF
   tmp_src="${TMPDIR:-/tmp}/keyrecord-phase0-raw.$$"
   tmp_out="${TMPDIR:-/tmp}/keyrecord-phase0-conclusions.$$"
   rm -rf "$tmp_src" "$tmp_out"
+  mkdir -p "$tmp_src" "$tmp_out"
   git archive "$commit" evidence/phase0 | tar -x -C "$tmp_src"
   "$validator" generate-conclusions \
     --source "$tmp_src/evidence/phase0" \

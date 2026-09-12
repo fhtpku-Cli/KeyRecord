@@ -79,7 +79,7 @@
       "argv": ["/bin/bash", "Scripts/phase1-lifecycle-qa.sh", "happy", "{attempt}"],
       "expectedKind": "xctest",
       "timeoutSeconds": 1200,
-      "minTestCount": 8
+      "minTestCount": 68
     },
     {
       "task": 6,
@@ -87,7 +87,7 @@
       "argv": ["/bin/bash", "Scripts/phase1-lifecycle-qa.sh", "failure", "{attempt}"],
       "expectedKind": "xctest",
       "timeoutSeconds": 1200,
-      "minTestCount": 5
+      "minTestCount": 54
     },
     {
       "task": 5,

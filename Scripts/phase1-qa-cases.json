@@ -2,6 +2,12 @@
   "schemaVersion": 2,
   "hostCases": [
     {
+      "mode": "capture",
+      "manifestRequired": true,
+      "argv": ["/bin/bash", "Scripts/phase1-capture-host.sh", "{manifest}", "{attempt}"],
+      "timeoutSeconds": 15
+    },
+    {
       "mode": "sp6a",
       "manifestRequired": true,
       "argv": ["/bin/bash", "Scripts/phase1-lifecycle-qa.sh", "preflight", "{manifest}", "{attempt}"],
@@ -9,6 +15,22 @@
     }
   ],
   "cases": [
+    {
+      "task": 13,
+      "case": "happy",
+      "argv": ["swift", "test", "--package-path", ".", "--scratch-path", "{attempt}/build/root", "--filter", "CaptureProviderTests|CaptureQueueTests"],
+      "expectedKind": "xctest",
+      "timeoutSeconds": 180,
+      "minTestCount": 29
+    },
+    {
+      "task": 13,
+      "case": "failure",
+      "argv": ["swift", "test", "--package-path", ".", "--scratch-path", "{attempt}/build/root", "--filter", "CaptureProviderTests|CaptureQueueTests"],
+      "expectedKind": "xctest",
+      "timeoutSeconds": 180,
+      "minTestCount": 29
+    },
     {
       "task": 10,
       "case": "happy",

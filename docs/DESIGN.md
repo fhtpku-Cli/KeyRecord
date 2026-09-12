@@ -57,7 +57,7 @@ Actions are injected closures; state is supplied, not a capture controller.
 | Primitive | Anatomy / native role | Stable accessibility identifiers |
 |---|---|---|
 | ConsentPanel | GroupBox, wrapping disclosure, accept/reject Buttons | consent.panel, consent.accept, consent.reject |
-| CaptureStatus | Label with status text and SF Symbol; combined static text, value=status | capture.status |
+| CaptureStatus | SwiftUI Text and SF Symbol Image; static text value=status and labeled image | capture.status, capture.symbol |
 | PrimaryAction | Button, Return shortcut; supplied closure | capture.primary |
 | AggregateRow | combined static text label plus count/value and classification | aggregates.row |
 | SettingsRow | Button with exclusions label | settings.exclusions |
@@ -65,15 +65,21 @@ Actions are injected closures; state is supplied, not a capture controller.
 
 Names are localized visible text; values convey status/count. Buttons expose the
 native button role and press action. Containers do not hide interactive children.
-Native AppKit leaf controls may be hosted through NSViewRepresentable inside the
-SwiftUI primitives. This keeps actual NSButton/NSTextField accessibility and key
-equivalents inspectable in hostless XCTest without enabling private SwiftUI AX
-switches. NativeAction and NativeLabel are adapters, not custom-drawn controls.
-The native adapters receive explicit system text styles; large-text fixtures
-scale their fonts to title2 as well as scaling SwiftUI text.
+All primitive leaves are SwiftUI Button, Text and Label; no NSViewRepresentable
+control adapters or AppKit control subclasses are permitted. NativeAction is a
+SwiftUI Button composition with shared FocusState, Return/Escape shortcuts and
+explicit forward/reverse Tab order. Focus changes scroll the target into view.
+Text scales through system text styles; stress uses accessibility5 Dynamic Type
+and title2 minimum body size (macOS system control scaling remains system-owned).
+The only product AppKit exceptions are NSApplicationDelegate/NSApplication for
+the accessory process, NSStatusItem/NSMenu for the menu-bar host, and NSWindow/
+NSHostingView for window ownership and the localized window title. These are
+hosting infrastructure, not replacements for SwiftUI primitives. AppKit/HIServices
+in tests is solely for native hosting, AX queries, input, scrolling and bitmaps.
 Status mapping: unstarted=circle/Start; paused=pause.circle/Resume;
 collecting=record.circle/Pause; blocked=lock.circle/Review settings;
 error=exclamationmark.triangle/Retry. Blocked/error do not claim saved data.
+Locked and unknown privacy contexts use the blocked presentation, not a sixth state.
 Harness actions only increment an injected test counter. Consent and destructive
 controls do not change production state or persist anything.
 
@@ -87,6 +93,15 @@ harness.state/locale/appearance IDs. No animations or timers: Reduce Motion
 therefore preserves the same immediate, deterministic state feedback.
 
 ## 7. Accessibility constraints and validation
+The test-only Objective-C AX bridge calls public NSAccessibility selectors because
+SwiftUI virtual AX nodes do not formally declare the entire protocol. Traversal
+uses only accessibilityChildren, never raw subviews. Each of 15 essential leaves
+must resolve once, match its localized catalog label and expected role, and have
+a nonzero frame fully visible after scrolling. App buttons are counted separately
+from system NSScroller chrome: macOS emits anonymous virtual page/arrow children
+under AXScrollBar; these system-owned nodes remain in dumps but are not app controls.
+Both resize cases repeat real Tab/Shift-Tab/Return/Escape input. Bottom screenshots
+prove settings and destructive actions are visible, including long and empty data.
 Primary users include keyboard-only, VoiceOver, low-vision/high-contrast and
 Simplified Chinese readers. Every interactive element must have a nonempty name,
 stable ID and native role. Inspect actual in-process NSHostingView accessibility

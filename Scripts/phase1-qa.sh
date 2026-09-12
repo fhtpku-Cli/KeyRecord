@@ -6,7 +6,7 @@ set -euo pipefail
 # unknown schema fields are rejected. This is not a hostile same-UID sandbox.
 # SchemaVersion=1 allows only schemaVersion/cases; entries require task, case, argv,
 # expectedKind (xctest), minTestCount, and optional timeoutSeconds (default 1200).
-# Only {attempt}/build/spikes is expanded. Runner exits: PASS=0, FAIL=1, BLOCKED=2;
+# Runner exits: PASS=0, FAIL=1, BLOCKED=2;
 # receipts retain raw child exits. Ruby supplies JSON and process-group timeouts.
 command -v ruby >/dev/null || { printf 'outcome=BLOCKED code=missing_ruby\n' >&2; exit 2; }
 exec ruby - "$0" "$@" <<'RUBY'
@@ -75,6 +75,12 @@ begin
     reject('invalid_registry') unless candidate['expectedKind'] == 'xctest' && candidate['minTestCount'].is_a?(Integer) && candidate['minTestCount'] > 0
     args = candidate['argv']
     reject('invalid_registry') unless args.is_a?(Array) && !args.empty? && args.all? { |v| v.is_a?(String) && !v.empty? && !v.include?("\0") }
+    # Allow {attempt} only as the entire argument or its leading slash-delimited prefix.
+    # Reject all other brace tokens before any spawn; suffix bytes are otherwise preserved verbatim.
+    args.each do |value|
+      remainder = value.sub(/\A\{attempt\}(?=\/|\z)/, '')
+      reject('invalid_registry') if remainder.match?(/\{[^{}]*\}/)
+    end
     seconds = candidate.fetch('timeoutSeconds', 1200)
     reject('invalid_registry') unless (seconds.is_a?(Integer) || seconds.is_a?(Float)) && seconds.finite? && seconds > 0
   end
@@ -97,7 +103,7 @@ begin
   rescue Errno::EEXIST
     reject('attempt_reused')
   end
-  argv = argv.map { |v| v == '{attempt}/build/spikes' ? File.join(attempt, 'build/spikes') : v }
+  argv = argv.map { |value| value.sub(/\A\{attempt\}(?=\/|\z)/) { attempt } }
   exclusive(File.join(result, 'command.json'), JSON.pretty_generate(argv) + "\n")
   stdout = File.open(File.join(result, 'stdout'), File::WRONLY | File::CREAT | File::EXCL, 0600)
   stderr = File.open(File.join(result, 'stderr'), File::WRONLY | File::CREAT | File::EXCL, 0600)

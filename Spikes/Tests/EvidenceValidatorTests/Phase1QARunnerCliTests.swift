@@ -53,7 +53,22 @@ final class Phase1QARunnerCliTests: XCTestCase {
     func testFailureUnknownTask() throws { try reject(["task", "99", "happy"], code: "unknown_task_case") }
     func testFailureUnknownCase() throws { try reject(["task", "1", "other"], code: "unknown_task_case") }
     func testFailureUnknownMode() throws { try reject(["other"], code: "invalid_arguments") }
-    func testFailureHostMode() throws { try reject(["host", "capture", "--manifest", "/missing"], code: "unregistered_host") }
+    func testFailureHostMode() throws {
+        // Given: a strict version-1 registry has no hostCases, so the host mode is unregistered.
+        let fixture = try makeFixture()
+        defer { try? FileManager.default.removeItem(at: fixture) }
+        let marker = fixture.appendingPathComponent("child-spawned")
+        try registry(["/usr/bin/touch", marker.path], at: fixture)
+        let attempt = fixture.appendingPathComponent("attempt")
+        // When
+        let result = try run(["host", "capture", "--manifest", "/missing", "--attempt", attempt.path], fixture: fixture)
+        // Then: the unregistered-host rejection precedes any host result directory or child spawn.
+        XCTAssertEqual(result.status, 1, result.output)
+        XCTAssertTrue(result.output.contains("outcome=FAIL code=unregistered_host"), result.output)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: marker.path))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: attempt.appendingPathComponent("host/capture").path))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: attempt.path))
+    }
     func testFailureMissingAttempt() throws { try reject(["task", "1", "happy"], code: "invalid_arguments", attempt: nil) }
     func testFailureRelativeAttempt() throws { try reject(["task", "1", "happy"], code: "invalid_attempt", attempt: "relative") }
     func testFailureOutsideAttempt() throws { try reject(["task", "1", "happy"], code: "invalid_attempt", attempt: "/etc") }

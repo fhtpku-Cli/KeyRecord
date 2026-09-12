@@ -14,6 +14,9 @@ final class Phase0RunBindingTests: XCTestCase {
         "Spikes/Sources/EvidenceValidator/CurrentCandidateBinder.swift",
         "Spikes/Sources/EvidenceValidator/CurrentCandidateModels.swift",
         "Spikes/Sources/EvidenceValidator/CurrentCandidateCommand.swift",
+        "Spikes/Sources/EvidenceValidator/SP6ALifecycleDecoder.swift",
+        "Spikes/Sources/EvidenceValidator/SP6AAssertionArtifact.swift",
+        "Spikes/Sources/EvidenceValidator/SP6AAssertionArtifactValidator.swift",
     ]
     private static let qaHelperSources: Set<String> = [
         "Spikes/Scripts/task-qa-common.sh",

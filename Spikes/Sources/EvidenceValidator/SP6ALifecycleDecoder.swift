@@ -23,7 +23,7 @@ enum SP6ALifecycleDecoder {
         guard isSP6A else { return r }
         guard ReadinessReceiptID.lifecycle.contains(r.id), !r.hostManifestPath.isEmpty,
               Set(r.sourceFiles.map(\.path)).isSubset(of: sourcePaths),
-              r.sourceFiles.contains { sourcePaths.contains($0.path) },
+              r.sourceFiles.contains(where: { sourcePaths.contains($0.path) }),
               Set(r.assertions.map(\.id)) == Set(r.id.requiredAssertions), r.assertions.count == r.id.requiredAssertions.count,
               r.status == CurrentReadinessDeriver.aggregate(r.assertions.map(\.status)),
               r.executed == r.assertions.filter({ $0.status != .blocked }).count,

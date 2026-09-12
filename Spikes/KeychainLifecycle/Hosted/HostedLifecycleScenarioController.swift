@@ -86,7 +86,8 @@ public final class HostedLifecycleScenarioController: LifecycleScenarioControlle
             return blocked(step: step, active: qualification.challenge.generation)
         }
         let activeBefore = qualification.challenge.generation
-        let result = qualification.advance(.init(challenge: witness.challenge, unlocked: unlocked))
+        let result = qualification.advance(.init(challenge: witness.challenge, unlocked: witness.unlocked),
+                                           expectedUnlocked: unlocked)
         switch result {
         case .failure(let rejection):
             return blocked(step: step, rejection: rejection.rawValue,

@@ -112,6 +112,60 @@ final class KeychainLifecycleScenarioTests: XCTestCase {
         XCTAssertEqual(revalidated.policy.generationFenced, true)
     }
 
+    func testFailureFreshUnlockWitnessReportingLockedIsRejectedWithoutAdvance() {
+        let authority = ContradictoryStateAuthority(contradictorySteps: [.unlockRevalidate])
+        let controller = hostedController(authority, scenarios: [.unlockRevalidation])
+
+        let unlocked = controller.execute(.unlockedCRUD)
+        XCTAssertEqual(unlocked.status, .pass)
+        let locked = controller.execute(.lockBackground)
+        XCTAssertEqual(locked.status, .pass)
+        let lockedGeneration = locked.policy.activeGeneration
+
+        let contradictory = controller.execute(.unlockRevalidate)
+        XCTAssertEqual(contradictory.status, .blocked)
+        XCTAssertEqual(contradictory.policy.witnessRejection, "witnessStateMismatch")
+        XCTAssertEqual(contradictory.policy.witnessGeneration, lockedGeneration)
+        XCTAssertEqual(contradictory.policy.activeGeneration, lockedGeneration)
+        XCTAssertEqual(contradictory.policy.generationFenced, false)
+        XCTAssertEqual(contradictory.policy.authoritativeWitness, false)
+
+        authority.contradictorySteps.removeAll()
+        let legal = controller.execute(.unlockRevalidate)
+        XCTAssertEqual(legal.status, .pass)
+        XCTAssertEqual(legal.policy.authoritativeWitness, true)
+        XCTAssertNotEqual(legal.policy.activeGeneration, lockedGeneration)
+    }
+
+    func testFailureFreshLockWitnessReportingUnlockedIsRejectedWithoutAdvance() {
+        let authority = ContradictoryStateAuthority(contradictorySteps: [.lockBackground])
+        let controller = hostedController(authority, scenarios: [.lockBackground])
+
+        let unlocked = controller.execute(.unlockedCRUD)
+        XCTAssertEqual(unlocked.status, .pass)
+        let unlockedGeneration = unlocked.policy.generationFenced
+
+        let contradictory = controller.execute(.lockBackground)
+        XCTAssertEqual(contradictory.status, .blocked)
+        XCTAssertEqual(contradictory.policy.witnessRejection, "witnessStateMismatch")
+        XCTAssertEqual(contradictory.policy.generationFenced, false)
+        XCTAssertEqual(contradictory.policy.authoritativeWitness, false)
+        XCTAssertEqual(unlockedGeneration, true)
+
+        authority.contradictorySteps.removeAll()
+        let legal = controller.execute(.lockBackground)
+        XCTAssertEqual(legal.status, .pass)
+        XCTAssertEqual(legal.policy.captureClosed, true)
+        XCTAssertEqual(legal.policy.authoritativeWitness, true)
+    }
+
+    func testHappyWitnessStateMatchesEachLegalTransition() {
+        let controller = hostedController(FakeHostedAuthority(ready: true), scenarios: [.unlockRevalidation])
+        XCTAssertEqual(controller.execute(.unlockedCRUD).status, .pass)
+        XCTAssertEqual(controller.execute(.lockBackground).status, .pass)
+        XCTAssertEqual(controller.execute(.unlockRevalidate).status, .pass)
+    }
+
     func testHappyRestartLockedClosesCaptureWindow() {
         let controller = hostedController(FakeHostedAuthority(ready: true), scenarios: [.restartLocked])
         let observation = controller.execute(.restartLocked)
@@ -156,6 +210,17 @@ private func hostedController(_ authority: HostedLockAuthority, scenarios: Set<L
     HostedLifecycleScenarioController(
         backend: RecordingBackend(), authority: authority,
         configuration: .init(namespace: .init(attempt: "attempt", seed: UUID()), supportedScenarios: scenarios))
+}
+
+private final class ContradictoryStateAuthority: HostedLockAuthority {
+    var contradictorySteps: Set<LifecycleStep>
+    init(contradictorySteps: Set<LifecycleStep>) { self.contradictorySteps = contradictorySteps }
+    func preflightIsReady() -> Bool { true }
+    func witness(challenge: LockChallenge, step: LifecycleStep) -> HostedLockWitness? {
+        let expectedUnlocked = step == .unlockedCRUD || step == .unlockRevalidate || step == .restartUnlocked
+        let unlocked = contradictorySteps.contains(step) ? !expectedUnlocked : expectedUnlocked
+        return .init(challenge: challenge, unlocked: unlocked)
+    }
 }
 
 private final class ReplayHostedAuthority: HostedLockAuthority {

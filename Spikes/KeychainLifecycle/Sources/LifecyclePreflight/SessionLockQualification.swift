@@ -24,7 +24,7 @@ public struct UnlockedWitness: Sendable {
 }
 
 public enum LockWitnessRejection: String, Codable, Sendable, Error {
-    case unsupported, staleGeneration
+    case unsupported, staleGeneration, witnessStateMismatch
 }
 
 public struct LockTransition: Equatable, Sendable {
@@ -62,10 +62,11 @@ public struct SessionLockQualification: Sendable {
     }
 
     @discardableResult
-    public mutating func advance(_ witness: UnlockedWitness) -> Result<LockTransition, LockWitnessRejection> {
+    public mutating func advance(_ witness: UnlockedWitness, expectedUnlocked: Bool) -> Result<LockTransition, LockWitnessRejection> {
         guard supported else { return .failure(.unsupported) }
         let previous = challenge
         guard witness.challenge == previous else { return .failure(.staleGeneration) }
+        guard witness.unlocked == expectedUnlocked else { return .failure(.witnessStateMismatch) }
         state = witness.unlocked ? .unlocked : .locked
         challenge = LockChallenge(process: previous.process, generation: UUID())
         return .success(.init(previous: previous, current: challenge, unlocked: witness.unlocked))

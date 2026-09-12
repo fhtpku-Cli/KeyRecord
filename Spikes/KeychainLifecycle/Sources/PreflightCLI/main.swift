@@ -2,6 +2,13 @@ import Foundation
 import LifecyclePreflight
 
 let args = Array(CommandLine.arguments.dropFirst())
+if args == ["scenario-no-controller"] {
+    let encoder = JSONEncoder()
+    encoder.outputFormatting = [.sortedKeys, .prettyPrinted, .withoutEscapingSlashes]
+    let data = try encoder.encode(try LifecycleBlockedCause.noController())
+    print(String(decoding: data, as: UTF8.self))
+    exit(2)
+}
 guard args.count == 4, args[0] == "--manifest", args[2] == "--attempt" else {
     print("outcome=BLOCKED code=invalidArguments keychainCalls=0 controllerCalls=0")
     exit(2)

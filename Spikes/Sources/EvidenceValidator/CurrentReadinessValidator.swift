@@ -37,6 +37,7 @@ struct CurrentReadinessBindings {
         "Spikes/Sources/EvidenceValidator/CurrentReadinessModels.swift",
         "Spikes/Sources/EvidenceValidator/CurrentReadinessDeriver.swift",
         "Spikes/Sources/EvidenceValidator/CurrentReadinessValidator.swift",
+        "Spikes/Sources/EvidenceValidator/SP6ALifecycleDecoder.swift",
     ]).union(Phase0RunBinding.sourcePaths).union(ConclusionGenerator.sourcePaths).sorted()
     let repository: URL
     private var git: GitRunner { GitRunner(repository: repository, timeout: 10, executable: URL(fileURLWithPath: "/usr/bin/git")) }
@@ -83,7 +84,7 @@ struct CurrentReadinessBindings {
                     do {
                         guard let bytes = try read(binding.path) else { throw ValidatorError("missing_receipt") }
                         guard Canonical.sha256(bytes) == binding.sha256 else { throw ValidatorError("receipt_hash_mismatch") }
-                        let receipt = try ReadinessDecoding.decode(ReadinessReceipt.self, from: bytes)
+                        let receipt = try SP6ALifecycleDecoder.decode(bytes, expectedSHA256: binding.sha256)
                         let artifacts = try checkReceipt(receipt, identity: (commit, tree), path: binding.path)
                         receipts.append(receipt); files += receipt.sourceFiles + artifacts
                     } catch { throw ValidatorError("readiness_invalid_receipt", String(describing: error)) }
@@ -140,7 +141,9 @@ struct CurrentReadinessBindings {
 
     private func checkReceipt(_ receipt: ReadinessReceipt, identity: (String, String), path: String) throws -> [ReadinessFileBinding] {
         try checkHash(receipt.producerControllerSHA256)
-        guard Set(receipt.sourceFiles.map(\.path)).isSubset(of: receipt.id.requiredSourcePaths) else {
+        let isSP6A = receipt.sourceFiles.contains { SP6ALifecycleDecoder.sourcePaths.contains($0.path) }
+        let allowedSources = isSP6A ? SP6ALifecycleDecoder.sourcePaths : Set(receipt.id.requiredSourcePaths)
+        guard Set(receipt.sourceFiles.map(\.path)).isSubset(of: allowedSources) else {
             throw ValidatorError("readiness_receipt_source_not_allowed")
         }
         let ids = receipt.assertions.map(\.id)
@@ -171,6 +174,7 @@ struct CurrentReadinessBindings {
         }
         var artifacts: [ReadinessFileBinding] = []
         let parent = path.split(separator: "/").dropLast().joined(separator: "/")
+        var payloads: [(assertion: ReadinessAssertion, bytes: Data)] = []
         for assertion in receipt.assertions {
             try checkHash(assertion.artifactSHA256)
             let artifactPath = parent.isEmpty ? assertion.artifactPath : parent + "/" + assertion.artifactPath
@@ -178,12 +182,16 @@ struct CurrentReadinessBindings {
                 throw ValidatorError("assertion_artifact_mismatch", assertion.id)
             }
             artifacts.append(.init(path: artifactPath, sha256: assertion.artifactSHA256))
+            payloads.append((assertion, bytes))
         }
-        // Empty is valid for the current synthetic producer only; a future host
-        // producer must bind its manifest and be endorsed by task 7's host runner.
-        if !receipt.hostManifestPath.isEmpty {
-            guard let bytes = try read(receipt.hostManifestPath) else { throw ValidatorError("missing_host_manifest") }
-            artifacts.append(.init(path: receipt.hostManifestPath, sha256: Canonical.sha256(bytes)))
+        if isSP6A {
+            guard !receipt.hostManifestPath.isEmpty, let hostBytes = try read(receipt.hostManifestPath) else {
+                throw ValidatorError("missing_host_manifest")
+            }
+            try SP6AAssertionArtifactValidator.validate(payloads, receipt: receipt, hostManifestBytes: hostBytes)
+            artifacts.append(.init(path: receipt.hostManifestPath, sha256: Canonical.sha256(hostBytes)))
+        } else if !receipt.hostManifestPath.isEmpty, let hostBytes = try read(receipt.hostManifestPath) {
+            artifacts.append(.init(path: receipt.hostManifestPath, sha256: Canonical.sha256(hostBytes)))
         }
         return artifacts
     }

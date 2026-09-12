@@ -50,23 +50,6 @@ final class Phase1QARunnerCliTests: XCTestCase {
         }
     }
 
-    private func expandedAttemptToken(suffix: String) throws {
-        // Given: a copied registry and a child that reports its actual argument without fabricating XCTest output.
-        let fixture = try makeFixture()
-        defer { try? FileManager.default.removeItem(at: fixture) }
-        let attempt = fixture.path + "/attempt"
-        try registry(["/usr/bin/printf", "%s", "{attempt}" + suffix], at: fixture)
-        // When
-        let result = try run(["task", "1", "happy", "--attempt", attempt], fixture: fixture)
-        // Then: receipts and the child agree byte-for-byte; no normalization of the suffix.
-        assertFailure(result, code: "insufficient_tests")
-        let directory = URL(fileURLWithPath: attempt + "/task-1/happy")
-        let command = try JSONDecoder().decode([String].self, from: Data(contentsOf: directory.appendingPathComponent("command.json")))
-        XCTAssertEqual(command, ["/usr/bin/printf", "%s", attempt + suffix])
-        XCTAssertEqual(try String(contentsOf: directory.appendingPathComponent("stdout"), encoding: .utf8), attempt + suffix)
-        XCTAssertEqual(try receipt(fixture).childExitStatus, 0)
-    }
-
     func testFailureUnknownTask() throws { try reject(["task", "99", "happy"], code: "unknown_task_case") }
     func testFailureUnknownCase() throws { try reject(["task", "1", "other"], code: "unknown_task_case") }
     func testFailureUnknownMode() throws { try reject(["other"], code: "invalid_arguments") }
@@ -131,9 +114,22 @@ final class Phase1QARunnerCliTests: XCTestCase {
     }
     func testFailureTimeoutKillsChild() throws {
         let started = ContinuousClock.now
-        try rejectedChild(["/bin/sleep", "60"], code: "child_timeout", childStatus: 137, timeout: 0.2)
+        try rejectedChild(["/bin/sleep", "60"], code: "child_timeout", childStatus: 143, timeout: 0.2)
         XCTAssertLessThan(started.duration(to: .now), .seconds(5))
     }
+
+    func testProcessTreeParserOrdersDeepestFirst() throws {
+        try assertTreeExpansion("42 1\n43 42\n44 43\n45 44\n46 42\n99 1\n", expected: [45, 44, 43, 46])
+    }
+    func testProcessTreeParserExcludesReparentedPIDs() throws {
+        try assertTreeExpansion("42 1\n43 99\n44 43\n45 44\n46 42\n99 1\n", expected: [46])
+    }
+    func testProcessTreeParserIgnoresCyclesAndMalformedRows() throws {
+        try assertTreeExpansion("42 1\n43 42\n50 51\n51 50\n52 52\ninvalid\n0 42\n-1 42\n", expected: [43])
+    }
+    func testFailureTimeoutKillsEscapedDescendant() throws { try assertEscapedTreeCleanup(mode: "timeout") }
+    func testFailureTimeoutKillsTERMResistantDescendant() throws { try assertEscapedTreeCleanup(mode: "ignore-term") }
+    func testFailureCancellationKillsEscapedDescendant() throws { try assertEscapedTreeCleanup(mode: "cancel") }
 
     func testMissingExecutableIsBlocked() throws {
         // Given
@@ -225,7 +221,7 @@ final class Phase1QARunnerCliTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: fixture.path + "/attempt"))
     }
 
-    private func makeFixture() throws -> URL {
+    func makeFixture() throws -> URL {
         XCTAssertTrue(FileManager.default.fileExists(atPath: root.path + "/Spikes/Package.swift"))
         let parent = ProcessInfo.processInfo.environment["PHASE1_QA_ATTEMPT"] ?? root.path + "/.omo/qa-tests"
         let fixture = URL(fileURLWithPath: parent).appendingPathComponent("cli-\(UUID().uuidString)")
@@ -236,12 +232,12 @@ final class Phase1QARunnerCliTests: XCTestCase {
         return fixture
     }
 
-    private func registry(_ argv: [String], at fixture: URL, timeout: Double = 10) throws {
+    func registry(_ argv: [String], at fixture: URL, timeout: Double = 10) throws {
         let entry: [String: Any] = ["task": 1, "case": "happy", "argv": argv, "expectedKind": "xctest", "timeoutSeconds": timeout, "minTestCount": 1]
         try JSONSerialization.data(withJSONObject: ["schemaVersion": 1, "cases": [entry]]).write(to: fixture.appendingPathComponent("Scripts/phase1-qa-cases.json"))
     }
 
-    private func run(_ argv: [String], fixture: URL) throws -> Result {
+    func run(_ argv: [String], fixture: URL) throws -> Result {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/bin/bash")
         process.arguments = [fixture.path + "/Scripts/phase1-qa.sh"] + argv
@@ -255,7 +251,7 @@ final class Phase1QARunnerCliTests: XCTestCase {
         return Result(status: process.terminationStatus, output: String(decoding: data, as: UTF8.self))
     }
 
-    private func assertFailure(_ result: Result, code: String) {
+    func assertFailure(_ result: Result, code: String) {
         XCTAssertEqual(result.status, 1, result.output)
         XCTAssertTrue(result.output.contains("code=\(code)"), result.output)
         XCTAssertFalse(result.output.contains("outcome=PASS"), result.output)
@@ -273,7 +269,7 @@ final class Phase1QARunnerCliTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: fixture.path + "/attempt/task-1/happy/assertion-summary.json"))
     }
 
-    private func receipt(_ fixture: URL) throws -> Summary {
+    func receipt(_ fixture: URL) throws -> Summary {
         try JSONDecoder().decode(Summary.self, from: Data(contentsOf: fixture.appendingPathComponent("attempt/task-1/happy/assertion-summary.json")))
     }
 

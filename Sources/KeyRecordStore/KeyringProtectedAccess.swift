@@ -52,7 +52,7 @@ public final class KeyringProtectedAccess: @unchecked Sendable {
 }
 
 extension KeychainKeyring {
-    func access(_ generation: CaptureGeneration, versions: Set<KeyVersion>) -> KeyringProtectedAccess {
+    nonisolated func access(_ generation: CaptureGeneration, versions: Set<KeyVersion>) -> KeyringProtectedAccess {
         KeyringProtectedAccess(gate: gate, generation: generation, backend: ports.backend,
                                namespace: configuration.namespace, versions: versions)
     }

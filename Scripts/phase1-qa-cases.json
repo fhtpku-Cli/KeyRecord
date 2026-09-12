@@ -80,6 +80,22 @@
       "expectedKind": "xctest",
       "timeoutSeconds": 1200,
       "minTestCount": 5
+    },
+    {
+      "task": 8,
+      "case": "happy",
+      "argv": ["swift", "test", "--package-path", ".", "--scratch-path", "{attempt}/build/root", "--filter", "PrivacyGateTests|NormalizationTests"],
+      "expectedKind": "xctest",
+      "timeoutSeconds": 1200,
+      "minTestCount": 23
+    },
+    {
+      "task": 8,
+      "case": "failure",
+      "argv": ["swift", "test", "--package-path", ".", "--scratch-path", "{attempt}/build/root", "--filter", "PrivacyGateTests|NormalizationTests"],
+      "expectedKind": "xctest",
+      "timeoutSeconds": 1200,
+      "minTestCount": 23
     }
   ]
 }

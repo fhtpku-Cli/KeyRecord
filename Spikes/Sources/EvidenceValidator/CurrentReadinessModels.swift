@@ -18,6 +18,38 @@ enum ReadinessReceiptID: String, Codable, CaseIterable, Sendable {
     case keychainPolicy, sessionLock, restart, sleepWake, capture, privacy, encryptedPersistence
     static let lifecycle: [Self] = [.keychainPolicy, .sessionLock, .restart, .sleepWake]
     static let implementation: [Self] = [.capture, .privacy, .encryptedPersistence]
+    // Task 7 qualifies policy/lock lifecycle; tasks 20 and 23 require independent
+    // privacy and signed-product assertions. Counts alone never satisfy these IDs.
+    var requiredAssertions: [String] {
+        switch self {
+        case .keychainPolicy: ["t7.keychain.whenUnlockedThisDeviceOnly", "t7.keychain.nonSynchronizable"]
+        case .sessionLock: ["t7.lock.authoritativeInitialState", "t7.lock.generationFence"]
+        case .restart: ["t7.restart.unlocked", "t7.restart.startupLocked"]
+        case .sleepWake: ["t7.sleep.captureClosed", "t7.wake.authoritativeUnlock"]
+        case .capture: ["t7.capture.lockGating", "t23.signed.captureIntegration"]
+        case .privacy: ["t20.network.zeroOutbound", "t20.persistence.noEventLevelData"]
+        case .encryptedPersistence: ["t23.signed.encryptedStore", "t23.signed.lifecycleRecovery"]
+        }
+    }
+    // Only the synthetic readiness producer is modeled today. Task 7 must extend
+    // this per-ID allowlist for its signed probe, not reuse the phase0 closure.
+    var requiredSourcePaths: Set<String> {
+        switch self {
+        case .keychainPolicy, .sessionLock, .restart, .sleepWake, .capture, .privacy, .encryptedPersistence:
+            ["Spikes/Sources/EvidenceValidator/CurrentReadinessModels.swift",
+             "Spikes/Sources/EvidenceValidator/CurrentReadinessDeriver.swift",
+             "Spikes/Sources/EvidenceValidator/CurrentReadinessValidator.swift"]
+        }
+    }
+}
+
+struct ReadinessAssertion: Codable, Equatable, Sendable {
+    let id: String
+    let status: ReadinessStatus
+    let artifactSHA256: String
+    // Content-addressed assertion reports live beside their receipt. Even a
+    // FAIL/BLOCKED assertion needs a report explaining the observed outcome.
+    var artifactPath: String { "readiness-assertions/\(artifactSHA256).json" }
 }
 
 struct ReadinessFileBinding: Codable, Equatable, Sendable {
@@ -55,6 +87,9 @@ struct ReadinessReceipt: Codable, Equatable, Sendable {
     let executed: Int
     let failed: Int
     let skipped: Int
+    let assertions: [ReadinessAssertion]
+    let producerControllerSHA256: String
+    let hostManifestPath: String
 }
 
 struct CurrentReadiness: Codable, Equatable, Sendable {
@@ -81,6 +116,9 @@ struct ReadinessInputs {
     let receipts: [ReadinessReceipt]
     let sp1: SP1Evidence?
     let sp2: SP2Evidence?
+    // Trusted process context, never decoded from evidence. Plan contract 3:
+    // only task 7's authorized host runner may supply a real controller SHA.
+    var approvedProducerSHA256s: Set<String> = []
 }
 
 enum ReadinessDecoding {
@@ -140,11 +178,19 @@ extension ReadinessLifecycle {
 }
 
 extension ReadinessReceipt {
-    enum CodingKeys: String, CodingKey, CaseIterable { case schemaVersion, id, commitSha, treeSha, sourceFiles, argv, status, executed, failed, skipped }
+    enum CodingKeys: String, CodingKey, CaseIterable { case schemaVersion, id, commitSha, treeSha, sourceFiles, argv, status, executed, failed, skipped, assertions, producerControllerSHA256, hostManifestPath }
     init(from decoder: Decoder) throws {
         let c = try decoder.readinessContainer(CodingKeys.self)
-        self.init(schemaVersion: try c.decode(Int.self, forKey: .schemaVersion), id: try c.decode(ReadinessReceiptID.self, forKey: .id), commitSha: try c.decode(String.self, forKey: .commitSha), treeSha: try c.decode(String.self, forKey: .treeSha), sourceFiles: try c.decode([ReadinessFileBinding].self, forKey: .sourceFiles), argv: try c.decode([String].self, forKey: .argv), status: try c.decode(ReadinessStatus.self, forKey: .status), executed: try c.decode(Int.self, forKey: .executed), failed: try c.decode(Int.self, forKey: .failed), skipped: try c.decode(Int.self, forKey: .skipped))
+        self.init(schemaVersion: try c.decode(Int.self, forKey: .schemaVersion), id: try c.decode(ReadinessReceiptID.self, forKey: .id), commitSha: try c.decode(String.self, forKey: .commitSha), treeSha: try c.decode(String.self, forKey: .treeSha), sourceFiles: try c.decode([ReadinessFileBinding].self, forKey: .sourceFiles), argv: try c.decode([String].self, forKey: .argv), status: try c.decode(ReadinessStatus.self, forKey: .status), executed: try c.decode(Int.self, forKey: .executed), failed: try c.decode(Int.self, forKey: .failed), skipped: try c.decode(Int.self, forKey: .skipped), assertions: try c.decode([ReadinessAssertion].self, forKey: .assertions), producerControllerSHA256: try c.decode(String.self, forKey: .producerControllerSHA256), hostManifestPath: try c.decode(String.self, forKey: .hostManifestPath))
         guard schemaVersion == 1 else { throw ValidatorError("readiness_unknown_schema") }
+    }
+}
+
+extension ReadinessAssertion {
+    enum CodingKeys: String, CodingKey, CaseIterable { case id, status, artifactSHA256 }
+    init(from decoder: Decoder) throws {
+        let c = try decoder.readinessContainer(CodingKeys.self)
+        self.init(id: try c.decode(String.self, forKey: .id), status: try c.decode(ReadinessStatus.self, forKey: .status), artifactSHA256: try c.decode(String.self, forKey: .artifactSHA256))
     }
 }
 

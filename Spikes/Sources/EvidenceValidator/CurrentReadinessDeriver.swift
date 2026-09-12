@@ -10,8 +10,8 @@ enum CurrentReadinessDeriver {
 
     static func derive(_ input: ReadinessInputs) throws -> CurrentReadiness {
         let g0 = try historicalG0(input)
-        let lifecycle = receiptGate(ReadinessReceiptID.lifecycle, input.receipts)
-        let implementation = receiptGate(ReadinessReceiptID.implementation, input.receipts)
+        let lifecycle = receiptGate(ReadinessReceiptID.lifecycle, input)
+        let implementation = receiptGate(ReadinessReceiptID.implementation, input)
         let g1 = aggregate([g0, lifecycle.status, implementation.status])
         let causes = (g0 == .pass ? [] : [ReadinessGateID.g0.rawValue])
             + (lifecycle.status == .pass ? [] : [ReadinessGateID.lifecycle.rawValue]) + implementation.causes
@@ -67,9 +67,21 @@ enum CurrentReadinessDeriver {
         switch history.g0.status { case .passed: return .pass; case .open: return .blocked }
     }
 
-    private static func receiptGate(_ required: [ReadinessReceiptID], _ receipts: [ReadinessReceipt]) -> (status: ReadinessStatus, causes: [String]) {
-        let statuses = required.map { id in receipts.first { $0.id == id }?.status ?? .blocked }
-        let causes = zip(required, statuses).compactMap { $0.1 == .pass ? nil : "receipt.\($0.0.rawValue)" }
+    private static func receiptGate(_ required: [ReadinessReceiptID], _ input: ReadinessInputs) -> (status: ReadinessStatus, causes: [String]) {
+        var statuses: [ReadinessStatus] = [], causes: [String] = []
+        for id in required {
+            guard let receipt = input.receipts.first(where: { $0.id == id }) else {
+                statuses.append(.blocked); causes.append("receipt.\(id.rawValue)"); continue
+            }
+            guard input.approvedProducerSHA256s.contains(receipt.producerControllerSHA256) else {
+                statuses.append(.blocked)
+                if !causes.contains("receipt.unapprovedProducer") { causes.append("receipt.unapprovedProducer") }
+                continue
+            }
+            let status = aggregate(receipt.assertions.map(\.status))
+            statuses.append(status)
+            if status != .pass { causes.append("receipt.\(id.rawValue)") }
+        }
         return (aggregate(statuses), causes)
     }
 }

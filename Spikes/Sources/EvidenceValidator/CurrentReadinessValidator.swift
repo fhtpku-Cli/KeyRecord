@@ -2,7 +2,7 @@ import Foundation
 import Phase0Support
 
 enum CurrentReadinessValidator {
-    static func generate(repository: URL, historical: String, lifecycle: String, output: URL) throws -> CurrentReadiness {
+    static func generate(repository: URL, historical: String, lifecycle: String, output: URL, approvedProducerSHA256s: Set<String> = []) throws -> CurrentReadiness {
         let base = URL(fileURLWithPath: repository.path, isDirectory: true)
         let historicalPath = try URL(fileURLWithPath: historical, relativeTo: base).standardizedFileURL.relativePath(from: base)
         let lifecyclePath = try lifecycle == "none" ? "none" : URL(fileURLWithPath: lifecycle, relativeTo: base).standardizedFileURL.relativePath(from: base)
@@ -11,7 +11,7 @@ enum CurrentReadinessValidator {
         guard !FileManager.default.fileExists(atPath: output.path),
               !outputPath.hasPrefix(historicalPath + "/"), outputPath != lifecyclePath,
               try loader.read(outputPath) == nil else { throw ValidatorError("readiness_output_reused_or_historical") }
-        let input = try loader.load(historical: historicalPath, lifecycle: lifecyclePath)
+        let input = try loader.load(historical: historicalPath, lifecycle: lifecyclePath, approvedProducerSHA256s: approvedProducerSHA256s)
         guard !input.bindings.files.contains(where: { $0.path == outputPath }),
               !input.bindings.missingPaths.contains(outputPath) else { throw ValidatorError("readiness_output_is_input") }
         let document = try CurrentReadinessDeriver.derive(input)
@@ -20,11 +20,11 @@ enum CurrentReadinessValidator {
         return document
     }
 
-    static func validate(_ file: URL, repository: URL) throws -> CurrentReadiness {
+    static func validate(_ file: URL, repository: URL, approvedProducerSHA256s: Set<String> = []) throws -> CurrentReadiness {
         let loader = CurrentReadinessBindings(repository: repository)
         guard let bytes = try loader.read(file.relativePath(from: repository)) else { throw ValidatorError("readiness_missing_document") }
         let document = try ReadinessDecoding.decode(CurrentReadiness.self, from: bytes)
-        let input = try loader.load(historical: document.historicalRoot, lifecycle: document.lifecyclePath)
+        let input = try loader.load(historical: document.historicalRoot, lifecycle: document.lifecyclePath, approvedProducerSHA256s: approvedProducerSHA256s)
         guard document == (try CurrentReadinessDeriver.derive(input)) else { throw ValidatorError("readiness_recompute_mismatch") }
         return document
     }
@@ -41,7 +41,7 @@ struct CurrentReadinessBindings {
     let repository: URL
     private var git: GitRunner { GitRunner(repository: repository, timeout: 10, executable: URL(fileURLWithPath: "/usr/bin/git")) }
 
-    func load(historical: String, lifecycle: String) throws -> ReadinessInputs {
+    func load(historical: String, lifecycle: String, approvedProducerSHA256s: Set<String> = []) throws -> ReadinessInputs {
         try safePath(historical)
         let commit = try git.text(["rev-parse", "--verify", "HEAD^{commit}"]), tree = try git.text(["rev-parse", "\(commit)^{tree}"])
         var files: [ReadinessFileBinding] = [], missing: [String] = []
@@ -80,11 +80,13 @@ struct CurrentReadinessBindings {
                 guard Set(document.receipts.map(\.path)).count == document.receipts.count else { throw ValidatorError("readiness_duplicate_receipt") }
                 for binding in document.receipts {
                     try checkHash(binding.sha256); files.append(binding)
-                    guard let bytes = try read(binding.path) else { missing.append(binding.path); continue }
-                    guard Canonical.sha256(bytes) == binding.sha256 else { throw ValidatorError("readiness_receipt_hash_mismatch") }
-                    let receipt = try ReadinessDecoding.decode(ReadinessReceipt.self, from: bytes)
-                    try checkReceipt(receipt, identity: (commit, tree))
-                    receipts.append(receipt); files += receipt.sourceFiles
+                    do {
+                        guard let bytes = try read(binding.path) else { throw ValidatorError("missing_receipt") }
+                        guard Canonical.sha256(bytes) == binding.sha256 else { throw ValidatorError("receipt_hash_mismatch") }
+                        let receipt = try ReadinessDecoding.decode(ReadinessReceipt.self, from: bytes)
+                        let artifacts = try checkReceipt(receipt, identity: (commit, tree), path: binding.path)
+                        receipts.append(receipt); files += receipt.sourceFiles + artifacts
+                    } catch { throw ValidatorError("readiness_invalid_receipt", String(describing: error)) }
                 }
             } else { missing.append(lifecycle) }
         }
@@ -94,7 +96,7 @@ struct CurrentReadinessBindings {
         let unique = grouped.keys.sorted().compactMap { grouped[$0]?.first }
         let sp1 = try read(historical + "/sp1/evidence.json").map { try ReadinessDecoding.decode(SP1Evidence.self, from: $0) }
         let sp2 = try read(historical + "/sp2/evidence.json").map { try ReadinessDecoding.decode(SP2Evidence.self, from: $0) }
-        return ReadinessInputs(historical: history, historicalRoot: historical, lifecyclePath: lifecycle, bindings: .init(commitSha: commit, treeSha: tree, files: unique, missingPaths: Set(missing).sorted()), receipts: receipts, sp1: sp1, sp2: sp2)
+        return ReadinessInputs(historical: history, historicalRoot: historical, lifecyclePath: lifecycle, bindings: .init(commitSha: commit, treeSha: tree, files: unique, missingPaths: Set(missing).sorted()), receipts: receipts, sp1: sp1, sp2: sp2, approvedProducerSHA256s: approvedProducerSHA256s)
     }
 
     private func checkHistory(_ history: Phase0Conclusions, root: String) throws -> [ReadinessFileBinding] {
@@ -136,7 +138,18 @@ struct CurrentReadinessBindings {
         return pinned
     }
 
-    private func checkReceipt(_ receipt: ReadinessReceipt, identity: (String, String)) throws {
+    private func checkReceipt(_ receipt: ReadinessReceipt, identity: (String, String), path: String) throws -> [ReadinessFileBinding] {
+        try checkHash(receipt.producerControllerSHA256)
+        guard Set(receipt.sourceFiles.map(\.path)).isSubset(of: receipt.id.requiredSourcePaths) else {
+            throw ValidatorError("readiness_receipt_source_not_allowed")
+        }
+        let ids = receipt.assertions.map(\.id)
+        guard Set(ids).count == ids.count, Set(ids) == Set(receipt.id.requiredAssertions),
+              receipt.status == CurrentReadinessDeriver.aggregate(receipt.assertions.map(\.status)),
+              receipt.executed == receipt.assertions.filter({ $0.status != .blocked }).count,
+              receipt.failed == receipt.assertions.filter({ $0.status == .fail }).count, receipt.skipped == 0 else {
+            throw ValidatorError("invalid_required_assertions")
+        }
         guard receipt.commitSha == identity.0, receipt.treeSha == identity.1,
               !receipt.sourceFiles.isEmpty, Set(receipt.sourceFiles.map(\.path)).count == receipt.sourceFiles.count,
               receipt.executed >= 0, receipt.failed >= 0, receipt.skipped >= 0,
@@ -148,13 +161,31 @@ struct CurrentReadinessBindings {
         case .fail:
             guard receipt.failed > 0, !receipt.argv.isEmpty, receipt.argv.allSatisfy({ !$0.isEmpty }) else { throw ValidatorError("readiness_invalid_receipt_failure") }
         case .blocked:
-            guard receipt.executed == 0, receipt.failed == 0, receipt.skipped == 0, receipt.argv.isEmpty else { throw ValidatorError("readiness_invalid_receipt_blocked") }
+            let validCommand = receipt.executed == 0 ? receipt.argv.isEmpty : !receipt.argv.isEmpty && receipt.argv.allSatisfy({ !$0.isEmpty })
+            guard receipt.failed == 0, receipt.skipped == 0, validCommand else { throw ValidatorError("readiness_invalid_receipt_blocked") }
         }
         for binding in receipt.sourceFiles {
             try checkHash(binding.sha256)
             guard let bytes = try read(binding.path), Canonical.sha256(bytes) == binding.sha256 else { throw ValidatorError("readiness_receipt_source_mismatch") }
             guard try git.run(["cat-file", "blob", "\(identity.0):\(binding.path)"]).stdout == bytes else { throw ValidatorError("readiness_receipt_source_dirty") }
         }
+        var artifacts: [ReadinessFileBinding] = []
+        let parent = path.split(separator: "/").dropLast().joined(separator: "/")
+        for assertion in receipt.assertions {
+            try checkHash(assertion.artifactSHA256)
+            let artifactPath = parent.isEmpty ? assertion.artifactPath : parent + "/" + assertion.artifactPath
+            guard let bytes = try read(artifactPath), Canonical.sha256(bytes) == assertion.artifactSHA256 else {
+                throw ValidatorError("assertion_artifact_mismatch", assertion.id)
+            }
+            artifacts.append(.init(path: artifactPath, sha256: assertion.artifactSHA256))
+        }
+        // Empty is valid for the current synthetic producer only; a future host
+        // producer must bind its manifest and be endorsed by task 7's host runner.
+        if !receipt.hostManifestPath.isEmpty {
+            guard let bytes = try read(receipt.hostManifestPath) else { throw ValidatorError("missing_host_manifest") }
+            artifacts.append(.init(path: receipt.hostManifestPath, sha256: Canonical.sha256(bytes)))
+        }
+        return artifacts
     }
 
     func read(_ path: String) throws -> Data? {

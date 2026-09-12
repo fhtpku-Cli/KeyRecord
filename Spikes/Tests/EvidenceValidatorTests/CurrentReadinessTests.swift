@@ -7,6 +7,8 @@ final class CurrentReadinessTests: XCTestCase {
     private var root: URL!
     private var git: GitRunner { GitRunner(repository: root, timeout: 10, executable: URL(fileURLWithPath: "/usr/bin/git")) }
     private var output: URL { root.appendingPathComponent("readiness.json") }
+    private let producer = String(repeating: "b", count: 64)
+    private var approved: Set<String> = [String(repeating: "b", count: 64)]
     override func setUpWithError() throws {
         root = FileManager.default.temporaryDirectory.appendingPathComponent("readiness-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
@@ -25,7 +27,7 @@ final class CurrentReadinessTests: XCTestCase {
     }
     func testHappyAbsolutePathsAndHistoricalStringsRemainData() throws {
         try fixture(.pass); try lifecycle(ReadinessReceiptID.lifecycle)
-        let document = try CurrentReadinessValidator.generate(repository: root, historical: root.appendingPathComponent("history").path, lifecycle: root.appendingPathComponent("lifecycle.json").path, output: output)
+        let document = try CurrentReadinessValidator.generate(repository: root, historical: root.appendingPathComponent("history").path, lifecycle: root.appendingPathComponent("lifecycle.json").path, output: output, approvedProducerSHA256s: approved)
         XCTAssertEqual(document, try verify()); try retained(document)
     }
     func testFailureMissingExpectedProofIsBlockedEvenAfterRemovalCommit() throws {
@@ -85,17 +87,36 @@ final class CurrentReadinessTests: XCTestCase {
         try replace(root.appendingPathComponent("history/conclusions.json"), "\"id\":\"VIAL_BETA\"", "\"id\":\"waived\""); try seal()
         XCTAssertThrowsError(try produce())
     }
-    func testFailureEachReceiptAndReboundSemantics() throws {
-        try fixture(.pass); try lifecycle(ReadinessReceiptID.allCases); _ = try produce("lifecycle.json")
-        for id in ReadinessReceiptID.allCases {
-            let path = root.appendingPathComponent("\(id.rawValue).json"), before = try Data(contentsOf: root.appendingPathComponent("\(id.rawValue).json"))
-            try Data("{}".utf8).write(to: path); XCTAssertThrowsError(try verify()); try before.write(to: path)
-        }
-        let path = root.appendingPathComponent("capture.json"), original = try String(contentsOf: root.appendingPathComponent("capture.json"), encoding: .utf8)
-        let commit = try git.text(["rev-parse", "HEAD"])
-        for (from, to) in [("\"executed\":1", "\"executed\":0"), ("\"skipped\":0", "\"skipped\":1"), ("\"schemaVersion\":1", "\"schemaVersion\":2"), ("\"id\":\"capture\"", "\"id\":\"unknown\""), ("\"failed\":0", "\"failed\":true"), (commit, String(repeating: "0", count: 40))] {
+    func testFailureReceiptContractMatrix() throws {
+        try fixture(.pass); try lifecycle(ReadinessReceiptID.allCases)
+        let path = root.appendingPathComponent("capture.json"), original = try String(contentsOf: path, encoding: .utf8)
+        let receipt = try ReadinessDecoding.decode(ReadinessReceipt.self, from: Data(original.utf8)), first = try XCTUnwrap(receipt.assertions.first)
+        let encoded = String(decoding: try Canonical.encode(first), as: UTF8.self), second = try XCTUnwrap(receipt.assertions.last)
+        let cases = [(encoded + ",", ""), (first.id, "unknown.assertion"), (second.id, first.id), (first.artifactSHA256, String(repeating: "0", count: 64)), (producer, "invalid"), (receipt.sourceFiles[0].path, "implementation.swift"), ("\"executed\":2", "\"executed\":0"), ("\"skipped\":0", "\"skipped\":1"), ("\"schemaVersion\":1", "\"schemaVersion\":99"), ("\"failed\":0", "\"failed\":true"), (receipt.commitSha, String(repeating: "0", count: 40)), ("\"hostManifestPath\":\"\"", "\"hostManifestPath\":\"../escape\"")]
+        for (from, to) in cases {
             try Data(original.replacingOccurrences(of: from, with: to).utf8).write(to: path); try refreshLifecycle(ReadinessReceiptID.allCases)
-            XCTAssertThrowsError(try CurrentReadinessValidator.generate(repository: root, historical: "history", lifecycle: "lifecycle.json", output: root.appendingPathComponent("invalid.json")))
+            XCTAssertThrowsError(try produce("lifecycle.json"))
+        }
+        try Data(original.utf8).write(to: path); try refreshLifecycle(ReadinessReceiptID.allCases)
+        let artifact = root.appendingPathComponent(first.artifactPath), saved = try Data(contentsOf: root.appendingPathComponent(first.artifactPath))
+        try Data("tampered artifact".utf8).write(to: artifact); XCTAssertThrowsError(try produce("lifecycle.json")); try saved.write(to: artifact)
+        try FileManager.default.removeItem(at: root.appendingPathComponent(first.artifactPath))
+        XCTAssertThrowsError(try produce("lifecycle.json"))
+        try FileManager.default.removeItem(at: path); XCTAssertThrowsError(try produce("lifecycle.json"))
+    }
+    func testFailureValidUnapprovedForgeryIsStableBlocked() throws {
+        try fixture(.pass); try lifecycle(ReadinessReceiptID.allCases); approved = []
+        let document = try produce("lifecycle.json")
+        XCTAssertEqual(document.gates.map(\.status), [.pass, .blocked, .blocked])
+        XCTAssertTrue(document.gates.dropFirst().allSatisfy { $0.unresolvedCauses.contains("receipt.unapprovedProducer") })
+        XCTAssertEqual(document, try verify()); XCTAssertEqual(try run(["verify-current-readiness", output.path]), 2)
+    }
+    func testHappyAssertionFailureAndBlockedAccounting() throws {
+        try fixture(.pass)
+        for status in [ReadinessStatus.fail, .blocked] {
+            try lifecycle(ReadinessReceiptID.allCases, assertionStatus: status)
+            let inputs = try CurrentReadinessBindings(repository: root).load(historical: "history", lifecycle: "lifecycle.json", approvedProducerSHA256s: approved)
+            XCTAssertEqual(try CurrentReadinessDeriver.derive(inputs).gates.map(\.status), [.pass, status, status])
         }
     }
     func testFailureLifecycleUnknownAndDuplicateFields() throws {
@@ -125,14 +146,27 @@ final class CurrentReadinessTests: XCTestCase {
         try Data("tampered".utf8).write(to: root.appendingPathComponent("history/sp1/evidence.json"))
         XCTAssertEqual(try run(["current-readiness", "--historical", "history", "--lifecycle", "none", "--output", root.appendingPathComponent("invalid.json").path]), 1)
     }
+    func testFailureOriginalFabricatedReceiptAttack() throws {
+        // Given the verifier's unexecuted /usr/bin/false receipts, when submitted, then reject.
+        try fixture(.pass); try lifecycle(ReadinessReceiptID.allCases); _ = try produce("lifecycle.json")
+        let commit = try git.text(["rev-parse", "HEAD"]), tree = try git.text(["rev-parse", "HEAD^{tree}"])
+        let hash = Canonical.sha256(try Data(contentsOf: root.appendingPathComponent("implementation.swift")))
+        for id in ReadinessReceiptID.allCases {
+            let bytes = Data("{\"schemaVersion\":1,\"id\":\"\(id.rawValue)\",\"commitSha\":\"\(commit)\",\"treeSha\":\"\(tree)\",\"sourceFiles\":[{\"path\":\"implementation.swift\",\"sha256\":\"\(hash)\"}],\"argv\":[\"/usr/bin/false\"],\"status\":\"PASS\",\"executed\":1,\"failed\":0,\"skipped\":0}".utf8)
+            try bytes.write(to: root.appendingPathComponent("\(id.rawValue).json"))
+        }
+        try refreshLifecycle(ReadinessReceiptID.allCases)
+        XCTAssertThrowsError(try CurrentReadinessValidator.generate(repository: root, historical: "history", lifecycle: "lifecycle.json", output: root.appendingPathComponent("forged.json")))
+        XCTAssertThrowsError(try verify())
+    }
     private func run(_ args: [String]) throws -> Int32 {
         let process = Process(); process.executableURL = Bundle(for: Self.self).bundleURL.deletingLastPathComponent().appendingPathComponent("EvidenceValidator")
         process.arguments = args; process.currentDirectoryURL = root
         process.standardOutput = FileHandle.nullDevice; process.standardError = FileHandle.nullDevice
         try process.run(); process.waitUntilExit(); return process.terminationStatus
     }
-    private func produce(_ lifecycle: String = "none") throws -> CurrentReadiness { try CurrentReadinessValidator.generate(repository: root, historical: "history", lifecycle: lifecycle, output: output) }
-    private func verify() throws -> CurrentReadiness { try CurrentReadinessValidator.validate(output, repository: root) }
+    private func produce(_ lifecycle: String = "none") throws -> CurrentReadiness { try CurrentReadinessValidator.generate(repository: root, historical: "history", lifecycle: lifecycle, output: output, approvedProducerSHA256s: approved) }
+    private func verify() throws -> CurrentReadiness { try CurrentReadinessValidator.validate(output, repository: root, approvedProducerSHA256s: approved) }
     private func retained(_ document: CurrentReadiness) throws {
         let history = try JSONDecoder().decode(Phase0Conclusions.self, from: Data(contentsOf: root.appendingPathComponent("history/conclusions.json")))
         XCTAssertEqual(document.retainedReleaseBlockers, history.downstreamBlocks.filter { $0.id != "G1" })
@@ -197,10 +231,19 @@ final class CurrentReadinessTests: XCTestCase {
         try write(Phase0Conclusions(schemaVersion: 1, sourceEvidenceCommitSha: commit, sourceEvidenceTreeSha: tree, sourceRootManifestSha256: Canonical.sha256(try Data(contentsOf: root.appendingPathComponent("history/manifest.sha256"))), generatorCommitSha: commit, generatorTreeSha: tree, generatorSourceSha256: hashes, spikes: spikes, oItems: [], o4Matrix: [], downstreamBlocks: blockers, g0: .init(status: verdict == .pass ? .passed : .open, reasons: verdict == .pass ? [] : ["incomplete"], blockingLegIDs: verdict == .pass ? [] : ["sp1.required"], candidateSelection: verdict == .pass ? "session" : nil)), "history/conclusions.json")
         try seal()
     }
-    private func lifecycle(_ ids: [ReadinessReceiptID]) throws {
+    private func lifecycle(_ ids: [ReadinessReceiptID], assertionStatus: ReadinessStatus = .pass) throws {
         let commit = try git.text(["rev-parse", "HEAD"]), tree = try git.text(["rev-parse", "HEAD^{tree}"])
-        let source = ReadinessFileBinding(path: "implementation.swift", sha256: Canonical.sha256(try Data(contentsOf: root.appendingPathComponent("implementation.swift"))))
-        for id in ids { try write(ReadinessReceipt(schemaVersion: 1, id: id, commitSha: commit, treeSha: tree, sourceFiles: [source], argv: ["fixture", id.rawValue], status: .pass, executed: 1, failed: 0, skipped: 0), "\(id.rawValue).json") }
+        for id in ids {
+            let sources = try id.requiredSourcePaths.sorted().map { ReadinessFileBinding(path: $0, sha256: Canonical.sha256(try Data(contentsOf: root.appendingPathComponent($0)))) }
+            let assertions = try id.requiredAssertions.map { name in
+                let status: ReadinessStatus = name == id.requiredAssertions.first ? assertionStatus : .pass
+                let data = try Canonical.encode(["assertion": name, "status": status.rawValue])
+                let assertion = ReadinessAssertion(id: name, status: status, artifactSHA256: Canonical.sha256(data))
+                try FileManager.default.createDirectory(at: root.appendingPathComponent(assertion.artifactPath).deletingLastPathComponent(), withIntermediateDirectories: true)
+                try data.write(to: root.appendingPathComponent(assertion.artifactPath)); return assertion
+            }
+            try write(ReadinessReceipt(schemaVersion: 1, id: id, commitSha: commit, treeSha: tree, sourceFiles: sources, argv: ["/usr/bin/false"], status: assertionStatus, executed: assertions.filter { $0.status != .blocked }.count, failed: assertions.filter { $0.status == .fail }.count, skipped: 0, assertions: assertions, producerControllerSHA256: producer, hostManifestPath: ""), "\(id.rawValue).json")
+        }
         try refreshLifecycle(ids)
     }
     private func refreshLifecycle(_ ids: [ReadinessReceiptID]) throws {

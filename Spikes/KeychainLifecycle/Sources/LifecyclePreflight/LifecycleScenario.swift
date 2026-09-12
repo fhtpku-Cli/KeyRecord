@@ -38,6 +38,13 @@ public struct LifecycleKeychainEvidence: Codable, Sendable {
     public let valueMatched: Bool?
     public let itemMissing: Bool?
     public let cleanupComplete: Bool?
+
+    public init(rawStatus: Int32?, calls: Int, accessibility: String?, synchronizable: Bool?,
+                valueMatched: Bool?, itemMissing: Bool?, cleanupComplete: Bool?) {
+        self.rawStatus = rawStatus; self.calls = calls; self.accessibility = accessibility
+        self.synchronizable = synchronizable; self.valueMatched = valueMatched
+        self.itemMissing = itemMissing; self.cleanupComplete = cleanupComplete
+    }
 }
 
 public struct LifecyclePolicyEvidence: Codable, Sendable {
@@ -47,12 +54,24 @@ public struct LifecyclePolicyEvidence: Codable, Sendable {
     public let aggregateDelta: Int
     public let generationFenced: Bool?
     public let captureClosed: Bool?
+
+    public init(authoritativeWitness: Bool, protectedReadDelta: Int, publishDelta: Int,
+                aggregateDelta: Int, generationFenced: Bool?, captureClosed: Bool?) {
+        self.authoritativeWitness = authoritativeWitness
+        self.protectedReadDelta = protectedReadDelta; self.publishDelta = publishDelta
+        self.aggregateDelta = aggregateDelta; self.generationFenced = generationFenced
+        self.captureClosed = captureClosed
+    }
 }
 
 public struct LifecycleStepObservation: Codable, Sendable {
     public let status: LifecycleStatus
     public let keychain: LifecycleKeychainEvidence
     public let policy: LifecyclePolicyEvidence
+
+    public init(status: LifecycleStatus, keychain: LifecycleKeychainEvidence, policy: LifecyclePolicyEvidence) {
+        self.status = status; self.keychain = keychain; self.policy = policy
+    }
 }
 
 // Only an authorized hosted implementation may dispatch effects, using SignedCandidateBackend

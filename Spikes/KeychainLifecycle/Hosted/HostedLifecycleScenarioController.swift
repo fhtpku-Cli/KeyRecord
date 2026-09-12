@@ -100,7 +100,7 @@ public final class HostedLifecycleScenarioController: LifecycleScenarioControlle
     private func observation(_ status: LifecycleStatus, keychain: LifecycleKeychainEvidence, policy: LifecyclePolicyEvidence) -> LifecycleStepObservation {
         .init(status: status, keychain: keychain, policy: policy)
     }
-    private func zeroKeychain(rawStatus: Int32?) -> LifecycleKeychainEvidence {
+    private static func zeroKeychain(rawStatus: Int32?) -> LifecycleKeychainEvidence {
         .init(rawStatus: rawStatus, calls: 0, accessibility: nil, synchronizable: nil, valueMatched: nil, itemMissing: nil, cleanupComplete: nil)
     }
     private func policy(witness: Bool, fenced: Bool, closed: Bool? = nil) -> LifecyclePolicyEvidence {

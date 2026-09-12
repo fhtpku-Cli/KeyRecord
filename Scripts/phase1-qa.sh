@@ -4,7 +4,8 @@ set -euo pipefail
 # XCTest argv. The dispatcher never evaluates arbitrary command strings or CLI
 # overrides. Fabricated stdout from a tampered registry is outside this trust model;
 # unknown schema fields are rejected. This is not a hostile same-UID sandbox.
-# SchemaVersion=1 allows only schemaVersion/cases; entries require task, case, argv,
+# SchemaVersion=2 adds strict read-only hostCases; version 1 remains supported.
+# Task entries require task, case, argv,
 # expectedKind (xctest), minTestCount, and optional timeoutSeconds (default 1200).
 # Runner exits: PASS=0, FAIL=1, BLOCKED=2;
 # receipts retain raw child exits. Ruby supplies JSON and process-group timeouts.
@@ -60,13 +61,30 @@ begin
     reject('unknown_task_case') unless task.match?(/\A[1-9][0-9]*\z/) && %w[happy failure].include?(name)
   when 'host'
     reject('invalid_arguments') unless ARGV.length == 5 && ARGV[1] == '--manifest' && ARGV[3] == '--attempt'
-    reject('unregistered_host')
+    name, _, manifest, _, attempt = ARGV
   else
     reject('invalid_arguments')
   end
   registry = JSON.parse(File.read(File.join(root, 'Scripts/phase1-qa-cases.json'), encoding: 'UTF-8'))
-  reject('invalid_registry') unless registry.is_a?(Hash) && registry.keys.sort == %w[cases schemaVersion]
-  reject('invalid_registry') unless registry['schemaVersion'].is_a?(Integer) && registry['schemaVersion'] == 1 && registry['cases'].is_a?(Array)
+  reject('invalid_registry') unless registry.is_a?(Hash) && registry['schemaVersion'].is_a?(Integer) && [1, 2].include?(registry['schemaVersion'])
+  keys = registry['schemaVersion'] == 1 ? %w[cases schemaVersion] : %w[cases hostCases schemaVersion]
+  reject('invalid_registry') unless registry.keys.sort == keys && registry['cases'].is_a?(Array)
+  hosts = registry.fetch('hostCases', [])
+  reject('invalid_registry') unless hosts.is_a?(Array)
+  hosts.each do |host|
+    reject('invalid_registry') unless host.is_a?(Hash) && host.keys.sort == %w[argv manifestRequired mode timeoutSeconds]
+    reject('invalid_registry') unless %w[sp6a capture network performance signed-build].include?(host['mode']) && host['manifestRequired'] == true
+    args = host['argv']
+    reject('invalid_registry') unless args.is_a?(Array) && !args.empty? && args.all? { |v| v.is_a?(String) && !v.empty? && !v.include?("\0") }
+    args.each do |value|
+      remainder = value == '{manifest}' ? '' : value.sub(/\A\{attempt\}(?=\/|\z)/, '')
+      reject('invalid_registry') if remainder.match?(/\{[^{}]*\}/)
+    end
+    reject('invalid_registry') unless args.include?('{manifest}') && args.include?('{attempt}')
+    seconds = host['timeoutSeconds']
+    reject('invalid_registry') unless (seconds.is_a?(Integer) || seconds.is_a?(Float)) && seconds.finite? && seconds > 0
+  end
+  reject('invalid_registry') unless hosts.map { |h| h['mode'] }.uniq.length == hosts.length
   required = %w[task case argv expectedKind minTestCount]
   registry['cases'].each do |candidate|
     reject('invalid_registry') unless candidate.is_a?(Hash)
@@ -86,16 +104,16 @@ begin
   end
   identities = registry['cases'].map { |e| [e['task'], e['case']] }
   reject('invalid_registry') unless identities.uniq.length == identities.length
-  entries = registry['cases'].select { |e| e['task'] == task.to_i && e['case'] == name }
-  reject('unknown_task_case') if entries.empty?
+  entries = mode == 'host' ? hosts.select { |e| e['mode'] == name } : registry['cases'].select { |e| e['task'] == task.to_i && e['case'] == name }
+  reject(mode == 'host' ? 'unregistered_host' : 'unknown_task_case') if entries.empty?
   reject('invalid_registry') unless entries.length == 1
   entry = entries.first
   argv = entry['argv']
-  minimum = entry['minTestCount']
+  minimum = entry.fetch('minTestCount', 1)
   timeout = Float(ENV.fetch('PHASE1_QA_TIMEOUT_SECONDS', entry.fetch('timeoutSeconds', 1200)))
   reject('invalid_timeout') unless timeout.finite? && timeout > 0
   safe_directory(attempt, root)
-  parent = File.join(attempt, 'task-' + task)
+  parent = File.join(attempt, mode == 'host' ? 'host' : 'task-' + task)
   safe_directory(parent, root)
   result = File.join(parent, name)
   begin
@@ -103,7 +121,7 @@ begin
   rescue Errno::EEXIST
     reject('attempt_reused')
   end
-  argv = argv.map { |value| value.sub(/\A\{attempt\}(?=\/|\z)/) { attempt } }
+  argv = argv.map { |value| mode == 'host' && value == '{manifest}' ? manifest : value.sub(/\A\{attempt\}(?=\/|\z)/) { attempt } }
   exclusive(File.join(result, 'command.json'), JSON.pretty_generate(argv) + "\n")
   stdout = File.open(File.join(result, 'stdout'), File::WRONLY | File::CREAT | File::EXCL, 0600)
   stderr = File.open(File.join(result, 'stderr'), File::WRONLY | File::CREAT | File::EXCL, 0600)
@@ -156,6 +174,11 @@ begin
          else 'assertions_passed'
          end
   outcome = code == 'assertions_passed' ? 'PASS' : (missing_executable ? 'BLOCKED' : 'FAIL')
+  if mode == 'host'
+    # This schema dispatches preflight only; even exit 0 cannot claim lifecycle PASS.
+    code = child_exit == 2 ? 'host_preflight_blocked' : (child_exit == 0 ? 'host_lifecycle_unrun' : code)
+    outcome = [0, 2].include?(child_exit) && !timed_out || missing_executable ? 'BLOCKED' : 'FAIL'
+  end
   exit_status = {'PASS' => 0, 'FAIL' => 1, 'BLOCKED' => 2}.fetch(outcome)
   exclusive(File.join(result, 'exit-status'), child_exit.to_s + "\n")
   summary = {outcome: outcome, code: code, childExitStatus: child_exit, runnerExitStatus: exit_status, executed: executed, skipped: skipped, failed: failed, timedOut: timed_out, timeoutSeconds: timeout, argv: argv}

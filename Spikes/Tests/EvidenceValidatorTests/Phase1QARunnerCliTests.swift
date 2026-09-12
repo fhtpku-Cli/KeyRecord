@@ -178,6 +178,34 @@ final class Phase1QARunnerCliTests: XCTestCase {
         try rejectedRegistry("{\"schemaVersion\":1,\"cases\":[\(registryEntry),false]}")
     }
 
+    func testHostManifestMatrixBlocksBeforeEffects() throws {
+        for mutation in ["missing", "expired", "wrong-host", "wrong-team", "missing-entitlement"] {
+            // Given: a dry child counts attempted effects, never calling host APIs.
+            let fixture = try makeFixture()
+            let attempt = fixture.appendingPathComponent("attempt")
+            try FileManager.default.createDirectory(at: attempt, withIntermediateDirectories: true)
+            try hostRegistry(at: fixture)
+            let manifest = attempt.appendingPathComponent("host.json")
+            if mutation != "missing" { try dryManifest(mutation).write(to: manifest) }
+            // When
+            let result = try run(["host", "sp6a", "--manifest", manifest.path, "--attempt", attempt.path], fixture: fixture)
+            // Then: both dispatch outcome and the actual dry child counters are checked.
+            XCTAssertEqual(result.status, 2, result.output)
+            XCTAssertFalse(result.output.contains("outcome=PASS"))
+            let counts = try String(contentsOf: attempt.appendingPathComponent("counts"), encoding: .utf8)
+            XCTAssertEqual(counts, "keychain=0 controller=0")
+        }
+    }
+
+    func testHostRegistryV2RejectsUnknownKeyAndMode() throws {
+        for entry in [
+            "{\"mode\":\"sp6a\",\"manifestRequired\":true,\"argv\":[\"/usr/bin/true\",\"{manifest}\",\"{attempt}\"],\"timeoutSeconds\":10,\"extra\":true}",
+            "{\"mode\":\"other\",\"manifestRequired\":true,\"argv\":[\"/usr/bin/true\",\"{manifest}\",\"{attempt}\"],\"timeoutSeconds\":10}"
+        ] {
+            try rejectedRegistry("{\"schemaVersion\":2,\"cases\":[\(registryEntry)],\"hostCases\":[\(entry)]}")
+        }
+    }
+
     private var registryEntry: String {
         "{\"task\":1,\"case\":\"happy\",\"argv\":[\"/usr/bin/touch\",\"{marker}\"],\"expectedKind\":\"xctest\",\"minTestCount\":1,\"timeoutSeconds\":10}"
     }
@@ -196,16 +224,6 @@ final class Phase1QARunnerCliTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: marker.path))
         XCTAssertFalse(FileManager.default.fileExists(atPath: fixture.path + "/attempt"))
     }
-
-    private struct Summary: Decodable {
-        let outcome: String
-        let code: String
-        let childExitStatus: Int
-        let runnerExitStatus: Int
-        let executed: Int
-        let skipped: Int
-    }
-    private struct Result { let status: Int32; let output: String }
 
     private func makeFixture() throws -> URL {
         XCTAssertTrue(FileManager.default.fileExists(atPath: root.path + "/Spikes/Package.swift"))

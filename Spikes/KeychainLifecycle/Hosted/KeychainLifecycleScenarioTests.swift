@@ -83,6 +83,45 @@ final class KeychainLifecycleScenarioTests: XCTestCase {
         XCTAssertTrue(backend.operations.isEmpty)
     }
 
+    func testFailureLockAdvancesGenerationAndRejectsReplay() {
+        let authority = ReplayHostedAuthority()
+        let controller = hostedController(authority, scenarios: [.unlockRevalidation])
+
+        let unlocked = controller.execute(.unlockedCRUD)
+        XCTAssertEqual(unlocked.status, .pass)
+        let initial = authority.requestedChallenges[0]
+
+        let locked = controller.execute(.lockBackground)
+        XCTAssertEqual(locked.status, .pass)
+        XCTAssertEqual(locked.policy.priorGeneration, initial.generation)
+        XCTAssertNotEqual(locked.policy.activeGeneration, initial.generation)
+        XCTAssertEqual(locked.policy.generationFenced, true)
+        XCTAssertEqual(authority.requestedChallenges[1], initial)
+
+        authority.replayChallenge = initial
+        let replayed = controller.execute(.unlockRevalidate)
+        XCTAssertEqual(replayed.status, .blocked)
+        XCTAssertEqual(replayed.policy.witnessRejection, "staleGeneration")
+        XCTAssertEqual(replayed.policy.witnessGeneration, initial.generation)
+        XCTAssertNotEqual(replayed.policy.activeGeneration, initial.generation)
+        XCTAssertEqual(replayed.policy.generationFenced, false)
+
+        authority.replayChallenge = nil
+        let revalidated = controller.execute(.unlockRevalidate)
+        XCTAssertEqual(revalidated.status, .pass)
+        XCTAssertEqual(revalidated.policy.generationFenced, true)
+    }
+
+    func testHappyRestartLockedClosesCaptureWindow() {
+        let controller = hostedController(FakeHostedAuthority(ready: true), scenarios: [.restartLocked])
+        let observation = controller.execute(.restartLocked)
+        XCTAssertEqual(observation.status, .pass)
+        XCTAssertEqual(observation.policy.captureClosed, true)
+        XCTAssertEqual(observation.policy.protectedReadDelta, 0)
+        XCTAssertEqual(observation.policy.publishDelta, 0)
+        XCTAssertEqual(observation.policy.aggregateDelta, 0)
+    }
+
     func testFailureRawReadSuccessWithoutWitness() {
         // Given a controller unable to attest unlocked state, when startup runs, then it blocks.
         let fake = FakeLifecycleController()
@@ -110,6 +149,23 @@ private final class FakeHostedAuthority: HostedLockAuthority {
         guard witness else { return nil }
         let unlocked = step != .lockBackground && step != .restartLocked
         return .init(challenge: challenge, unlocked: unlocked)
+    }
+}
+
+private func hostedController(_ authority: HostedLockAuthority, scenarios: Set<LifecycleScenario>) -> HostedLifecycleScenarioController {
+    HostedLifecycleScenarioController(
+        backend: RecordingBackend(), authority: authority,
+        configuration: .init(namespace: .init(attempt: "attempt", seed: UUID()), supportedScenarios: scenarios))
+}
+
+private final class ReplayHostedAuthority: HostedLockAuthority {
+    var replayChallenge: LockChallenge?
+    private(set) var requestedChallenges: [LockChallenge] = []
+    func preflightIsReady() -> Bool { true }
+    func witness(challenge: LockChallenge, step: LifecycleStep) -> HostedLockWitness? {
+        requestedChallenges.append(challenge)
+        let challenge = replayChallenge ?? challenge
+        return .init(challenge: challenge, unlocked: step == .unlockedCRUD || step == .unlockRevalidate || step == .restartUnlocked)
     }
 }
 

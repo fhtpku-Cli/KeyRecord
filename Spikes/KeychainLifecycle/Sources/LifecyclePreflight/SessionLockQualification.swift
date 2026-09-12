@@ -8,6 +8,9 @@ public enum LockSignal: String, CaseIterable, Codable, Sendable {
 public struct LockChallenge: Equatable, Sendable {
     public let process: UUID
     public let generation: UUID
+    public init(process: UUID, generation: UUID) {
+        self.process = process; self.generation = generation
+    }
 }
 
 // Trusted in-process controller port, deliberately not Decodable: notification payloads
@@ -18,6 +21,16 @@ public struct UnlockedWitness: Sendable {
     public init(challenge: LockChallenge, unlocked: Bool) {
         self.challenge = challenge; self.unlocked = unlocked
     }
+}
+
+public enum LockWitnessRejection: String, Codable, Sendable, Error {
+    case unsupported, staleGeneration
+}
+
+public struct LockTransition: Equatable, Sendable {
+    public let previous: LockChallenge
+    public let current: LockChallenge
+    public let unlocked: Bool
 }
 
 public struct SessionLockQualification: Sendable {
@@ -46,6 +59,16 @@ public struct SessionLockQualification: Sendable {
     public mutating func accept(_ witness: UnlockedWitness) {
         guard supported, witness.challenge == challenge else { return }
         state = witness.unlocked ? .unlocked : .locked
+    }
+
+    @discardableResult
+    public mutating func advance(_ witness: UnlockedWitness) -> Result<LockTransition, LockWitnessRejection> {
+        guard supported else { return .failure(.unsupported) }
+        let previous = challenge
+        guard witness.challenge == previous else { return .failure(.staleGeneration) }
+        state = witness.unlocked ? .unlocked : .locked
+        challenge = LockChallenge(process: previous.process, generation: UUID())
+        return .success(.init(previous: previous, current: challenge, unlocked: witness.unlocked))
     }
 
     public func canPublish(_ issued: LockChallenge) -> Bool {

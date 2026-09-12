@@ -82,11 +82,24 @@ public final class HostedLifecycleScenarioController: LifecycleScenarioControlle
 
     private func transition(_ step: LifecycleStep) -> LifecycleStepObservation {
         let unlocked = step != .lockBackground && step != .restartLocked
-        guard let witness = authority.witness(challenge: qualification.challenge, step: step),
-              witness.challenge == qualification.challenge, witness.unlocked == unlocked else { return blocked(step: step) }
-        qualification.accept(.init(challenge: witness.challenge, unlocked: unlocked))
-        let closed = step == .lockBackground || step == .sleepWake
-        return observation(.pass, keychain: Self.zeroKeychain(rawStatus: 0), policy: policy(witness: true, fenced: true, closed: closed))
+        guard let witness = authority.witness(challenge: qualification.challenge, step: step) else {
+            return blocked(step: step, active: qualification.challenge.generation)
+        }
+        let activeBefore = qualification.challenge.generation
+        let result = qualification.advance(.init(challenge: witness.challenge, unlocked: unlocked))
+        switch result {
+        case .failure(let rejection):
+            return blocked(step: step, rejection: rejection.rawValue,
+                           witness: witness.challenge.generation, active: activeBefore)
+        case .success(let transition):
+            let closed = step == .lockBackground || step == .restartLocked || step == .sleepWake
+            let policy = LifecyclePolicyEvidence(
+                authoritativeWitness: true, protectedReadDelta: 0, publishDelta: 0, aggregateDelta: 0,
+                generationFenced: transition.previous.generation != transition.current.generation,
+                captureClosed: closed, witnessGeneration: witness.challenge.generation,
+                activeGeneration: transition.current.generation, priorGeneration: transition.previous.generation)
+            return observation(.pass, keychain: Self.zeroKeychain(rawStatus: 0), policy: policy)
+        }
     }
 
     private func authorized() -> Bool {
@@ -107,9 +120,14 @@ public final class HostedLifecycleScenarioController: LifecycleScenarioControlle
         .init(authoritativeWitness: witness, protectedReadDelta: 0, publishDelta: 0, aggregateDelta: 0,
               generationFenced: fenced, captureClosed: closed)
     }
-    private func blocked(step: LifecycleStep) -> LifecycleStepObservation {
+    private func blocked(step: LifecycleStep, rejection: String? = nil,
+                         witness: UUID? = nil, active: UUID? = nil) -> LifecycleStepObservation {
         observation(.blocked, keychain: Self.zeroKeychain(rawStatus: nil),
-                    policy: policy(witness: false, fenced: true, closed: step == .lockBackground || step == .sleepWake))
+                    policy: .init(authoritativeWitness: false, protectedReadDelta: 0, publishDelta: 0,
+                                  aggregateDelta: 0, generationFenced: false,
+                                  captureClosed: step == .lockBackground || step == .restartLocked || step == .sleepWake,
+                                  witnessGeneration: witness, activeGeneration: active,
+                                  priorGeneration: nil, witnessRejection: rejection))
     }
     private func failed(step: LifecycleStep) -> LifecycleStepObservation {
         observation(.fail, keychain: Self.zeroKeychain(rawStatus: nil),

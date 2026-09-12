@@ -54,13 +54,21 @@ public struct LifecyclePolicyEvidence: Codable, Sendable {
     public let aggregateDelta: Int
     public let generationFenced: Bool?
     public let captureClosed: Bool?
+    public let witnessGeneration: UUID?
+    public let activeGeneration: UUID?
+    public let priorGeneration: UUID?
+    public let witnessRejection: String?
 
     public init(authoritativeWitness: Bool, protectedReadDelta: Int, publishDelta: Int,
-                aggregateDelta: Int, generationFenced: Bool?, captureClosed: Bool?) {
+                aggregateDelta: Int, generationFenced: Bool?, captureClosed: Bool?,
+                witnessGeneration: UUID? = nil, activeGeneration: UUID? = nil,
+                priorGeneration: UUID? = nil, witnessRejection: String? = nil) {
         self.authoritativeWitness = authoritativeWitness
         self.protectedReadDelta = protectedReadDelta; self.publishDelta = publishDelta
         self.aggregateDelta = aggregateDelta; self.generationFenced = generationFenced
-        self.captureClosed = captureClosed
+        self.captureClosed = captureClosed; self.witnessGeneration = witnessGeneration
+        self.activeGeneration = activeGeneration; self.priorGeneration = priorGeneration
+        self.witnessRejection = witnessRejection
     }
 }
 
@@ -119,7 +127,9 @@ public enum LifecycleScenarioMachine {
             let observation = controller.execute(step)
             observations.append(observation)
             switch observation.status {
-            case .blocked: status = .blocked; reason = "observationUnavailable"
+            case .blocked:
+                status = .blocked
+                reason = observation.policy.witnessRejection ?? "observationUnavailable"
             case .fail: status = .fail; reason = "assertionFailed"
             case .pass:
                 if !valid(step, observation) {

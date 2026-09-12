@@ -32,6 +32,7 @@ public struct CycleRecord: Equatable, Codable, Sendable {
 }
 
 /// Architecture §5.1 and plan contract 9: retained totals only; no daily/source/kind/scope details.
+/// Task 5's schemaVersion envelope is the sole extra key beyond §5.1's four business fields.
 /// Dictionary identity prevents duplicate totals; bare keys cannot carry an application bucket.
 public struct CycleSummary: Equatable, Codable, Sendable {
     public static let currentSchemaVersion = SchemaVersion.v1
@@ -50,6 +51,24 @@ public struct CycleSummary: Equatable, Codable, Sendable {
     }
 
     enum CodingKeys: String, CodingKey, CaseIterable { case schemaVersion, cycleID, perChordTotals, perBareKeyTotals, distinctActiveDays }
+
+    public func encode(to encoder: any Encoder) throws {
+        var values = encoder.container(keyedBy: CodingKeys.self)
+        try values.encode(schemaVersion, forKey: .schemaVersion)
+        try values.encode(cycleID, forKey: .cycleID)
+        try values.encode(distinctActiveDays, forKey: .distinctActiveDays)
+        // Preserve Swift's non-string-key dictionary wire format, but order its alternating entries.
+        var chords = values.nestedUnkeyedContainer(forKey: .perChordTotals)
+        for (identity, count) in perChordTotals.sorted(by: { ChordBucket.ordered($0.key, $1.key) }) {
+            try chords.encode(identity)
+            try chords.encode(count)
+        }
+        var keys = values.nestedUnkeyedContainer(forKey: .perBareKeyTotals)
+        for (key, count) in perBareKeyTotals.sorted(by: { $0.key.value < $1.key.value }) {
+            try keys.encode(key)
+            try keys.encode(count)
+        }
+    }
 
     public init(from decoder: any Decoder) throws {
         let values = try strictContainer(decoder, keyedBy: CodingKeys.self)

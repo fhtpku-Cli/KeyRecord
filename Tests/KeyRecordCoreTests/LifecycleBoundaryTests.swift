@@ -22,13 +22,26 @@ final class LifecycleBoundaryTests: XCTestCase {
     }
 
     func testRootSourcesContainNoLoginKeychainOrTapSystemEffects() throws {
-        // Given: all root product sources; When: scanned; Then: SMAppService/SecItem/tap tokens never appear.
+        // Given: all root product sources; When: scanned by module; Then: effects stay at their boundaries.
         for file in try SourceInspection.swiftFiles(in: SourceInspection.root.appendingPathComponent("Sources")) {
             let text = try String(contentsOf: file, encoding: .utf8)
             let code = SourceInspection.codeOnly(text)
-            for symbol in ["SMAppService", "ServiceManagement", "SecItemAdd", "SecItemCopyMatching",
-                           "CGEventPost", "CGEvent.tapCreate", "dlopen", "dlsym"] {
+            for symbol in ["SMAppService", "ServiceManagement", "SecItemAdd", "SecItemCopyMatching"] {
                 XCTAssertFalse(code.contains(symbol), "\(symbol) must not appear in \(file.lastPathComponent)")
+            }
+            let isCore = file.path.contains("/Sources/KeyRecordCore/")
+            let isStore = file.path.contains("/Sources/KeyRecordStore/")
+            let isCapture = file.path.contains("/Sources/KeyRecordCapture/")
+            for symbol in ["CGEventPost", "CGEvent.tapCreate", "dlopen", "dlsym"] {
+                // Decision cores have zero system symbols; event/private HIToolbox bridges
+                // belong only in isolated Capture System*Backend.swift thin backends.
+                if isCore || isStore {
+                    XCTAssertFalse(code.contains(symbol), "\(symbol) must not appear in \(file.lastPathComponent)")
+                }
+                if isCapture, code.contains(symbol) {
+                    XCTAssertTrue(file.lastPathComponent.hasPrefix("System"), "\(symbol) requires a system backend in \(file.lastPathComponent)")
+                    XCTAssertTrue(file.lastPathComponent.hasSuffix("Backend.swift"), "\(symbol) requires a thin backend in \(file.lastPathComponent)")
+                }
             }
         }
     }

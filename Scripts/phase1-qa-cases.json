@@ -90,6 +90,22 @@
       "minTestCount": 54
     },
     {
+      "task": 7,
+      "case": "happy",
+      "argv": ["swift", "test", "--package-path", "Spikes/KeychainLifecycle", "--scratch-path", "{attempt}/build/preflight", "--filter", "KeychainLifecycleScenarioTests/testHappy|SessionLockQualificationTests/testHappy|ObservedLockSignalsTests/testHappy|LifecycleReceiptTests/testHappy"],
+      "expectedKind": "xctest",
+      "timeoutSeconds": 1200,
+      "minTestCount": 6
+    },
+    {
+      "task": 7,
+      "case": "failure",
+      "argv": ["swift", "test", "--package-path", "Spikes/KeychainLifecycle", "--scratch-path", "{attempt}/build/preflight", "--filter", "KeychainLifecycleScenarioTests/testFailure|SessionLockQualificationTests/testFailure|ObservedLockSignalsTests/testFailure|LifecycleReceiptTests/testFailure"],
+      "expectedKind": "xctest",
+      "timeoutSeconds": 1200,
+      "minTestCount": 14
+    },
+    {
       "task": 5,
       "case": "happy",
       "argv": ["swift", "test", "--package-path", ".", "--scratch-path", "{attempt}/build/root", "--filter", "ProductBoundaryTests|DomainSchemaTests"],

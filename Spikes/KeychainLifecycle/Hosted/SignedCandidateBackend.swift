@@ -16,14 +16,14 @@ final class SignedCandidateBackend: CandidateBackend {
     }
 
     func perform(_ operation: CandidateOperation, namespace: ProbeNamespace) throws -> CandidateObservation {
-        guard namespace == self.namespace else { throw PreflightBlock.namespace }
+        guard namespace == self.namespace else { throw PreflightBlock.namespaceMismatch }
         let host = attempt.appendingPathComponent("build/lifecycle/Build/Products/Debug/KeychainLifecycleProbe.app")
         guard Bundle.main.bundleURL.resolvingSymlinksInPath() == host.resolvingSymlinksInPath(),
               Bundle(for: Self.self).bundleURL.resolvingSymlinksInPath() == host.appendingPathComponent("Contents/PlugIns/KeychainLifecycleTests.xctest").resolvingSymlinksInPath()
-        else { throw PreflightBlock.signature }
+        else { throw PreflightBlock.unavailableIdentity }
         var runningCode: SecCode?
         guard SecCodeCopySelf([], &runningCode) == errSecSuccess, let runningCode,
-              SecCodeCheckValidity(runningCode, [], nil) == errSecSuccess else { throw PreflightBlock.signature }
+              SecCodeCheckValidity(runningCode, [], nil) == errSecSuccess else { throw PreflightBlock.unavailableIdentity }
         var runningInfo: CFDictionary?
         var runningStatic: SecStaticCode?
         guard SecCodeCopyStaticCode(runningCode, [], &runningStatic) == errSecSuccess, let runningStatic,
@@ -35,7 +35,7 @@ final class SignedCandidateBackend: CandidateBackend {
               info[kSecCodeInfoTeamIdentifier as String] as? String == manifest.teamID,
               info[kSecCodeInfoIdentifier as String] as? String == "com.keyrecord.phase1.probe.host",
               SHA256.hash(data: SecCertificateCopyData(leaf) as Data).map({ String(format: "%02x", $0) }).joined() == manifest.certificateSHA256
-        else { throw PreflightBlock.signature }
+        else { throw PreflightBlock.unavailableIdentity }
         switch LivePreflight.evaluate(manifestURL: attempt.appendingPathComponent("host.json"), attempt: attempt) {
         case .blocked(let reason): throw reason
         case .ready: break

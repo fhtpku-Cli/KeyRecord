@@ -63,9 +63,9 @@ final class KeychainLifecycleScenarioTests: XCTestCase {
     func testHappyHostedControllerUsesBackendOnlyWithReadyWitness() {
         let backend = RecordingBackend()
         let authority = FakeHostedAuthority(ready: true)
-        let controller = HostedLifecycleScenarioController(
-            backend: backend, namespace: .init(attempt: "attempt", seed: UUID()),
-            authority: authority, supportedScenarios: [.unlockedCRUD])
+        let configuration = HostedLifecycleConfiguration(
+            namespace: .init(attempt: "attempt", seed: UUID()), supportedScenarios: [.unlockedCRUD])
+        let controller = HostedLifecycleScenarioController(backend: backend, authority: authority, configuration: configuration)
         let report = LifecycleScenarioMachine.run(.unlockedCRUD, controller: controller)
         XCTAssertEqual(report.status, .pass)
         XCTAssertEqual(backend.operations, [.add, .read, .attributes, .delete])
@@ -75,9 +75,9 @@ final class KeychainLifecycleScenarioTests: XCTestCase {
     func testFailureHostedControllerWithoutWitnessHasZeroEffects() {
         let backend = RecordingBackend()
         let authority = FakeHostedAuthority(ready: true, witness: false)
-        let controller = HostedLifecycleScenarioController(
-            backend: backend, namespace: .init(attempt: "attempt", seed: UUID()),
-            authority: authority, supportedScenarios: [.unlockedCRUD])
+        let configuration = HostedLifecycleConfiguration(
+            namespace: .init(attempt: "attempt", seed: UUID()), supportedScenarios: [.unlockedCRUD])
+        let controller = HostedLifecycleScenarioController(backend: backend, authority: authority, configuration: configuration)
         let report = LifecycleScenarioMachine.run(.unlockedCRUD, controller: controller)
         XCTAssertEqual(report.status, .blocked)
         XCTAssertTrue(backend.operations.isEmpty)
@@ -122,12 +122,13 @@ private final class FakeLifecycleController: LifecycleScenarioController {
     func supports(_ scenario: LifecycleScenario) -> Bool { supported }
     func execute(_ step: LifecycleStep) -> LifecycleStepObservation {
         steps.append(step)
-        var result = LifecycleStepObservation(status: step == interrupt ? .blocked : .pass,
-                     authoritativeWitness: witness, protectedReadDelta: leak ? 1 : 0,
-                     publishDelta: 0, aggregateDelta: 0, rawKeychainStatus: step == .deleteMissing ? -25300 : 0, keychainCalls: 0)
-        result.accessibility = "aku"; result.synchronizable = false; result.valueMatched = true
-        result.itemMissing = true; result.generationFenced = true; result.captureClosed = true
-        result.cleanupComplete = true
-        return result
+        let keychain = LifecycleKeychainEvidence(
+            rawStatus: step == .deleteMissing ? -25300 : 0, calls: 0,
+            accessibility: "aku", synchronizable: false, valueMatched: true,
+            itemMissing: true, cleanupComplete: true)
+        let policy = LifecyclePolicyEvidence(
+            authoritativeWitness: witness, protectedReadDelta: leak ? 1 : 0,
+            publishDelta: 0, aggregateDelta: 0, generationFenced: true, captureClosed: true)
+        return LifecycleStepObservation(status: step == interrupt ? .blocked : .pass, keychain: keychain, policy: policy)
     }
 }

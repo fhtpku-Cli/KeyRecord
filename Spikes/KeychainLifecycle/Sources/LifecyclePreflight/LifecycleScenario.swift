@@ -30,42 +30,29 @@ public enum LifecycleScenario: String, CaseIterable, Codable, Sendable {
     }
 }
 
-public struct LifecycleStepObservation: Codable, Sendable {
-    public let status: LifecycleStatus
+public struct LifecycleKeychainEvidence: Codable, Sendable {
+    public let rawStatus: Int32?
+    public let calls: Int
+    public let accessibility: String?
+    public let synchronizable: Bool?
+    public let valueMatched: Bool?
+    public let itemMissing: Bool?
+    public let cleanupComplete: Bool?
+}
+
+public struct LifecyclePolicyEvidence: Codable, Sendable {
     public let authoritativeWitness: Bool
     public let protectedReadDelta: Int
     public let publishDelta: Int
     public let aggregateDelta: Int
-    public let rawKeychainStatus: Int32?
-    public let keychainCalls: Int
-    public var accessibility: String? = nil
-    public var synchronizable: Bool? = nil
-    public var valueMatched: Bool? = nil
-    public var itemMissing: Bool? = nil
-    public var generationFenced: Bool? = nil
-    public var captureClosed: Bool? = nil
-    public var cleanupComplete: Bool? = nil
+    public let generationFenced: Bool?
+    public let captureClosed: Bool?
+}
 
-    public init(status: LifecycleStatus, authoritativeWitness: Bool, protectedReadDelta: Int,
-                publishDelta: Int, aggregateDelta: Int, rawKeychainStatus: Int32?, keychainCalls: Int,
-                accessibility: String? = nil, synchronizable: Bool? = nil, valueMatched: Bool? = nil,
-                itemMissing: Bool? = nil, generationFenced: Bool? = nil, captureClosed: Bool? = nil,
-                cleanupComplete: Bool? = nil) {
-        self.status = status
-        self.authoritativeWitness = authoritativeWitness
-        self.protectedReadDelta = protectedReadDelta
-        self.publishDelta = publishDelta
-        self.aggregateDelta = aggregateDelta
-        self.rawKeychainStatus = rawKeychainStatus
-        self.keychainCalls = keychainCalls
-        self.accessibility = accessibility
-        self.synchronizable = synchronizable
-        self.valueMatched = valueMatched
-        self.itemMissing = itemMissing
-        self.generationFenced = generationFenced
-        self.captureClosed = captureClosed
-        self.cleanupComplete = cleanupComplete
-    }
+public struct LifecycleStepObservation: Codable, Sendable {
+    public let status: LifecycleStatus
+    public let keychain: LifecycleKeychainEvidence
+    public let policy: LifecyclePolicyEvidence
 }
 
 // Only an authorized hosted implementation may dispatch effects, using SignedCandidateBackend
@@ -118,9 +105,9 @@ public enum LifecycleScenarioMachine {
             case .pass:
                 if !valid(step, observation) {
                     status = .fail; reason = "stepContractFailed"
-                } else if observation.protectedReadDelta != 0 || observation.publishDelta != 0 || observation.aggregateDelta != 0 {
+                } else if observation.policy.protectedReadDelta != 0 || observation.policy.publishDelta != 0 || observation.policy.aggregateDelta != 0 {
                     status = .fail; reason = "protectedPolicyDelta"
-                } else if step.needsWitness && !observation.authoritativeWitness {
+                } else if step.needsWitness && !observation.policy.authoritativeWitness {
                     status = .blocked; reason = "noAuthoritativeWitness"
                 }
             }
@@ -130,27 +117,27 @@ public enum LifecycleScenarioMachine {
         observations.append(cleanup)
         switch cleanup.status {
         case .pass:
-            if cleanup.cleanupComplete != true { status = .blocked; reason = "cleanupPending" }
+            if cleanup.keychain.cleanupComplete != true { status = .blocked; reason = "cleanupPending" }
         case .fail: status = .fail; reason = "cleanupFailed"
         case .blocked:
             if status != .fail { status = .blocked; reason = "cleanupPending" }
         }
         return .init(scenario: scenario, status: status, reason: reason, observations: observations,
-                     controllerCalls: observations.count, keychainCalls: observations.reduce(0) { $0 + $1.keychainCalls })
+                     controllerCalls: observations.count, keychainCalls: observations.reduce(0) { $0 + $1.keychain.calls })
     }
 
     private static func valid(_ step: LifecycleStep, _ value: LifecycleStepObservation) -> Bool {
-        guard value.keychainCalls >= 0 else { return false }
+        guard value.keychain.calls >= 0 else { return false }
         switch step {
         case .unlockedCRUD:
-            return value.rawKeychainStatus == 0 && value.accessibility == "aku" &&
-                value.synchronizable == false && value.valueMatched == true
-        case .deleteMissing: return value.itemMissing == true && value.rawKeychainStatus == -25300
+            return value.keychain.rawStatus == 0 && value.keychain.accessibility == "aku" &&
+                value.keychain.synchronizable == false && value.keychain.valueMatched == true
+        case .deleteMissing: return value.keychain.itemMissing == true && value.keychain.rawStatus == -25300
         case .lockBackground, .restartLocked, .sleepWake:
-            return value.generationFenced == true && value.captureClosed == true
+            return value.policy.generationFenced == true && value.policy.captureClosed == true
         case .restartUnlocked, .unlockRevalidate, .logoutLogin:
-            return value.generationFenced == true
-        case .cleanup: return value.cleanupComplete == true
+            return value.policy.generationFenced == true
+        case .cleanup: return value.keychain.cleanupComplete == true
         case .crossDeviceRestore: return true
         }
     }

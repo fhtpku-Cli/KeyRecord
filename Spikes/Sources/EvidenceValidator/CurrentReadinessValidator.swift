@@ -37,6 +37,7 @@ struct CurrentReadinessBindings {
         "Spikes/Sources/EvidenceValidator/CurrentReadinessModels.swift",
         "Spikes/Sources/EvidenceValidator/CurrentReadinessDeriver.swift",
         "Spikes/Sources/EvidenceValidator/CurrentReadinessValidator.swift",
+        "Spikes/Sources/EvidenceValidator/SP6ALifecycleDecoder.swift",
     ]).union(Phase0RunBinding.sourcePaths).union(ConclusionGenerator.sourcePaths).sorted()
     let repository: URL
     private var git: GitRunner { GitRunner(repository: repository, timeout: 10, executable: URL(fileURLWithPath: "/usr/bin/git")) }
@@ -83,7 +84,7 @@ struct CurrentReadinessBindings {
                     do {
                         guard let bytes = try read(binding.path) else { throw ValidatorError("missing_receipt") }
                         guard Canonical.sha256(bytes) == binding.sha256 else { throw ValidatorError("receipt_hash_mismatch") }
-                        let receipt = try ReadinessDecoding.decode(ReadinessReceipt.self, from: bytes)
+                        let receipt = try SP6ALifecycleDecoder.decode(bytes, expectedSHA256: binding.sha256)
                         let artifacts = try checkReceipt(receipt, identity: (commit, tree), path: binding.path)
                         receipts.append(receipt); files += receipt.sourceFiles + artifacts
                     } catch { throw ValidatorError("readiness_invalid_receipt", String(describing: error)) }
@@ -140,7 +141,9 @@ struct CurrentReadinessBindings {
 
     private func checkReceipt(_ receipt: ReadinessReceipt, identity: (String, String), path: String) throws -> [ReadinessFileBinding] {
         try checkHash(receipt.producerControllerSHA256)
-        guard Set(receipt.sourceFiles.map(\.path)).isSubset(of: receipt.id.requiredSourcePaths) else {
+        let allowedSources = receipt.sourceFiles.contains(where: { SP6ALifecycleDecoder.sourcePaths.contains($0.path) })
+            ? SP6ALifecycleDecoder.sourcePaths : Set(receipt.id.requiredSourcePaths)
+        guard Set(receipt.sourceFiles.map(\.path)).isSubset(of: allowedSources) else {
             throw ValidatorError("readiness_receipt_source_not_allowed")
         }
         let ids = receipt.assertions.map(\.id)

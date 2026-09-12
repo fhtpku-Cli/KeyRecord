@@ -48,6 +48,22 @@
       "expectedKind": "xctest",
       "timeoutSeconds": 1200,
       "minTestCount": 7
+    },
+    {
+      "task": 3,
+      "case": "happy",
+      "argv": ["swift", "test", "--package-path", "Spikes", "--scratch-path", "{attempt}/build/spikes", "--filter", "CurrentDeliverablesTests/testHappy"],
+      "expectedKind": "xctest",
+      "timeoutSeconds": 1200,
+      "minTestCount": 2
+    },
+    {
+      "task": 3,
+      "case": "failure",
+      "argv": ["swift", "test", "--package-path", "Spikes", "--scratch-path", "{attempt}/build/spikes", "--filter", "CurrentDeliverablesTests/testFailure"],
+      "expectedKind": "xctest",
+      "timeoutSeconds": 1200,
+      "minTestCount": 5
     }
   ]
 }

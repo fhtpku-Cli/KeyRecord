@@ -12,8 +12,14 @@ final class SummaryTests: XCTestCase {
         let summary = try CycleSummaryReducer.reduce(cycleID: cycle, shortcuts: reducer.shortcuts, bareKeys: reducer.bareKeys)
         let data = try canonical(summary)
         let object = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
-        // Then: only contract-9 fields remain, including recursively nested fields.
-        XCTAssertEqual(Set(object.keys), ["schemaVersion", "cycleID", "perChordTotals", "perBareKeyTotals", "distinctActiveDays"])
+        // Task 5 requires schemaVersion as the persisted envelope, the only allowed extra key.
+        // Contract 9 / architecture §5.1 whitelist exactly four business dimensions;
+        // adding or removing a business field is a contract change.
+        let envelopeKeys = ["schemaVersion"]
+        let businessKeys = ["cycleID", "perChordTotals", "perBareKeyTotals", "distinctActiveDays"]
+        // Then: the complete envelope and the business whitelist are independently exact.
+        XCTAssertEqual(Set(object.keys), Set(businessKeys).union(envelopeKeys))
+        XCTAssertEqual(Set(object.keys).subtracting(envelopeKeys).sorted(), businessKeys.sorted())
         let chordEntries = try XCTUnwrap(object["perChordTotals"] as? [Any])
         let identity = try XCTUnwrap(chordEntries.first as? [String: Any])
         XCTAssertEqual(Set(identity.keys), ["chord", "appBucket"])
@@ -25,6 +31,15 @@ final class SummaryTests: XCTestCase {
         XCTAssertTrue(keys.isDisjoint(with: ["day", "sourceCounts", "ordinary", "suspectedInjection", "classification", "kind", "scope", "scopeClass"]))
         XCTAssertEqual(try JSONDecoder().decode(CycleSummary.self, from: data), summary)
         XCTAssertEqual(summary.distinctActiveDays.value.value, 1)
+
+        // Given: an otherwise valid persisted summary with an extra business dimension.
+        var extraBusinessField = object
+        extraBusinessField["sourceCounts"] = ["ordinary": 20, "suspectedInjection": 1]
+        let invalidData = try JSONSerialization.data(withJSONObject: extraBusinessField)
+        // When / Then: strict decoding rejects that field rather than silently discarding it.
+        XCTAssertThrowsError(try JSONDecoder().decode(CycleSummary.self, from: invalidData)) {
+            XCTAssertEqual($0 as? SchemaError, .unknownFields(["sourceCounts"]))
+        }
     }
 
     func testSourceConservationBeforeResetAndNineteenTwentyCounts() throws {

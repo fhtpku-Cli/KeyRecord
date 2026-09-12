@@ -32,6 +32,7 @@ public struct CycleRecord: Equatable, Codable, Sendable {
 }
 
 /// Architecture §5.1 and plan contract 9: retained totals only; no daily/source/kind/scope details.
+/// Task 5's schemaVersion envelope is the sole extra key beyond §5.1's four business fields.
 /// Dictionary identity prevents duplicate totals; bare keys cannot carry an application bucket.
 public struct CycleSummary: Equatable, Codable, Sendable {
     public static let currentSchemaVersion = SchemaVersion.v1

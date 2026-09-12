@@ -1,9 +1,12 @@
 #!/usr/bin/env bash
+# Registry-bound: phase1-qa-cases.json Q10 invokes exactly
+# ["bash", "Scripts/task10-qa.sh", "{attempt}", "happy"|"failure"].
+# Only unsigned Xcode builds, architecture inspection, and direct XCTest run here.
 set -euo pipefail
 attempt="$1"
 scenario="$2"
 case "$scenario" in
-  happy) filters='KeyRecordAppTests.AppProjectTests,KeyRecordAppTests.PrimitiveStateTests/testHappyStateSemantics,KeyRecordAppTests.PrimitiveStateTests/testHappyMatrix' ;;
+  happy) filters='KeyRecordAppTests.AppProjectTests,KeyRecordAppTests.PrimitiveStateTests/testHappyStateSemantics,KeyRecordAppTests.PrimitiveStateTests/testHappyMatrix,KeyRecordAppTests.PrimitiveStateTests/testHappyLocalizedWindowTitle' ;;
   failure) filters='KeyRecordAppTests.PrimitiveStateTests/testFailureStressMatrix,KeyRecordAppTests.PrimitiveStateTests/testFailureEmptyLabel,KeyRecordAppTests.PrimitiveStateTests/testFailureReducedMotionPolicy' ;;
   *) exit 1 ;;
 esac

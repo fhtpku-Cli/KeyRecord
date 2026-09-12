@@ -7,7 +7,7 @@
       "argv": ["bash", "Scripts/task10-qa.sh", "{attempt}", "happy"],
       "expectedKind": "xctest",
       "timeoutSeconds": 1200,
-      "minTestCount": 5
+      "minTestCount": 6
     },
     {
       "task": 10,

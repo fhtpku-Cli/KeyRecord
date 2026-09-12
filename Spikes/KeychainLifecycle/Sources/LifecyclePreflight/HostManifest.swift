@@ -74,16 +74,22 @@ public struct PreflightContext: Sendable {
     public let scratchRoot: String
     public let controllerSHA256: String
     public let controllerExecutable: Bool
+    public let controllerExists: Bool
+    public let controllerRegular: Bool
 
     public func replacingIdentity(_ value: HostIdentity) -> Self {
         Self(identity: value, attemptID: attemptID, scratchRoot: scratchRoot,
-             controllerSHA256: controllerSHA256, controllerExecutable: controllerExecutable)
+             controllerSHA256: controllerSHA256, controllerExecutable: controllerExecutable,
+             controllerExists: controllerExists, controllerRegular: controllerRegular)
     }
 }
 
 public enum PreflightBlock: String, Error, Sendable {
-    case missingManifest, malformedManifest, expired, hostMismatch, signature, entitlement
-    case namespace, scratchRoot, operation, controller, attemptMismatch, unavailableIdentity
+    case missingManifest, malformedManifest, expired, unavailableIdentity
+    case hostIDMismatch, architectureMismatch, macOSMismatch, teamIDMismatch
+    case certificateFingerprintMismatch, bundleIDsMismatch, entitlementsMismatch
+    case namespaceMismatch, scratchRootMismatch, attemptMismatch, operationAllowlistMismatch
+    case controllerMissing, controllerNotExecutable, controllerNotRegular, controllerHashMismatch
 }
 
 public enum PreflightVerdict: Equatable, Sendable {

@@ -18,8 +18,19 @@ struct PreflightFixture {
                      signatureValid: signed, entitlementsValid: entitled)
     }
     var context: PreflightContext {
+        context(controllerExists: true, executable: true, regular: true)
+    }
+    func context(controllerExists: Bool, executable: Bool, regular: Bool) -> PreflightContext {
         PreflightContext(identity: Self.identity(), attemptID: "attempt-one", scratchRoot: "/fixture/attempt-one",
-                         controllerSHA256: String(repeating: "d", count: 64), controllerExecutable: true)
+                         controllerSHA256: String(repeating: "d", count: 64), controllerExecutable: executable,
+                         controllerExists: controllerExists, controllerRegular: regular)
+    }
+    func data(changing field: String, to values: [String]) throws -> Data {
+        guard var object = try JSONSerialization.jsonObject(with: data()) as? [String: Any] else {
+            throw PreflightBlock.malformedManifest
+        }
+        object[field] = values
+        return try JSONSerialization.data(withJSONObject: object)
     }
     func data(changing field: String? = nil, to value: String = "") throws -> Data {
         var object: [String: Any] = [

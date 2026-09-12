@@ -9,22 +9,28 @@ public enum Preflight {
         }
         guard let expiry = ISO8601DateFormatter().date(from: manifest.expiresAt), expiry > now else { return .blocked(.expired) }
         let live = context.identity
-        guard !manifest.hostID.isEmpty, manifest.hostID == live.hostID,
-              ["arm64", "x86_64"].contains(manifest.architecture), manifest.architecture == live.architecture,
-              manifest.macOS == live.macOS else { return .blocked(.hostMismatch) }
-        guard live.signatureValid, !manifest.teamID.isEmpty, manifest.teamID == live.teamID,
-              digest(manifest.certificateSHA256), manifest.certificateSHA256 == live.certificateSHA256,
-              manifest.bundleIDs == ["com.keyrecord.phase1.probe.host", "com.keyrecord.phase1.probe.tests"],
-              manifest.bundleIDs == live.bundleIDs else { return .blocked(.signature) }
-        guard live.entitlementsValid else { return .blocked(.entitlement) }
-        guard manifest.namespacePrefix == ProbeNamespace.prefix else { return .blocked(.namespace) }
+        guard !manifest.hostID.isEmpty, manifest.hostID == live.hostID else { return .blocked(.hostIDMismatch) }
+        guard ["arm64", "x86_64"].contains(manifest.architecture),
+              manifest.architecture == live.architecture else { return .blocked(.architectureMismatch) }
+        guard manifest.macOS == live.macOS else { return .blocked(.macOSMismatch) }
+        guard live.signatureValid else { return .blocked(.unavailableIdentity) }
+        guard !manifest.teamID.isEmpty, manifest.teamID == live.teamID else { return .blocked(.teamIDMismatch) }
+        guard digest(manifest.certificateSHA256),
+              manifest.certificateSHA256 == live.certificateSHA256 else { return .blocked(.certificateFingerprintMismatch) }
+        guard manifest.bundleIDs == ["com.keyrecord.phase1.probe.host", "com.keyrecord.phase1.probe.tests"],
+              manifest.bundleIDs == live.bundleIDs else { return .blocked(.bundleIDsMismatch) }
+        guard live.entitlementsValid else { return .blocked(.entitlementsMismatch) }
+        guard manifest.namespacePrefix == ProbeNamespace.prefix else { return .blocked(.namespaceMismatch) }
         guard manifest.scratchRoot == context.scratchRoot, manifest.scratchRoot.hasPrefix("/"),
-              !manifest.scratchRoot.split(separator: "/").contains("..") else { return .blocked(.scratchRoot) }
+              !manifest.scratchRoot.split(separator: "/").contains("..") else { return .blocked(.scratchRootMismatch) }
         guard manifest.attemptID == context.attemptID, !manifest.attemptID.isEmpty else { return .blocked(.attemptMismatch) }
         guard Set(manifest.operations) == Set(HostOperation.allCases),
-              manifest.operations.count == HostOperation.allCases.count else { return .blocked(.operation) }
-        guard manifest.controllerPath.hasPrefix("/"), context.controllerExecutable,
-              digest(manifest.controllerSHA256), manifest.controllerSHA256 == context.controllerSHA256 else { return .blocked(.controller) }
+              manifest.operations.count == HostOperation.allCases.count else { return .blocked(.operationAllowlistMismatch) }
+        guard manifest.controllerPath.hasPrefix("/"), context.controllerExists else { return .blocked(.controllerMissing) }
+        guard context.controllerRegular else { return .blocked(.controllerNotRegular) }
+        guard context.controllerExecutable else { return .blocked(.controllerNotExecutable) }
+        guard digest(manifest.controllerSHA256),
+              manifest.controllerSHA256 == context.controllerSHA256 else { return .blocked(.controllerHashMismatch) }
         return .ready
     }
 

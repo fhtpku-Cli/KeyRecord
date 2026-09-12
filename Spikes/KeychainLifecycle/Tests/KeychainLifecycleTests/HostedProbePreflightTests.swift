@@ -17,54 +17,110 @@ final class HostedProbePreflightTests: XCTestCase {
         XCTAssertEqual(counter.controller, 0)
     }
 
-    func testFailureManifestMatrixHasZeroEffects() throws {
-        // Given: every fixture differs from the independently supplied live identity.
-        let fixture = PreflightFixture()
-        let changes: [(String, String)] = [
-            ("expiresAt", "2000-01-01T00:00:00Z"), ("hostID", "other-host"),
-            ("teamID", "OTHERTEAM"), ("architecture", "x86_64"),
-            ("macOS", "0.0"), ("namespacePrefix", "com.keyrecord.app"),
-            ("scratchRoot", "/outside"), ("controllerSHA256", String(repeating: "b", count: 64)),
-            ("certificateSHA256", String(repeating: "c", count: 64)),
-            ("attemptID", "replayed"), ("expiresAt", "not-a-date"),
-        ]
-        for (field, value) in changes {
-            let counter = EffectCounter()
-            // When: exercise's gate is the same gate used before each signed SecItem call.
-            let result = try PreflightFixture.gatedEffects(data: fixture.data(changing: field, to: value),
-                                                         context: fixture.context, counter: counter, now: now)
-            // Then
-            XCTAssertEqual(result.exitStatus, 2, field)
-            XCTAssertEqual(counter.keychain, 0, field)
-            XCTAssertEqual(counter.controller, 0, field)
-        }
+    func testExpired() throws {
+        try assertBlocked(.expired, data: PreflightFixture().data(changing: "expiresAt", to: "2000-01-01T00:00:00Z"))
     }
 
-    func testFailureMissingEntitlementOrSignatureHasZeroEffects() throws {
-        for identity in [PreflightFixture.identity(entitled: false), PreflightFixture.identity(signed: false)] {
-            // Given
-            let fixture = PreflightFixture()
-            let counter = EffectCounter()
-            let context = fixture.context.replacingIdentity(identity)
-            // When
-            let result = try PreflightFixture.gatedEffects(data: fixture.data(), context: context, counter: counter, now: now)
-            // Then
-            XCTAssertEqual(result.exitStatus, 2)
-            XCTAssertEqual(counter.keychain + counter.controller, 0)
-        }
+    func testExpiredWhenDateMalformed() throws {
+        try assertBlocked(.expired, data: PreflightFixture().data(changing: "expiresAt", to: "not-a-date"))
     }
 
-    func testFailureStrictMissingAndUnknownFields() throws {
+    func testHostIDMismatch() throws {
+        try assertBlocked(.hostIDMismatch, data: PreflightFixture().data(changing: "hostID", to: "other-host"))
+    }
+
+    func testArchitectureMismatch() throws {
+        try assertBlocked(.architectureMismatch, data: PreflightFixture().data(changing: "architecture", to: "x86_64"))
+    }
+
+    func testMacOSMismatch() throws {
+        try assertBlocked(.macOSMismatch, data: PreflightFixture().data(changing: "macOS", to: "0.0"))
+    }
+
+    func testTeamIDMismatch() throws {
+        try assertBlocked(.teamIDMismatch, data: PreflightFixture().data(changing: "teamID", to: "OTHERTEAM"))
+    }
+
+    func testCertificateFingerprintMismatch() throws {
+        try assertBlocked(.certificateFingerprintMismatch,
+                          data: PreflightFixture().data(changing: "certificateSHA256", to: String(repeating: "c", count: 64)))
+    }
+
+    func testBundleIDsMismatch() throws {
+        try assertBlocked(.bundleIDsMismatch, data: PreflightFixture().data(changing: "bundleIDs", to: ["com.keyrecord.other"]))
+    }
+
+    func testEntitlementsMismatch() throws {
         let fixture = PreflightFixture()
-        for data in [nil, Data("{}".utf8), Data("null".utf8), try fixture.data(changing: "unexpected", to: "$(touch /tmp/never)")] {
-            // Given
-            let counter = EffectCounter()
-            // When
-            let result = try PreflightFixture.gatedEffects(data: data, context: fixture.context, counter: counter, now: now)
-            // Then
-            XCTAssertEqual(result.exitStatus, 2)
-            XCTAssertEqual(counter.keychain + counter.controller, 0)
-        }
+        try assertBlocked(.entitlementsMismatch, data: fixture.data(),
+                          context: fixture.context.replacingIdentity(PreflightFixture.identity(entitled: false)))
+    }
+
+    func testNamespaceMismatch() throws {
+        try assertBlocked(.namespaceMismatch, data: PreflightFixture().data(changing: "namespacePrefix", to: "com.keyrecord.app"))
+    }
+
+    func testScratchRootMismatch() throws {
+        try assertBlocked(.scratchRootMismatch, data: PreflightFixture().data(changing: "scratchRoot", to: "/fixture/attempt-one/../escape"))
+    }
+
+    func testAttemptMismatch() throws {
+        try assertBlocked(.attemptMismatch, data: PreflightFixture().data(changing: "attemptID", to: "replayed"))
+    }
+
+    func testOperationAllowlistMismatch() throws {
+        try assertBlocked(.operationAllowlistMismatch,
+                          data: PreflightFixture().data(changing: "operations", to: HostOperation.allCases.dropLast().map(\.rawValue)))
+    }
+
+    func testOperationAllowlistMismatchWhenDuplicated() throws {
+        try assertBlocked(.operationAllowlistMismatch,
+                          data: PreflightFixture().data(changing: "operations", to: (HostOperation.allCases + [.keychain]).map(\.rawValue)))
+    }
+
+    func testControllerMissing() throws {
+        let fixture = PreflightFixture()
+        try assertBlocked(.controllerMissing, data: fixture.data(),
+                          context: fixture.context(controllerExists: false, executable: false, regular: false))
+    }
+
+    func testControllerNotExecutable() throws {
+        let fixture = PreflightFixture()
+        try assertBlocked(.controllerNotExecutable, data: fixture.data(),
+                          context: fixture.context(controllerExists: true, executable: false, regular: true))
+    }
+
+    func testControllerNotRegular() throws {
+        let fixture = PreflightFixture()
+        try assertBlocked(.controllerNotRegular, data: fixture.data(),
+                          context: fixture.context(controllerExists: true, executable: true, regular: false))
+    }
+
+    func testControllerHashMismatch() throws {
+        try assertBlocked(.controllerHashMismatch,
+                          data: PreflightFixture().data(changing: "controllerSHA256", to: String(repeating: "b", count: 64)))
+    }
+
+    func testUnavailableIdentity() throws {
+        let fixture = PreflightFixture()
+        try assertBlocked(.unavailableIdentity, data: fixture.data(),
+                          context: fixture.context.replacingIdentity(PreflightFixture.identity(signed: false)))
+    }
+
+    func testMissingManifest() throws {
+        try assertBlocked(.missingManifest, data: nil)
+    }
+
+    func testMalformedManifest() throws {
+        try assertBlocked(.malformedManifest, data: Data("{}".utf8))
+    }
+
+    func testMalformedManifestWhenNull() throws {
+        try assertBlocked(.malformedManifest, data: Data("null".utf8))
+    }
+
+    func testMalformedManifestWhenUnknownField() throws {
+        try assertBlocked(.malformedManifest, data: PreflightFixture().data(changing: "unexpected", to: "$(touch /tmp/never)"))
     }
 
     func testHappyNamespaceIsAttemptSeeded() throws {
@@ -107,16 +163,17 @@ final class HostedProbePreflightTests: XCTestCase {
         XCTAssertEqual(counter.controller, 0)
     }
 
-    func testFailureMissingControllerHasZeroEffects() throws {
-        // Given
-        let fixture = PreflightFixture()
+    private func assertBlocked(_ reason: PreflightBlock, data: Data?, context: PreflightContext = PreflightFixture().context) throws {
+        // Given: a fake backend that counts every attempted effect.
         let counter = EffectCounter()
-        let context = PreflightContext(identity: PreflightFixture.identity(), attemptID: fixture.context.attemptID,
-                                       scratchRoot: fixture.context.scratchRoot, controllerSHA256: "", controllerExecutable: false)
-        // When
-        let result = try PreflightFixture.gatedEffects(data: fixture.data(), context: context, counter: counter, now: now)
-        // Then
-        XCTAssertEqual(result, .blocked(.controller))
-        XCTAssertEqual(counter.keychain + counter.controller, 0)
+        // When: the pure gate evaluates the supplied snapshot.
+        let verdict = Preflight.evaluate(data: data, context: context, now: now)
+        // Then: the exact rejection is preserved by the effect gate, with no backend calls.
+        XCTAssertEqual(verdict, .blocked(reason), reason.rawValue)
+        XCTAssertEqual(verdict.exitStatus, 2, reason.rawValue)
+        let gated = try PreflightFixture.gatedEffects(data: data, context: context, counter: counter, now: now)
+        XCTAssertEqual(gated, .blocked(reason), reason.rawValue)
+        XCTAssertEqual(counter.keychain, 0, reason.rawValue)
+        XCTAssertEqual(counter.controller, 0, reason.rawValue)
     }
 }

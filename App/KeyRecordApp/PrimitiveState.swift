@@ -1,4 +1,4 @@
-import Foundation
+import SwiftUI
 
 enum PrimitiveState: String, CaseIterable {
     case unstarted, paused, collecting, blocked, error
@@ -29,6 +29,20 @@ struct PrimitiveFixture {
     let locale: String
     let dark: Bool
     let stress: Bool
+    var empty = false
+}
+
+@MainActor
+final class HarnessSelection: ObservableObject {
+    @Published var locale: String {
+        didSet { titleChanged(windowTitle) }
+    }
+    private let titleChanged: (String) -> Void
+    var windowTitle: String { NativeText(locale: locale)("harness.title") }
+    init(locale: String, titleChanged: @escaping (String) -> Void) {
+        self.locale = locale
+        self.titleChanged = titleChanged
+    }
 }
 
 final class ResourceAnchor {}

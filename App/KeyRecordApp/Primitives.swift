@@ -15,13 +15,13 @@ struct ConsentPanel: View {
         GroupBox {
             VStack(alignment: .leading, spacing: NativeLayout.compact) {
                 Text(text("consent.disclosure")).fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("consent.disclosure")
                 HStack {
                     NativeAction(title: text("consent.accept"), identifier: "consent.accept", action: action)
                     NativeAction(title: text("consent.reject"), identifier: "consent.reject", action: action)
                 }
             }
-        } label: { Text(text("consent.title")) }
-        .accessibilityIdentifier("consent.panel")
+        } label: { Text(text("consent.title")).accessibilityIdentifier("consent.panel") }
     }
 }
 
@@ -30,9 +30,15 @@ struct CaptureStatus: View {
     let text: NativeText
     var body: some View {
         HStack(spacing: NativeLayout.compact) {
-            Image(systemName: state.symbol).accessibilityHidden(true)
-            NativeLabel(title: text(state.statusKey), value: text(state.statusKey), identifier: "capture.status", textStyle: .headline)
-        }.font(.headline)
+            Image(systemName: state.symbol)
+                .accessibilityLabel(text(state.statusKey))
+                .accessibilityIdentifier("capture.symbol")
+            Text(text(state.statusKey))
+                .accessibilityValue(text(state.statusKey))
+                .accessibilityIdentifier("capture.status")
+        }
+        .font(.headline)
+        .accessibilityElement(children: .contain)
     }
 }
 
@@ -48,9 +54,16 @@ struct PrimaryAction: View {
 struct AggregateRow: View {
     let name: String
     let text: NativeText
+    private var value: String { text(name.isEmpty ? "aggregate.emptyValue" : "aggregate.value") }
     var body: some View {
-        NativeLabel(title: text.aggregateName(name), value: text("aggregate.value"),
-                    identifier: "aggregates.row", showsValue: true)
+        VStack(alignment: .leading, spacing: NativeLayout.compact) {
+            Text(text.aggregateName(name)).fixedSize(horizontal: false, vertical: true)
+            Text(value).font(.caption).fixedSize(horizontal: false, vertical: true)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(text.aggregateName(name))
+        .accessibilityValue(value)
+        .accessibilityIdentifier("aggregates.row")
     }
 }
 
@@ -69,12 +82,12 @@ struct DestructiveConfirmation: View {
         GroupBox {
             VStack(alignment: .leading, spacing: NativeLayout.compact) {
                 Text(text("destructive.warning")).fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("destructive.warning")
                 HStack {
                     NativeAction(title: text("action.cancel"), identifier: "destructive.cancel", keyEquivalent: "\u{1b}", action: action)
                     NativeAction(title: text("destructive.confirm"), identifier: "destructive.confirm", action: action)
                 }
             }
-        } label: { Text(text("destructive.title")) }
-        .accessibilityIdentifier("destructive.panel")
+        } label: { Text(text("destructive.title")).accessibilityIdentifier("destructive.panel") }
     }
 }

@@ -5,26 +5,19 @@ import XCTest
 @MainActor
 final class PrimitiveStateTests: XCTestCase {
     func testHappyStateSemantics() {
-        // Given every presentation state, when mapped, then text and symbols differ.
         XCTAssertEqual(Set(PrimitiveState.allCases.map(\.statusKey)).count, 5)
-        XCTAssertEqual(Set(PrimitiveState.allCases.map(\.symbol)).count, 5)
+        XCTAssertEqual(PrimitiveState.allCases.map(\.symbol),
+                       ["circle", "pause.circle", "record.circle", "lock.circle", "exclamationmark.triangle"])
         XCTAssertEqual(PrimitiveState.allCases.map(\.actionKey),
                        ["action.start", "action.resume", "action.pause", "action.settings", "action.retry"])
     }
 
-    func testHappyMatrix() throws {
-        try matrix(stress: false)
-    }
+    func testHappyMatrix() throws { try matrix(stress: false) }
+    func testFailureStressMatrix() throws { try matrix(stress: true) }
 
-    func testFailureStressMatrix() throws {
-        try matrix(stress: true)
-    }
-
-    func testFailureEmptyLabel() {
+    func testFailureEmptyLabel() throws {
         for locale in ["en", "zh-Hans"] {
-            let text = NativeText(locale: locale)
-            XCTAssertFalse(text.aggregateName("").isEmpty)
-            XCTAssertNotEqual(text.aggregateName(""), "aggregate.empty")
+            try exercise(PrimitiveFixture(state: .blocked, locale: locale, dark: false, stress: true, empty: true))
         }
     }
 
@@ -35,75 +28,89 @@ final class PrimitiveStateTests: XCTestCase {
         XCTAssertTrue(transaction.disablesAnimations)
     }
 
-    private func matrix(stress: Bool) throws {
+    func testHappyLocalizedWindowTitle() throws {
         _ = NSApplication.shared
         NSApp.setActivationPolicy(.accessory)
         NSApp.finishLaunching()
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 640, height: 480),
+            styleMask: [.titled], backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false
+        defer { window.close() }
+        let selection = HarnessSelection(locale: "en") { [weak window] title in window?.title = title }
+        window.title = selection.windowTitle
+        let view = NSHostingView(rootView: PrimitiveHarness(selection: selection))
+        window.contentView = view
+        window.makeKeyAndOrderFront(nil)
+        NativeEvidence.primeAccessibility()
+        NativeEvidence.update(view)
+        XCTAssertEqual(window.title, NativeText(locale: "en")("harness.title"))
+        try NativeEvidence.snapshot(view, fixture: PrimitiveFixture(state: .unstarted, locale: "en", dark: false, stress: false), suffix: "-window-title")
+        selection.locale = "zh-Hans"
+        NativeEvidence.update(view)
+        XCTAssertEqual(window.title, NativeText(locale: "zh-Hans")("harness.title"))
+        XCTAssertNotEqual(window.title, NativeText(locale: "en")("harness.title"))
+        try NativeEvidence.snapshot(view, fixture: PrimitiveFixture(state: .unstarted, locale: "zh-Hans", dark: false, stress: false), suffix: "-window-title")
+        selection.locale = "en"
+        NativeEvidence.update(view)
+        XCTAssertEqual(window.title, NativeText(locale: "en")("harness.title"))
+    }
+
+    private func matrix(stress: Bool) throws {
         for locale in ["en", "zh-Hans"] {
             for dark in [false, true] {
                 for state in PrimitiveState.allCases {
-                    // Given deterministic fixtures, when hosted, then inspect real AX and bitmap.
-                    var presses = 0
-                    let text = NativeText(locale: locale)
-                    let fixture = PrimitiveFixture(state: state, locale: locale, dark: dark, stress: stress)
-                    let view = NSHostingView(rootView: PrimitiveShowcase(fixture: fixture) { presses += 1 })
-                    let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 640, height: 900),
-                                          styleMask: [.titled, .resizable], backing: .buffered, defer: false)
-                    window.contentView = view
-                    view.frame = NSRect(x: 0, y: 0, width: 640, height: 900)
-                    window.appearance = NSAppearance(named: stress
-                        ? (dark ? .accessibilityHighContrastDarkAqua : .accessibilityHighContrastAqua)
-                        : (dark ? .darkAqua : .aqua))
-                    view.layoutSubtreeIfNeeded()
-                    window.makeKeyAndOrderFront(nil)
-                    view.displayIfNeeded()
-                    let laidOut = expectation(description: "Native view update turn")
-                    DispatchQueue.main.async { laidOut.fulfill() }
-                    wait(for: [laidOut], timeout: 5)
-                    try NativeEvidence.snapshot(view, fixture: fixture)
-                    let elements = NativeEvidence.elements(in: view)
-                    try NativeEvidence.assertFocusOrder(window: window, elements: elements)
-                    for id in ["consent.accept", "consent.reject", "capture.primary", "settings.exclusions",
-                               "destructive.cancel", "destructive.confirm"] {
-                        let element = try XCTUnwrap(elements.first { $0.accessibilityIdentifier() == id }, id)
-                        let button = try XCTUnwrap(element as? NSButton)
-                        XCTAssertEqual(button.cell?.accessibilityRole(), .button, id)
-                        XCTAssertEqual(button.font, NSFont.preferredFont(forTextStyle: stress ? .title2 : .body))
-                        XCTAssertFalse(NativeEvidence.name(element).isEmpty, id)
-                        XCTAssertTrue(element.isAccessibilityEnabled(), id)
-                        _ = button.accessibilityPerformPress()
-                    }
-                    XCTAssertEqual(presses, 6)
-                    let status = try XCTUnwrap(elements.first { $0.accessibilityIdentifier() == "capture.status" })
-                    XCTAssertTrue(NativeEvidence.name(status).contains(text(state.statusKey)))
-                    XCTAssertEqual(status.accessibilityValue() as? String, text(state.statusKey))
-                    let row = try XCTUnwrap(elements.first { $0.accessibilityIdentifier() == "aggregates.row" })
-                    XCTAssertFalse(NativeEvidence.name(row).isEmpty)
-                    let event = try XCTUnwrap(NSEvent.keyEvent(with: .keyDown, location: .zero,
-                        modifierFlags: [], timestamp: 0, windowNumber: window.windowNumber,
-                        context: nil, characters: "\r", charactersIgnoringModifiers: "\r", isARepeat: false, keyCode: 36))
-                    window.sendEvent(event)
-                    XCTAssertEqual(presses, 7)
-                    let escape = try XCTUnwrap(NSEvent.keyEvent(with: .keyDown, location: .zero,
-                        modifierFlags: [], timestamp: 0, windowNumber: window.windowNumber,
-                        context: nil, characters: "\u{1b}", charactersIgnoringModifiers: "\u{1b}", isARepeat: false, keyCode: 53))
-                    window.sendEvent(escape)
-                    XCTAssertEqual(presses, 8)
-                    NativeEvidence.assertTextFits(view)
-                    try NativeEvidence.snapshot(view, fixture: fixture)
-                    if stress {
-                        for size in [NativeLayout.minimum, NativeLayout.aggregateMinimum] {
-                            window.setContentSize(size)
-                            view.layoutSubtreeIfNeeded()
-                            NativeEvidence.assertTextFits(view)
-                            try NativeEvidence.snapshot(view, fixture: fixture,
-                                suffix: "-\(Int(size.width))x\(Int(size.height))")
-                        }
-                    }
-                    window.contentView = nil
-                    window.close()
+                    try exercise(PrimitiveFixture(state: state, locale: locale, dark: dark, stress: stress))
                 }
             }
+        }
+    }
+
+    private func exercise(_ fixture: PrimitiveFixture) throws {
+        _ = NSApplication.shared
+        NSApp.setActivationPolicy(.accessory)
+        NSApp.finishLaunching()
+        var presses = 0
+        var actions: [String] = []
+        let view = NSHostingView(rootView: PrimitiveShowcase(fixture: fixture) { presses += 1 }
+            .environment(\.primitiveActionObserver, { actions.append($0) }))
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 640, height: 900),
+            styleMask: [.titled, .resizable], backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false
+        defer { window.contentView = nil; window.close() }
+        window.contentView = view
+        window.appearance = NSAppearance(named: fixture.stress
+            ? (fixture.dark ? .accessibilityHighContrastDarkAqua : .accessibilityHighContrastAqua)
+            : (fixture.dark ? .darkAqua : .aqua))
+        window.makeKeyAndOrderFront(nil)
+        NativeEvidence.primeAccessibility()
+        NativeEvidence.update(view)
+        let sizes = fixture.stress ? [view.bounds.size, NativeLayout.minimum, NativeLayout.aggregateMinimum] : [view.bounds.size]
+        for (index, size) in sizes.enumerated() {
+            window.setContentSize(size)
+            NativeEvidence.update(view)
+            let suffix = (fixture.empty ? "-empty" : "") + (index == 0 ? "" : "-\(Int(size.width))x\(Int(size.height))")
+            try NativeEvidence.scrollTop(view)
+            try NativeEvidence.snapshot(view, fixture: fixture, suffix: suffix)
+            try NativeEvidence.assertLabels(view, fixture: fixture)
+            try NativeEvidence.scrollBottom(view)
+            try NativeEvidence.assertVisible("destructive.confirm", in: view)
+            try NativeEvidence.assertVisible("destructive.cancel", in: view)
+            try NativeEvidence.assertVisible("settings.exclusions", in: view)
+            try NativeEvidence.snapshot(view, fixture: fixture, suffix: suffix + "-bottom")
+            try NativeEvidence.assertKeyboard(view)
+            let before = presses
+            actions.removeAll()
+            for id in PrimitiveFocus.order {
+                let element = try NativeEvidence.node(id, in: view)
+                XCTAssertTrue(KRAXEnabled(element), id)
+                _ = KRAXPress(element)
+            }
+            XCTAssertEqual(presses, before + 6)
+            try NativeEvidence.key("\r", code: 36, window: window)
+            XCTAssertEqual(presses, before + 7)
+            try NativeEvidence.key("\u{1b}", code: 53, window: window)
+            XCTAssertEqual(presses, before + 8)
+            XCTAssertEqual(actions, PrimitiveFocus.order + ["capture.primary", "destructive.cancel"])
         }
     }
 }

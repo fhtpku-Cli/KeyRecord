@@ -1,84 +1,75 @@
-import AppKit
 import SwiftUI
 
-private struct NativeLargeTextKey: EnvironmentKey {
-    static let defaultValue = false
+enum PrimitiveFocus {
+    static let order = ["consent.accept", "consent.reject", "capture.primary",
+                        "settings.exclusions", "destructive.cancel", "destructive.confirm"]
+}
+
+@MainActor
+final class PrimitiveFocusContext {
+    let binding: FocusState<String?>.Binding
+    init(_ binding: FocusState<String?>.Binding) { self.binding = binding }
+}
+
+private struct PrimitiveFocusKey: EnvironmentKey {
+    static let defaultValue: PrimitiveFocusContext? = nil
+}
+
+private struct PrimitiveActionObserverKey: EnvironmentKey {
+    static let defaultValue: (@MainActor @Sendable (String) -> Void)? = nil
 }
 
 extension EnvironmentValues {
-    var nativeLargeText: Bool {
-        get { self[NativeLargeTextKey.self] }
-        set { self[NativeLargeTextKey.self] = newValue }
+    var primitiveActionObserver: (@MainActor @Sendable (String) -> Void)? {
+        get { self[PrimitiveActionObserverKey.self] }
+        set { self[PrimitiveActionObserverKey.self] = newValue }
+    }
+    var primitiveFocus: PrimitiveFocusContext? {
+        get { self[PrimitiveFocusKey.self] }
+        set { self[PrimitiveFocusKey.self] = newValue }
     }
 }
 
-struct NativeAction: NSViewRepresentable {
-    @Environment(\.nativeLargeText) private var largeText
+struct NativeAction: View {
+    @Environment(\.primitiveFocus) private var focus
+    @Environment(\.primitiveActionObserver) private var observeAction
     let title: String
     let identifier: String
     var keyEquivalent = ""
     let action: () -> Void
 
-    final class KeyboardButton: NSButton {
-        override var acceptsFirstResponder: Bool { isEnabled }
-        override var canBecomeKeyView: Bool { isEnabled && !isHiddenOrHasHiddenAncestor }
+    private var button: some View {
+        Button(role: identifier == "destructive.confirm" ? .destructive : nil) {
+            observeAction?(identifier)
+            action()
+        } label: {
+            Text(title).fixedSize(horizontal: false, vertical: true)
+        }
+        .accessibilityLabel(title)
+        .accessibilityIdentifier(identifier)
+        .id(identifier)
     }
 
-    final class Coordinator: NSObject {
-        var action: () -> Void
-        init(action: @escaping () -> Void) { self.action = action }
-        @objc func press() { action() }
+    @ViewBuilder private var shortcutButton: some View {
+        switch keyEquivalent {
+        case "\r": button.keyboardShortcut(.defaultAction)
+        case "\u{1b}": button.keyboardShortcut(.cancelAction)
+        default: button
+        }
     }
 
-    func makeCoordinator() -> Coordinator { Coordinator(action: action) }
-    func makeNSView(context: Context) -> NSButton {
-        let button = KeyboardButton(title: title, target: context.coordinator, action: #selector(Coordinator.press))
-        button.bezelStyle = .rounded
-        button.setButtonType(.momentaryPushIn)
-        button.font = .preferredFont(forTextStyle: .body)
-        button.setContentHuggingPriority(.required, for: .horizontal)
-        return button
-    }
-    func updateNSView(_ button: NSButton, context: Context) {
-        context.coordinator.action = action
-        button.title = title
-        button.font = .preferredFont(forTextStyle: largeText ? .title2 : .body)
-        button.keyEquivalent = keyEquivalent
-        button.keyEquivalentModifierMask = []
-        button.hasDestructiveAction = identifier == "destructive.confirm"
-        button.setAccessibilityIdentifier(identifier)
-        button.setAccessibilityLabel(title)
-    }
-    func sizeThatFits(_ proposal: ProposedViewSize, nsView: NSButton, context: Context) -> CGSize? {
-        nsView.intrinsicContentSize
-    }
-}
-
-struct NativeLabel: NSViewRepresentable {
-    @Environment(\.nativeLargeText) private var largeText
-    let title: String
-    let value: String
-    let identifier: String
-    var showsValue = false
-    var textStyle: NSFont.TextStyle = .body
-
-    func makeNSView(context: Context) -> NSTextField {
-        let field = NSTextField(wrappingLabelWithString: "")
-        field.font = .preferredFont(forTextStyle: .body)
-        field.textColor = .labelColor
-        field.isSelectable = false
-        return field
-    }
-    func updateNSView(_ field: NSTextField, context: Context) {
-        field.stringValue = showsValue ? title + "\n" + value : title
-        field.font = .preferredFont(forTextStyle: largeText ? .title2 : textStyle)
-        field.setAccessibilityIdentifier(identifier)
-        field.setAccessibilityLabel(title)
-        field.setAccessibilityValue(value)
-    }
-    func sizeThatFits(_ proposal: ProposedViewSize, nsView: NSTextField, context: Context) -> CGSize? {
-        let width = proposal.width ?? NativeLayout.minimum.width
-        let size = nsView.cell?.cellSize(forBounds: NSRect(x: 0, y: 0, width: width, height: .greatestFiniteMagnitude))
-        return CGSize(width: width, height: ceil(size?.height ?? nsView.intrinsicContentSize.height))
+    var body: some View {
+        if let focus {
+            shortcutButton.focusable().focused(focus.binding, equals: identifier)
+                .onKeyPress(phases: .down) { press in
+                    guard press.key == .tab else { return .ignored }
+                    guard let index = PrimitiveFocus.order.firstIndex(of: identifier) else { return .ignored }
+                    let step = press.modifiers.contains(.shift) ? -1 : 1
+                    focus.binding.wrappedValue = PrimitiveFocus.order[(index + step + PrimitiveFocus.order.count) % PrimitiveFocus.order.count]
+                    return .handled
+                }
+        } else {
+            shortcutButton
+        }
     }
 }

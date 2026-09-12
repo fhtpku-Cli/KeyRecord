@@ -53,10 +53,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if window == nil {
             let panel = NSWindow(contentRect: NSRect(origin: .zero, size: NativeLayout.minimum),
                                  styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
-            panel.title = NativeText(locale: "en")("harness.title")
+            let locale = Locale.preferredLanguages.first?.hasPrefix("zh") == true ? "zh-Hans" : "en"
+            let selection = HarnessSelection(locale: locale) { [weak panel] title in panel?.title = title }
+            panel.title = selection.windowTitle
             panel.minSize = NativeLayout.minimum
             panel.isReleasedWhenClosed = false
-            panel.contentView = NSHostingView(rootView: PrimitiveHarness())
+            panel.contentView = NSHostingView(rootView: PrimitiveHarness(selection: selection))
             panel.center()
             window = panel
         }

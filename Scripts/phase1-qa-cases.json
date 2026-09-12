@@ -4,7 +4,13 @@
     {
       "mode": "sp6a",
       "manifestRequired": true,
-      "argv": ["/bin/bash", "Scripts/phase1-lifecycle-qa.sh", "preflight", "{manifest}", "{attempt}"],
+      "argv": [
+        "/bin/bash",
+        "Scripts/phase1-lifecycle-qa.sh",
+        "preflight",
+        "{manifest}",
+        "{attempt}"
+      ],
       "timeoutSeconds": 1200
     }
   ],
@@ -12,7 +18,16 @@
     {
       "task": 11,
       "case": "happy",
-      "argv": ["swift", "test", "--package-path", ".", "--scratch-path", "{attempt}/build/root", "--filter", "KeyringTests|KeyringRecoveryTests|KeyringLockTests|KeyringAccessTests|KeyringBoundaryTests"],
+      "argv": [
+        "swift",
+        "test",
+        "--package-path",
+        ".",
+        "--scratch-path",
+        "{attempt}/build/root",
+        "--filter",
+        "KeyringTests|KeyringRecoveryTests|KeyringLockTests|KeyringAccessTests|KeyringBoundaryTests"
+      ],
       "expectedKind": "xctest",
       "timeoutSeconds": 1200,
       "minTestCount": 32
@@ -20,7 +35,16 @@
     {
       "task": 11,
       "case": "failure",
-      "argv": ["swift", "test", "--package-path", ".", "--scratch-path", "{attempt}/build/root", "--filter", "KeyringTests/test(Denies|Denied|Duplicate|Existing|Missing|Malformed|Journal|Unreadable)|KeyringLockTests|KeyringRecoveryTests|KeyringBoundaryTests"],
+      "argv": [
+        "swift",
+        "test",
+        "--package-path",
+        ".",
+        "--scratch-path",
+        "{attempt}/build/root",
+        "--filter",
+        "KeyringTests/test(Denies|Denied|Duplicate|Existing|Missing|Malformed|Journal|Unreadable)|KeyringLockTests|KeyringRecoveryTests|KeyringBoundaryTests"
+      ],
       "expectedKind": "xctest",
       "timeoutSeconds": 1200,
       "minTestCount": 28
@@ -28,7 +52,12 @@
     {
       "task": 10,
       "case": "happy",
-      "argv": ["bash", "Scripts/task10-qa.sh", "{attempt}", "happy"],
+      "argv": [
+        "bash",
+        "Scripts/task10-qa.sh",
+        "{attempt}",
+        "happy"
+      ],
       "expectedKind": "xctest",
       "timeoutSeconds": 1200,
       "minTestCount": 6
@@ -36,7 +65,12 @@
     {
       "task": 10,
       "case": "failure",
-      "argv": ["bash", "Scripts/task10-qa.sh", "{attempt}", "failure"],
+      "argv": [
+        "bash",
+        "Scripts/task10-qa.sh",
+        "{attempt}",
+        "failure"
+      ],
       "expectedKind": "xctest",
       "timeoutSeconds": 1200,
       "minTestCount": 3
@@ -44,7 +78,16 @@
     {
       "task": 1,
       "case": "happy",
-      "argv": ["swift", "test", "--package-path", "Spikes", "--scratch-path", "{attempt}/build/spikes", "--filter", "CurrentBaselineTests/testHappy|Phase1QARunnerCliTests/testHappy"],
+      "argv": [
+        "swift",
+        "test",
+        "--package-path",
+        "Spikes",
+        "--scratch-path",
+        "{attempt}/build/spikes",
+        "--filter",
+        "CurrentBaselineTests/testHappy|Phase1QARunnerCliTests/testHappy"
+      ],
       "expectedKind": "xctest",
       "timeoutSeconds": 1200,
       "minTestCount": 2
@@ -52,7 +95,16 @@
     {
       "task": 1,
       "case": "failure",
-      "argv": ["swift", "test", "--package-path", "Spikes", "--scratch-path", "{attempt}/build/spikes", "--filter", "CurrentBaselineTests/testFailure|Phase1QARunnerCliTests/testFailure"],
+      "argv": [
+        "swift",
+        "test",
+        "--package-path",
+        "Spikes",
+        "--scratch-path",
+        "{attempt}/build/spikes",
+        "--filter",
+        "CurrentBaselineTests/testFailure|Phase1QARunnerCliTests/testFailure"
+      ],
       "expectedKind": "xctest",
       "timeoutSeconds": 1200,
       "minTestCount": 22
@@ -60,7 +112,16 @@
     {
       "task": 2,
       "case": "happy",
-      "argv": ["swift", "test", "--package-path", "Spikes", "--scratch-path", "{attempt}/build/spikes", "--filter", "CurrentReadinessTests/testHappy"],
+      "argv": [
+        "swift",
+        "test",
+        "--package-path",
+        "Spikes",
+        "--scratch-path",
+        "{attempt}/build/spikes",
+        "--filter",
+        "CurrentReadinessTests/testHappy"
+      ],
       "expectedKind": "xctest",
       "timeoutSeconds": 1200,
       "minTestCount": 8
@@ -68,7 +129,16 @@
     {
       "task": 2,
       "case": "failure",
-      "argv": ["swift", "test", "--package-path", "Spikes", "--scratch-path", "{attempt}/build/spikes", "--filter", "CurrentReadinessTests/testFailure"],
+      "argv": [
+        "swift",
+        "test",
+        "--package-path",
+        "Spikes",
+        "--scratch-path",
+        "{attempt}/build/spikes",
+        "--filter",
+        "CurrentReadinessTests/testFailure"
+      ],
       "expectedKind": "xctest",
       "timeoutSeconds": 1200,
       "minTestCount": 15
@@ -76,7 +146,16 @@
     {
       "task": 4,
       "case": "happy",
-      "argv": ["swift", "test", "--package-path", "Spikes", "--scratch-path", "{attempt}/build/spikes", "--filter", "CurrentCandidateTests/testHappy|CurrentCandidateCLITests/testHappy"],
+      "argv": [
+        "swift",
+        "test",
+        "--package-path",
+        "Spikes",
+        "--scratch-path",
+        "{attempt}/build/spikes",
+        "--filter",
+        "CurrentCandidateTests/testHappy|CurrentCandidateCLITests/testHappy"
+      ],
       "expectedKind": "xctest",
       "timeoutSeconds": 1200,
       "minTestCount": 4
@@ -84,7 +163,16 @@
     {
       "task": 4,
       "case": "failure",
-      "argv": ["swift", "test", "--package-path", "Spikes", "--scratch-path", "{attempt}/build/spikes", "--filter", "CurrentCandidateTests/testFailure|CurrentCandidateCLITests/testFailure"],
+      "argv": [
+        "swift",
+        "test",
+        "--package-path",
+        "Spikes",
+        "--scratch-path",
+        "{attempt}/build/spikes",
+        "--filter",
+        "CurrentCandidateTests/testFailure|CurrentCandidateCLITests/testFailure"
+      ],
       "expectedKind": "xctest",
       "timeoutSeconds": 1200,
       "minTestCount": 18
@@ -92,7 +180,12 @@
     {
       "task": 6,
       "case": "happy",
-      "argv": ["/bin/bash", "Scripts/phase1-lifecycle-qa.sh", "happy", "{attempt}"],
+      "argv": [
+        "/bin/bash",
+        "Scripts/phase1-lifecycle-qa.sh",
+        "happy",
+        "{attempt}"
+      ],
       "expectedKind": "xctest",
       "timeoutSeconds": 1200,
       "minTestCount": 68
@@ -100,7 +193,12 @@
     {
       "task": 6,
       "case": "failure",
-      "argv": ["/bin/bash", "Scripts/phase1-lifecycle-qa.sh", "failure", "{attempt}"],
+      "argv": [
+        "/bin/bash",
+        "Scripts/phase1-lifecycle-qa.sh",
+        "failure",
+        "{attempt}"
+      ],
       "expectedKind": "xctest",
       "timeoutSeconds": 1200,
       "minTestCount": 54
@@ -108,7 +206,16 @@
     {
       "task": 5,
       "case": "happy",
-      "argv": ["swift", "test", "--package-path", ".", "--scratch-path", "{attempt}/build/root", "--filter", "ProductBoundaryTests|DomainSchemaTests"],
+      "argv": [
+        "swift",
+        "test",
+        "--package-path",
+        ".",
+        "--scratch-path",
+        "{attempt}/build/root",
+        "--filter",
+        "ProductBoundaryTests|DomainSchemaTests"
+      ],
       "expectedKind": "xctest",
       "timeoutSeconds": 1200,
       "minTestCount": 17
@@ -116,7 +223,16 @@
     {
       "task": 5,
       "case": "failure",
-      "argv": ["swift", "test", "--package-path", ".", "--scratch-path", "{attempt}/build/root", "--filter", "DomainSchemaTests/testFailure|ProductBoundaryTests/testFailure"],
+      "argv": [
+        "swift",
+        "test",
+        "--package-path",
+        ".",
+        "--scratch-path",
+        "{attempt}/build/root",
+        "--filter",
+        "DomainSchemaTests/testFailure|ProductBoundaryTests/testFailure"
+      ],
       "expectedKind": "xctest",
       "timeoutSeconds": 1200,
       "minTestCount": 7
@@ -124,7 +240,16 @@
     {
       "task": 3,
       "case": "happy",
-      "argv": ["swift", "test", "--package-path", "Spikes", "--scratch-path", "{attempt}/build/spikes", "--filter", "CurrentDeliverablesTests/testHappy"],
+      "argv": [
+        "swift",
+        "test",
+        "--package-path",
+        "Spikes",
+        "--scratch-path",
+        "{attempt}/build/spikes",
+        "--filter",
+        "CurrentDeliverablesTests/testHappy"
+      ],
       "expectedKind": "xctest",
       "timeoutSeconds": 1200,
       "minTestCount": 2
@@ -132,7 +257,16 @@
     {
       "task": 3,
       "case": "failure",
-      "argv": ["swift", "test", "--package-path", "Spikes", "--scratch-path", "{attempt}/build/spikes", "--filter", "CurrentDeliverablesTests/testFailure"],
+      "argv": [
+        "swift",
+        "test",
+        "--package-path",
+        "Spikes",
+        "--scratch-path",
+        "{attempt}/build/spikes",
+        "--filter",
+        "CurrentDeliverablesTests/testFailure"
+      ],
       "expectedKind": "xctest",
       "timeoutSeconds": 1200,
       "minTestCount": 5
@@ -140,7 +274,16 @@
     {
       "task": 8,
       "case": "happy",
-      "argv": ["swift", "test", "--package-path", ".", "--scratch-path", "{attempt}/build/root", "--filter", "PrivacyGateTests|NormalizationTests"],
+      "argv": [
+        "swift",
+        "test",
+        "--package-path",
+        ".",
+        "--scratch-path",
+        "{attempt}/build/root",
+        "--filter",
+        "PrivacyGateTests|NormalizationTests"
+      ],
       "expectedKind": "xctest",
       "timeoutSeconds": 1200,
       "minTestCount": 23
@@ -148,7 +291,16 @@
     {
       "task": 8,
       "case": "failure",
-      "argv": ["swift", "test", "--package-path", ".", "--scratch-path", "{attempt}/build/root", "--filter", "PrivacyGateTests|NormalizationTests"],
+      "argv": [
+        "swift",
+        "test",
+        "--package-path",
+        ".",
+        "--scratch-path",
+        "{attempt}/build/root",
+        "--filter",
+        "PrivacyGateTests|NormalizationTests"
+      ],
       "expectedKind": "xctest",
       "timeoutSeconds": 1200,
       "minTestCount": 23
@@ -156,7 +308,16 @@
     {
       "task": 9,
       "case": "happy",
-      "argv": ["swift", "test", "--package-path", ".", "--scratch-path", "{attempt}/build/root", "--filter", "AggregationTests|SummaryTests"],
+      "argv": [
+        "swift",
+        "test",
+        "--package-path",
+        ".",
+        "--scratch-path",
+        "{attempt}/build/root",
+        "--filter",
+        "AggregationTests|SummaryTests"
+      ],
       "expectedKind": "xctest",
       "timeoutSeconds": 1200,
       "minTestCount": 19
@@ -164,10 +325,53 @@
     {
       "task": 9,
       "case": "failure",
-      "argv": ["swift", "test", "--package-path", ".", "--scratch-path", "{attempt}/build/root", "--filter", "AggregationTests|SummaryTests"],
+      "argv": [
+        "swift",
+        "test",
+        "--package-path",
+        ".",
+        "--scratch-path",
+        "{attempt}/build/root",
+        "--filter",
+        "AggregationTests|SummaryTests"
+      ],
       "expectedKind": "xctest",
       "timeoutSeconds": 1200,
       "minTestCount": 19
+    },
+    {
+      "task": 12,
+      "case": "happy",
+      "argv": [
+        "swift",
+        "test",
+        "--package-path",
+        ".",
+        "--scratch-path",
+        "{attempt}/build/root",
+        "--filter",
+        "StorageCryptoVectorTests|ObjectStoreTests|RotationRecoveryTests|CrashProbeTests/testProbeControlRunCompletesAndCommitsObject"
+      ],
+      "expectedKind": "xctest",
+      "timeoutSeconds": 1200,
+      "minTestCount": 30
+    },
+    {
+      "task": 12,
+      "case": "failure",
+      "argv": [
+        "swift",
+        "test",
+        "--package-path",
+        ".",
+        "--scratch-path",
+        "{attempt}/build/root",
+        "--filter",
+        "ManifestRecoveryTests|StoreOrphanRecoveryTests|CrashProbeTests/test(RealProcessKillAtEveryPutBoundaryLeavesRecoverableState|RealKillThenInjectedInterruptionsThenReopensConverge|RealProcessKillAroundRotationRelocationAndManifestReencryption)"
+      ],
+      "expectedKind": "xctest",
+      "timeoutSeconds": 1200,
+      "minTestCount": 18
     }
   ]
 }

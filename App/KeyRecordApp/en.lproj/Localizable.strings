@@ -16,6 +16,7 @@
 "consent.accept" = "Accept";
 "consent.reject" = "Decline";
 "aggregate.empty" = "No aggregates yet";
+"aggregate.emptyValue" = "0 observed · No application bucket";
 "aggregate.sample" = "Command-Tab · Unknown app bucket";
 "aggregate.value" = "20 observed · Stateful · System classification · Source confidence unknown · Modifier side unknown · Bare-key totals have no app attribution";
 "settings.exclusions" = "Excluded applications";

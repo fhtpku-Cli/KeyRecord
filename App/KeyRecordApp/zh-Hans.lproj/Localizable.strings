@@ -16,6 +16,7 @@
 "consent.accept" = "同意";
 "consent.reject" = "拒绝";
 "aggregate.empty" = "暂无聚合数据";
+"aggregate.emptyValue" = "观测 0 次 · 无应用分组";
 "aggregate.sample" = "Command-Tab · 未知应用分组";
 "aggregate.value" = "观测 20 次 · 有状态 · 系统分类 · 来源可信度未知 · 修饰键侧别未知 · 裸键总计无应用归属";
 "settings.exclusions" = "排除的应用";

@@ -18,18 +18,18 @@
     {
       "task": 13,
       "case": "happy",
-      "argv": ["swift", "test", "--package-path", ".", "--scratch-path", "{attempt}/build/root", "--filter", "CaptureProviderTests|CaptureQueueTests"],
+      "argv": ["swift", "test", "--package-path", ".", "--scratch-path", "{attempt}/build/root", "-Xswiftc", "-gnone", "--filter", "CaptureProviderTests|CaptureQueueTests"],
       "expectedKind": "xctest",
       "timeoutSeconds": 180,
-      "minTestCount": 29
+      "minTestCount": 40
     },
     {
       "task": 13,
       "case": "failure",
-      "argv": ["swift", "test", "--package-path", ".", "--scratch-path", "{attempt}/build/root", "--filter", "CaptureProviderTests|CaptureQueueTests"],
+      "argv": ["swift", "test", "--package-path", ".", "--scratch-path", "{attempt}/build/root", "-Xswiftc", "-gnone", "--filter", "CaptureProviderTests|CaptureQueueTests"],
       "expectedKind": "xctest",
       "timeoutSeconds": 180,
-      "minTestCount": 29
+      "minTestCount": 40
     },
     {
       "task": 10,

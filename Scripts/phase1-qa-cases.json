@@ -31,7 +31,7 @@
       "argv": ["swift", "test", "--package-path", "Spikes", "--scratch-path", "{attempt}/build/spikes", "--filter", "CurrentReadinessTests/testFailure"],
       "expectedKind": "xctest",
       "timeoutSeconds": 1200,
-      "minTestCount": 13
+      "minTestCount": 15
     }
   ]
 }

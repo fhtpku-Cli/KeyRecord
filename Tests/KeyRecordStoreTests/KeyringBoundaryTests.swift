@@ -22,17 +22,37 @@ final class KeyringBoundaryTests: XCTestCase {
         var entropyFiles: [String] = []
         for file in files {
             let text = try String(contentsOf: file, encoding: .utf8)
-            for symbol in ["SecItemAdd", "SecItemDelete", "SecItemUpdate", "SecItemCopyMatching", "dlopen", "dlsym"] {
+            let isCore = file.path.contains("/Sources/KeyRecordCore/")
+            let isStore = file.path.contains("/Sources/KeyRecordStore/")
+            let isCapture = file.path.contains("/Sources/KeyRecordCapture/")
+            for symbol in ["SecItemAdd", "SecItemDelete", "SecItemUpdate", "SecItemCopyMatching"] {
                 XCTAssertFalse(text.contains(symbol), "Unexpected effect in \(file.lastPathComponent)")
             }
+            if isCore || isStore {
+                for symbol in ["dlopen", "dlsym"] {
+                    XCTAssertFalse(text.contains(symbol), "Unexpected dynamic bridge in \(file.lastPathComponent)")
+                }
+            }
+            if isCapture, text.contains("dlopen") || text.contains("dlsym") {
+                // Capture alone permits thin System*Backend bridges for provider status queries:
+                // load only HIToolbox and resolve only IsSecureEventInputEnabled, never effects.
+                XCTAssertTrue(file.lastPathComponent.hasPrefix("System"), "Non-system bridge in \(file.lastPathComponent)")
+                XCTAssertTrue(file.lastPathComponent.hasSuffix("Backend.swift"), "Non-backend bridge in \(file.lastPathComponent)")
+                let allowedOpen = #"\bdlopen\s*\(\s*"/System/Library/Frameworks/Carbon\.framework/Frameworks/HIToolbox\.framework/HIToolbox"\s*,\s*RTLD_LAZY\s*\|\s*RTLD_LOCAL\s*\)"#
+                let allowedSymbol = #"\bdlsym\s*\(\s*handle\s*,\s*"IsSecureEventInputEnabled"\s*\)"#
+                for (symbol, allowedCall) in [("dlopen", allowedOpen), ("dlsym", allowedSymbol)] {
+                    let remainder = text.replacingOccurrences(of: allowedCall, with: "", options: .regularExpression)
+                    XCTAssertFalse(remainder.contains(symbol), "Non-query \(symbol) bridge in \(file.lastPathComponent)")
+                }
+            }
             if text.contains("SecRandomCopyBytes") { entropyFiles.append(file.lastPathComponent) }
-            if file.path.contains("KeyRecordStore"), file.lastPathComponent != "SystemMasterMaterial.swift" {
-                XCTAssertFalse(try SourceInspection.imports(in: text).contains("Security"))
+            if isStore, file.lastPathComponent != "SystemMasterMaterial.swift" {
+                XCTAssertFalse(try SourceInspection.imports(in: text).contains("Security"), "Unexpected Security import in \(file.lastPathComponent)")
                 for symbol in ["print(", "NSLog(", "Logger(", "AfterFirstUnlock", "Phase0Support"] {
                     XCTAssertFalse(text.contains(symbol), "Unsafe boundary in \(file.lastPathComponent)")
                 }
             }
-            if file.path.contains("KeyRecordStore") { XCTAssertLessThan(text.split(separator: "\n", omittingEmptySubsequences: false).count, 250) }
+            if isStore { XCTAssertLessThan(text.split(separator: "\n", omittingEmptySubsequences: false).count, 250, "Oversized Store file: \(file.lastPathComponent)") }
         }
         XCTAssertEqual(entropyFiles, ["SystemMasterMaterial.swift"])
     }

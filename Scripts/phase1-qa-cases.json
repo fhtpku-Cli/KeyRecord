@@ -23,7 +23,7 @@
       "argv": ["swift", "test", "--package-path", "Spikes", "--scratch-path", "{attempt}/build/spikes", "--filter", "CurrentReadinessTests/testHappy"],
       "expectedKind": "xctest",
       "timeoutSeconds": 1200,
-      "minTestCount": 7
+      "minTestCount": 8
     },
     {
       "task": 2,

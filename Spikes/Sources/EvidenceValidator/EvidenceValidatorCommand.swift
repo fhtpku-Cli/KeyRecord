@@ -6,6 +6,9 @@ public enum EvidenceValidatorCommand {
     public static func main() {
         do {
             try execute(Array(CommandLine.arguments.dropFirst()))
+        } catch let error as CurrentCandidateError {
+            writeError("CURRENT_CANDIDATE=\(error.exitStatus == 2 ? "BLOCKED" : "FAIL") reason=\(error.reason.rawValue) \(error.detail)\n")
+            Foundation.exit(error.exitStatus)
         } catch let error as ValidatorError {
             writeError("ERROR \(error.code)\(error.detail.isEmpty ? "" : " \(error.detail)")\n")
             Foundation.exit(1)
@@ -18,6 +21,8 @@ public enum EvidenceValidatorCommand {
     static func execute(_ arguments: [String]) throws {
         guard let command = arguments.first else { throw ValidatorError("usage", usage) }
         switch command {
+        case "bind-current", "verify-current-candidate":
+            try CurrentCandidateCommand.execute(arguments, repository: url("."))
         case "help", "--help": print(usage)
         case "current-readiness":
             let options = try Options(Array(arguments.dropFirst()))

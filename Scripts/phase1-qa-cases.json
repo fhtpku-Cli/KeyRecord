@@ -34,6 +34,22 @@
       "minTestCount": 15
     },
     {
+      "task": 4,
+      "case": "happy",
+      "argv": ["swift", "test", "--package-path", "Spikes", "--scratch-path", "{attempt}/build/spikes", "--filter", "CurrentCandidateTests/testHappy|CurrentCandidateCLITests/testHappy"],
+      "expectedKind": "xctest",
+      "timeoutSeconds": 1200,
+      "minTestCount": 4
+    },
+    {
+      "task": 4,
+      "case": "failure",
+      "argv": ["swift", "test", "--package-path", "Spikes", "--scratch-path", "{attempt}/build/spikes", "--filter", "CurrentCandidateTests/testFailure|CurrentCandidateCLITests/testFailure"],
+      "expectedKind": "xctest",
+      "timeoutSeconds": 1200,
+      "minTestCount": 18
+    },
+    {
       "task": 5,
       "case": "happy",
       "argv": ["swift", "test", "--package-path", ".", "--scratch-path", "{attempt}/build/root", "--filter", "ProductBoundaryTests|DomainSchemaTests"],

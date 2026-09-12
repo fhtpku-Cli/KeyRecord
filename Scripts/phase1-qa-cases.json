@@ -1,5 +1,13 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
+  "hostCases": [
+    {
+      "mode": "sp6a",
+      "manifestRequired": true,
+      "argv": ["/bin/bash", "Scripts/phase1-lifecycle-qa.sh", "preflight", "{manifest}", "{attempt}"],
+      "timeoutSeconds": 1200
+    }
+  ],
   "cases": [
     {
       "task": 10,
@@ -64,6 +72,22 @@
       "expectedKind": "xctest",
       "timeoutSeconds": 1200,
       "minTestCount": 18
+    },
+    {
+      "task": 6,
+      "case": "happy",
+      "argv": ["/bin/bash", "Scripts/phase1-lifecycle-qa.sh", "happy", "{attempt}"],
+      "expectedKind": "xctest",
+      "timeoutSeconds": 1200,
+      "minTestCount": 8
+    },
+    {
+      "task": 6,
+      "case": "failure",
+      "argv": ["/bin/bash", "Scripts/phase1-lifecycle-qa.sh", "failure", "{attempt}"],
+      "expectedKind": "xctest",
+      "timeoutSeconds": 1200,
+      "minTestCount": 5
     },
     {
       "task": 5,

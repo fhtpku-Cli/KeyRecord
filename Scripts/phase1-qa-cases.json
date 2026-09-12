@@ -168,6 +168,22 @@
       "expectedKind": "xctest",
       "timeoutSeconds": 1200,
       "minTestCount": 19
+    },
+    {
+      "task": 14,
+      "case": "happy",
+      "argv": ["swift", "test", "--package-path", ".", "--scratch-path", "{attempt}/build/root", "--filter", "LifecycleTests|LifecycleRestartTests|LifecycleOrchestrationTests|LifecycleBoundaryTests|PreferencesTests|LoginItemTests"],
+      "expectedKind": "xctest",
+      "timeoutSeconds": 1200,
+      "minTestCount": 72
+    },
+    {
+      "task": 14,
+      "case": "failure",
+      "argv": ["swift", "test", "--package-path", ".", "--scratch-path", "{attempt}/build/root", "--filter", "LifecycleTests/test.*(Denied|Denial|Failure|Failed|Reject|Blocked|Corrupt|Zero|Skips|Idle)|LifecycleRestartTests/test.*(Denied|Denial|Failure|Failed|Reject|Blocked|Corrupt|Zero|Skips|Idle|Never)|LifecycleOrchestrationTests/test.*(Denial|Failure|Failed|Blocked|Failing|Skips|Corrupt|Race)|LoginItemTests/test.*(Reject|Idle|Never|Denied)|PreferencesTests/test.*(Rejected|Failure|Corrupt)"],
+      "expectedKind": "xctest",
+      "timeoutSeconds": 1200,
+      "minTestCount": 36
     }
   ]
 }

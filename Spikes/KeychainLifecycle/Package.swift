@@ -9,5 +9,7 @@ let package = Package(
         .target(name: "LifecyclePreflight"),
         .executableTarget(name: "PreflightCLI", dependencies: ["LifecyclePreflight"]),
         .testTarget(name: "KeychainLifecycleTests", dependencies: ["LifecyclePreflight"]),
+        .testTarget(name: "LifecycleScenarioTests", dependencies: ["LifecyclePreflight"],
+                    path: "Hosted", exclude: ["SignedCandidateBackend.swift"]),
     ]
 )

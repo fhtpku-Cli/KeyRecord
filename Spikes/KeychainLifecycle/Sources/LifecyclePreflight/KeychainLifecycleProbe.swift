@@ -1,6 +1,6 @@
 import Foundation
 
-public enum CandidateOperation: CaseIterable, Sendable { case add, read, attributes, delete }
+public enum CandidateOperation: CaseIterable, Equatable, Sendable { case add, read, attributes, delete }
 
 public struct CandidateObservation: Codable, Sendable {
     public let status: Int32

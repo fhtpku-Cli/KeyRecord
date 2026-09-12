@@ -95,7 +95,7 @@
       "argv": ["swift", "test", "--package-path", "Spikes/KeychainLifecycle", "--scratch-path", "{attempt}/build/preflight", "--filter", "KeychainLifecycleScenarioTests/testHappy|SessionLockQualificationTests/testHappy|ObservedLockSignalsTests/testHappy|LifecycleReceiptTests/testHappy"],
       "expectedKind": "xctest",
       "timeoutSeconds": 1200,
-      "minTestCount": 6
+      "minTestCount": 7
     },
     {
       "task": 7,
@@ -103,7 +103,7 @@
       "argv": ["swift", "test", "--package-path", "Spikes/KeychainLifecycle", "--scratch-path", "{attempt}/build/preflight", "--filter", "KeychainLifecycleScenarioTests/testFailure|SessionLockQualificationTests/testFailure|ObservedLockSignalsTests/testFailure|LifecycleReceiptTests/testFailure"],
       "expectedKind": "xctest",
       "timeoutSeconds": 1200,
-      "minTestCount": 14
+      "minTestCount": 15
     },
     {
       "task": 5,

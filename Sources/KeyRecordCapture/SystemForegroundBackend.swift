@@ -13,18 +13,21 @@ public final class SystemForegroundProvider: FrontmostAppProvider {
 }
 
 @MainActor
-public final class CaptureWorkspaceFence {
+final class CaptureWorkspaceFence {
     private var observers: [any NSObjectProtocol] = []
 
-    public init(queue: CaptureQueue) {
-        for name in [NSWorkspace.didActivateApplicationNotification, NSWorkspace.willSleepNotification,
-                     NSWorkspace.sessionDidResignActiveNotification] {
+    init(invalidate: @escaping @Sendable (CaptureInvalidation) -> Void) {
+        for (name, reason) in [
+            (NSWorkspace.didActivateApplicationNotification, CaptureInvalidation.foregroundChanged),
+            (NSWorkspace.willSleepNotification, .sleep),
+            (NSWorkspace.sessionDidResignActiveNotification, .sessionChanged)
+        ] {
             observers.append(NSWorkspace.shared.notificationCenter.addObserver(
-                forName: name, object: nil, queue: nil) { _ in queue.revoke() })
+                forName: name, object: nil, queue: nil) { _ in invalidate(reason) })
         }
     }
 
-    public func stop() {
+    func stop() {
         for observer in observers { NSWorkspace.shared.notificationCenter.removeObserver(observer) }
         observers.removeAll()
     }

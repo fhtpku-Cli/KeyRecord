@@ -70,6 +70,20 @@ public actor CaptureControl {
             sessionLock: lock, secureInput: secureInput, foreground: foreground,
             exclusion: policy.exclusion), for: generation)
     }
+
+    static func prepare(queue: CaptureQueue, expected: CaptureSnapshot,
+                        backend: any CaptureTapBackend) async throws -> CaptureSnapshot {
+        let generation = queue.generation
+        try await backend.subscribe { _ in queue.revoke() }
+        guard queue.generation == generation, !Task.isCancelled else { throw CaptureStartError.revoked }
+        let current = await backend.readProviders()
+        guard queue.generation == generation, current == CaptureProviderSnapshot(expected.inputs),
+              !Task.isCancelled else { throw CaptureStartError.revoked }
+        queue.install(expected.inputs, for: generation)
+        let prepared = queue.snapshot
+        guard queue.validate(prepared, current: backend.cachedProviders()) else { throw CaptureStartError.revoked }
+        return prepared
+    }
 }
 
 public struct UnqualifiedSessionLockProvider: SessionLockProvider {

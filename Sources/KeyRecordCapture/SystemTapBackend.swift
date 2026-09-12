@@ -4,10 +4,13 @@ import KeyRecordCore
 private final class TapContext: Sendable {
     let queue: CaptureQueue
     let handoff: @Sendable (ObservedKeyEvent) -> EventHandoffResult
+    let invalidate: @Sendable (CaptureInvalidation) -> Void
 
-    init(queue: CaptureQueue, handoff: @escaping @Sendable (ObservedKeyEvent) -> EventHandoffResult) {
+    init(queue: CaptureQueue, handoff: @escaping @Sendable (ObservedKeyEvent) -> EventHandoffResult,
+         invalidate: @escaping @Sendable (CaptureInvalidation) -> Void) {
         self.queue = queue
         self.handoff = handoff
+        self.invalidate = invalidate
     }
 }
 
@@ -16,7 +19,7 @@ private let captureCallback: CGEventTapCallBack = { _, type, event, pointer in
     let context = Unmanaged<TapContext>.fromOpaque(pointer).takeUnretainedValue()
     let generation = context.queue.generation
     if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
-        context.queue.revoke()
+        context.invalidate(.tapDisabled)
         return Unmanaged.passUnretained(event)
     }
     if let observed = decodeCaptureEvent(type: type, event: event, generation: generation) {
@@ -32,6 +35,8 @@ final class SystemTapBackend: CaptureTapBackend {
     private var source: CFRunLoopSource?
     private var context: TapContext?
     private var workspaceFence: CaptureWorkspaceFence?
+    private var invalidate: (@Sendable (CaptureInvalidation) -> Void)?
+    private nonisolated let cached = CaptureLock(CaptureProviderSnapshot.unknown)
 
     init(queue: CaptureQueue) { self.queue = queue }
 
@@ -41,10 +46,45 @@ final class SystemTapBackend: CaptureTapBackend {
         if let tap { CFMachPortInvalidate(tap) }
     }
 
+    func subscribe(invalidate: @escaping @Sendable (CaptureInvalidation) -> Void) {
+        workspaceFence?.stop()
+        let cached = self.cached
+        let receive: @Sendable (CaptureInvalidation) -> Void = { reason in
+            cached.withLock { $0 = .unknown }
+            invalidate(reason)
+        }
+        self.invalidate = receive
+        workspaceFence = CaptureWorkspaceFence(invalidate: receive)
+    }
+
+    func readProviders() async -> CaptureProviderSnapshot {
+        guard workspaceFence != nil, CGPreflightListenEventAccess() else {
+            invalidate?(.permissionRevoked)
+            return .unknown
+        }
+        let generation = queue.generation
+        let foreground = await SystemForegroundProvider().foregroundState()
+        let secure = await SystemSecureInputProvider().secureInputState()
+        // No qualified initial lock witness or complete security-change feed exists yet.
+        // Unknown keeps this backend closed; cached samples alone cannot authorize live capture.
+        let lock = await UnqualifiedSessionLockProvider().sessionLockState()
+        let current = CaptureProviderSnapshot(GateInputs(sessionLock: lock, secureInput: secure, foreground: foreground))
+        guard queue.generation == generation else { return .unknown }
+        cached.withLock { $0 = current }
+        return current
+    }
+
+    nonisolated func cachedProviders() -> CaptureProviderSnapshot { cached.withLock { $0 } }
+
     func start(handoff: @escaping @Sendable (ObservedKeyEvent) -> EventHandoffResult) throws {
         guard tap == nil else { throw CaptureStartError.alreadyStarted }
-        guard queue.isOpen else { throw CaptureStartError.closed }
-        let context = TapContext(queue: queue, handoff: handoff)
+        guard workspaceFence != nil, let invalidate,
+              queue.validate(queue.snapshot, current: cachedProviders()) else { throw CaptureStartError.closed }
+        guard CGPreflightListenEventAccess() else {
+            invalidate(.permissionRevoked)
+            throw CaptureStartError.revoked
+        }
+        let context = TapContext(queue: queue, handoff: handoff, invalidate: invalidate)
         let mask = (CGEventMask(1) << CGEventType.keyDown.rawValue)
             | (CGEventMask(1) << CGEventType.keyUp.rawValue)
             | (CGEventMask(1) << CGEventType.flagsChanged.rawValue)
@@ -58,7 +98,6 @@ final class SystemTapBackend: CaptureTapBackend {
         self.context = context
         self.tap = tap
         self.source = source
-        workspaceFence = CaptureWorkspaceFence(queue: queue)
         CFRunLoopAddSource(CFRunLoopGetMain(), source, .commonModes)
     }
 
@@ -66,6 +105,8 @@ final class SystemTapBackend: CaptureTapBackend {
         queue.revoke()
         workspaceFence?.stop()
         workspaceFence = nil
+        invalidate = nil
+        cached.withLock { $0 = .unknown }
         if let source { CFRunLoopRemoveSource(CFRunLoopGetMain(), source, .commonModes) }
         if let tap { CFMachPortInvalidate(tap) }
         source = nil

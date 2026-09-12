@@ -37,7 +37,7 @@ extension CaptureProviderTests {
         }
         XCTAssertTrue(code.contains("context.handoff(observed)"))
         let core = try String(contentsOf: root.appendingPathComponent("CaptureQueue.swift"), encoding: .utf8)
-        let handoffStart = try XCTUnwrap(core.range(of: "public func handoff"))
+        let handoffStart = try XCTUnwrap(core.range(of: "func handoff"))
         let handoffEnd = try XCTUnwrap(core.range(of: "func reduceOne", range: handoffStart.upperBound..<core.endIndex))
         let handoff = SourceInspection.codeOnly(String(core[handoffStart.lowerBound..<handoffEnd.lowerBound]))
         for forbidden in ["for ", "while", "append(", "removeFirst", "async", "Task", "File", "Process", "URLSession"] {

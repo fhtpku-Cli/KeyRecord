@@ -45,6 +45,17 @@ public final class CaptureQueue: Sendable {
 
     public func revoke() { state.withLock { $0.revoke() } }
 
+    func validate(_ snapshot: CaptureSnapshot, current: CaptureProviderSnapshot) -> Bool {
+        state.withLock { state in
+            guard state.normalizer.gate.accepts(snapshot.generation), snapshot.inputs == state.inputs,
+                  current == CaptureProviderSnapshot(state.inputs) else {
+                state.revoke()
+                return false
+            }
+            return true
+        }
+    }
+
     func install(_ inputs: GateInputs, for generation: CaptureGeneration) {
         state.withLock { state in
             guard state.normalizer.gate.generation == generation else { return }
@@ -62,8 +73,13 @@ public final class CaptureQueue: Sendable {
         }
     }
 
-    public func handoff(_ event: ObservedKeyEvent) -> EventHandoffResult {
+    func handoff(_ event: ObservedKeyEvent,
+                 current: (@Sendable () -> CaptureProviderSnapshot)? = nil) -> EventHandoffResult {
         state.withLock { state in
+            if let current, current() != CaptureProviderSnapshot(state.inputs) {
+                state.revoke()
+                return .closed
+            }
             guard state.normalizer.gate.accepts(event.generation) else { return .closed }
             guard state.count < Self.capacity else {
                 state.revoke()
@@ -89,9 +105,14 @@ public final class CaptureQueue: Sendable {
 
     // The serial reducer's sink must be bounded, in-memory and non-reentrant. Holding the fence
     // through delivery prevents a dequeued event from publishing after a concurrent close.
-    func deliverOne(_ deliver: @Sendable (ObservedKeyEvent) -> EventHandoffResult) -> Bool {
+    func deliverOne(current: (@Sendable () -> CaptureProviderSnapshot)? = nil,
+                    _ deliver: @Sendable (ObservedKeyEvent) -> EventHandoffResult) -> Bool {
         state.withLock { state in
             guard state.count > 0, let event = state.events[state.head] else { return false }
+            if let current, current() != CaptureProviderSnapshot(state.inputs) {
+                state.revoke()
+                return false
+            }
             state.events[state.head] = nil
             state.head = (state.head + 1) % Self.capacity
             state.count -= 1

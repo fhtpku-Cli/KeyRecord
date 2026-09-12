@@ -38,6 +38,9 @@ private actor FakeTap: CaptureTapBackend {
     let barrier: CaptureBarrier?
     private var handoff: (@Sendable (ObservedKeyEvent) -> EventHandoffResult)?
     init(fails: Bool = false, barrier: CaptureBarrier? = nil) { self.fails = fails; self.barrier = barrier }
+    func subscribe(invalidate: @escaping @Sendable (CaptureInvalidation) -> Void) {}
+    func readProviders() -> CaptureProviderSnapshot { cachedProviders() }
+    nonisolated func cachedProviders() -> CaptureProviderSnapshot { CaptureProviderSnapshot(.safe) }
     func start(handoff: @escaping @Sendable (ObservedKeyEvent) -> EventHandoffResult) async throws {
         starts += 1
         self.handoff = handoff
@@ -55,19 +58,22 @@ extension CaptureProviderTests {
         let backend = FakeTap()
         let source = ListenOnlyEventSource(queue: queue,
             qualification: Qualification(allowed: true, barrier: nil), backend: backend)
-        let event = ObservedKeyEvent(keyCode: try KeyCode(0), kind: .keyDown, isAutoRepeat: false,
-            modifiers: ModifierSet(), source: .ordinaryObserved, generation: queue.generation)
+        let key = try KeyCode(0)
         let received: ObservedKeyEvent? = await withCheckedContinuation { continuation in
             Task {
                 do {
                     try await source.start { observed in continuation.resume(returning: observed); return .accepted }
+                    let event = ObservedKeyEvent(keyCode: key, kind: .keyDown, isAutoRepeat: false,
+                        modifiers: ModifierSet(), source: .ordinaryObserved, generation: queue.generation)
                     let result = await backend.emit(event)
                     XCTAssertEqual(result, .accepted)
                 } catch { continuation.resume(returning: nil) }
             }
         }
-        XCTAssertEqual(received?.generation, event.generation)
+        XCTAssertEqual(received?.generation, queue.generation)
         await source.stop()
+        let event = ObservedKeyEvent(keyCode: key, kind: .keyDown, isAutoRepeat: false,
+            modifiers: ModifierSet(), source: .ordinaryObserved, generation: queue.generation)
         let afterStop = await backend.emit(event)
         XCTAssertEqual(afterStop, .closed)
     }

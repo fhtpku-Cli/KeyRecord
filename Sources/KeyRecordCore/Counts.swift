@@ -16,6 +16,12 @@ public struct Count: Hashable, Codable, Sendable {
         var container = encoder.singleValueContainer()
         try container.encode(value)
     }
+
+    func adding(_ other: Count) throws -> Count {
+        let (sum, overflow) = value.addingReportingOverflow(other.value)
+        guard !overflow else { throw CountError.overflow }
+        return try Count(sum)
+    }
 }
 
 /// Architecture §§4.2, 5.1: ordinary means not suspected, NEVER proven authentic.
@@ -31,6 +37,11 @@ public struct SourceCounts: Equatable, Codable, Sendable {
         self.ordinary = ordinary
         self.suspectedInjection = suspectedInjection
         self.total = try Count(sum)
+    }
+
+    func adding(_ other: SourceCounts) throws -> SourceCounts {
+        try SourceCounts(ordinary: ordinary.adding(other.ordinary),
+            suspectedInjection: suspectedInjection.adding(other.suspectedInjection))
     }
 
     enum CodingKeys: String, CodingKey, CaseIterable { case ordinary, suspectedInjection }

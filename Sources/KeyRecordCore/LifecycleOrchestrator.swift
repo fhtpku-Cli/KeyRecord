@@ -66,9 +66,10 @@ public final class LifecycleOrchestrator {
         await run(.retry)
     }
 
-    public func reload() async {
+    public func reload(afterMaintenance: Bool = false) async {
         do {
-            let preferences = try await ports.preferences.load()
+            let preferences = try await (afterMaintenance
+                ? ports.preferences.reloadAfterMaintenance() : ports.preferences.load())
             await run(.reload(preferences))
         } catch let error as PreferencesRepositoryError {
             await run(.reloadFailed(Self.storeError(error)))

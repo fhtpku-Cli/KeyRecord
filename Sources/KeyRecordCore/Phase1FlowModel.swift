@@ -26,6 +26,11 @@ public protocol LifecycleDriving: AnyObject {
 }
 
 extension LifecycleOrchestrator: LifecycleDriving {
+    public func reloadAfterCycleReset() async {
+        state = LifecycleState.initial
+        await reload(afterMaintenance: true)
+    }
+
     public func returnToConsentRequired() async {
         // Erase removes every persisted artifact; the FSM restarts at first-run.
         // T19 routes this through a reducer event once erase transitions land.

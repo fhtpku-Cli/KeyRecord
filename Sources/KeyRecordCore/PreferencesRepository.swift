@@ -56,6 +56,11 @@ public actor PreferencesRepository: PreferencesPersisting {
         }
     }
 
+    public func reloadAfterMaintenance() async throws -> Preferences? {
+        cache = nil
+        return try await load()
+    }
+
     public func save(_ preferences: Preferences) async throws {
         let data: Data
         do {

@@ -88,7 +88,8 @@ are not endorsed producers. `privacy` still requires both
 `t20.network.zeroOutbound` and `t20.persistence.noEventLevelData`. Task 7 authorized
 host lifecycle evidence, producer endorsement, and architecture §12.4 ARM + Intel
 product performance remain independent requirements. FR-P6 full backup is neither
-implemented nor passed by these tests. T24 owns publication of updated readiness.
+implemented nor passed by these tests. T24 publishes the [milestone status](MILESTONE_STATUS.md)
+and attempt-local readiness only; T15's tracked snapshot is not republished before T25.
 
 File counts, lengths and filesystem modification times remain known side channels;
 system crash dumps and unlocked privileged local access are outside this proof.

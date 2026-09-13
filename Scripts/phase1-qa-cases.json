@@ -2,6 +2,12 @@
   "schemaVersion": 2,
   "hostCases": [
     {
+      "mode": "signed-build",
+      "manifestRequired": true,
+      "argv": ["/bin/bash", "Scripts/phase1-signed-build-host.sh", "{manifest}", "{attempt}"],
+      "timeoutSeconds": 30
+    },
+    {
       "mode": "network",
       "manifestRequired": true,
       "argv": ["/bin/bash", "Scripts/phase1-network-qa.sh", "{manifest}", "{attempt}"],
@@ -27,6 +33,22 @@
     }
   ],
   "cases": [
+    {
+      "task": 23,
+      "case": "happy",
+      "argv": ["bash", "Scripts/task23-qa.sh", "{attempt}", "happy"],
+      "expectedKind": "xctest",
+      "timeoutSeconds": 420,
+      "minTestCount": 2
+    },
+    {
+      "task": 23,
+      "case": "failure",
+      "argv": ["bash", "Scripts/task23-qa.sh", "{attempt}", "failure"],
+      "expectedKind": "xctest",
+      "timeoutSeconds": 420,
+      "minTestCount": 10
+    },
     {
       "task": 11,
       "case": "happy",

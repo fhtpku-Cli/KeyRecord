@@ -77,7 +77,8 @@ public struct FileSystemDeletionAdapter: DeletionFileSystem {
 
 /// Bridges the keyring's explicit-destruction API to the per-item `DeletionKeychain`
 /// port. Item identifiers are `KeychainItemID.account` strings (`master-v<version>`);
-/// the namespace metadata item is removed once every planned version is gone.
+/// the namespace metadata item is removed by the terminal `finishOwnedDestruction()`
+/// hook, which runs even when the version inventory is empty.
 public actor KeychainDeletionAdapter: DeletionKeychain {
     private let keyring: KeychainKeyring
     private var plannedVersions: [String: KeyVersion] = [:]
@@ -99,13 +100,14 @@ public actor KeychainDeletionAdapter: DeletionKeychain {
         guard let version = plannedVersions[id] else {
             throw DeletionError.ioFailure("unowned keychain item: \(id)")
         }
-        let outcome = try await keyring.deleteOwnedVersionForDestruction(version)
         plannedVersions[id] = nil
-        if plannedVersions.isEmpty {
-            try await keyring.deleteOwnedMetadataForDestruction()
-        }
+        let outcome = try await keyring.deleteOwnedVersionForDestruction(version)
         if case .missingKeyDuringDeletion = outcome {
             throw DeletionError.missingOwnedKey(id)
         }
+    }
+
+    public func finishOwnedDestruction() async throws {
+        try await keyring.deleteOwnedMetadataForDestruction()
     }
 }

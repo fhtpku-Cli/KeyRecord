@@ -14,6 +14,9 @@ public protocol DeletionFileSystem: Sendable {
 public protocol DeletionKeychain: Sendable {
     func ownedVersionedItemIDs() async throws -> [String]
     func deleteOwnedItem(_ id: String) async throws
+    /// Invoked exactly once after the per-item deletion pass, including passes with
+    /// zero version items, so namespace metadata is removed unconditionally.
+    func finishOwnedDestruction() async throws
 }
 
 /// Login-item registration surface. Returns the outcome rather than throwing for
@@ -107,6 +110,7 @@ public actor LocalDeletionCoordinator {
                 outcomes[id] = .ioFailure(Self.errorMessage(error))
             }
         }
+        try await keychain.finishOwnedDestruction()
         return outcomes
     }
 

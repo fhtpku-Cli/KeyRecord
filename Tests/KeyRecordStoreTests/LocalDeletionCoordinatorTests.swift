@@ -45,13 +45,13 @@ final class LocalDeletionCoordinatorTests: XCTestCase {
         }
         XCTAssertEqual(report.fileOutcomes[root], .succeeded)
         XCTAssertEqual(report.loginItemOutcome, .succeeded)
-
         let (remainingCount, rootExists, entryCalls, rootCalls) = (
             await fileSystem.remainingCount, await fileSystem.rootExists(root),
             await fileSystem.removeEntryCallCount, await fileSystem.removeRootCallCount)
-        let (ownedIDs, externalIDs, deleteCalls, loginCalls) = (
+        let (ownedIDs, externalIDs, deleteCalls, finishCalls, loginCalls) = (
             await keychain.ownedIDs, await keychain.externalIDs,
-            await keychain.deleteCallCount, await loginItems.callCount)
+            await keychain.deleteCallCount, await keychain.finishCallCount,
+            await loginItems.callCount)
         XCTAssertEqual(remainingCount, 0)
         XCTAssertFalse(rootExists)
         XCTAssertEqual(entryCalls, 3)
@@ -59,6 +59,7 @@ final class LocalDeletionCoordinatorTests: XCTestCase {
         XCTAssertEqual(ownedIDs, [])
         XCTAssertEqual(externalIDs, ["external.item.v9"])
         XCTAssertEqual(deleteCalls, 2)
+        XCTAssertEqual(finishCalls, 1)
         XCTAssertEqual(loginCalls, 1)
     }
 
@@ -70,7 +71,6 @@ final class LocalDeletionCoordinatorTests: XCTestCase {
         let first = try await coordinator.deleteEverything()
         XCTAssertTrue(first.succeeded)
         XCTAssertEqual(first.loginItemOutcome, .succeeded)
-
         // When: the user triggers deletion again on the emptied machine
         let second = try await coordinator.deleteEverything()
 
@@ -104,18 +104,19 @@ final class LocalDeletionCoordinatorTests: XCTestCase {
             // Then: the planner verdict surfaces and nothing is mutated
             XCTAssertEqual(blocks, [.symlinkPresent(symlinkPath)])
         }
-
         let (entryCalls, rootCalls, remainingCount, rootExists) = (
             await fileSystem.removeEntryCallCount, await fileSystem.removeRootCallCount,
             await fileSystem.remainingCount, await fileSystem.rootExists(root))
-        let (deleteCalls, ownedIDs, loginCalls, loginRegistered) = (
-            await keychain.deleteCallCount, await keychain.ownedIDs,
+        let (deleteCalls, finishCalls, ownedIDs, loginCalls, loginRegistered) = (
+            await keychain.deleteCallCount, await keychain.finishCallCount,
+            await keychain.ownedIDs,
             await loginItems.callCount, await loginItems.isRegistered)
         XCTAssertEqual(entryCalls, 0)
         XCTAssertEqual(rootCalls, 0)
         XCTAssertEqual(remainingCount, 4)
         XCTAssertTrue(rootExists)
         XCTAssertEqual(deleteCalls, 0)
+        XCTAssertEqual(finishCalls, 0)
         XCTAssertEqual(ownedIDs, ["master-v1", "master-v3"])
         XCTAssertEqual(loginCalls, 0)
         XCTAssertTrue(loginRegistered)
@@ -153,7 +154,6 @@ final class LocalDeletionCoordinatorTests: XCTestCase {
 
         // When: the first pass hits the failure
         let first = try await coordinator.deleteEverything()
-
         // Then: the failure is recorded, the root is kept, but keys and login item converge
         XCTAssertFalse(first.succeeded)
         guard case .ioFailure(let message)? = first.fileOutcomes[failingPath] else {
@@ -172,7 +172,6 @@ final class LocalDeletionCoordinatorTests: XCTestCase {
         // When: the fault is repaired and deletion is retried
         await fileSystem.setFailingPaths([])
         let second = try await coordinator.deleteEverything()
-
         // Then: the partial state converges to a full success
         let remainingEntry = DeletionEntry(path: failingPath, kind: .unrecognizedOwnedFile)
         XCTAssertTrue(second.succeeded)
@@ -223,6 +222,7 @@ private actor FakeDeletionKeychain: DeletionKeychain {
     private(set) var externalIDs: Set<String>
     private let missingIDs: Set<String>
     private(set) var deleteCallCount = 0
+    private(set) var finishCallCount = 0
     init(ownedIDs: [String], externalIDs: [String] = [], missingIDs: [String] = []) {
         self.ownedIDs = Set(ownedIDs)
         self.externalIDs = Set(externalIDs)
@@ -234,8 +234,8 @@ private actor FakeDeletionKeychain: DeletionKeychain {
         if missingIDs.contains(id) { throw DeletionError.missingOwnedKey(id) }
         ownedIDs.remove(id)
     }
+    func finishOwnedDestruction() { finishCallCount += 1 }
 }
-
 private actor FakeDeletionLoginItems: DeletionLoginItems {
     private var registered = true
     private(set) var callCount = 0

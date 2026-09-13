@@ -200,6 +200,7 @@ private actor RealFSTestKeychain: DeletionKeychain {
         deleteCount += 1
         ids.remove(id)
     }
+    func finishOwnedDestruction() {}
 }
 
 private actor RealFSTestLogin: DeletionLoginItems {

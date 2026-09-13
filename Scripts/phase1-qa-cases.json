@@ -98,6 +98,32 @@
       "minTestCount": 3
     },
     {
+      "task": 18,
+      "case": "happy",
+      "argv": [
+        "bash",
+        "Scripts/task18-qa.sh",
+        "{attempt}",
+        "happy"
+      ],
+      "expectedKind": "xctest",
+      "timeoutSeconds": 1200,
+      "minTestCount": 6
+    },
+    {
+      "task": 18,
+      "case": "failure",
+      "argv": [
+        "bash",
+        "Scripts/task18-qa.sh",
+        "{attempt}",
+        "failure"
+      ],
+      "expectedKind": "xctest",
+      "timeoutSeconds": 1200,
+      "minTestCount": 5
+    },
+    {
       "task": 1,
       "case": "happy",
       "argv": [

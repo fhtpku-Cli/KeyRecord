@@ -37,22 +37,6 @@ extension LifecycleOrchestrator: LifecycleDriving {
     }
 }
 
-// MARK: - Aggregate display placeholder
-
-/// UI-facing totals placeholder for task 18. It is deliberately NOT a persisted domain
-/// record: `DailyShortcutAggregate`/`DailyBareKeyAggregate` are per-day schema-bound
-/// records and `CycleSummary` is a cycle document, so neither is a view DTO. The next
-/// slice feeds real reducer totals into this shape.
-public struct AggregateSnapshot: Equatable, Sendable {
-    public let shortcutTotal: Int64
-    public let bareKeyTotal: Int64
-
-    public init(shortcutTotal: Int64, bareKeyTotal: Int64) {
-        self.shortcutTotal = shortcutTotal
-        self.bareKeyTotal = bareKeyTotal
-    }
-}
-
 // MARK: - Sensitive content visibility
 
 public enum SensitiveVisibility {

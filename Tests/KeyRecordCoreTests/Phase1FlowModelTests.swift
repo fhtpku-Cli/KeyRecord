@@ -158,13 +158,16 @@ final class Phase1FlowModelTests: XCTestCase {
             LifecycleState(phase: .failed, failure: .preferencesLoadFailed(.filesystemFailure))))
     }
 
-    func testDisplayedAggregateHiddenWhenNotVisible() {
+    func testDisplayedAggregateHiddenWhenNotVisible() throws {
         // Given: totals are set while collecting; When: the session locks (blocked);
         // Then: the getter hides the retained raw snapshot, and reveals it again on
         // return to a visible phase.
         let driver = FakeLifecycleDriver(state: openGateCollectingState())
         let model = Phase1FlowModel(lifecycle: driver)
-        let snapshot = AggregateSnapshot(shortcutTotal: 42, bareKeyTotal: 7)
+        let snapshot = AggregateSnapshot(rows: [
+            AggregateRow(identity: .bareKey(try KeyCode(1)), total: 7,
+                         classification: .discrete, sourceConfidence: .ordinary),
+        ])
         model.displayedAggregate = snapshot
         XCTAssertEqual(model.displayedAggregate, snapshot)
         driver.state = LifecycleState.blockedForRetry(preferences: blockedPreferences,

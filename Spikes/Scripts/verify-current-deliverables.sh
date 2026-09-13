@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+if [[ "${1:-}" == --milestone ]]; then
+  shift
+  exec bash "$(dirname "$0")/verify-current-milestone.sh" "$@"
+fi
+
 fail() { printf 'CURRENT_DELIVERABLES=FAIL reason=%s\n' "$1" >&2; exit 1; }
 readiness="${1:-}"
 [[ $# -gt 0 ]] || fail usage

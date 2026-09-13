@@ -15,13 +15,13 @@ struct SettingsFlowView: View {
             DangerSection(flow: flow, text: text)
         }
         .formStyle(.grouped)
-        .frame(minWidth: NativeLayout.minimum.width,
-               minHeight: NativeLayout.minimum.height)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .accessibilityIdentifier("settings.form")
         .task { await flow.refresh() }
         .sheet(isPresented: dialogPresented) {
             FlowDialogView(flow: flow, text: text)
         }
+        .nativeMotionPolicy()
     }
 
     private var dialogPresented: Binding<Bool> {
@@ -63,6 +63,8 @@ private struct ExcludedApplicationsSection: View {
                             }
                         }
                     }
+                    .accessibilityLabel(Text(choice.isForeground
+                        ? "\(choice.name), \(text("exclusions.foreground"))" : choice.name))
                     .accessibilityIdentifier("settings.exclusions.\(choice.bundleID)")
                 }
             }
@@ -86,12 +88,13 @@ private struct LoginItemSection: View {
             )) {
                 Text(text("settings.login"))
             }
+            .accessibilityLabel(Text(text("settings.login")))
             .accessibilityIdentifier("settings.login")
             if let errorKey = flow.loginItemErrorKey {
                 Label(text(errorKey), systemImage: "exclamationmark.triangle")
                     .labelStyle(.titleAndIcon)
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.primary)
                     .accessibilityIdentifier("settings.login.error")
             }
         } header: {
@@ -131,7 +134,7 @@ private struct DangerSection: View {
     var body: some View {
         Section {
             if let noticeKey = flow.noticeKey {
-                Text(text(noticeKey)).font(.caption).foregroundStyle(.secondary)
+                Text(text(noticeKey)).font(.caption).foregroundStyle(.primary)
                     .accessibilityIdentifier("flow.notice")
             }
             SettingsRow(text: text, titleKey: "settings.reset",

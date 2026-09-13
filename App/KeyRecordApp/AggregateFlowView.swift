@@ -68,8 +68,7 @@ struct AggregateFlowView: View {
         } label: {
             Text(text("aggregate.title")).accessibilityIdentifier("aggregates.panel")
         }
-        .frame(minWidth: NativeLayout.aggregateMinimum.width,
-               minHeight: NativeLayout.aggregateMinimum.height * 0.6)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private func totals(_ snapshot: AggregateSnapshot) -> some View {

@@ -1,6 +1,8 @@
 #import <AppKit/AppKit.h>
 NS_ASSUME_NONNULL_BEGIN
 NSArray<NSObject *> *KRAXChildren(NSObject *node);
+NSArray<NSObject *> *KRAXOrderedChildren(NSObject *node);
+BOOL KRAXFocusable(NSObject *node);
 NSString * _Nullable KRAXIdentifier(NSObject *node);
 NSString * _Nullable KRAXLabel(NSObject *node);
 NSString * _Nullable KRAXValue(NSObject *node);

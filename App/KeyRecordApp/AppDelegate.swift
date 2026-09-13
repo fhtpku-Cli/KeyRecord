@@ -30,10 +30,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 product = composition
                 statusItem = composition.boot()
             } catch {
+                let text = NativeText(locale: Locale.preferredLanguages.first?.hasPrefix("zh") == true ? "zh-Hans" : "en")
                 let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-                item.button?.title = "KeyRecord BLOCKED"
+                item.button?.title = "\(text("app.name")) \(text("status.blocked"))"
                 let menu = NSMenu()
-                menu.addItem(withTitle: "Quit", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+                menu.addItem(withTitle: text("action.quit"), action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
                 item.menu = menu
                 statusItem = item
             }

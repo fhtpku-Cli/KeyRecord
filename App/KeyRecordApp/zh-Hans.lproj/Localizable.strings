@@ -38,7 +38,6 @@
 "dialog.delete.message" = "此操作不可撤销。将移除所有本地产物：记录的计数与映射、加密密钥以及登录项注册。";
 "dialog.delete.confirm" = "删除所有本地数据";
 "dialog.delete.cancel" = "取消";
-"settings.title" = "设置";
 "settings.login" = "登录时打开";
 "settings.language" = "语言";
 "settings.reset" = "重置今日明细…";

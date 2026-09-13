@@ -104,6 +104,32 @@
       "minTestCount": 3
     },
     {
+      "task": 22,
+      "case": "happy",
+      "argv": [
+        "bash",
+        "Scripts/task22-qa.sh",
+        "{attempt}",
+        "happy"
+      ],
+      "expectedKind": "xctest",
+      "timeoutSeconds": 420,
+      "minTestCount": 27
+    },
+    {
+      "task": 22,
+      "case": "failure",
+      "argv": [
+        "bash",
+        "Scripts/task22-qa.sh",
+        "{attempt}",
+        "failure"
+      ],
+      "expectedKind": "xctest",
+      "timeoutSeconds": 420,
+      "minTestCount": 8
+    },
+    {
       "task": 18,
       "case": "happy",
       "argv": [

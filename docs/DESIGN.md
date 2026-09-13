@@ -126,3 +126,33 @@ These are real XCTest assertions, not a successful Xcode test-manager session;
 no `xcodebuild test` PASS is claimed. The shared QA dispatcher is unchanged.
 Window Server may clamp the requested 640x900 window to the available screen;
 the PNG's actual dimensions are evidence, not an assertion of the requested size.
+
+### Task 22 qualification boundary
+Q22 uses build-for-testing followed by direct hostless XCTest (not signed XCUITest).
+Product content fills its host; utility minima belong to the hosting window rather
+than nested settings/aggregate components. The screen harness fixes both content
+and hosting frames at 640x480 or 1000x700 pt, asserts actual backing dimensions,
+and paints the semantic window background into the captured subtree. Without this
+backdrop, view-cache PNGs contain transparent ink/material plates, not a complete
+opaque screenshot. Each saved PNG/AX pair is compared against a second fresh render.
+
+The product sheet policy reads system Reduce Motion or an injected equivalent and
+disables transaction animations; window presentation has no decorative animation.
+Source checks reject explicit animation/transition sites outside this contract.
+High-contrast qualification here means semantic palette resolution under requested
+appearances plus rendered-ink contrast of at least 4.5:1 in AX text regions. A requested
+high-contrast appearance may still resolve to the normal system appearance without
+the real system toggle: HC-named files are not proof that the toggle changed.
+
+Q22's complete enabled-control order uses AX navigation-ordered children and the
+allowed setAccessibilityFocused selector (AppKit focusability equivalent), including
+checkboxes and the language picker. Forward/reverse AX traversal terminates at tree
+boundaries; it is not a claim of an actual Full Keyboard Access Tab wrap. Return
+and Escape are native key events: declared primary defaults activate, both destructive
+dialogs reject Return and Escape cancels without calling destructive ports. Small
+settings controls are individually scrolled into the actual scroll viewport.
+
+T23 retains signed-host Tab/Shift-Tab traversal and endpoint behavior, VoiceOver
+walkthroughs, actual system Increase Contrast/Reduce Motion switches, and real
+NSStatusItem/NSScreen edge positioning. Q22 menu-edge tests use a bounded layout
+model over actual menu-content geometry, not native NSMenu placement verification.

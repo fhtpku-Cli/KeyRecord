@@ -1,5 +1,19 @@
 #import "AXBridge.h"
 
+NSArray<NSObject *> *KRAXOrderedChildren(NSObject *node) {
+    if ([node respondsToSelector:@selector(accessibilityChildrenInNavigationOrder)]) {
+        NSArray *ordered = [(id<NSAccessibility>)node accessibilityChildrenInNavigationOrder];
+        if (ordered != nil) return ordered;
+    }
+    return KRAXChildren(node);
+}
+BOOL KRAXFocusable(NSObject *node) {
+    if (![node respondsToSelector:@selector(setAccessibilityFocused:)]) return NO;
+    if ([node respondsToSelector:@selector(isAccessibilitySelectorAllowed:)])
+        return [(id<NSAccessibility>)node isAccessibilitySelectorAllowed:@selector(setAccessibilityFocused:)];
+    return NO;
+}
+
 // SwiftUI AX nodes implement public selectors without declaring the full protocol.
 NSArray<NSObject *> *KRAXChildren(NSObject *node) {
     if (![node respondsToSelector:@selector(accessibilityChildren)]) return @[];

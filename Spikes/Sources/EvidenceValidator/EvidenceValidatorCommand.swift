@@ -23,6 +23,8 @@ public enum EvidenceValidatorCommand {
         switch command {
         case "bind-current", "verify-current-candidate":
             try CurrentCandidateCommand.execute(arguments, repository: url("."))
+        case "current-status-table", "current-interim-envelope":
+            try CurrentCloseoutCommand.execute(arguments, repository: url("."))
         case "help", "--help": print(usage)
         case "current-readiness":
             let options = try Options(Array(arguments.dropFirst()))
@@ -212,10 +214,10 @@ public enum EvidenceValidatorCommand {
         return reviewers
     }
 
-    private static func url(_ path: String) -> URL { URL(fileURLWithPath: path, relativeTo: URL(fileURLWithPath: FileManager.default.currentDirectoryPath)).standardizedFileURL }
+    private static func url(_ path: String) -> URL { RepositoryURL.resolve(path) }
     private static func writeError(_ value: String) { FileHandle.standardError.write(Data(value.utf8)) }
 
-private static let usage = "EvidenceValidator <evidence-directory> | generate-conclusions --source PATH --output PATH [--source-commit SHA] [--generator-commit SHA] | validate <directory> | validate-atomicity <directory> | validate-phase0 <root> | audit-privacy <root> | bind EVIDENCE --plan PATH --output PATH [--environment PATH] | bind --evidence PATH --plan PATH --output PATH [--environment PATH] | verify-candidate CANDIDATE --evidence PATH --plan PATH [--environment PATH] | assemble-receipts SOURCE --output PATH --candidate PATH --commands PATH --required-reviewers F1,F2,F3,F4 | verify-receipts AGGREGATE --source-dir PATH --candidate PATH --commands PATH --required-reviewers F1,F2,F3,F4 [expected flags]"
+private static let usage = "EvidenceValidator <evidence-directory> | generate-conclusions --source PATH --output PATH [--source-commit SHA] [--generator-commit SHA] | validate <directory> | validate-atomicity <directory> | validate-phase0 <root> | audit-privacy <root> | bind EVIDENCE --plan PATH --output PATH [--environment PATH] | bind --evidence PATH --plan PATH --output PATH [--environment PATH] | verify-candidate CANDIDATE --evidence PATH --plan PATH [--environment PATH] | current-readiness --historical PATH --lifecycle PATH --output PATH | verify-current-readiness DOCUMENT | bind-current --plan PATH --readiness PATH --output PATH | verify-current-candidate CANDIDATE --readiness PATH | current-status-table --readiness PATH --output PATH | current-interim-envelope --candidate PATH --readiness PATH --status-table PATH --output PATH --generated-at ISO8601 | assemble-receipts SOURCE --output PATH --candidate PATH --commands PATH --required-reviewers F1,F2,F3,F4 | verify-receipts AGGREGATE --source-dir PATH --candidate PATH --commands PATH --required-reviewers F1,F2,F3,F4 [expected flags]"
 }
 
 struct BindArguments {

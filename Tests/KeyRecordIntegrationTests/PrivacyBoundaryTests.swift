@@ -63,9 +63,14 @@ final class PrivacyBoundaryTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(files, 3)
         let entries = try await fixture.store.entries()
         XCTAssertEqual(entries.count, objects.count)
+        let manifest = try EncryptedManifest.open(envelope: Data(contentsOf:
+            fixture.root.appendingPathComponent(ManifestDiscovery.fileName)),
+            materialByVersion: [1: Data(repeating: 0x19, count: 32)]).manifest
+        XCTAssertEqual(manifest.entries, entries)
         for entry in entries {
             let data = try await fixture.store.readProtected(entry.identity, gate: fixture.gate)
             XCTAssertNil(data.range(of: Data(canary.utf8)))
+            XCTAssertNotNil(data.range(of: Data("integration-cycle".utf8)))
             let component = try entry.identity.shardComponents()
             switch component.aggregateType {
             case "shortcut":

@@ -9,7 +9,7 @@ final class PrivacyBinaryAuditTests: XCTestCase {
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: root) }
         let source = root.appendingPathComponent("local.c")
-        try "#include <stdio.h>\nint main(void) { return puts(\"synthetic static fixture\"); }"
+        try "#include <stdio.h>\nint main(void) { return puts(\"system\"); }"
             .write(to: source, atomically: true, encoding: .utf8)
         let binary = root.appendingPathComponent("local")
         let compiled = try SourceInspection.run(["clang", source.path, "-o", binary.path], in: root)

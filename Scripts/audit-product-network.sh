@@ -21,7 +21,7 @@ trap '/bin/rm -rf "$scratch"' EXIT
 }
 
 # Match both imported symbols and strings used by dynamic Objective-C/network lookups.
-pattern='URLSession|NSURLSession|URLRequest|NSURLRequest|NSURLConnection|CFNetwork|CFHTTP|CF(Read|Write)Stream(Create|Open|Set)|NWConnection|NWListener|NWPathMonitor|(^|[^[:alnum:]])nw_[[:alnum:]_]+|(^|[[:space:]])_?(socket|socketpair|connect|connectx|connectat|sendto|sendmsg|getaddrinfo|res_query|curl_[[:alnum:]_]+|SSL_connect|posix_spawn[p]?|execve|execvp|execl|popen|system)([[:space:]]|$)|https?://|/bin/(sh|bash|zsh)'
+pattern='URLSession|NSURLSession|URLRequest|NSURLRequest|NSURLConnection|CFNetwork|CFHTTP|CF(Read|Write)Stream(Create|Open|Set)|NWConnection|NWListener|NWPathMonitor|(^|[^[:alnum:]])nw_[[:alnum:]_]+|(^|[[:space:]])_?(socket|socketpair|connect|connectx|connectat|sendto|sendmsg|getaddrinfo|res_query|curl_[[:alnum:]_]+|SSL_connect|posix_spawn[p]?|execve|execvp|execl|popen)([[:space:]]|$)|(^|[[:space:]])_system([[:space:]]|$)|https?://|/bin/(sh|bash|zsh)'
 if /usr/bin/grep -Ein "$pattern" "$scratch/nm" "$scratch/strings"; then
     printf '%s\n' '{"status":"FAIL","reason":"network or shell capability reference","liveReceipt":false}'
     exit 1

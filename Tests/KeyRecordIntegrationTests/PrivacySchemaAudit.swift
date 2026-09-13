@@ -50,13 +50,22 @@ enum PrivacySchemaAudit {
     }
 
     static let recordFields: [String: [String: Set<String>]] = [
+        "Counts.swift": ["Count": ["value"], "SourceCounts": ["ordinary", "suspectedInjection", "total"],
+            "ActiveDayOrdinal": ["value"]],
+        "IdentityProviders.swift": ["CycleID": ["rawValue"], "KeyVersion": ["rawValue"], "LocalDay": ["label"]],
+        "KeyCode.swift": ["KeyCode": ["value"]],
+        "Chord.swift": ["ModifierSet": ["command", "option", "control", "shift", "fn"],
+            "Chord": ["keyCode", "modifiers"], "ChordBucket": ["chord", "appBucket"]],
+        "ProtectedReferences.swift": ["KeyRotation": ["from", "to"]],
         "DailyAggregates.swift": [
+            "ShortcutClassification": ["kind", "scope"],
             "DailyShortcutAggregate": ["currentSchemaVersion", "schemaVersion", "cycleID", "day", "identity", "classification", "sourceCounts"],
             "DailyBareKeyAggregate": ["currentSchemaVersion", "schemaVersion", "cycleID", "day", "keyCode", "sourceCounts"]],
         "CycleRecords.swift": [
             "CycleRecord": ["currentSchemaVersion", "schemaVersion", "cycleID", "index", "createdDay", "closedDay", "isCurrent"],
             "CycleSummary": ["currentSchemaVersion", "schemaVersion", "cycleID", "perChordTotals", "perBareKeyTotals", "distinctActiveDays"]],
-        "Preferences.swift": ["Preferences": ["currentSchemaVersion", "schemaVersion", "expectedCollecting",
+        "Preferences.swift": ["LayoutPreference": ["preset", "hasAsked"],
+            "Preferences": ["currentSchemaVersion", "schemaVersion", "expectedCollecting",
             "currentCycleID", "excludedBundleIDs", "ignoredRecommendationKeys", "layout", "loginItemEnabled", "locale", "keyboardPoolConfirmed"]],
         "EncryptedManifest.swift": ["Wire": ["schema", "current", "entries"],
             "Entry": ["objectType", "schemaVersion", "logicalID", "locator", "keyVersion"]],

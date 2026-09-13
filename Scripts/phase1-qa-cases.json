@@ -2,6 +2,12 @@
   "schemaVersion": 2,
   "hostCases": [
     {
+      "mode": "network",
+      "manifestRequired": true,
+      "argv": ["/bin/bash", "Scripts/phase1-network-qa.sh", "{manifest}", "{attempt}"],
+      "timeoutSeconds": 15
+    },
+    {
       "mode": "capture",
       "manifestRequired": true,
       "argv": ["/bin/bash", "Scripts/phase1-capture-host.sh", "{manifest}", "{attempt}"],
@@ -534,6 +540,22 @@
       "expectedKind": "xctest",
       "timeoutSeconds": 420,
       "minTestCount": 15
+    },
+    {
+      "task": 20,
+      "case": "happy",
+      "argv": ["swift", "test", "--package-path", ".", "--scratch-path", "{attempt}/build/root", "--filter", "Privacy.*Tests/test(Canary|ExcludedForeground|Allowlist|EventWhen|ManifestWhen|ProductWhen|DocumentationComments|LocalBinary)"],
+      "expectedKind": "xctest",
+      "timeoutSeconds": 420,
+      "minTestCount": 8
+    },
+    {
+      "task": 20,
+      "case": "failure",
+      "argv": ["swift", "test", "--package-path", ".", "--scratch-path", "{attempt}/build/root", "--filter", "Privacy.*Tests/test(LeakFixture|BareAppFixture|EgressFixtures|UnregisteredReceipt|NetworkBinaryFixture|TextMasquerading)"],
+      "expectedKind": "xctest",
+      "timeoutSeconds": 420,
+      "minTestCount": 6
     }
   ]
 }

@@ -87,7 +87,7 @@ final class FlowPreviewBox: ObservableObject {
             setLanguage: { [weak store] code in store?.localize(code) },
             loadChoices: { [weak store] in store?.items ?? [] }
         ))
-        flow.refresh()
+        Task { @MainActor in await flow.refresh() }
         flow.snapshot = FlowPreviewBox.makeSnapshot()
         driver.onRearmed = { [weak self] in self?.sync() }
     }
@@ -110,9 +110,9 @@ final class FlowPreviewBox: ObservableObject {
         sync()
     }
 
-    func setLocale(_ locale: String) {
+    func setLocale(_ locale: String) async {
         choicesStore.localize(locale)
-        flow.refresh()
+        await flow.refresh()
     }
 
     static func collecting() -> LifecycleState {
@@ -162,7 +162,10 @@ struct FlowPreviewGallery: View {
                 Spacer()
                 Picker(text("harness.locale"), selection: Binding(
                     get: { locale },
-                    set: { locale = $0; box.setLocale($0) }
+                    set: { newValue in
+                        locale = newValue
+                        Task { @MainActor in await box.setLocale(newValue) }
+                    }
                 )) {
                     Text(text("locale.en")).tag("en")
                     Text(text("locale.zh-Hans")).tag("zh-Hans")

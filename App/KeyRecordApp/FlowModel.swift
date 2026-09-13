@@ -58,7 +58,7 @@ struct FlowActions {
     var setExclusions: @MainActor (Set<String>) async -> Void
     var setLoginItem: @MainActor (Bool) async -> Void
     var setLanguage: @MainActor (String) async -> Void
-    var loadChoices: @MainActor () -> [AppChoice]
+    var loadChoices: @MainActor () async -> [AppChoice]
     var openSettings: @MainActor () -> Void
 
     init(
@@ -71,7 +71,7 @@ struct FlowActions {
         setExclusions: @escaping @MainActor (Set<String>) async -> Void = { @MainActor _ in },
         setLoginItem: @escaping @MainActor (Bool) async -> Void = { @MainActor _ in },
         setLanguage: @escaping @MainActor (String) async -> Void = { @MainActor _ in },
-        loadChoices: @escaping @MainActor () -> [AppChoice] = { @MainActor in [] },
+        loadChoices: @escaping @MainActor () async -> [AppChoice] = { @MainActor in [] },
         openSettings: @escaping @MainActor () -> Void = { @MainActor in }
     ) {
         self.accept = accept
@@ -101,7 +101,7 @@ final class AppFlowObservable: ObservableObject {
     @Published var noticeKey: String?
 
     private let flow: Phase1FlowModel
-    private let actions: FlowActions
+    var actions: FlowActions
 
     init(flow: Phase1FlowModel, actions: FlowActions = FlowActions()) {
         self.flow = flow
@@ -128,12 +128,22 @@ final class AppFlowObservable: ObservableObject {
         mirror()
     }
 
-    func accept() async { await actions.accept(); refresh() }
-    func decline() { actions.decline(); refresh() }
-    func start() async { await actions.start(); refresh() }
-    func pause() async { await actions.pause(); refresh() }
-    func resume() async { await actions.resume(); refresh() }
-    func quit() async { await actions.quit(); refresh() }
+    /// Composition-root mirror after an orchestrator transition: the reducer keeps
+    /// deciding login rejection wording; the observable only exposes its localized key.
+    func sync(from lifecycleState: LifecycleState) {
+        state = PrimitiveState(phase: lifecycleState.phase)
+        loginItemEnabled = lifecycleState.loginItem == .registered
+        loginItemErrorKey = LoginItemPolicy.rejection(from: lifecycleState.notice) != nil
+            ? "settings.login.error" : nil
+        mirror()
+    }
+
+    func accept() async { await actions.accept(); await refresh() }
+    func decline() { actions.decline(); mirror() }
+    func start() async { await actions.start(); await refresh() }
+    func pause() async { await actions.pause(); await refresh() }
+    func resume() async { await actions.resume(); await refresh() }
+    func quit() async { await actions.quit(); await refresh() }
     func openSettings() { actions.openSettings() }
 
     func requestReset() { flow.requestReset(); mirror() }
@@ -154,12 +164,12 @@ final class AppFlowObservable: ObservableObject {
         var excluded = Set(choices.filter(\.isExcluded).map(\.bundleID))
         if enabled { excluded.insert(bundleID) } else { excluded.remove(bundleID) }
         await actions.setExclusions(excluded)
-        refresh()
+        await refresh()
     }
 
     func setLoginItem(enabled: Bool) async {
         await actions.setLoginItem(enabled)
-        refresh()
+        await refresh()
     }
 
     func setLanguage(_ code: String) async {
@@ -169,14 +179,13 @@ final class AppFlowObservable: ObservableObject {
 
     func dismissNotice() { noticeKey = nil }
 
-    func refresh() {
-        choices = actions.loadChoices()
+    func refresh() async {
+        choices = await actions.loadChoices()
         mirror()
     }
 
     private func mirror() {
         dialog = flow.dialog
-        choices = actions.loadChoices()
         objectWillChange.send()
     }
 }

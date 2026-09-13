@@ -28,7 +28,7 @@ public struct LifecyclePorts: Sendable {
 /// the reducer alone decides ordering, so side-effect counts in fakes prove the consent/flush contracts.
 @MainActor
 public final class LifecycleOrchestrator {
-    public private(set) var state = LifecycleState.initial
+    public internal(set) var state = LifecycleState.initial
     private let ports: LifecyclePorts
 
     public init(ports: LifecyclePorts) {

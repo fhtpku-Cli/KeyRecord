@@ -18,6 +18,7 @@ struct SettingsFlowView: View {
         .frame(minWidth: NativeLayout.minimum.width,
                minHeight: NativeLayout.minimum.height)
         .accessibilityIdentifier("settings.form")
+        .task { await flow.refresh() }
         .sheet(isPresented: dialogPresented) {
             FlowDialogView(flow: flow, text: text)
         }

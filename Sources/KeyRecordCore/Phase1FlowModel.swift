@@ -18,9 +18,6 @@ public protocol LocalDataErasing: Sendable {
 // MARK: - Lifecycle seam
 
 /// Narrow slice of `LifecycleOrchestrator` consumed by the phase-1 flow model.
-/// The FSM currently has no collecting/paused -> unstarted event and `state` has a
-/// private setter, so direct orchestrator holding cannot re-arm consent after erasure;
-/// this seam lets the model demand the re-arm without owning the mechanics.
 @MainActor
 public protocol LifecycleDriving: AnyObject {
     var state: LifecycleState { get }
@@ -30,10 +27,9 @@ public protocol LifecycleDriving: AnyObject {
 
 extension LifecycleOrchestrator: LifecycleDriving {
     public func returnToConsentRequired() async {
-        // T19 wires the real re-arm: the erasure adapter empties the store and the
-        // lifecycle is rebuilt from `.initial`. Until that composition exists, reload
-        // is the closest public seam (a reset/erase FSM event does not exist yet).
-        await reload()
+        // Erase removes every persisted artifact; the FSM restarts at first-run.
+        // T19 routes this through a reducer event once erase transitions land.
+        state = LifecycleState.initial
     }
 }
 

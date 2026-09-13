@@ -28,6 +28,22 @@
   ],
   "cases": [
     {
+      "task": 24,
+      "case": "happy",
+      "argv": ["swift", "test", "--package-path", "Spikes", "--scratch-path", "{attempt}/build/spikes", "--filter", "CurrentMilestoneTests/testHappy"],
+      "expectedKind": "xctest",
+      "timeoutSeconds": 420,
+      "minTestCount": 1
+    },
+    {
+      "task": 24,
+      "case": "failure",
+      "argv": ["swift", "test", "--package-path", "Spikes", "--scratch-path", "{attempt}/build/spikes", "--filter", "CurrentMilestoneTests/testFailure"],
+      "expectedKind": "xctest",
+      "timeoutSeconds": 420,
+      "minTestCount": 6
+    },
+    {
       "task": 11,
       "case": "happy",
       "argv": [

@@ -1,0 +1,814 @@
+[0/1] Planning build
+Building for debugging...
+[0/2] Write swift-version--58304C5D6DBC2206.txt
+Build complete! (0.22s)
+Test Suite 'All tests' started at 2026-09-14 01:00:27.393.
+Test Suite 'KeyRecordPackageTests.xctest' started at 2026-09-14 01:00:27.394.
+Test Suite 'AggregatePresentationTests' started at 2026-09-14 01:00:27.394.
+Test Case '-[KeyRecordCoreTests.AggregatePresentationTests testBareKeyRowCannotCarryAppBucketAndShortcutKeepsItsBucket]' started.
+Test Case '-[KeyRecordCoreTests.AggregatePresentationTests testBareKeyRowCannotCarryAppBucketAndShortcutKeepsItsBucket]' passed (0.002 seconds).
+Test Case '-[KeyRecordCoreTests.AggregatePresentationTests testClassificationMapsStatefulSystemAndDiscrete]' started.
+Test Case '-[KeyRecordCoreTests.AggregatePresentationTests testClassificationMapsStatefulSystemAndDiscrete]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.AggregatePresentationTests testDailyRecordsCollapseToCycleRows]' started.
+Test Case '-[KeyRecordCoreTests.AggregatePresentationTests testDailyRecordsCollapseToCycleRows]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.AggregatePresentationTests testRowsFollowAggregationOrdering]' started.
+Test Case '-[KeyRecordCoreTests.AggregatePresentationTests testRowsFollowAggregationOrdering]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.AggregatePresentationTests testSameBareKeySumsAcrossDays]' started.
+Test Case '-[KeyRecordCoreTests.AggregatePresentationTests testSameBareKeySumsAcrossDays]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.AggregatePresentationTests testSameChordAndBucketSumsAcrossDays]' started.
+Test Case '-[KeyRecordCoreTests.AggregatePresentationTests testSameChordAndBucketSumsAcrossDays]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.AggregatePresentationTests testSnapshotTotalsAreSumsOfRows]' started.
+Test Case '-[KeyRecordCoreTests.AggregatePresentationTests testSnapshotTotalsAreSumsOfRows]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.AggregatePresentationTests testSourceConfidenceMarkers]' started.
+Test Case '-[KeyRecordCoreTests.AggregatePresentationTests testSourceConfidenceMarkers]' passed (0.000 seconds).
+Test Suite 'AggregatePresentationTests' passed at 2026-09-14 01:00:27.397.
+	 Executed 8 tests, with 0 failures (0 unexpected) in 0.003 (0.003) seconds
+Test Suite 'AggregationTests' started at 2026-09-14 01:00:27.397.
+Test Case '-[KeyRecordCoreTests.AggregationTests testActiveDayEncounterOrderAcrossTimezoneRollbackAndRevisit]' started.
+Test Case '-[KeyRecordCoreTests.AggregationTests testActiveDayEncounterOrderAcrossTimezoneRollbackAndRevisit]' passed (0.004 seconds).
+Test Case '-[KeyRecordCoreTests.AggregationTests testAppBucketsSystemClassificationAndBareKeysStaySeparate]' started.
+Test Case '-[KeyRecordCoreTests.AggregationTests testAppBucketsSystemClassificationAndBareKeysStaySeparate]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.AggregationTests testCountAdditionOverflowFailsClosed]' started.
+Test Case '-[KeyRecordCoreTests.AggregationTests testCountAdditionOverflowFailsClosed]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.AggregationTests testDSTRepeatedAndSkippedHourDoNotAddDays]' started.
+Test Case '-[KeyRecordCoreTests.AggregationTests testDSTRepeatedAndSkippedHourDoNotAddDays]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.AggregationTests testInjectedCalendarIsUsedInsteadOfGlobalCalendar]' started.
+Test Case '-[KeyRecordCoreTests.AggregationTests testInjectedCalendarIsUsedInsteadOfGlobalCalendar]' passed (0.001 seconds).
+Test Case '-[KeyRecordCoreTests.AggregationTests testInvalidClockLeavesStateUnchangedAndSamePressCanRetry]' started.
+Test Case '-[KeyRecordCoreTests.AggregationTests testInvalidClockLeavesStateUnchangedAndSamePressCanRetry]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.AggregationTests testMissingKeyUpClearsOnClosureGenerationAndReset]' started.
+Test Case '-[KeyRecordCoreTests.AggregationTests testMissingKeyUpClearsOnClosureGenerationAndReset]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.AggregationTests testOpenGenerationReplacementClearsHeldKeys]' started.
+Test Case '-[KeyRecordCoreTests.AggregationTests testOpenGenerationReplacementClearsHeldKeys]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.AggregationTests testThreeSecondHeldRepeatAndMultiKeySequence]' started.
+Test Case '-[KeyRecordCoreTests.AggregationTests testThreeSecondHeldRepeatAndMultiKeySequence]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.AggregationTests testUTCAndLocalMidnightAttribution]' started.
+Test Case '-[KeyRecordCoreTests.AggregationTests testUTCAndLocalMidnightAttribution]' passed (0.000 seconds).
+Test Suite 'AggregationTests' passed at 2026-09-14 01:00:27.404.
+	 Executed 10 tests, with 0 failures (0 unexpected) in 0.006 (0.007) seconds
+Test Suite 'CaptureProviderTests' started at 2026-09-14 01:00:27.404.
+Test Case '-[KeyRecordCaptureTests.CaptureProviderTests testActivationWhileRefreshingCannotPublishStaleSnapshot]' started.
+Test Case '-[KeyRecordCaptureTests.CaptureProviderTests testActivationWhileRefreshingCannotPublishStaleSnapshot]' passed (0.000 seconds).
+Test Case '-[KeyRecordCaptureTests.CaptureProviderTests testBackendFailureRevokesGeneration]' started.
+Test Case '-[KeyRecordCaptureTests.CaptureProviderTests testBackendFailureRevokesGeneration]' passed (0.001 seconds).
+Test Case '-[KeyRecordCaptureTests.CaptureProviderTests testCancelledRefreshRemainsClosed]' started.
+Test Case '-[KeyRecordCaptureTests.CaptureProviderTests testCancelledRefreshRemainsClosed]' passed (0.000 seconds).
+Test Case '-[KeyRecordCaptureTests.CaptureProviderTests testCaptureHostMissingAuthorizationProducesBlockedReceiptWithoutTap]' started.
+Test Case '-[KeyRecordCaptureTests.CaptureProviderTests testCaptureHostMissingAuthorizationProducesBlockedReceiptWithoutTap]' passed (0.224 seconds).
+Test Case '-[KeyRecordCaptureTests.CaptureProviderTests testConcurrentStartAndStopDuringBackendActivation]' started.
+Test Case '-[KeyRecordCaptureTests.CaptureProviderTests testConcurrentStartAndStopDuringBackendActivation]' passed (0.002 seconds).
+Test Case '-[KeyRecordCaptureTests.CaptureProviderTests testDefaultSystemFactoryCannotActivateLiveBackend]' started.
+Test Case '-[KeyRecordCaptureTests.CaptureProviderTests testDefaultSystemFactoryCannotActivateLiveBackend]' passed (0.001 seconds).
+Test Case '-[KeyRecordCaptureTests.CaptureProviderTests testForegroundChangeAfterSamplingBeforeSubscriptionRejectsActivation]' started.
+Test Case '-[KeyRecordCaptureTests.CaptureProviderTests testForegroundChangeAfterSamplingBeforeSubscriptionRejectsActivation]' passed (0.001 seconds).
+Test Case '-[KeyRecordCaptureTests.CaptureProviderTests testForegroundProviderReadErrorCannotBecomeUnattributable]' started.
+Test Case '-[KeyRecordCaptureTests.CaptureProviderTests testForegroundProviderReadErrorCannotBecomeUnattributable]' passed (0.001 seconds).
+Test Case '-[KeyRecordCaptureTests.CaptureProviderTests testInjectedSecureInputPreservesUnknown]' started.
+Test Case '-[KeyRecordCaptureTests.CaptureProviderTests testInjectedSecureInputPreservesUnknown]' passed (0.000 seconds).
+Test Case '-[KeyRecordCaptureTests.CaptureProviderTests testNilBundleDiffersFromReadFailure]' started.
+Test Case '-[KeyRecordCaptureTests.CaptureProviderTests testNilBundleDiffersFromReadFailure]' passed (0.000 seconds).
+Test Case '-[KeyRecordCaptureTests.CaptureProviderTests testProviderDriftAtHandoffRejectsWithoutPublication]' started.
+Test Case '-[KeyRecordCaptureTests.CaptureProviderTests testProviderDriftAtHandoffRejectsWithoutPublication]' passed (0.006 seconds).
+Test Case '-[KeyRecordCaptureTests.CaptureProviderTests testReliableUnattributableCanOpenWithFreshSafeProviders]' started.
+Test Case '-[KeyRecordCaptureTests.CaptureProviderTests testReliableUnattributableCanOpenWithFreshSafeProviders]' passed (0.001 seconds).
+Test Case '-[KeyRecordCaptureTests.CaptureProviderTests testRevocationDuringQualificationNeverCreatesTap]' started.
+Test Case '-[KeyRecordCaptureTests.CaptureProviderTests testRevocationDuringQualificationNeverCreatesTap]' passed (0.002 seconds).
+Test Case '-[KeyRecordCaptureTests.CaptureProviderTests testSecureInputErrorsAndUnavailableRemainUnknown]' started.
+Test Case '-[KeyRecordCaptureTests.CaptureProviderTests testSecureInputErrorsAndUnavailableRemainUnknown]' passed (0.000 seconds).
+Test Case '-[KeyRecordCaptureTests.CaptureProviderTests testSerialRuntimeDeliversOnlyViaBoundedHandoff]' started.
+Test Case '-[KeyRecordCaptureTests.CaptureProviderTests testSerialRuntimeDeliversOnlyViaBoundedHandoff]' passed (0.002 seconds).
+Test Case '-[KeyRecordCaptureTests.CaptureProviderTests testSingleBackendStartStopAndReopen]' started.
+Test Case '-[KeyRecordCaptureTests.CaptureProviderTests testSingleBackendStartStopAndReopen]' passed (0.002 seconds).
+Test Case '-[KeyRecordCaptureTests.CaptureProviderTests testSubscribedForegroundChangeDuringSamplingRejectsActivation]' started.
+Test Case '-[KeyRecordCaptureTests.CaptureProviderTests testSubscribedForegroundChangeDuringSamplingRejectsActivation]' passed (0.001 seconds).
+Test Case '-[KeyRecordCaptureTests.CaptureProviderTests testSubscribedLockChangeDuringSamplingRejectsActivation]' started.
+Test Case '-[KeyRecordCaptureTests.CaptureProviderTests testSubscribedLockChangeDuringSamplingRejectsActivation]' passed (0.001 seconds).
+Test Case '-[KeyRecordCaptureTests.CaptureProviderTests testSubscribedSecureInputChangeDuringSamplingRejectsActivation]' started.
+Test Case '-[KeyRecordCaptureTests.CaptureProviderTests testSubscribedSecureInputChangeDuringSamplingRejectsActivation]' passed (0.001 seconds).
+Test Case '-[KeyRecordCaptureTests.CaptureProviderTests testSubscriptionPrecedesEveryAuthoritativeSample]' started.
+Test Case '-[KeyRecordCaptureTests.CaptureProviderTests testSubscriptionPrecedesEveryAuthoritativeSample]' passed (0.002 seconds).
+Test Case '-[KeyRecordCaptureTests.CaptureProviderTests testSystemCallsAreIsolatedAndCallbackHasNoIO]' started.
+Test Case '-[KeyRecordCaptureTests.CaptureProviderTests testSystemCallsAreIsolatedAndCallbackHasNoIO]' passed (0.014 seconds).
+Test Case '-[KeyRecordCaptureTests.CaptureProviderTests testUnqualifiedLockRemainsUnknown]' started.
+Test Case '-[KeyRecordCaptureTests.CaptureProviderTests testUnqualifiedLockRemainsUnknown]' passed (0.000 seconds).
+Test Case '-[KeyRecordCaptureTests.CaptureProviderTests testUnqualifiedStartCreatesZeroTaps]' started.
+Test Case '-[KeyRecordCaptureTests.CaptureProviderTests testUnqualifiedStartCreatesZeroTaps]' passed (0.001 seconds).
+Test Case '-[KeyRecordCaptureTests.CaptureProviderTests testUnsafeProviderStatesCloseGate]' started.
+Test Case '-[KeyRecordCaptureTests.CaptureProviderTests testUnsafeProviderStatesCloseGate]' passed (0.005 seconds).
+Test Suite 'CaptureProviderTests' passed at 2026-09-14 01:00:27.677.
+	 Executed 24 tests, with 0 failures (0 unexpected) in 0.271 (0.273) seconds
+Test Suite 'CaptureQueueTests' started at 2026-09-14 01:00:27.677.
+Test Case '-[KeyRecordCaptureTests.CaptureQueueTests testBackendRevokedPermissionDrainsAndResetsWithoutPublication]' started.
+Test Case '-[KeyRecordCaptureTests.CaptureQueueTests testBackendRevokedPermissionDrainsAndResetsWithoutPublication]' passed (0.003 seconds).
+Test Case '-[KeyRecordCaptureTests.CaptureQueueTests testBackendSleepDispatchDrainsAndResetsWithoutPublication]' started.
+Test Case '-[KeyRecordCaptureTests.CaptureQueueTests testBackendSleepDispatchDrainsAndResetsWithoutPublication]' passed (0.002 seconds).
+Test Case '-[KeyRecordCaptureTests.CaptureQueueTests testBackendTapDisabledDispatchDrainsAndResetsWithoutPublication]' started.
+Test Case '-[KeyRecordCaptureTests.CaptureQueueTests testBackendTapDisabledDispatchDrainsAndResetsWithoutPublication]' passed (0.002 seconds).
+Test Case '-[KeyRecordCaptureTests.CaptureQueueTests testCachedProviderDriftBeforeDeliveryDrainsWithoutNotification]' started.
+Test Case '-[KeyRecordCaptureTests.CaptureQueueTests testCachedProviderDriftBeforeDeliveryDrainsWithoutNotification]' passed (0.002 seconds).
+Test Case '-[KeyRecordCaptureTests.CaptureQueueTests testCapacity4095And4096ThenOverflow4097]' started.
+Test Case '-[KeyRecordCaptureTests.CaptureQueueTests testCapacity4095And4096ThenOverflow4097]' passed (0.003 seconds).
+Test Case '-[KeyRecordCaptureTests.CaptureQueueTests testForegroundBoundaryMismatchRevokesQueuedEvents]' started.
+Test Case '-[KeyRecordCaptureTests.CaptureQueueTests testForegroundBoundaryMismatchRevokesQueuedEvents]' passed (0.001 seconds).
+Test Case '-[KeyRecordCaptureTests.CaptureQueueTests testFreshEventAndMetadataShareGeneration]' started.
+Test Case '-[KeyRecordCaptureTests.CaptureQueueTests testFreshEventAndMetadataShareGeneration]' passed (0.001 seconds).
+Test Case '-[KeyRecordCaptureTests.CaptureQueueTests testOldEventCannotPublishAfterRevokeOrReopen]' started.
+Test Case '-[KeyRecordCaptureTests.CaptureQueueTests testOldEventCannotPublishAfterRevokeOrReopen]' passed (0.002 seconds).
+Test Case '-[KeyRecordCaptureTests.CaptureQueueTests testProductMarkedNeverPublishesOrMutatesHeldState]' started.
+Test Case '-[KeyRecordCaptureTests.CaptureQueueTests testProductMarkedNeverPublishesOrMutatesHeldState]' passed (0.001 seconds).
+Test Case '-[KeyRecordCaptureTests.CaptureQueueTests testQueuedEventsCannotPublishAfterLockedOrUnknownLock]' started.
+Test Case '-[KeyRecordCaptureTests.CaptureQueueTests testQueuedEventsCannotPublishAfterLockedOrUnknownLock]' passed (0.003 seconds).
+Test Case '-[KeyRecordCaptureTests.CaptureQueueTests testReducerReconstructsSidesAndResetsAcrossTapLoss]' started.
+Test Case '-[KeyRecordCaptureTests.CaptureQueueTests testReducerReconstructsSidesAndResetsAcrossTapLoss]' passed (0.001 seconds).
+Test Case '-[KeyRecordCaptureTests.CaptureQueueTests testRejectedSinkRevokesAndPreventsLaterPublication]' started.
+Test Case '-[KeyRecordCaptureTests.CaptureQueueTests testRejectedSinkRevokesAndPreventsLaterPublication]' passed (0.001 seconds).
+Test Case '-[KeyRecordCaptureTests.CaptureQueueTests testResetClearsModifiersBeforeReopen]' started.
+Test Case '-[KeyRecordCaptureTests.CaptureQueueTests testResetClearsModifiersBeforeReopen]' passed (0.001 seconds).
+Test Case '-[KeyRecordCaptureTests.CaptureQueueTests testSerialDeliveryIsFIFOAcrossRingWrap]' started.
+Test Case '-[KeyRecordCaptureTests.CaptureQueueTests testSerialDeliveryIsFIFOAcrossRingWrap]' passed (0.021 seconds).
+Test Case '-[KeyRecordCaptureTests.CaptureQueueTests testStaleRefreshCannotOpenGate]' started.
+Test Case '-[KeyRecordCaptureTests.CaptureQueueTests testStaleRefreshCannotOpenGate]' passed (0.000 seconds).
+Test Case '-[KeyRecordCaptureTests.CaptureQueueTests testUnknownControlUpdateDrainsWithoutPublishing]' started.
+Test Case '-[KeyRecordCaptureTests.CaptureQueueTests testUnknownControlUpdateDrainsWithoutPublishing]' passed (0.001 seconds).
+Test Suite 'CaptureQueueTests' passed at 2026-09-14 01:00:27.722.
+	 Executed 16 tests, with 0 failures (0 unexpected) in 0.044 (0.045) seconds
+Test Suite 'CrashProbeTests' started at 2026-09-14 01:00:27.722.
+Test Case '-[KeyRecordStoreTests.CrashProbeTests testProbeControlRunCompletesAndCommitsObject]' started.
+Test Case '-[KeyRecordStoreTests.CrashProbeTests testProbeControlRunCompletesAndCommitsObject]' passed (1.502 seconds).
+Test Case '-[KeyRecordStoreTests.CrashProbeTests testRealKillThenInjectedInterruptionsThenReopensConverge]' started.
+Test Case '-[KeyRecordStoreTests.CrashProbeTests testRealKillThenInjectedInterruptionsThenReopensConverge]' passed (0.262 seconds).
+Test Case '-[KeyRecordStoreTests.CrashProbeTests testRealProcessKillAroundRotationRelocationAndManifestReencryption]' started.
+Test Case '-[KeyRecordStoreTests.CrashProbeTests testRealProcessKillAroundRotationRelocationAndManifestReencryption]' passed (0.696 seconds).
+Test Case '-[KeyRecordStoreTests.CrashProbeTests testRealProcessKillAtEveryPutBoundaryLeavesRecoverableState]' started.
+Test Case '-[KeyRecordStoreTests.CrashProbeTests testRealProcessKillAtEveryPutBoundaryLeavesRecoverableState]' passed (0.612 seconds).
+Test Suite 'CrashProbeTests' passed at 2026-09-14 01:00:30.794.
+	 Executed 4 tests, with 0 failures (0 unexpected) in 3.072 (3.072) seconds
+Test Suite 'CycleResetCrashTests' started at 2026-09-14 01:00:30.794.
+Test Case '-[KeyRecordStoreTests.CycleResetCrashTests testControlRunResetsWithoutInjection]' started.
+Test Case '-[KeyRecordStoreTests.CycleResetCrashTests testControlRunResetsWithoutInjection]' passed (0.151 seconds).
+Test Case '-[KeyRecordStoreTests.CycleResetCrashTests testRealProcessKillAfterSummaryBeforeDetailDeleteConverges]' started.
+Test Case '-[KeyRecordStoreTests.CycleResetCrashTests testRealProcessKillAfterSummaryBeforeDetailDeleteConverges]' passed (0.686 seconds).
+Test Case '-[KeyRecordStoreTests.CycleResetCrashTests testRealProcessKillAroundNewCycleCommitConverges]' started.
+Test Case '-[KeyRecordStoreTests.CycleResetCrashTests testRealProcessKillAroundNewCycleCommitConverges]' passed (0.681 seconds).
+Test Case '-[KeyRecordStoreTests.CycleResetCrashTests testRealProcessKillAtJournalBoundaryConverges]' started.
+Test Case '-[KeyRecordStoreTests.CycleResetCrashTests testRealProcessKillAtJournalBoundaryConverges]' passed (1.237 seconds).
+Test Case '-[KeyRecordStoreTests.CycleResetCrashTests testRealProcessKillDuringJournalClearConverges]' started.
+Test Case '-[KeyRecordStoreTests.CycleResetCrashTests testRealProcessKillDuringJournalClearConverges]' passed (0.670 seconds).
+Test Case '-[KeyRecordStoreTests.CycleResetCrashTests testRepeatedRealInterruptionsAcrossEveryStageConverge]' started.
+Test Case '-[KeyRecordStoreTests.CycleResetCrashTests testRepeatedRealInterruptionsAcrossEveryStageConverge]' passed (0.514 seconds).
+Test Suite 'CycleResetCrashTests' passed at 2026-09-14 01:00:34.733.
+	 Executed 6 tests, with 0 failures (0 unexpected) in 3.939 (3.939) seconds
+Test Suite 'CycleResetJournalFailureTests' started at 2026-09-14 01:00:34.733.
+Test Case '-[KeyRecordStoreTests.CycleResetJournalFailureTests testDifferentOperationRejectedUntilOriginalConverges]' started.
+Test Case '-[KeyRecordStoreTests.CycleResetJournalFailureTests testDifferentOperationRejectedUntilOriginalConverges]' passed (0.070 seconds).
+Test Case '-[KeyRecordStoreTests.CycleResetJournalFailureTests testForeignCycleShardRejectsReset]' started.
+Test Case '-[KeyRecordStoreTests.CycleResetJournalFailureTests testForeignCycleShardRejectsReset]' passed (0.010 seconds).
+Test Case '-[KeyRecordStoreTests.CycleResetJournalFailureTests testInjectedInterruptionsAtEveryStageConvergeOnRetry]' started.
+Test Case '-[KeyRecordStoreTests.CycleResetJournalFailureTests testInjectedInterruptionsAtEveryStageConvergeOnRetry]' passed (0.309 seconds).
+Test Case '-[KeyRecordStoreTests.CycleResetJournalFailureTests testMalformedPendingJournalFailsClosedWithoutTouchingData]' started.
+Test Case '-[KeyRecordStoreTests.CycleResetJournalFailureTests testMalformedPendingJournalFailsClosedWithoutTouchingData]' passed (0.034 seconds).
+Test Case '-[KeyRecordStoreTests.CycleResetJournalFailureTests testRetainedObjectLostAfterSnapshotFailsReset]' started.
+Test Case '-[KeyRecordStoreTests.CycleResetJournalFailureTests testRetainedObjectLostAfterSnapshotFailsReset]' passed (0.037 seconds).
+Test Suite 'CycleResetJournalFailureTests' passed at 2026-09-14 01:00:35.193.
+	 Executed 5 tests, with 0 failures (0 unexpected) in 0.460 (0.460) seconds
+Test Suite 'CycleResetRotationTests' started at 2026-09-14 01:00:35.193.
+Test Case '-[KeyRecordStoreTests.CycleResetRotationTests testActiveResetSerializesAgainstKeyringRotation]' started.
+Test Case '-[KeyRecordStoreTests.CycleResetRotationTests testActiveResetSerializesAgainstKeyringRotation]' passed (0.066 seconds).
+Test Case '-[KeyRecordStoreTests.CycleResetRotationTests testFullRotationAroundPendingResetThenResetConverges]' started.
+Test Case '-[KeyRecordStoreTests.CycleResetRotationTests testFullRotationAroundPendingResetThenResetConverges]' passed (0.081 seconds).
+Test Case '-[KeyRecordStoreTests.CycleResetRotationTests testPendingJournalUnderOldKeyBlocksRetirementReferenceSet]' started.
+Test Case '-[KeyRecordStoreTests.CycleResetRotationTests testPendingJournalUnderOldKeyBlocksRetirementReferenceSet]' passed (0.088 seconds).
+Test Suite 'CycleResetRotationTests' passed at 2026-09-14 01:00:35.429.
+	 Executed 3 tests, with 0 failures (0 unexpected) in 0.235 (0.235) seconds
+Test Suite 'CycleResetTests' started at 2026-09-14 01:00:35.429.
+Test Case '-[KeyRecordStoreTests.CycleResetTests testEmptyCycleResetWritesSummaryWithZeroTotalsAndDeletesNoShards]' started.
+Test Case '-[KeyRecordStoreTests.CycleResetTests testEmptyCycleResetWritesSummaryWithZeroTotalsAndDeletesNoShards]' passed (0.016 seconds).
+Test Case '-[KeyRecordStoreTests.CycleResetTests testRepeatedOperationReturnsOriginalCycleAfterReopen]' started.
+Test Case '-[KeyRecordStoreTests.CycleResetTests testRepeatedOperationReturnsOriginalCycleAfterReopen]' passed (0.043 seconds).
+Test Case '-[KeyRecordStoreTests.CycleResetTests testResetKeepsPausedExpectedCollectingFalse]' started.
+Test Case '-[KeyRecordStoreTests.CycleResetTests testResetKeepsPausedExpectedCollectingFalse]' passed (0.043 seconds).
+Test Case '-[KeyRecordStoreTests.CycleResetTests testResetRetainsOpaqueObjectsAndOnlyApprovedSummary]' started.
+Test Case '-[KeyRecordStoreTests.CycleResetTests testResetRetainsOpaqueObjectsAndOnlyApprovedSummary]' passed (0.041 seconds).
+Test Case '-[KeyRecordStoreTests.CycleResetTests testResetWithoutPreferencesOrCurrentCycleRejects]' started.
+Test Case '-[KeyRecordStoreTests.CycleResetTests testResetWithoutPreferencesOrCurrentCycleRejects]' passed (0.005 seconds).
+Test Case '-[KeyRecordStoreTests.CycleResetTests testSecondInProcessCallWithSameOperationConverges]' started.
+Test Case '-[KeyRecordStoreTests.CycleResetTests testSecondInProcessCallWithSameOperationConverges]' passed (0.040 seconds).
+Test Suite 'CycleResetTests' passed at 2026-09-14 01:00:35.617.
+	 Executed 6 tests, with 0 failures (0 unexpected) in 0.188 (0.188) seconds
+Test Suite 'DomainSchemaTests' started at 2026-09-14 01:00:35.617.
+Test Case '-[KeyRecordCoreTests.DomainSchemaTests testFailureBareKeyAttributionRejectedOnWire]' started.
+Test Case '-[KeyRecordCoreTests.DomainSchemaTests testFailureBareKeyAttributionRejectedOnWire]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.DomainSchemaTests testFailureInjectedSourceTotalRejects]' started.
+Test Case '-[KeyRecordCoreTests.DomainSchemaTests testFailureInjectedSourceTotalRejects]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.DomainSchemaTests testFailureInvalidKeyCodesRejectAtConstructionAndDecoding]' started.
+Test Case '-[KeyRecordCoreTests.DomainSchemaTests testFailureInvalidKeyCodesRejectAtConstructionAndDecoding]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.DomainSchemaTests testFailureNegativeCountsReject]' started.
+Test Case '-[KeyRecordCoreTests.DomainSchemaTests testFailureNegativeCountsReject]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.DomainSchemaTests testFailureSourceOverflowRejectsWithoutWrapping]' started.
+Test Case '-[KeyRecordCoreTests.DomainSchemaTests testFailureSourceOverflowRejectsWithoutWrapping]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.DomainSchemaTests testFailureUnsupportedSchemasRejectAcrossAllRecords]' started.
+Test Case '-[KeyRecordCoreTests.DomainSchemaTests testFailureUnsupportedSchemasRejectAcrossAllRecords]' passed (0.001 seconds).
+Test Case '-[KeyRecordCoreTests.DomainSchemaTests testGateInputsRetainUnknownWithoutDecisionLogic]' started.
+Test Case '-[KeyRecordCoreTests.DomainSchemaTests testGateInputsRetainUnknownWithoutDecisionLogic]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.DomainSchemaTests testModifierIdentityRetainsUnknownAndSides]' started.
+Test Case '-[KeyRecordCoreTests.DomainSchemaTests testModifierIdentityRetainsUnknownAndSides]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.DomainSchemaTests testSourceTotalIsDerivedFromSeparatedCounts]' started.
+Test Case '-[KeyRecordCoreTests.DomainSchemaTests testSourceTotalIsDerivedFromSeparatedCounts]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.DomainSchemaTests testStandardKeyCodesRoundTrip]' started.
+Test Case '-[KeyRecordCoreTests.DomainSchemaTests testStandardKeyCodesRoundTrip]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.DomainSchemaTests testSummaryShapeRoundTripsWithoutDailyDetail]' started.
+Test Case '-[KeyRecordCoreTests.DomainSchemaTests testSummaryShapeRoundTripsWithoutDailyDetail]' passed (0.000 seconds).
+Test Suite 'DomainSchemaTests' passed at 2026-09-14 01:00:35.619.
+	 Executed 11 tests, with 0 failures (0 unexpected) in 0.002 (0.002) seconds
+Test Suite 'FencedObjectPersistenceTests' started at 2026-09-14 01:00:35.619.
+Test Case '-[KeyRecordStoreTests.FencedObjectPersistenceTests testEncryptedObjectRecoversWhenFencedBatchCommits]' started.
+Test Case '-[KeyRecordStoreTests.FencedObjectPersistenceTests testEncryptedObjectRecoversWhenFencedBatchCommits]' passed (0.005 seconds).
+Test Case '-[KeyRecordStoreTests.FencedObjectPersistenceTests testNoCiphertextPublishedWhenQueuedGenerationWasRevoked]' started.
+Test Case '-[KeyRecordStoreTests.FencedObjectPersistenceTests testNoCiphertextPublishedWhenQueuedGenerationWasRevoked]' passed (0.002 seconds).
+Test Suite 'FencedObjectPersistenceTests' passed at 2026-09-14 01:00:35.626.
+	 Executed 2 tests, with 0 failures (0 unexpected) in 0.006 (0.006) seconds
+Test Suite 'FlushScheduleTests' started at 2026-09-14 01:00:35.626.
+Test Case '-[KeyRecordStoreTests.FlushScheduleTests testCloseDiscardsPendingAndRejectsCompletionWhenGenerationReopens]' started.
+Test Case '-[KeyRecordStoreTests.FlushScheduleTests testCloseDiscardsPendingAndRejectsCompletionWhenGenerationReopens]' passed (0.000 seconds).
+Test Case '-[KeyRecordStoreTests.FlushScheduleTests testCoalescesDirtyRevisionsWhenOneSecondElapses]' started.
+Test Case '-[KeyRecordStoreTests.FlushScheduleTests testCoalescesDirtyRevisionsWhenOneSecondElapses]' passed (0.000 seconds).
+Test Case '-[KeyRecordStoreTests.FlushScheduleTests testDelayedTriggerStartsOnlyOneWriteWhenManyTicksWereMissed]' started.
+Test Case '-[KeyRecordStoreTests.FlushScheduleTests testDelayedTriggerStartsOnlyOneWriteWhenManyTicksWereMissed]' passed (0.000 seconds).
+Test Case '-[KeyRecordStoreTests.FlushScheduleTests testExplicitFlushBypassesCadenceWhenPauseRequestsCompletion]' started.
+Test Case '-[KeyRecordStoreTests.FlushScheduleTests testExplicitFlushBypassesCadenceWhenPauseRequestsCompletion]' passed (0.000 seconds).
+Test Case '-[KeyRecordStoreTests.FlushScheduleTests testFailureDoesNotClaimSavedWhenWriterFails]' started.
+Test Case '-[KeyRecordStoreTests.FlushScheduleTests testFailureDoesNotClaimSavedWhenWriterFails]' passed (0.000 seconds).
+Test Case '-[KeyRecordStoreTests.FlushScheduleTests testPendingDeltaSurvivesWhenEarlierWriteCompletes]' started.
+Test Case '-[KeyRecordStoreTests.FlushScheduleTests testPendingDeltaSurvivesWhenEarlierWriteCompletes]' passed (0.000 seconds).
+Test Suite 'FlushScheduleTests' passed at 2026-09-14 01:00:35.627.
+	 Executed 6 tests, with 0 failures (0 unexpected) in 0.001 (0.001) seconds
+Test Suite 'FlushSchedulerTests' started at 2026-09-14 01:00:35.627.
+Test Case '-[KeyRecordStoreTests.FlushSchedulerTests testFailedWhenWriterThrows]' started.
+Test Case '-[KeyRecordStoreTests.FlushSchedulerTests testFailedWhenWriterThrows]' passed (0.000 seconds).
+Test Case '-[KeyRecordStoreTests.FlushSchedulerTests testLockedWhenPendingObjectsAreDiscarded]' started.
+Test Case '-[KeyRecordStoreTests.FlushSchedulerTests testLockedWhenPendingObjectsAreDiscarded]' passed (0.000 seconds).
+Test Case '-[KeyRecordStoreTests.FlushSchedulerTests testSavedWhenWriterActuallyCompletes]' started.
+Test Case '-[KeyRecordStoreTests.FlushSchedulerTests testSavedWhenWriterActuallyCompletes]' passed (0.000 seconds).
+Test Suite 'FlushSchedulerTests' passed at 2026-09-14 01:00:35.627.
+	 Executed 3 tests, with 0 failures (0 unexpected) in 0.001 (0.001) seconds
+Test Suite 'KeyringAccessTests' started at 2026-09-14 01:00:35.627.
+Test Case '-[KeyRecordStoreTests.KeyringAccessTests testMigrationCanUseBothVersionsWithoutReenteringWriter]' started.
+Test Case '-[KeyRecordStoreTests.KeyringAccessTests testMigrationCanUseBothVersionsWithoutReenteringWriter]' passed (0.001 seconds).
+Test Case '-[KeyRecordStoreTests.KeyringAccessTests testRetainedMigrationAccessIsInvalidAfterSessionEnds]' started.
+Test Case '-[KeyRecordStoreTests.KeyringAccessTests testRetainedMigrationAccessIsInvalidAfterSessionEnds]' passed (0.001 seconds).
+Test Suite 'KeyringAccessTests' passed at 2026-09-14 01:00:35.628.
+	 Executed 2 tests, with 0 failures (0 unexpected) in 0.001 (0.001) seconds
+Test Suite 'KeyringBoundaryTests' started at 2026-09-14 01:00:35.628.
+Test Case '-[KeyRecordStoreTests.KeyringBoundaryTests testAllProtectedReferenceKindsIndependentlyBlockRetirement]' started.
+Test Case '-[KeyRecordStoreTests.KeyringBoundaryTests testAllProtectedReferenceKindsIndependentlyBlockRetirement]' passed (0.002 seconds).
+Test Case '-[KeyRecordStoreTests.KeyringBoundaryTests testDeletingReferencedOrUnknownCandidateIsForbidden]' started.
+Test Case '-[KeyRecordStoreTests.KeyringBoundaryTests testDeletingReferencedOrUnknownCandidateIsForbidden]' passed (0.000 seconds).
+Test Case '-[KeyRecordStoreTests.KeyringBoundaryTests testExpiredConsentProofAndInvalidNamespaceAreRejected]' started.
+Test Case '-[KeyRecordStoreTests.KeyringBoundaryTests testExpiredConsentProofAndInvalidNamespaceAreRejected]' passed (0.000 seconds).
+Test Case '-[KeyRecordStoreTests.KeyringBoundaryTests testMissingCurrentDuringScanCannotDeleteRecoveryKey]' started.
+Test Case '-[KeyRecordStoreTests.KeyringBoundaryTests testMissingCurrentDuringScanCannotDeleteRecoveryKey]' passed (0.000 seconds).
+Test Case '-[KeyRecordStoreTests.KeyringBoundaryTests testRootSourcesHaveZeroKeychainEffectsAndIsolatedEntropy]' started.
+Test Case '-[KeyRecordStoreTests.KeyringBoundaryTests testRootSourcesHaveZeroKeychainEffectsAndIsolatedEntropy]' passed (0.090 seconds).
+Test Case '-[KeyRecordStoreTests.KeyringBoundaryTests testStrictMetadataRejectsUnknownFieldsSchemaVersionsAndInvalidSets]' started.
+Test Case '-[KeyRecordStoreTests.KeyringBoundaryTests testStrictMetadataRejectsUnknownFieldsSchemaVersionsAndInvalidSets]' passed (0.001 seconds).
+Test Case '-[KeyRecordStoreTests.KeyringBoundaryTests testUnknownOrCorruptCandidateCannotBePublishedOrDeleted]' started.
+Test Case '-[KeyRecordStoreTests.KeyringBoundaryTests testUnknownOrCorruptCandidateCannotBePublishedOrDeleted]' passed (0.000 seconds).
+Test Case '-[KeyRecordStoreTests.KeyringBoundaryTests testUnknownReferenceVersionBlocksEvenAfterMigration]' started.
+Test Case '-[KeyRecordStoreTests.KeyringBoundaryTests testUnknownReferenceVersionBlocksEvenAfterMigration]' passed (0.000 seconds).
+Test Suite 'KeyringBoundaryTests' passed at 2026-09-14 01:00:35.723.
+	 Executed 8 tests, with 0 failures (0 unexpected) in 0.094 (0.094) seconds
+Test Suite 'KeyringLifecycleHostTests' started at 2026-09-14 01:00:35.723.
+Test Case '-[KeyRecordStoreTests.KeyringLifecycleHostTests testLiveLifecycleIsExplicitlyBlockedNotQualifiedByFakeSuccess]' started.
+Test Case '-[KeyRecordStoreTests.KeyringLifecycleHostTests testLiveLifecycleIsExplicitlyBlockedNotQualifiedByFakeSuccess]' passed (0.000 seconds).
+Test Suite 'KeyringLifecycleHostTests' passed at 2026-09-14 01:00:35.723.
+	 Executed 1 test, with 0 failures (0 unexpected) in 0.000 (0.000) seconds
+Test Suite 'KeyringLockTests' started at 2026-09-14 01:00:35.723.
+Test Case '-[KeyRecordStoreTests.KeyringLockTests testEveryRotationCallbackIsFencedAndWriterExcludesReset]' started.
+Test Case '-[KeyRecordStoreTests.KeyringLockTests testEveryRotationCallbackIsFencedAndWriterExcludesReset]' passed (0.002 seconds).
+Test Case '-[KeyRecordStoreTests.KeyringLockTests testFreshChecksAndHandleRequiredAfterUnlock]' started.
+Test Case '-[KeyRecordStoreTests.KeyringLockTests testFreshChecksAndHandleRequiredAfterUnlock]' passed (0.000 seconds).
+Test Case '-[KeyRecordStoreTests.KeyringLockTests testGenerationOverflowRemainsClosed]' started.
+Test Case '-[KeyRecordStoreTests.KeyringLockTests testGenerationOverflowRemainsClosed]' passed (0.000 seconds).
+Test Case '-[KeyRecordStoreTests.KeyringLockTests testLockAtReleaseDoesNotReleaseLeaseTwice]' started.
+Test Case '-[KeyRecordStoreTests.KeyringLockTests testLockAtReleaseDoesNotReleaseLeaseTwice]' passed (0.000 seconds).
+Test Case '-[KeyRecordStoreTests.KeyringLockTests testLockedReadCompletionIsCancelledWithoutPlaintextPublication]' started.
+Test Case '-[KeyRecordStoreTests.KeyringLockTests testLockedReadCompletionIsCancelledWithoutPlaintextPublication]' passed (0.000 seconds).
+Test Case '-[KeyRecordStoreTests.KeyringLockTests testUnknownInitiallyDeniesProtectedOperations]' started.
+Test Case '-[KeyRecordStoreTests.KeyringLockTests testUnknownInitiallyDeniesProtectedOperations]' passed (0.000 seconds).
+Test Suite 'KeyringLockTests' passed at 2026-09-14 01:00:35.726.
+	 Executed 6 tests, with 0 failures (0 unexpected) in 0.003 (0.003) seconds
+Test Suite 'KeyringRecoveryTests' started at 2026-09-14 01:00:35.726.
+Test Case '-[KeyRecordStoreTests.KeyringRecoveryTests testBootstrapCrashKeepsOwnedCandidateWithoutAutomaticPublication]' started.
+Test Case '-[KeyRecordStoreTests.KeyringRecoveryTests testBootstrapCrashKeepsOwnedCandidateWithoutAutomaticPublication]' passed (0.001 seconds).
+Test Case '-[KeyRecordStoreTests.KeyringRecoveryTests testCleanupOnlyDeletesUnreferencedOwnedCandidate]' started.
+Test Case '-[KeyRecordStoreTests.KeyringRecoveryTests testCleanupOnlyDeletesUnreferencedOwnedCandidate]' passed (0.000 seconds).
+Test Case '-[KeyRecordStoreTests.KeyringRecoveryTests testEveryAtomicRotationCrashBoundaryRecoversWithoutReplacingKeys]' started.
+Test Case '-[KeyRecordStoreTests.KeyringRecoveryTests testEveryAtomicRotationCrashBoundaryRecoversWithoutReplacingKeys]' passed (0.005 seconds).
+Test Case '-[KeyRecordStoreTests.KeyringRecoveryTests testMigrationReencryptionAndReconciliationFailuresKeepBothKeys]' started.
+Test Case '-[KeyRecordStoreTests.KeyringRecoveryTests testMigrationReencryptionAndReconciliationFailuresKeepBothKeys]' passed (0.002 seconds).
+Test Case '-[KeyRecordStoreTests.KeyringRecoveryTests testPendingCandidateCannotReplaceMissingCurrentKey]' started.
+Test Case '-[KeyRecordStoreTests.KeyringRecoveryTests testPendingCandidateCannotReplaceMissingCurrentKey]' passed (0.000 seconds).
+Test Case '-[KeyRecordStoreTests.KeyringRecoveryTests testRetirementPendingMustRescanBeforeDeleteEvenWhenKeyMissing]' started.
+Test Case '-[KeyRecordStoreTests.KeyringRecoveryTests testRetirementPendingMustRescanBeforeDeleteEvenWhenKeyMissing]' passed (0.001 seconds).
+Test Suite 'KeyringRecoveryTests' passed at 2026-09-14 01:00:35.736.
+	 Executed 6 tests, with 0 failures (0 unexpected) in 0.010 (0.010) seconds
+Test Suite 'KeyringTests' started at 2026-09-14 01:00:35.736.
+Test Case '-[KeyRecordStoreTests.KeyringTests testCreatesOnlyConsentedFreshStoreWithCandidatePolicy]' started.
+Test Case '-[KeyRecordStoreTests.KeyringTests testCreatesOnlyConsentedFreshStoreWithCandidatePolicy]' passed (0.000 seconds).
+Test Case '-[KeyRecordStoreTests.KeyringTests testDeniedEntropyDoesNotCreateOrPublish]' started.
+Test Case '-[KeyRecordStoreTests.KeyringTests testDeniedEntropyDoesNotCreateOrPublish]' passed (0.000 seconds).
+Test Case '-[KeyRecordStoreTests.KeyringTests testDeniesCreationWithoutConsentOrFreshProof]' started.
+Test Case '-[KeyRecordStoreTests.KeyringTests testDeniesCreationWithoutConsentOrFreshProof]' passed (0.000 seconds).
+Test Case '-[KeyRecordStoreTests.KeyringTests testDuplicateItemIsNotOverwritten]' started.
+Test Case '-[KeyRecordStoreTests.KeyringTests testDuplicateItemIsNotOverwritten]' passed (0.000 seconds).
+Test Case '-[KeyRecordStoreTests.KeyringTests testExistingNamespaceIsNotFresh]' started.
+Test Case '-[KeyRecordStoreTests.KeyringTests testExistingNamespaceIsNotFresh]' passed (0.000 seconds).
+Test Case '-[KeyRecordStoreTests.KeyringTests testJournalReferenceBlocksRetirementAfterManifestMigration]' started.
+Test Case '-[KeyRecordStoreTests.KeyringTests testJournalReferenceBlocksRetirementAfterManifestMigration]' passed (0.000 seconds).
+Test Case '-[KeyRecordStoreTests.KeyringTests testMalformedMetadataNeverAuthorizesReplacement]' started.
+Test Case '-[KeyRecordStoreTests.KeyringTests testMalformedMetadataNeverAuthorizesReplacement]' passed (0.000 seconds).
+Test Case '-[KeyRecordStoreTests.KeyringTests testMissingOrCorruptRequiredCurrentAndHistoricalKeysFailClosed]' started.
+Test Case '-[KeyRecordStoreTests.KeyringTests testMissingOrCorruptRequiredCurrentAndHistoricalKeysFailClosed]' passed (0.001 seconds).
+Test Case '-[KeyRecordStoreTests.KeyringTests testRotationFollowsCompleteContractOrder]' started.
+Test Case '-[KeyRecordStoreTests.KeyringTests testRotationFollowsCompleteContractOrder]' passed (0.000 seconds).
+Test Case '-[KeyRecordStoreTests.KeyringTests testUnreadableOrIncompleteReferenceSetBlocksRetirement]' started.
+Test Case '-[KeyRecordStoreTests.KeyringTests testUnreadableOrIncompleteReferenceSetBlocksRetirement]' passed (0.001 seconds).
+Test Suite 'KeyringTests' passed at 2026-09-14 01:00:35.740.
+	 Executed 10 tests, with 0 failures (0 unexpected) in 0.004 (0.004) seconds
+Test Suite 'LifecycleBoundaryTests' started at 2026-09-14 01:00:35.740.
+Test Case '-[KeyRecordCoreTests.LifecycleBoundaryTests testAppTreeNeverTouchesKeychainDirectly]' started.
+Test Case '-[KeyRecordCoreTests.LifecycleBoundaryTests testAppTreeNeverTouchesKeychainDirectly]' passed (0.023 seconds).
+Test Case '-[KeyRecordCoreTests.LifecycleBoundaryTests testControllersMakeNoDirectSystemLoginOrKeychainCalls]' started.
+Test Case '-[KeyRecordCoreTests.LifecycleBoundaryTests testControllersMakeNoDirectSystemLoginOrKeychainCalls]' passed (0.001 seconds).
+Test Case '-[KeyRecordCoreTests.LifecycleBoundaryTests testLifecycleExposesNoDirectTimeOrFileIO]' started.
+Test Case '-[KeyRecordCoreTests.LifecycleBoundaryTests testLifecycleExposesNoDirectTimeOrFileIO]' passed (0.007 seconds).
+Test Case '-[KeyRecordCoreTests.LifecycleBoundaryTests testLifecycleFilesStayUnder250LinesAndImportOnlyFoundation]' started.
+Test Case '-[KeyRecordCoreTests.LifecycleBoundaryTests testLifecycleFilesStayUnder250LinesAndImportOnlyFoundation]' passed (0.004 seconds).
+Test Case '-[KeyRecordCoreTests.LifecycleBoundaryTests testRootSourcesContainNoLoginKeychainOrTapSystemEffects]' started.
+Test Case '-[KeyRecordCoreTests.LifecycleBoundaryTests testRootSourcesContainNoLoginKeychainOrTapSystemEffects]' passed (0.068 seconds).
+Test Case '-[KeyRecordCoreTests.LifecycleBoundaryTests testSMAppServiceLivesInExactlyOneThinAppBackend]' started.
+Test Case '-[KeyRecordCoreTests.LifecycleBoundaryTests testSMAppServiceLivesInExactlyOneThinAppBackend]' passed (0.024 seconds).
+Test Case '-[KeyRecordCoreTests.LifecycleBoundaryTests testTestSourcesNeverImportTheConcreteLoginServiceModule]' started.
+Test Case '-[KeyRecordCoreTests.LifecycleBoundaryTests testTestSourcesNeverImportTheConcreteLoginServiceModule]' passed (0.074 seconds).
+Test Suite 'LifecycleBoundaryTests' passed at 2026-09-14 01:00:35.942.
+	 Executed 7 tests, with 0 failures (0 unexpected) in 0.201 (0.202) seconds
+Test Suite 'LifecycleOrchestrationTests' started at 2026-09-14 01:00:35.942.
+Test Case '-[KeyRecordCoreTests.LifecycleOrchestrationTests testCollectingRestartFailingChecksBlocksAndManualRetryReVerifies]' started.
+Test Case '-[KeyRecordCoreTests.LifecycleOrchestrationTests testCollectingRestartFailingChecksBlocksAndManualRetryReVerifies]' passed (0.001 seconds).
+Test Case '-[KeyRecordCoreTests.LifecycleOrchestrationTests testCollectingRestartRunsFreshChecksBeforeCapture]' started.
+Test Case '-[KeyRecordCoreTests.LifecycleOrchestrationTests testCollectingRestartRunsFreshChecksBeforeCapture]' passed (0.001 seconds).
+Test Case '-[KeyRecordCoreTests.LifecycleOrchestrationTests testConsentDenialPerformsZeroStoreKeyLoginCaptureCalls]' started.
+Test Case '-[KeyRecordCoreTests.LifecycleOrchestrationTests testConsentDenialPerformsZeroStoreKeyLoginCaptureCalls]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.LifecycleOrchestrationTests testCorruptPreferencesOnReloadFailClosedWithoutRuntimeEffects]' started.
+Test Case '-[KeyRecordCoreTests.LifecycleOrchestrationTests testCorruptPreferencesOnReloadFailClosedWithoutRuntimeEffects]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.LifecycleOrchestrationTests testExcludingOtherBundleKeepsCountingCurrentForeground]' started.
+Test Case '-[KeyRecordCoreTests.LifecycleOrchestrationTests testExcludingOtherBundleKeepsCountingCurrentForeground]' passed (0.001 seconds).
+Test Case '-[KeyRecordCoreTests.LifecycleOrchestrationTests testExclusionRaceImmediatelyRevokesGateAndStopsAllNewCounts]' started.
+Test Case '-[KeyRecordCoreTests.LifecycleOrchestrationTests testExclusionRaceImmediatelyRevokesGateAndStopsAllNewCounts]' passed (0.001 seconds).
+Test Case '-[KeyRecordCoreTests.LifecycleOrchestrationTests testFirstPersistenceFailureBlocksCaptureAndRetryCompletesStart]' started.
+Test Case '-[KeyRecordCoreTests.LifecycleOrchestrationTests testFirstPersistenceFailureBlocksCaptureAndRetryCompletesStart]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.LifecycleOrchestrationTests testFirstStartCapturePermissionDenialIsExplicitAndSilentNothing]' started.
+Test Case '-[KeyRecordCoreTests.LifecycleOrchestrationTests testFirstStartCapturePermissionDenialIsExplicitAndSilentNothing]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.LifecycleOrchestrationTests testHappyConsentStartPauseResumeQuitReopen]' started.
+Test Case '-[KeyRecordCoreTests.LifecycleOrchestrationTests testHappyConsentStartPauseResumeQuitReopen]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.LifecycleOrchestrationTests testManualResumeCapturePermissionDenialIsExplicit]' started.
+Test Case '-[KeyRecordCoreTests.LifecycleOrchestrationTests testManualResumeCapturePermissionDenialIsExplicit]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.LifecycleOrchestrationTests testPausedRestartSkipsChecksAndCapture]' started.
+Test Case '-[KeyRecordCoreTests.LifecycleOrchestrationTests testPausedRestartSkipsChecksAndCapture]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.LifecycleOrchestrationTests testPauseFlushFailureKeepsRuntimeCollectingWithVisibleNotice]' started.
+Test Case '-[KeyRecordCoreTests.LifecycleOrchestrationTests testPauseFlushFailureKeepsRuntimeCollectingWithVisibleNotice]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.LifecycleOrchestrationTests testQuitAfterPausePreservesFalseExpectationAndReopensPaused]' started.
+Test Case '-[KeyRecordCoreTests.LifecycleOrchestrationTests testQuitAfterPausePreservesFalseExpectationAndReopensPaused]' passed (0.000 seconds).
+Test Suite 'LifecycleOrchestrationTests' passed at 2026-09-14 01:00:35.948.
+	 Executed 13 tests, with 0 failures (0 unexpected) in 0.005 (0.006) seconds
+Test Suite 'LifecycleRestartTests' started at 2026-09-14 01:00:35.948.
+Test Case '-[KeyRecordCoreTests.LifecycleRestartTests testBlockedRetryReRunsFreshChecks]' started.
+Test Case '-[KeyRecordCoreTests.LifecycleRestartTests testBlockedRetryReRunsFreshChecks]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.LifecycleRestartTests testExcludingBackgroundBundleKeepsCurrentForegroundGateOpen]' started.
+Test Case '-[KeyRecordCoreTests.LifecycleRestartTests testExcludingBackgroundBundleKeepsCurrentForegroundGateOpen]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.LifecycleRestartTests testExclusionChangeClosesGateForCurrentForegroundImmediately]' started.
+Test Case '-[KeyRecordCoreTests.LifecycleRestartTests testExclusionChangeClosesGateForCurrentForegroundImmediately]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.LifecycleRestartTests testExclusionPersistFailureKeepsGateClosedWithVisibleNotice]' started.
+Test Case '-[KeyRecordCoreTests.LifecycleRestartTests testExclusionPersistFailureKeepsGateClosedWithVisibleNotice]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.LifecycleRestartTests testLoginDisableUnregistersAndPersistsFalse]' started.
+Test Case '-[KeyRecordCoreTests.LifecycleRestartTests testLoginDisableUnregistersAndPersistsFalse]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.LifecycleRestartTests testLoginEnableWhileCollectingRegistersAndPersists]' started.
+Test Case '-[KeyRecordCoreTests.LifecycleRestartTests testLoginEnableWhileCollectingRegistersAndPersists]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.LifecycleRestartTests testLoginToggleWhileIdleNeverRegisters]' started.
+Test Case '-[KeyRecordCoreTests.LifecycleRestartTests testLoginToggleWhileIdleNeverRegisters]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.LifecycleRestartTests testLoginUnregistrationRejectionStaysRegisteredAndVisible]' started.
+Test Case '-[KeyRecordCoreTests.LifecycleRestartTests testLoginUnregistrationRejectionStaysRegisteredAndVisible]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.LifecycleRestartTests testNoticeDismissalLeavesPhaseAndGateIntact]' started.
+Test Case '-[KeyRecordCoreTests.LifecycleRestartTests testNoticeDismissalLeavesPhaseAndGateIntact]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.LifecycleRestartTests testQuitFlushFailureDoesNotStopAndStaysExplicit]' started.
+Test Case '-[KeyRecordCoreTests.LifecycleRestartTests testQuitFlushFailureDoesNotStopAndStaysExplicit]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.LifecycleRestartTests testQuitWhileCollectingFlushesStopsAndPreservesExpectationAndCycle]' started.
+Test Case '-[KeyRecordCoreTests.LifecycleRestartTests testQuitWhileCollectingFlushesStopsAndPreservesExpectationAndCycle]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.LifecycleRestartTests testQuitWhilePausedStopsRuntimeWithoutFlushOrWrites]' started.
+Test Case '-[KeyRecordCoreTests.LifecycleRestartTests testQuitWhilePausedStopsRuntimeWithoutFlushOrWrites]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.LifecycleRestartTests testReloadCollectingExpectationRequiresFreshReadinessChecks]' started.
+Test Case '-[KeyRecordCoreTests.LifecycleRestartTests testReloadCollectingExpectationRequiresFreshReadinessChecks]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.LifecycleRestartTests testReloadPausedExpectationSkipsChecksAndCapture]' started.
+Test Case '-[KeyRecordCoreTests.LifecycleRestartTests testReloadPausedExpectationSkipsChecksAndCapture]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.LifecycleRestartTests testReloadWithoutPreferencesIsFirstRun]' started.
+Test Case '-[KeyRecordCoreTests.LifecycleRestartTests testReloadWithoutPreferencesIsFirstRun]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.LifecycleRestartTests testRestartReadinessPortFailureBlocksWithTypedReason]' started.
+Test Case '-[KeyRecordCoreTests.LifecycleRestartTests testRestartReadinessPortFailureBlocksWithTypedReason]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.LifecycleRestartTests testRestartWithClosedChecksReturnsToBlockedWithReason]' started.
+Test Case '-[KeyRecordCoreTests.LifecycleRestartTests testRestartWithClosedChecksReturnsToBlockedWithReason]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.LifecycleRestartTests testRestartWithOpenChecksStartsCaptureSameCycleWithoutLoginCall]' started.
+Test Case '-[KeyRecordCoreTests.LifecycleRestartTests testRestartWithOpenChecksStartsCaptureSameCycleWithoutLoginCall]' passed (0.000 seconds).
+Test Suite 'LifecycleRestartTests' passed at 2026-09-14 01:00:35.950.
+	 Executed 18 tests, with 0 failures (0 unexpected) in 0.002 (0.002) seconds
+Test Suite 'LifecycleTests' started at 2026-09-14 01:00:35.950.
+Test Case '-[KeyRecordCoreTests.LifecycleTests testCaptureDeniedOnFirstStartIsExplicitFailure]' started.
+Test Case '-[KeyRecordCoreTests.LifecycleTests testCaptureDeniedOnFirstStartIsExplicitFailure]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.LifecycleTests testConsentAcceptedOrdersKeyBeforePersistBeforeCapture]' started.
+Test Case '-[KeyRecordCoreTests.LifecycleTests testConsentAcceptedOrdersKeyBeforePersistBeforeCapture]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.LifecycleTests testConsentDeniedReturnsToUnstartedWithZeroEffects]' started.
+Test Case '-[KeyRecordCoreTests.LifecycleTests testConsentDeniedReturnsToUnstartedWithZeroEffects]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.LifecycleTests testInitialPersistenceFailureIsTypedAndNeverStartsCapture]' started.
+Test Case '-[KeyRecordCoreTests.LifecycleTests testInitialPersistenceFailureIsTypedAndNeverStartsCapture]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.LifecycleTests testKeyProvisionFailureIsTypedAndCapturesNothing]' started.
+Test Case '-[KeyRecordCoreTests.LifecycleTests testKeyProvisionFailureIsTypedAndCapturesNothing]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.LifecycleTests testLoginItemRegistersOnlyAfterFirstSuccessfulCaptureStart]' started.
+Test Case '-[KeyRecordCoreTests.LifecycleTests testLoginItemRegistersOnlyAfterFirstSuccessfulCaptureStart]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.LifecycleTests testPauseClosesGateThenFlushesAndPersistsExpectationFalse]' started.
+Test Case '-[KeyRecordCoreTests.LifecycleTests testPauseClosesGateThenFlushesAndPersistsExpectationFalse]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.LifecycleTests testPauseFlushFailureRollsBackToCollectingWithVisibleNotice]' started.
+Test Case '-[KeyRecordCoreTests.LifecycleTests testPauseFlushFailureRollsBackToCollectingWithVisibleNotice]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.LifecycleTests testPausePersistenceFailureIsExplicitAndRetryCompletesPause]' started.
+Test Case '-[KeyRecordCoreTests.LifecycleTests testPausePersistenceFailureIsExplicitAndRetryCompletesPause]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.LifecycleTests testRegisteredLoginItemPersistsEnabledPreferenceOnce]' started.
+Test Case '-[KeyRecordCoreTests.LifecycleTests testRegisteredLoginItemPersistsEnabledPreferenceOnce]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.LifecycleTests testRejectedLoginRegistrationStaysCollectingAndVisible]' started.
+Test Case '-[KeyRecordCoreTests.LifecycleTests testRejectedLoginRegistrationStaysCollectingAndVisible]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.LifecycleTests testResumeCaptureDeniedIsExplicitFailureWithoutSilence]' started.
+Test Case '-[KeyRecordCoreTests.LifecycleTests testResumeCaptureDeniedIsExplicitFailureWithoutSilence]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.LifecycleTests testResumeFromPausedPersistsTrueBeforeCaptureStart]' started.
+Test Case '-[KeyRecordCoreTests.LifecycleTests testResumeFromPausedPersistsTrueBeforeCaptureStart]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.LifecycleTests testRetryAfterCaptureDeniedRetriesCaptureNotPersistence]' started.
+Test Case '-[KeyRecordCoreTests.LifecycleTests testRetryAfterCaptureDeniedRetriesCaptureNotPersistence]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.LifecycleTests testRetryAfterPersistenceFailureRePersistsWithoutRecreatingKey]' started.
+Test Case '-[KeyRecordCoreTests.LifecycleTests testRetryAfterPersistenceFailureRePersistsWithoutRecreatingKey]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.LifecycleTests testUnstartedRequestsConsentBeforeAnyEffect]' started.
+Test Case '-[KeyRecordCoreTests.LifecycleTests testUnstartedRequestsConsentBeforeAnyEffect]' passed (0.000 seconds).
+Test Suite 'LifecycleTests' passed at 2026-09-14 01:00:35.952.
+	 Executed 16 tests, with 0 failures (0 unexpected) in 0.001 (0.002) seconds
+Test Suite 'LocalDeletionCoordinatorTests' started at 2026-09-14 01:00:35.952.
+Test Case '-[KeyRecordStoreTests.LocalDeletionCoordinatorTests testBlockedPlanPerformsZeroActions]' started.
+Test Case '-[KeyRecordStoreTests.LocalDeletionCoordinatorTests testBlockedPlanPerformsZeroActions]' passed (0.000 seconds).
+Test Case '-[KeyRecordStoreTests.LocalDeletionCoordinatorTests testFileIOFailureLeavesRootAndReportsFailure]' started.
+Test Case '-[KeyRecordStoreTests.LocalDeletionCoordinatorTests testFileIOFailureLeavesRootAndReportsFailure]' passed (0.000 seconds).
+Test Case '-[KeyRecordStoreTests.LocalDeletionCoordinatorTests testHappyDeletesOwnedFilesKeysAndLoginItemOnce]' started.
+Test Case '-[KeyRecordStoreTests.LocalDeletionCoordinatorTests testHappyDeletesOwnedFilesKeysAndLoginItemOnce]' passed (0.000 seconds).
+Test Case '-[KeyRecordStoreTests.LocalDeletionCoordinatorTests testIdempotentSecondRunAllAlreadyAbsent]' started.
+Test Case '-[KeyRecordStoreTests.LocalDeletionCoordinatorTests testIdempotentSecondRunAllAlreadyAbsent]' passed (0.000 seconds).
+Test Case '-[KeyRecordStoreTests.LocalDeletionCoordinatorTests testMissingKeyDoesNotBlockFileAndOtherKeyDeletion]' started.
+Test Case '-[KeyRecordStoreTests.LocalDeletionCoordinatorTests testMissingKeyDoesNotBlockFileAndOtherKeyDeletion]' passed (0.000 seconds).
+Test Suite 'LocalDeletionCoordinatorTests' passed at 2026-09-14 01:00:35.953.
+	 Executed 5 tests, with 0 failures (0 unexpected) in 0.001 (0.001) seconds
+Test Suite 'LocalDeletionDestructionRecoveryTests' started at 2026-09-14 01:00:35.953.
+Test Case '-[KeyRecordStoreTests.LocalDeletionDestructionRecoveryTests testDestructionRemovesCorruptMetadataWhenNoVersionKeys]' started.
+Test Case '-[KeyRecordStoreTests.LocalDeletionDestructionRecoveryTests testDestructionRemovesCorruptMetadataWhenNoVersionKeys]' passed (0.003 seconds).
+Test Case '-[KeyRecordStoreTests.LocalDeletionDestructionRecoveryTests testDestructionWithAbsentMetadataAndKeysConverges]' started.
+Test Case '-[KeyRecordStoreTests.LocalDeletionDestructionRecoveryTests testDestructionWithAbsentMetadataAndKeysConverges]' passed (0.004 seconds).
+Test Case '-[KeyRecordStoreTests.LocalDeletionDestructionRecoveryTests testDestructionWithValidMetadataAndAllVersionKeysMissingStillSucceeds]' started.
+Test Case '-[KeyRecordStoreTests.LocalDeletionDestructionRecoveryTests testDestructionWithValidMetadataAndAllVersionKeysMissingStillSucceeds]' passed (0.003 seconds).
+Test Suite 'LocalDeletionDestructionRecoveryTests' passed at 2026-09-14 01:00:35.964.
+	 Executed 3 tests, with 0 failures (0 unexpected) in 0.010 (0.011) seconds
+Test Suite 'LocalDeletionPlanTests' started at 2026-09-14 01:00:35.964.
+Test Case '-[KeyRecordStoreTests.LocalDeletionPlanTests testEmptyRootProceeds]' started.
+Test Case '-[KeyRecordStoreTests.LocalDeletionPlanTests testEmptyRootProceeds]' passed (0.000 seconds).
+Test Case '-[KeyRecordStoreTests.LocalDeletionPlanTests testForeignEntryBlocks]' started.
+Test Case '-[KeyRecordStoreTests.LocalDeletionPlanTests testForeignEntryBlocks]' passed (0.000 seconds).
+Test Case '-[KeyRecordStoreTests.LocalDeletionPlanTests testHappyAllOwnedProceeds]' started.
+Test Case '-[KeyRecordStoreTests.LocalDeletionPlanTests testHappyAllOwnedProceeds]' passed (0.000 seconds).
+Test Case '-[KeyRecordStoreTests.LocalDeletionPlanTests testPathOutsideRootBlocks]' started.
+Test Case '-[KeyRecordStoreTests.LocalDeletionPlanTests testPathOutsideRootBlocks]' passed (0.000 seconds).
+Test Case '-[KeyRecordStoreTests.LocalDeletionPlanTests testSymlinkBlocksWithoutOtherChanges]' started.
+Test Case '-[KeyRecordStoreTests.LocalDeletionPlanTests testSymlinkBlocksWithoutOtherChanges]' passed (0.000 seconds).
+Test Suite 'LocalDeletionPlanTests' passed at 2026-09-14 01:00:35.966.
+	 Executed 5 tests, with 0 failures (0 unexpected) in 0.001 (0.002) seconds
+Test Suite 'LocalDeletionRealFSTests' started at 2026-09-14 01:00:35.966.
+Test Case '-[KeyRecordStoreTests.LocalDeletionRealFSTests testKeychainDeletionAdapterMissingVersionRecordedAndOtherDeleted]' started.
+Test Case '-[KeyRecordStoreTests.LocalDeletionRealFSTests testKeychainDeletionAdapterMissingVersionRecordedAndOtherDeleted]' passed (0.004 seconds).
+Test Case '-[KeyRecordStoreTests.LocalDeletionRealFSTests testRealFileSystemHappyDeletesKnownUnrecognizedAndDirectory]' started.
+Test Case '-[KeyRecordStoreTests.LocalDeletionRealFSTests testRealFileSystemHappyDeletesKnownUnrecognizedAndDirectory]' passed (0.007 seconds).
+Test Case '-[KeyRecordStoreTests.LocalDeletionRealFSTests testRealFileSystemPartialDeletionReopenedConverges]' started.
+Test Case '-[KeyRecordStoreTests.LocalDeletionRealFSTests testRealFileSystemPartialDeletionReopenedConverges]' passed (0.009 seconds).
+Test Case '-[KeyRecordStoreTests.LocalDeletionRealFSTests testRealFileSystemRootSymlinkIsRejected]' started.
+Test Case '-[KeyRecordStoreTests.LocalDeletionRealFSTests testRealFileSystemRootSymlinkIsRejected]' passed (0.003 seconds).
+Test Case '-[KeyRecordStoreTests.LocalDeletionRealFSTests testRealFileSystemSiblingDecoyNeverEnumeratedOrRemoved]' started.
+Test Case '-[KeyRecordStoreTests.LocalDeletionRealFSTests testRealFileSystemSiblingDecoyNeverEnumeratedOrRemoved]' passed (0.006 seconds).
+Test Case '-[KeyRecordStoreTests.LocalDeletionRealFSTests testRealFileSystemSymlinkBlocksAndPreservesExternalTarget]' started.
+Test Case '-[KeyRecordStoreTests.LocalDeletionRealFSTests testRealFileSystemSymlinkBlocksAndPreservesExternalTarget]' passed (0.003 seconds).
+Test Suite 'LocalDeletionRealFSTests' passed at 2026-09-14 01:00:35.998.
+	 Executed 6 tests, with 0 failures (0 unexpected) in 0.032 (0.032) seconds
+Test Suite 'LoginItemTests' started at 2026-09-14 01:00:35.998.
+Test Case '-[KeyRecordCoreTests.LoginItemTests testDisableUnregistersOnlyWhenRegistered]' started.
+Test Case '-[KeyRecordCoreTests.LoginItemTests testDisableUnregistersOnlyWhenRegistered]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.LoginItemTests testEnableIntentsRegisterOnlyWhileCollectingAndNotRegistered]' started.
+Test Case '-[KeyRecordCoreTests.LoginItemTests testEnableIntentsRegisterOnlyWhileCollectingAndNotRegistered]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.LoginItemTests testEnableWhileIdleYieldsNoIntent]' started.
+Test Case '-[KeyRecordCoreTests.LoginItemTests testEnableWhileIdleYieldsNoIntent]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.LoginItemTests testLoginItemRegistersAfterFirstSuccessfulStartAndPersistsEnabled]' started.
+Test Case '-[KeyRecordCoreTests.LoginItemTests testLoginItemRegistersAfterFirstSuccessfulStartAndPersistsEnabled]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.LoginItemTests testManualDisableUnregistersAndPersistsFalse]' started.
+Test Case '-[KeyRecordCoreTests.LoginItemTests testManualDisableUnregistersAndPersistsFalse]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.LoginItemTests testRegistrationIsAllowedOnlyWhileCollecting]' started.
+Test Case '-[KeyRecordCoreTests.LoginItemTests testRegistrationIsAllowedOnlyWhileCollecting]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.LoginItemTests testRejectedRegistrationStaysCollectingVisibleAndPersistsNothingEnabled]' started.
+Test Case '-[KeyRecordCoreTests.LoginItemTests testRejectedRegistrationStaysCollectingVisibleAndPersistsNothingEnabled]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.LoginItemTests testReloadNeverPollsOrRegistersLoginItem]' started.
+Test Case '-[KeyRecordCoreTests.LoginItemTests testReloadNeverPollsOrRegistersLoginItem]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.LoginItemTests testUnregisterRejectionStaysRegisteredWithVisibleNotice]' started.
+Test Case '-[KeyRecordCoreTests.LoginItemTests testUnregisterRejectionStaysRegisteredWithVisibleNotice]' passed (0.000 seconds).
+Test Suite 'LoginItemTests' passed at 2026-09-14 01:00:36.000.
+	 Executed 9 tests, with 0 failures (0 unexpected) in 0.002 (0.002) seconds
+Test Suite 'ManifestRecoveryTests' started at 2026-09-14 01:00:36.000.
+Test Case '-[KeyRecordStoreTests.ManifestRecoveryTests testDataDurableButManifestNotCommittedLeavesProvenOrphanCleanedOnReopen]' started.
+Test Case '-[KeyRecordStoreTests.ManifestRecoveryTests testDataDurableButManifestNotCommittedLeavesProvenOrphanCleanedOnReopen]' passed (0.008 seconds).
+Test Case '-[KeyRecordStoreTests.ManifestRecoveryTests testEmptyRootWithNoKeysIsFreshAndEmptyRootWithKeyNeverRebuilds]' started.
+Test Case '-[KeyRecordStoreTests.ManifestRecoveryTests testEmptyRootWithNoKeysIsFreshAndEmptyRootWithKeyNeverRebuilds]' passed (0.004 seconds).
+Test Case '-[KeyRecordStoreTests.ManifestRecoveryTests testForeignRegularEntryIsUnexpectedCorruption]' started.
+Test Case '-[KeyRecordStoreTests.ManifestRecoveryTests testForeignRegularEntryIsUnexpectedCorruption]' passed (0.003 seconds).
+Test Case '-[KeyRecordStoreTests.ManifestRecoveryTests testInjectedFailuresAtEveryDataBoundaryPreserveCommittedState]' started.
+Test Case '-[KeyRecordStoreTests.ManifestRecoveryTests testInjectedFailuresAtEveryDataBoundaryPreserveCommittedState]' passed (0.023 seconds).
+Test Case '-[KeyRecordStoreTests.ManifestRecoveryTests testManifestEncryptedUnderMissingKeyIsCorruptionWithoutRecreation]' started.
+Test Case '-[KeyRecordStoreTests.ManifestRecoveryTests testManifestEncryptedUnderMissingKeyIsCorruptionWithoutRecreation]' passed (0.005 seconds).
+Test Case '-[KeyRecordStoreTests.ManifestRecoveryTests testMissingManifestWithDataFileAndKeyIsCorruptionNotFresh]' started.
+Test Case '-[KeyRecordStoreTests.ManifestRecoveryTests testMissingManifestWithDataFileAndKeyIsCorruptionNotFresh]' passed (0.004 seconds).
+Test Case '-[KeyRecordStoreTests.ManifestRecoveryTests testOperationsBeforeInitializationAreRejected]' started.
+Test Case '-[KeyRecordStoreTests.ManifestRecoveryTests testOperationsBeforeInitializationAreRejected]' passed (0.001 seconds).
+Test Case '-[KeyRecordStoreTests.ManifestRecoveryTests testRandomBytesAsManifestAreCorruption]' started.
+Test Case '-[KeyRecordStoreTests.ManifestRecoveryTests testRandomBytesAsManifestAreCorruption]' passed (0.003 seconds).
+Test Case '-[KeyRecordStoreTests.ManifestRecoveryTests testReferencedObjectMissingOrTamperedIsCorruption]' started.
+Test Case '-[KeyRecordStoreTests.ManifestRecoveryTests testReferencedObjectMissingOrTamperedIsCorruption]' passed (0.007 seconds).
+Test Case '-[KeyRecordStoreTests.ManifestRecoveryTests testSemanticFilenameAndInsideRootSymlinkAreCorruption]' started.
+Test Case '-[KeyRecordStoreTests.ManifestRecoveryTests testSemanticFilenameAndInsideRootSymlinkAreCorruption]' passed (0.006 seconds).
+Test Case '-[KeyRecordStoreTests.ManifestRecoveryTests testTruncatedAndTamperedManifestsAreCorruption]' started.
+Test Case '-[KeyRecordStoreTests.ManifestRecoveryTests testTruncatedAndTamperedManifestsAreCorruption]' passed (0.009 seconds).
+Test Case '-[KeyRecordStoreTests.ManifestRecoveryTests testUnknownManifestSchemaVersionIsRejected]' started.
+Test Case '-[KeyRecordStoreTests.ManifestRecoveryTests testUnknownManifestSchemaVersionIsRejected]' passed (0.005 seconds).
+Test Suite 'ManifestRecoveryTests' passed at 2026-09-14 01:00:36.078.
+	 Executed 12 tests, with 0 failures (0 unexpected) in 0.078 (0.079) seconds
+Test Suite 'NormalizationTests' started at 2026-09-14 01:00:36.078.
+Test Case '-[KeyRecordCoreTests.NormalizationTests testAllFiveSidesAndIndependentFnRecovery]' started.
+Test Case '-[KeyRecordCoreTests.NormalizationTests testAllFiveSidesAndIndependentFnRecovery]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.NormalizationTests testBareKeyOutputCannotCarryForegroundAttribution]' started.
+Test Case '-[KeyRecordCoreTests.NormalizationTests testBareKeyOutputCannotCarryForegroundAttribution]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.NormalizationTests testClosureReopenRejectsOldEventsButAcceptsFreshRecovery]' started.
+Test Case '-[KeyRecordCoreTests.NormalizationTests testClosureReopenRejectsOldEventsButAcceptsFreshRecovery]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.NormalizationTests testEmptyAttributableIdentityClosesRatherThanBecomingUnknown]' started.
+Test Case '-[KeyRecordCoreTests.NormalizationTests testEmptyAttributableIdentityClosesRatherThanBecomingUnknown]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.NormalizationTests testEveryClosedCombinationClearsHeldStateAndProducesZeroDeltas]' started.
+Test Case '-[KeyRecordCoreTests.NormalizationTests testEveryClosedCombinationClearsHeldStateAndProducesZeroDeltas]' passed (0.003 seconds).
+Test Case '-[KeyRecordCoreTests.NormalizationTests testFlagsChangedSequenceRecoversSidesWithoutGuessingAfterLoss]' started.
+Test Case '-[KeyRecordCoreTests.NormalizationTests testFlagsChangedSequenceRecoversSidesWithoutGuessingAfterLoss]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.NormalizationTests testFlagSequenceRecoveryIsInsideGateAndCannotSurviveClosure]' started.
+Test Case '-[KeyRecordCoreTests.NormalizationTests testFlagSequenceRecoveryIsInsideGateAndCannotSurviveClosure]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.NormalizationTests testForegroundAttributionIsChosenAtTerminalKeyBoundary]' started.
+Test Case '-[KeyRecordCoreTests.NormalizationTests testForegroundAttributionIsChosenAtTerminalKeyBoundary]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.NormalizationTests testInvalidKeyCodesCannotConstructNormalizationInput]' started.
+Test Case '-[KeyRecordCoreTests.NormalizationTests testInvalidKeyCodesCannotConstructNormalizationInput]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.NormalizationTests testKeyUpAndRepeatAreNonCountingReducerSignals]' started.
+Test Case '-[KeyRecordCoreTests.NormalizationTests testKeyUpAndRepeatAreNonCountingReducerSignals]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.NormalizationTests testNormalizationBoundariesRejectPersistenceAttributionAndRawFlags]' started.
+Test Case '-[KeyRecordCoreTests.NormalizationTests testNormalizationBoundariesRejectPersistenceAttributionAndRawFlags]' passed (18.856 seconds).
+Test Case '-[KeyRecordCoreTests.NormalizationTests testPartialLossAndInconsistentSequenceNeverInventSides]' started.
+Test Case '-[KeyRecordCoreTests.NormalizationTests testPartialLossAndInconsistentSequenceNeverInventSides]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.NormalizationTests testProductMarkedEventCannotMutateHeldModifiersOrSourceDeltas]' started.
+Test Case '-[KeyRecordCoreTests.NormalizationTests testProductMarkedEventCannotMutateHeldModifiersOrSourceDeltas]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.NormalizationTests testReliablyUnattributableChordUsesUnknownBucket]' started.
+Test Case '-[KeyRecordCoreTests.NormalizationTests testReliablyUnattributableChordUsesUnknownBucket]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.NormalizationTests testResetAndReopenRejectStaleEventsAndClearState]' started.
+Test Case '-[KeyRecordCoreTests.NormalizationTests testResetAndReopenRejectStaleEventsAndClearState]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.NormalizationTests testSuspectedInjectionHasSeparateSourceDeltaWithoutAuthenticityClaim]' started.
+Test Case '-[KeyRecordCoreTests.NormalizationTests testSuspectedInjectionHasSeparateSourceDeltaWithoutAuthenticityClaim]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.NormalizationTests testUnknownFnCannotEscapeIntoNormalizedOutput]' started.
+Test Case '-[KeyRecordCoreTests.NormalizationTests testUnknownFnCannotEscapeIntoNormalizedOutput]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.NormalizationTests testUnknownSideIsPreservedAsDistinctChordIdentity]' started.
+Test Case '-[KeyRecordCoreTests.NormalizationTests testUnknownSideIsPreservedAsDistinctChordIdentity]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.NormalizationTests testVersionOneControlledRulesReplayExactlyTwice]' started.
+Test Case '-[KeyRecordCoreTests.NormalizationTests testVersionOneControlledRulesReplayExactlyTwice]' passed (0.000 seconds).
+Test Suite 'NormalizationTests' passed at 2026-09-14 01:00:54.940.
+	 Executed 19 tests, with 0 failures (0 unexpected) in 18.861 (18.862) seconds
+Test Suite 'ObjectStoreTests' started at 2026-09-14 01:00:54.940.
+Test Case '-[KeyRecordStoreTests.ObjectStoreTests testDecryptedIdentityIsCheckedBeyondAADAgainstForgedInnerIdentity]' started.
+Test Case '-[KeyRecordStoreTests.ObjectStoreTests testDecryptedIdentityIsCheckedBeyondAADAgainstForgedInnerIdentity]' passed (0.001 seconds).
+Test Case '-[KeyRecordStoreTests.ObjectStoreTests testDeleteRemovesFileAndManifestEntryAndSurvivesReopen]' started.
+Test Case '-[KeyRecordStoreTests.ObjectStoreTests testDeleteRemovesFileAndManifestEntryAndSurvivesReopen]' passed (0.009 seconds).
+Test Case '-[KeyRecordStoreTests.ObjectStoreTests testFreshInstallBootstrapsManifestAndRoundTripsObject]' started.
+Test Case '-[KeyRecordStoreTests.ObjectStoreTests testFreshInstallBootstrapsManifestAndRoundTripsObject]' passed (0.007 seconds).
+Test Case '-[KeyRecordStoreTests.ObjectStoreTests testLocatorCheckRejectsRequestingDifferentIdentityThanEnvelope]' started.
+Test Case '-[KeyRecordStoreTests.ObjectStoreTests testLocatorCheckRejectsRequestingDifferentIdentityThanEnvelope]' passed (0.006 seconds).
+Test Case '-[KeyRecordStoreTests.ObjectStoreTests testMultipleObjectsCoexistAndAreIndependentlyReadable]' started.
+Test Case '-[KeyRecordStoreTests.ObjectStoreTests testMultipleObjectsCoexistAndAreIndependentlyReadable]' passed (0.016 seconds).
+Test Case '-[KeyRecordStoreTests.ObjectStoreTests testOversizedAndEmptyPayloadsFailClosedBeforeTouchingManifest]' started.
+Test Case '-[KeyRecordStoreTests.ObjectStoreTests testOversizedAndEmptyPayloadsFailClosedBeforeTouchingManifest]' passed (0.005 seconds).
+Test Case '-[KeyRecordStoreTests.ObjectStoreTests testPrivateRootIs0700AndRegularFilesAre0600]' started.
+Test Case '-[KeyRecordStoreTests.ObjectStoreTests testPrivateRootIs0700AndRegularFilesAre0600]' passed (0.005 seconds).
+Test Case '-[KeyRecordStoreTests.ObjectStoreTests testReopenReadsOnlyDurablyCommittedState]' started.
+Test Case '-[KeyRecordStoreTests.ObjectStoreTests testReopenReadsOnlyDurablyCommittedState]' passed (0.006 seconds).
+Test Case '-[KeyRecordStoreTests.ObjectStoreTests testReplacingLocatorFileWithAnotherValidObjectRejects]' started.
+Test Case '-[KeyRecordStoreTests.ObjectStoreTests testReplacingLocatorFileWithAnotherValidObjectRejects]' passed (0.012 seconds).
+Test Case '-[KeyRecordStoreTests.ObjectStoreTests testShardIdentityIsLengthPrefixedTripleAndRoundTrips]' started.
+Test Case '-[KeyRecordStoreTests.ObjectStoreTests testShardIdentityIsLengthPrefixedTripleAndRoundTrips]' passed (0.000 seconds).
+Test Case '-[KeyRecordStoreTests.ObjectStoreTests testStorageUsesFlatOpaqueNamesWithoutSemanticComponentsOrPlaintext]' started.
+Test Case '-[KeyRecordStoreTests.ObjectStoreTests testStorageUsesFlatOpaqueNamesWithoutSemanticComponentsOrPlaintext]' passed (0.005 seconds).
+Test Case '-[KeyRecordStoreTests.ObjectStoreTests testSymlinkedObjectAndSymlinkedRootAreRejected]' started.
+Test Case '-[KeyRecordStoreTests.ObjectStoreTests testSymlinkedObjectAndSymlinkedRootAreRejected]' passed (0.009 seconds).
+Test Case '-[KeyRecordStoreTests.ObjectStoreTests testUnknownRecordSchemaAndBadObjectTypeAreRejected]' started.
+Test Case '-[KeyRecordStoreTests.ObjectStoreTests testUnknownRecordSchemaAndBadObjectTypeAreRejected]' passed (0.000 seconds).
+Test Case '-[KeyRecordStoreTests.ObjectStoreTests testUpdatingSameIdentityKeepsOneLocatorFileAndOneManifestEntry]' started.
+Test Case '-[KeyRecordStoreTests.ObjectStoreTests testUpdatingSameIdentityKeepsOneLocatorFileAndOneManifestEntry]' passed (0.008 seconds).
+Test Suite 'ObjectStoreTests' passed at 2026-09-14 01:00:55.030.
+	 Executed 14 tests, with 0 failures (0 unexpected) in 0.089 (0.090) seconds
+Test Suite 'Phase1FlowModelTests' started at 2026-09-14 01:00:55.030.
+Test Case '-[KeyRecordCoreTests.Phase1FlowModelTests testDeleteCancelMakesNoEraseCall]' started.
+Test Case '-[KeyRecordCoreTests.Phase1FlowModelTests testDeleteCancelMakesNoEraseCall]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.Phase1FlowModelTests testDeleteConfirmErasesOnceAndReturnsToConsentRequired]' started.
+Test Case '-[KeyRecordCoreTests.Phase1FlowModelTests testDeleteConfirmErasesOnceAndReturnsToConsentRequired]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.Phase1FlowModelTests testDeleteUnavailableWhenUnstarted]' started.
+Test Case '-[KeyRecordCoreTests.Phase1FlowModelTests testDeleteUnavailableWhenUnstarted]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.Phase1FlowModelTests testDisplayedAggregateHiddenWhenNotVisible]' started.
+Test Case '-[KeyRecordCoreTests.Phase1FlowModelTests testDisplayedAggregateHiddenWhenNotVisible]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.Phase1FlowModelTests testResetCancelMakesNoPortCallAndClearsDialog]' started.
+Test Case '-[KeyRecordCoreTests.Phase1FlowModelTests testResetCancelMakesNoPortCallAndClearsDialog]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.Phase1FlowModelTests testResetConfirmCallsPortExactlyOnceThenClearsDialog]' started.
+Test Case '-[KeyRecordCoreTests.Phase1FlowModelTests testResetConfirmCallsPortExactlyOnceThenClearsDialog]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.Phase1FlowModelTests testResetConfirmWithoutPortThrowsActionUnavailable]' started.
+Test Case '-[KeyRecordCoreTests.Phase1FlowModelTests testResetConfirmWithoutPortThrowsActionUnavailable]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.Phase1FlowModelTests testResetUnavailableWhenUnstarted]' started.
+Test Case '-[KeyRecordCoreTests.Phase1FlowModelTests testResetUnavailableWhenUnstarted]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.Phase1FlowModelTests testSensitiveVisibilityMatrix]' started.
+Test Case '-[KeyRecordCoreTests.Phase1FlowModelTests testSensitiveVisibilityMatrix]' passed (0.000 seconds).
+Test Suite 'Phase1FlowModelTests' passed at 2026-09-14 01:00:55.032.
+	 Executed 9 tests, with 0 failures (0 unexpected) in 0.002 (0.002) seconds
+Test Suite 'Phase1IntegrationTests' started at 2026-09-14 01:00:55.032.
+Test Case '-[KeyRecordIntegrationTests.Phase1IntegrationTests testCadenceCoalescesWhenTimerDeliveryIsDelayed]' started.
+Test Case '-[KeyRecordIntegrationTests.Phase1IntegrationTests testCadenceCoalescesWhenTimerDeliveryIsDelayed]' passed (0.004 seconds).
+Test Case '-[KeyRecordIntegrationTests.Phase1IntegrationTests testRoundTripRestoresOnlyCommittedCountsWhenPendingDeltaIsLost]' started.
+Test Case '-[KeyRecordIntegrationTests.Phase1IntegrationTests testRoundTripRestoresOnlyCommittedCountsWhenPendingDeltaIsLost]' passed (0.013 seconds).
+Test Suite 'Phase1IntegrationTests' passed at 2026-09-14 01:00:55.049.
+	 Executed 2 tests, with 0 failures (0 unexpected) in 0.017 (0.017) seconds
+Test Suite 'Phase1PersistenceRaceTests' started at 2026-09-14 01:00:55.049.
+Test Case '-[KeyRecordIntegrationTests.Phase1PersistenceRaceTests testEveryReopenRevokesPreviousGenerationEvenWithoutLockNotification]' started.
+Test Case '-[KeyRecordIntegrationTests.Phase1PersistenceRaceTests testEveryReopenRevokesPreviousGenerationEvenWithoutLockNotification]' passed (0.006 seconds).
+Test Case '-[KeyRecordIntegrationTests.Phase1PersistenceRaceTests testLockDuringCiphertextIONeverPublishesReadableManifest]' started.
+Test Case '-[KeyRecordIntegrationTests.Phase1PersistenceRaceTests testLockDuringCiphertextIONeverPublishesReadableManifest]' passed (0.005 seconds).
+Test Case '-[KeyRecordIntegrationTests.Phase1PersistenceRaceTests testLockedReadCannotReturnPlaintextFromPreviouslyCommittedObject]' started.
+Test Case '-[KeyRecordIntegrationTests.Phase1PersistenceRaceTests testLockedReadCannotReturnPlaintextFromPreviouslyCommittedObject]' passed (0.014 seconds).
+Test Case '-[KeyRecordIntegrationTests.Phase1PersistenceRaceTests testSlowFsyncTimesOutWithoutClaimingSavedOrStartingSecondWriter]' started.
+Test Case '-[KeyRecordIntegrationTests.Phase1PersistenceRaceTests testSlowFsyncTimesOutWithoutClaimingSavedOrStartingSecondWriter]' passed (0.004 seconds).
+Test Suite 'Phase1PersistenceRaceTests' passed at 2026-09-14 01:00:55.077.
+	 Executed 4 tests, with 0 failures (0 unexpected) in 0.028 (0.028) seconds
+Test Suite 'Phase1QueuedProtectionTests' started at 2026-09-14 01:00:55.077.
+Test Case '-[KeyRecordIntegrationTests.Phase1QueuedProtectionTests testQueuedWriterCannotReplaceCommittedCountsAfterLockAndReopen]' started.
+Test Case '-[KeyRecordIntegrationTests.Phase1QueuedProtectionTests testQueuedWriterCannotReplaceCommittedCountsAfterLockAndReopen]' passed (0.006 seconds).
+Test Case '-[KeyRecordIntegrationTests.Phase1QueuedProtectionTests testReadCompletionCannotDecryptAfterKeyRetrievalRacesWithLock]' started.
+Test Case '-[KeyRecordIntegrationTests.Phase1QueuedProtectionTests testReadCompletionCannotDecryptAfterKeyRetrievalRacesWithLock]' passed (0.004 seconds).
+Test Suite 'Phase1QueuedProtectionTests' passed at 2026-09-14 01:00:55.087.
+	 Executed 2 tests, with 0 failures (0 unexpected) in 0.010 (0.011) seconds
+Test Suite 'Phase1ReleaseIsolationTests' started at 2026-09-14 01:00:55.087.
+Test Case '-[KeyRecordIntegrationTests.Phase1ReleaseIsolationTests testProductCompositionCannotSelectPortsFromEnvironmentOrArguments]' started.
+Test Case '-[KeyRecordIntegrationTests.Phase1ReleaseIsolationTests testProductCompositionCannotSelectPortsFromEnvironmentOrArguments]' passed (0.004 seconds).
+Test Case '-[KeyRecordIntegrationTests.Phase1ReleaseIsolationTests testProductSourcesHaveNoNetworkOrShellExecutionAPIs]' started.
+Test Case '-[KeyRecordIntegrationTests.Phase1ReleaseIsolationTests testProductSourcesHaveNoNetworkOrShellExecutionAPIs]' passed (0.071 seconds).
+Test Case '-[KeyRecordIntegrationTests.Phase1ReleaseIsolationTests testReleaseCannotReferenceDebugFixtureComposition]' started.
+Test Case '-[KeyRecordIntegrationTests.Phase1ReleaseIsolationTests testReleaseCannotReferenceDebugFixtureComposition]' passed (0.222 seconds).
+Test Suite 'Phase1ReleaseIsolationTests' passed at 2026-09-14 01:00:55.385.
+	 Executed 3 tests, with 0 failures (0 unexpected) in 0.297 (0.297) seconds
+Test Suite 'PreferencesTests' started at 2026-09-14 01:00:55.385.
+Test Case '-[KeyRecordCoreTests.PreferencesTests testEncodedWireCarriesSchemaVersionOne]' started.
+Test Case '-[KeyRecordCoreTests.PreferencesTests testEncodedWireCarriesSchemaVersionOne]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.PreferencesTests testExclusionChangeSurvivesRepositoryReopen]' started.
+Test Case '-[KeyRecordCoreTests.PreferencesTests testExclusionChangeSurvivesRepositoryReopen]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.PreferencesTests testFirstRunLoadReturnsNilWithoutWrites]' started.
+Test Case '-[KeyRecordCoreTests.PreferencesTests testFirstRunLoadReturnsNilWithoutWrites]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.PreferencesTests testMalformedJSONIsRejectedAsCorrupt]' started.
+Test Case '-[KeyRecordCoreTests.PreferencesTests testMalformedJSONIsRejectedAsCorrupt]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.PreferencesTests testSaveThenLoadRoundTripsEveryField]' started.
+Test Case '-[KeyRecordCoreTests.PreferencesTests testSaveThenLoadRoundTripsEveryField]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.PreferencesTests testStorageLoadFailureIsTypedUnavailable]' started.
+Test Case '-[KeyRecordCoreTests.PreferencesTests testStorageLoadFailureIsTypedUnavailable]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.PreferencesTests testStorageSaveFailureIsTypedUnavailable]' started.
+Test Case '-[KeyRecordCoreTests.PreferencesTests testStorageSaveFailureIsTypedUnavailable]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.PreferencesTests testUnknownFieldsAreRejectedAsCorrupt]' started.
+Test Case '-[KeyRecordCoreTests.PreferencesTests testUnknownFieldsAreRejectedAsCorrupt]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.PreferencesTests testUnsupportedSchemaVersionIsRejectedAsCorrupt]' started.
+Test Case '-[KeyRecordCoreTests.PreferencesTests testUnsupportedSchemaVersionIsRejectedAsCorrupt]' passed (0.000 seconds).
+Test Suite 'PreferencesTests' passed at 2026-09-14 01:00:55.387.
+	 Executed 9 tests, with 0 failures (0 unexpected) in 0.002 (0.002) seconds
+Test Suite 'PrivacyGateTests' started at 2026-09-14 01:00:55.387.
+Test Case '-[KeyRecordCoreTests.PrivacyGateTests testEveryInputCombinationUsesOrderedFailureClosedPredicate]' started.
+Test Case '-[KeyRecordCoreTests.PrivacyGateTests testEveryInputCombinationUsesOrderedFailureClosedPredicate]' passed (0.001 seconds).
+Test Case '-[KeyRecordCoreTests.PrivacyGateTests testExhaustedGenerationPermanentlyFailsClosedWithoutWrapping]' started.
+Test Case '-[KeyRecordCoreTests.PrivacyGateTests testExhaustedGenerationPermanentlyFailsClosedWithoutWrapping]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.PrivacyGateTests testGenerationChangesOnCloseReopenAndResetButNotStableUpdates]' started.
+Test Case '-[KeyRecordCoreTests.PrivacyGateTests testGenerationChangesOnCloseReopenAndResetButNotStableUpdates]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.PrivacyGateTests testStartupHasUnknownModifiersAndNoHeldKeys]' started.
+Test Case '-[KeyRecordCoreTests.PrivacyGateTests testStartupHasUnknownModifiersAndNoHeldKeys]' passed (0.000 seconds).
+Test Suite 'PrivacyGateTests' passed at 2026-09-14 01:00:55.388.
+	 Executed 4 tests, with 0 failures (0 unexpected) in 0.001 (0.001) seconds
+Test Suite 'ProductBoundaryTests' started at 2026-09-14 01:00:55.388.
+Test Case '-[KeyRecordCoreTests.ProductBoundaryTests testAllProductImportsRespectSystemFrameworkAllowlist]' started.
+Test Case '-[KeyRecordCoreTests.ProductBoundaryTests testAllProductImportsRespectSystemFrameworkAllowlist]' passed (0.067 seconds).
+Test Case '-[KeyRecordCoreTests.ProductBoundaryTests testCoreCompilesWithoutCaptureOrStoreVisibility]' started.
+Test Case '-[KeyRecordCoreTests.ProductBoundaryTests testCoreCompilesWithoutCaptureOrStoreVisibility]' passed (4.291 seconds).
+Test Case '-[KeyRecordCoreTests.ProductBoundaryTests testEventAndBareKeyStoredFieldsAreStructurallySeparate]' started.
+Test Case '-[KeyRecordCoreTests.ProductBoundaryTests testEventAndBareKeyStoredFieldsAreStructurallySeparate]' passed (0.114 seconds).
+Test Case '-[KeyRecordCoreTests.ProductBoundaryTests testFailureEventsAndBareKeysRejectForbiddenTypeCapabilities]' started.
+Test Case '-[KeyRecordCoreTests.ProductBoundaryTests testFailureEventsAndBareKeysRejectForbiddenTypeCapabilities]' passed (15.839 seconds).
+Test Case '-[KeyRecordCoreTests.ProductBoundaryTests testManifestDeclaresOnlyLocalLibrariesWithDirectedDependencies]' started.
+Test Case '-[KeyRecordCoreTests.ProductBoundaryTests testManifestDeclaresOnlyLocalLibrariesWithDirectedDependencies]' passed (0.271 seconds).
+Test Case '-[KeyRecordCoreTests.ProductBoundaryTests testSourceScannerHandlesFormattingCommentsAndNestedScopes]' started.
+Test Case '-[KeyRecordCoreTests.ProductBoundaryTests testSourceScannerHandlesFormattingCommentsAndNestedScopes]' passed (0.000 seconds).
+Test Suite 'ProductBoundaryTests' passed at 2026-09-14 01:01:15.971.
+	 Executed 6 tests, with 0 failures (0 unexpected) in 20.582 (20.583) seconds
+Test Suite 'ProviderCompositionTests' started at 2026-09-14 01:01:15.971.
+Test Case '-[KeyRecordIntegrationTests.ProviderCompositionTests testInjectedClockAndIdentityRemainDeterministic]' started.
+Test Case '-[KeyRecordIntegrationTests.ProviderCompositionTests testInjectedClockAndIdentityRemainDeterministic]' passed (0.000 seconds).
+Test Suite 'ProviderCompositionTests' passed at 2026-09-14 01:01:15.971.
+	 Executed 1 test, with 0 failures (0 unexpected) in 0.000 (0.000) seconds
+Test Suite 'RotationRecoveryTests' started at 2026-09-14 01:01:15.971.
+Test Case '-[KeyRecordStoreTests.RotationRecoveryTests testFullRotationSessionLeavesOnlyNewReferencesAndReencryptsJournals]' started.
+Test Case '-[KeyRecordStoreTests.RotationRecoveryTests testFullRotationSessionLeavesOnlyNewReferencesAndReencryptsJournals]' passed (0.020 seconds).
+Test Case '-[KeyRecordStoreTests.RotationRecoveryTests testJournalReferenceToOldKeyBlocksRetirement]' started.
+Test Case '-[KeyRecordStoreTests.RotationRecoveryTests testJournalReferenceToOldKeyBlocksRetirement]' passed (0.014 seconds).
+Test Case '-[KeyRecordStoreTests.RotationRecoveryTests testMigrationRelocatesObjectWhileManifestStaysUnderOldKey]' started.
+Test Case '-[KeyRecordStoreTests.RotationRecoveryTests testMigrationRelocatesObjectWhileManifestStaysUnderOldKey]' passed (0.010 seconds).
+Test Case '-[KeyRecordStoreTests.RotationRecoveryTests testProtectedSessionIsExclusiveAndReleasable]' started.
+Test Case '-[KeyRecordStoreTests.RotationRecoveryTests testProtectedSessionIsExclusiveAndReleasable]' passed (0.005 seconds).
+Test Case '-[KeyRecordStoreTests.RotationRecoveryTests testRealKeyringDrivenRotationCompletesAndDeletesOldKey]' started.
+Test Case '-[KeyRecordStoreTests.RotationRecoveryTests testRealKeyringDrivenRotationCompletesAndDeletesOldKey]' passed (0.009 seconds).
+Test Case '-[KeyRecordStoreTests.RotationRecoveryTests testUnresolvedOrphanBlocksRetirementInProtectedScan]' started.
+Test Case '-[KeyRecordStoreTests.RotationRecoveryTests testUnresolvedOrphanBlocksRetirementInProtectedScan]' passed (0.006 seconds).
+Test Suite 'RotationRecoveryTests' passed at 2026-09-14 01:01:16.034.
+	 Executed 6 tests, with 0 failures (0 unexpected) in 0.063 (0.063) seconds
+Test Suite 'StorageCryptoVectorTests' started at 2026-09-14 01:01:16.034.
+Test Case '-[KeyRecordStoreTests.StorageCryptoVectorTests testRejectsLocatorOfWrongLength]' started.
+Test Case '-[KeyRecordStoreTests.StorageCryptoVectorTests testRejectsLocatorOfWrongLength]' passed (0.000 seconds).
+Test Case '-[KeyRecordStoreTests.StorageCryptoVectorTests testRejectsMalformedMagicVersionAlgorithmOversizedLengthAndTruncation]' started.
+Test Case '-[KeyRecordStoreTests.StorageCryptoVectorTests testRejectsMalformedMagicVersionAlgorithmOversizedLengthAndTruncation]' passed (0.000 seconds).
+Test Case '-[KeyRecordStoreTests.StorageCryptoVectorTests testRejectsTamperingAtEveryAuthenticatedRegion]' started.
+Test Case '-[KeyRecordStoreTests.StorageCryptoVectorTests testRejectsTamperingAtEveryAuthenticatedRegion]' passed (0.000 seconds).
+Test Case '-[KeyRecordStoreTests.StorageCryptoVectorTests testRejectsWrongMissingAndFutureVersionKeysWithoutFallback]' started.
+Test Case '-[KeyRecordStoreTests.StorageCryptoVectorTests testRejectsWrongMissingAndFutureVersionKeysWithoutFallback]' passed (0.000 seconds).
+Test Case '-[KeyRecordStoreTests.StorageCryptoVectorTests testRejectsZeroKeyVersionAndPlaintextOverEightMiB]' started.
+Test Case '-[KeyRecordStoreTests.StorageCryptoVectorTests testRejectsZeroKeyVersionAndPlaintextOverEightMiB]' passed (0.000 seconds).
+Test Case '-[KeyRecordStoreTests.StorageCryptoVectorTests testVectorEnvelopeIsByteIdenticalToMeasuredSP6A]' started.
+Test Case '-[KeyRecordStoreTests.StorageCryptoVectorTests testVectorEnvelopeIsByteIdenticalToMeasuredSP6A]' passed (0.000 seconds).
+Test Case '-[KeyRecordStoreTests.StorageCryptoVectorTests testVectorHeaderLayoutIsExactlyTheMeasured64ByteAuthenticatedHeader]' started.
+Test Case '-[KeyRecordStoreTests.StorageCryptoVectorTests testVectorHeaderLayoutIsExactlyTheMeasured64ByteAuthenticatedHeader]' passed (0.000 seconds).
+Test Case '-[KeyRecordStoreTests.StorageCryptoVectorTests testVectorLocatorAndDerivedKeysMatchMeasuredSP6A]' started.
+Test Case '-[KeyRecordStoreTests.StorageCryptoVectorTests testVectorLocatorAndDerivedKeysMatchMeasuredSP6A]' passed (0.000 seconds).
+Test Case '-[KeyRecordStoreTests.StorageCryptoVectorTests testVectorRandomNoncesAreFreshAcrossSeals]' started.
+Test Case '-[KeyRecordStoreTests.StorageCryptoVectorTests testVectorRandomNoncesAreFreshAcrossSeals]' passed (0.002 seconds).
+Test Suite 'StorageCryptoVectorTests' passed at 2026-09-14 01:01:16.038.
+	 Executed 9 tests, with 0 failures (0 unexpected) in 0.003 (0.003) seconds
+Test Suite 'StoreOrphanRecoveryTests' started at 2026-09-14 01:01:16.038.
+Test Case '-[KeyRecordStoreTests.StoreOrphanRecoveryTests testCompleteEnvelopeInOwnedTempIsProvenOwnedAndReconciled]' started.
+Test Case '-[KeyRecordStoreTests.StoreOrphanRecoveryTests testCompleteEnvelopeInOwnedTempIsProvenOwnedAndReconciled]' passed (0.007 seconds).
+Test Case '-[KeyRecordStoreTests.StoreOrphanRecoveryTests testRepeatedReopensConvergeToSameState]' started.
+Test Case '-[KeyRecordStoreTests.StoreOrphanRecoveryTests testRepeatedReopensConvergeToSameState]' passed (0.012 seconds).
+Test Case '-[KeyRecordStoreTests.StoreOrphanRecoveryTests testUnauthenticatedOrphanAndTempAreNeverDeletedAndBlockProtectedScan]' started.
+Test Case '-[KeyRecordStoreTests.StoreOrphanRecoveryTests testUnauthenticatedOrphanAndTempAreNeverDeletedAndBlockProtectedScan]' passed (0.007 seconds).
+Test Suite 'StoreOrphanRecoveryTests' passed at 2026-09-14 01:01:16.065.
+	 Executed 3 tests, with 0 failures (0 unexpected) in 0.027 (0.027) seconds
+Test Suite 'StoreProviderTests' started at 2026-09-14 01:01:16.065.
+Test Case '-[KeyRecordStoreTests.StoreProviderTests testMissingKeyRemainsTypedFailure]' started.
+Test Case '-[KeyRecordStoreTests.StoreProviderTests testMissingKeyRemainsTypedFailure]' passed (0.000 seconds).
+Test Suite 'StoreProviderTests' passed at 2026-09-14 01:01:16.065.
+	 Executed 1 test, with 0 failures (0 unexpected) in 0.000 (0.000) seconds
+Test Suite 'SummaryTests' started at 2026-09-14 01:01:16.065.
+Test Case '-[KeyRecordCoreTests.SummaryTests testNineteenThenTwentyPressesCountWithoutRecommendationThresholds]' started.
+Test Case '-[KeyRecordCoreTests.SummaryTests testNineteenThenTwentyPressesCountWithoutRecommendationThresholds]' passed (0.002 seconds).
+Test Case '-[KeyRecordCoreTests.SummaryTests testReplayAndPermutedRowsAreByteIdentical]' started.
+Test Case '-[KeyRecordCoreTests.SummaryTests testReplayAndPermutedRowsAreByteIdentical]' passed (0.001 seconds).
+Test Case '-[KeyRecordCoreTests.SummaryTests testSourceConservationBeforeResetAndNineteenTwentyCounts]' started.
+Test Case '-[KeyRecordCoreTests.SummaryTests testSourceConservationBeforeResetAndNineteenTwentyCounts]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.SummaryTests testSummaryOverflowAcrossDistinctBucketsFails]' started.
+Test Case '-[KeyRecordCoreTests.SummaryTests testSummaryOverflowAcrossDistinctBucketsFails]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.SummaryTests testSummaryOverflowWithinBucketFails]' started.
+Test Case '-[KeyRecordCoreTests.SummaryTests testSummaryOverflowWithinBucketFails]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.SummaryTests testSummaryRejectsForeignCycleAndIgnoresZeroRowsForActiveDays]' started.
+Test Case '-[KeyRecordCoreTests.SummaryTests testSummaryRejectsForeignCycleAndIgnoresZeroRowsForActiveDays]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.SummaryTests testSummaryRetainsExactApprovedJSONFields]' started.
+Test Case '-[KeyRecordCoreTests.SummaryTests testSummaryRetainsExactApprovedJSONFields]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.SummaryTests testSummaryUnionsDaysAcrossShardTypesAndMergesChordTotals]' started.
+Test Case '-[KeyRecordCoreTests.SummaryTests testSummaryUnionsDaysAcrossShardTypesAndMergesChordTotals]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.SummaryTests testUnknownForegroundProducesNoAttributedShard]' started.
+Test Case '-[KeyRecordCoreTests.SummaryTests testUnknownForegroundProducesNoAttributedShard]' passed (0.000 seconds).
+Test Suite 'SummaryTests' passed at 2026-09-14 01:01:16.070.
+	 Executed 9 tests, with 0 failures (0 unexpected) in 0.005 (0.005) seconds
+Test Suite 'KeyRecordPackageTests.xctest' passed at 2026-09-14 01:01:16.070.
+	 Executed 332 tests, with 0 failures (0 unexpected) in 48.658 (48.676) seconds
+Test Suite 'All tests' passed at 2026-09-14 01:01:16.070.
+	 Executed 332 tests, with 0 failures (0 unexpected) in 48.658 (48.677) seconds
+outcome=BLOCKED suite=KeyringLifecycleHostTests code=task7QualificationMissing keychainCalls=0 signingCalls=0 liveLifecycleExecuted=false
+◇ Test run started.
+↳ Testing Library Version: 1902
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.

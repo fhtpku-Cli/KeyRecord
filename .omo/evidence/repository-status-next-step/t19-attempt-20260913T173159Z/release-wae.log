@@ -1,0 +1,8 @@
+Building for production...
+[0/5] Write sources
+[4/5] Write swift-version--58304C5D6DBC2206.txt
+[6/6] Compiling KeyRecordCore AggregatePresentation.swift
+[7/9] Compiling KeyRecordTestSupport DomainFixtures.swift
+[8/9] Compiling KeyRecordCapture CaptureControl.swift
+[9/9] Compiling KeyRecordStore AggregatePersistence.swift
+Build complete! (11.79s)

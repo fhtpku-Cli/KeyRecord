@@ -70,4 +70,9 @@ public protocol LoginItemBackend: Sendable {
 public protocol PreferencesPersisting: Sendable {
     func load() async throws -> Preferences?
     func save(_ preferences: Preferences) async throws
+    func reloadAfterMaintenance() async throws -> Preferences?
+}
+
+extension PreferencesPersisting {
+    public func reloadAfterMaintenance() async throws -> Preferences? { try await load() }
 }

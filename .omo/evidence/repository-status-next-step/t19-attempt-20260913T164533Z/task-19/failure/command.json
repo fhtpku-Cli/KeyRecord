@@ -1,0 +1,10 @@
+[
+  "swift",
+  "test",
+  "--package-path",
+  ".",
+  "--scratch-path",
+  "/Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T164533Z/build/root",
+  "--filter",
+  "Phase1PersistenceRaceTests|Phase1QueuedProtectionTests|Phase1ReleaseIsolationTests|FencedObjectPersistenceTests"
+]

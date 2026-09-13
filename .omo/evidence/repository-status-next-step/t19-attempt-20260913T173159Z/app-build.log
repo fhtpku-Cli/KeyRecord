@@ -1,0 +1,282 @@
+Command line invocation:
+    /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild -project KeyRecord.xcodeproj -scheme KeyRecordApp -configuration Release -destination generic/platform=macOS -derivedDataPath .omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build CODE_SIGNING_ALLOWED=NO SWIFT_TREAT_WARNINGS_AS_ERRORS=YES ARCHS=arm64 build
+
+Build settings from command line:
+    ARCHS = arm64
+    CODE_SIGNING_ALLOWED = NO
+    SWIFT_TREAT_WARNINGS_AS_ERRORS = YES
+
+Resolve Package Graph
+
+
+Resolved source packages:
+  KeyRecord: /Users/bytedance/Documents/KeyRecord-wt-t19 @ local
+
+ComputePackagePrebuildTargetDependencyGraph
+
+Prepare packages
+
+CreateBuildRequest
+
+SendProjectDescription
+
+CreateBuildOperation
+
+ComputeTargetDependencyGraph
+note: Building targets in dependency order
+note: Target dependency graph (7 targets)
+    Target 'KeyRecordApp' in project 'KeyRecord'
+        ➜ Explicit dependency on target 'KeyRecordCore' in project 'KeyRecord'
+        ➜ Explicit dependency on target 'KeyRecordCapture' in project 'KeyRecord'
+        ➜ Explicit dependency on target 'KeyRecordStore' in project 'KeyRecord'
+    Target 'KeyRecordStore' in project 'KeyRecord'
+        ➜ Explicit dependency on target 'KeyRecordStore' in project 'KeyRecord'
+        ➜ Explicit dependency on target 'KeyRecordCore' in project 'KeyRecord'
+    Target 'KeyRecordStore' in project 'KeyRecord'
+        ➜ Explicit dependency on target 'KeyRecordCore' in project 'KeyRecord'
+    Target 'KeyRecordCapture' in project 'KeyRecord'
+        ➜ Explicit dependency on target 'KeyRecordCapture' in project 'KeyRecord'
+        ➜ Explicit dependency on target 'KeyRecordCore' in project 'KeyRecord'
+    Target 'KeyRecordCapture' in project 'KeyRecord'
+        ➜ Explicit dependency on target 'KeyRecordCore' in project 'KeyRecord'
+    Target 'KeyRecordCore' in project 'KeyRecord'
+        ➜ Explicit dependency on target 'KeyRecordCore' in project 'KeyRecord'
+    Target 'KeyRecordCore' in project 'KeyRecord' (no dependencies)
+
+GatherProvisioningInputs
+
+CreateBuildDescription
+
+ExecuteExternalTool /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc --version
+
+ExecuteExternalTool /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -v -E -dM -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk -x c -c /dev/null
+
+ExecuteExternalTool /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/ld -version_details
+
+Build description signature: 4d2f4b2f6b499281421d1044101a2620
+Build description path: /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex/XCBuildData/4d2f4b2f6b499281421d1044101a2620.xcbuilddata
+ClangStatCache /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang-stat-cache /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/SDKStatCaches.noindex/macosx26.5-25F70-e082c4a02f00227109f4ed75e425c832.sdkstatcache
+    cd /Users/bytedance/Documents/KeyRecord-wt-t19/KeyRecord.xcodeproj
+    /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang-stat-cache /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk -o /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/SDKStatCaches.noindex/macosx26.5-25F70-e082c4a02f00227109f4ed75e425c832.sdkstatcache
+
+CreateBuildDirectory /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Products
+    cd /Users/bytedance/Documents/KeyRecord-wt-t19/KeyRecord.xcodeproj
+    builtin-create-build-directory /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Products
+
+CreateBuildDirectory /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex
+    cd /Users/bytedance/Documents/KeyRecord-wt-t19/KeyRecord.xcodeproj
+    builtin-create-build-directory /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex
+
+CreateBuildDirectory /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Products/Release
+    cd /Users/bytedance/Documents/KeyRecord-wt-t19/KeyRecord.xcodeproj
+    builtin-create-build-directory /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Products/Release
+
+CreateBuildDirectory /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules
+    cd /Users/bytedance/Documents/KeyRecord-wt-t19/KeyRecord.xcodeproj
+    builtin-create-build-directory /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules
+
+CreateBuildDirectory /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex/ExplicitPrecompiledModules
+    cd /Users/bytedance/Documents/KeyRecord-wt-t19/KeyRecord.xcodeproj
+    builtin-create-build-directory /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex/ExplicitPrecompiledModules
+
+CreateBuildDirectory /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex/EagerLinkingTBDs/Release
+    cd /Users/bytedance/Documents/KeyRecord-wt-t19/KeyRecord.xcodeproj
+    builtin-create-build-directory /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex/EagerLinkingTBDs/Release
+
+WriteAuxiliaryFile /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex/KeyRecord.build/Release/KeyRecord-bdd31278f11f8f33bd8a4db1e43da730-VFS/all-product-headers.yaml
+    cd /Users/bytedance/Documents/KeyRecord-wt-t19/KeyRecord.xcodeproj
+    write-file /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex/KeyRecord.build/Release/KeyRecord-bdd31278f11f8f33bd8a4db1e43da730-VFS/all-product-headers.yaml
+
+CreateBuildDirectory /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Products/Release/PackageFrameworks
+    cd /Users/bytedance/Documents/KeyRecord-wt-t19/KeyRecord.xcodeproj
+    builtin-create-build-directory /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Products/Release/PackageFrameworks
+
+WriteAuxiliaryFile /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex/KeyRecord.build/Release/KeyRecordStore.build/KeyRecordStore.modulemap (in target 'KeyRecordStore' from project 'KeyRecord' at path '/Users/bytedance/Documents/KeyRecord-wt-t19/Package.swift')
+    cd /Users/bytedance/Documents/KeyRecord-wt-t19
+    write-file /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex/KeyRecord.build/Release/KeyRecordStore.build/KeyRecordStore.modulemap
+
+WriteAuxiliaryFile /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex/KeyRecord.build/Release/KeyRecordCore.build/Objects-normal/arm64/KeyRecordCore_const_extract_protocols.json (in target 'KeyRecordCore' from project 'KeyRecord' at path '/Users/bytedance/Documents/KeyRecord-wt-t19/Package.swift')
+    cd /Users/bytedance/Documents/KeyRecord-wt-t19
+    write-file /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex/KeyRecord.build/Release/KeyRecordCore.build/Objects-normal/arm64/KeyRecordCore_const_extract_protocols.json
+
+WriteAuxiliaryFile /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex/KeyRecord.build/Release/KeyRecordStore.build/Objects-normal/arm64/KeyRecordStore_const_extract_protocols.json (in target 'KeyRecordStore' from project 'KeyRecord' at path '/Users/bytedance/Documents/KeyRecord-wt-t19/Package.swift')
+    cd /Users/bytedance/Documents/KeyRecord-wt-t19
+    write-file /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex/KeyRecord.build/Release/KeyRecordStore.build/Objects-normal/arm64/KeyRecordStore_const_extract_protocols.json
+
+WriteAuxiliaryFile /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex/KeyRecord.build/Release/KeyRecordStore.build/Objects-normal/arm64/KeyRecordStore.LinkFileList (in target 'KeyRecordStore' from project 'KeyRecord' at path '/Users/bytedance/Documents/KeyRecord-wt-t19/Package.swift')
+    cd /Users/bytedance/Documents/KeyRecord-wt-t19
+    write-file /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex/KeyRecord.build/Release/KeyRecordStore.build/Objects-normal/arm64/KeyRecordStore.LinkFileList
+
+WriteAuxiliaryFile /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex/KeyRecord.build/Release/KeyRecordStore.build/Objects-normal/arm64/KeyRecordStore.SwiftFileList (in target 'KeyRecordStore' from project 'KeyRecord' at path '/Users/bytedance/Documents/KeyRecord-wt-t19/Package.swift')
+    cd /Users/bytedance/Documents/KeyRecord-wt-t19
+    write-file /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex/KeyRecord.build/Release/KeyRecordStore.build/Objects-normal/arm64/KeyRecordStore.SwiftFileList
+
+WriteAuxiliaryFile /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex/KeyRecord.build/Release/KeyRecordStore.build/Objects-normal/arm64/KeyRecordStore.SwiftConstValuesFileList (in target 'KeyRecordStore' from project 'KeyRecord' at path '/Users/bytedance/Documents/KeyRecord-wt-t19/Package.swift')
+    cd /Users/bytedance/Documents/KeyRecord-wt-t19
+    write-file /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex/KeyRecord.build/Release/KeyRecordStore.build/Objects-normal/arm64/KeyRecordStore.SwiftConstValuesFileList
+
+WriteAuxiliaryFile /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex/KeyRecord.build/Release/KeyRecordStore.build/Objects-normal/arm64/KeyRecordStore-OutputFileMap.json (in target 'KeyRecordStore' from project 'KeyRecord' at path '/Users/bytedance/Documents/KeyRecord-wt-t19/Package.swift')
+    cd /Users/bytedance/Documents/KeyRecord-wt-t19
+    write-file /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex/KeyRecord.build/Release/KeyRecordStore.build/Objects-normal/arm64/KeyRecordStore-OutputFileMap.json
+
+WriteAuxiliaryFile /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex/KeyRecord.build/Release/KeyRecordStore.build/KeyRecordStore.DependencyStaticMetadataFileList (in target 'KeyRecordStore' from project 'KeyRecord' at path '/Users/bytedance/Documents/KeyRecord-wt-t19/Package.swift')
+    cd /Users/bytedance/Documents/KeyRecord-wt-t19
+    write-file /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex/KeyRecord.build/Release/KeyRecordStore.build/KeyRecordStore.DependencyStaticMetadataFileList
+
+WriteAuxiliaryFile /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex/KeyRecord.build/Release/KeyRecordStore.build/KeyRecordStore.DependencyMetadataFileList (in target 'KeyRecordStore' from project 'KeyRecord' at path '/Users/bytedance/Documents/KeyRecord-wt-t19/Package.swift')
+    cd /Users/bytedance/Documents/KeyRecord-wt-t19
+    write-file /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex/KeyRecord.build/Release/KeyRecordStore.build/KeyRecordStore.DependencyMetadataFileList
+
+Copy /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex/GeneratedModuleMaps/KeyRecordStore.modulemap /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex/KeyRecord.build/Release/KeyRecordStore.build/KeyRecordStore.modulemap (in target 'KeyRecordStore' from project 'KeyRecord' at path '/Users/bytedance/Documents/KeyRecord-wt-t19/Package.swift')
+    cd /Users/bytedance/Documents/KeyRecord-wt-t19
+    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -strip-unsigned-binaries -strip-deterministic -strip-tool /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/strip -resolve-src-symlinks /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex/KeyRecord.build/Release/KeyRecordStore.build/KeyRecordStore.modulemap /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex/GeneratedModuleMaps
+
+WriteAuxiliaryFile /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex/KeyRecord.build/Release/KeyRecordCore.build/Objects-normal/arm64/KeyRecordCore.SwiftFileList (in target 'KeyRecordCore' from project 'KeyRecord' at path '/Users/bytedance/Documents/KeyRecord-wt-t19/Package.swift')
+    cd /Users/bytedance/Documents/KeyRecord-wt-t19
+    write-file /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex/KeyRecord.build/Release/KeyRecordCore.build/Objects-normal/arm64/KeyRecordCore.SwiftFileList
+
+WriteAuxiliaryFile /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex/KeyRecord.build/Release/KeyRecordCore.build/Objects-normal/arm64/KeyRecordCore.SwiftConstValuesFileList (in target 'KeyRecordCore' from project 'KeyRecord' at path '/Users/bytedance/Documents/KeyRecord-wt-t19/Package.swift')
+    cd /Users/bytedance/Documents/KeyRecord-wt-t19
+    write-file /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex/KeyRecord.build/Release/KeyRecordCore.build/Objects-normal/arm64/KeyRecordCore.SwiftConstValuesFileList
+
+WriteAuxiliaryFile /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex/KeyRecord.build/Release/KeyRecordCore.build/Objects-normal/arm64/KeyRecordCore.LinkFileList (in target 'KeyRecordCore' from project 'KeyRecord' at path '/Users/bytedance/Documents/KeyRecord-wt-t19/Package.swift')
+    cd /Users/bytedance/Documents/KeyRecord-wt-t19
+    write-file /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex/KeyRecord.build/Release/KeyRecordCore.build/Objects-normal/arm64/KeyRecordCore.LinkFileList
+
+WriteAuxiliaryFile /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex/KeyRecord.build/Release/KeyRecordCore.build/Objects-normal/arm64/KeyRecordCore-OutputFileMap.json (in target 'KeyRecordCore' from project 'KeyRecord' at path '/Users/bytedance/Documents/KeyRecord-wt-t19/Package.swift')
+    cd /Users/bytedance/Documents/KeyRecord-wt-t19
+    write-file /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex/KeyRecord.build/Release/KeyRecordCore.build/Objects-normal/arm64/KeyRecordCore-OutputFileMap.json
+
+WriteAuxiliaryFile /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex/KeyRecord.build/Release/KeyRecordCore.build/KeyRecordCore.modulemap (in target 'KeyRecordCore' from project 'KeyRecord' at path '/Users/bytedance/Documents/KeyRecord-wt-t19/Package.swift')
+    cd /Users/bytedance/Documents/KeyRecord-wt-t19
+    write-file /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex/KeyRecord.build/Release/KeyRecordCore.build/KeyRecordCore.modulemap
+
+WriteAuxiliaryFile /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex/KeyRecord.build/Release/KeyRecordCore.build/KeyRecordCore.DependencyStaticMetadataFileList (in target 'KeyRecordCore' from project 'KeyRecord' at path '/Users/bytedance/Documents/KeyRecord-wt-t19/Package.swift')
+    cd /Users/bytedance/Documents/KeyRecord-wt-t19
+    write-file /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex/KeyRecord.build/Release/KeyRecordCore.build/KeyRecordCore.DependencyStaticMetadataFileList
+
+WriteAuxiliaryFile /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex/KeyRecord.build/Release/KeyRecordCore.build/KeyRecordCore.DependencyMetadataFileList (in target 'KeyRecordCore' from project 'KeyRecord' at path '/Users/bytedance/Documents/KeyRecord-wt-t19/Package.swift')
+    cd /Users/bytedance/Documents/KeyRecord-wt-t19
+    write-file /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex/KeyRecord.build/Release/KeyRecordCore.build/KeyRecordCore.DependencyMetadataFileList
+
+WriteAuxiliaryFile /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex/KeyRecord.build/Release/KeyRecordCapture.build/Objects-normal/arm64/KeyRecordCapture_const_extract_protocols.json (in target 'KeyRecordCapture' from project 'KeyRecord' at path '/Users/bytedance/Documents/KeyRecord-wt-t19/Package.swift')
+    cd /Users/bytedance/Documents/KeyRecord-wt-t19
+    write-file /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex/KeyRecord.build/Release/KeyRecordCapture.build/Objects-normal/arm64/KeyRecordCapture_const_extract_protocols.json
+
+WriteAuxiliaryFile /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex/KeyRecord.build/Release/KeyRecordCapture.build/Objects-normal/arm64/KeyRecordCapture.SwiftFileList (in target 'KeyRecordCapture' from project 'KeyRecord' at path '/Users/bytedance/Documents/KeyRecord-wt-t19/Package.swift')
+    cd /Users/bytedance/Documents/KeyRecord-wt-t19
+    write-file /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex/KeyRecord.build/Release/KeyRecordCapture.build/Objects-normal/arm64/KeyRecordCapture.SwiftFileList
+
+WriteAuxiliaryFile /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex/KeyRecord.build/Release/KeyRecordCapture.build/Objects-normal/arm64/KeyRecordCapture.SwiftConstValuesFileList (in target 'KeyRecordCapture' from project 'KeyRecord' at path '/Users/bytedance/Documents/KeyRecord-wt-t19/Package.swift')
+    cd /Users/bytedance/Documents/KeyRecord-wt-t19
+    write-file /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex/KeyRecord.build/Release/KeyRecordCapture.build/Objects-normal/arm64/KeyRecordCapture.SwiftConstValuesFileList
+
+WriteAuxiliaryFile /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex/KeyRecord.build/Release/KeyRecordCapture.build/Objects-normal/arm64/KeyRecordCapture.LinkFileList (in target 'KeyRecordCapture' from project 'KeyRecord' at path '/Users/bytedance/Documents/KeyRecord-wt-t19/Package.swift')
+    cd /Users/bytedance/Documents/KeyRecord-wt-t19
+    write-file /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex/KeyRecord.build/Release/KeyRecordCapture.build/Objects-normal/arm64/KeyRecordCapture.LinkFileList
+
+WriteAuxiliaryFile /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex/KeyRecord.build/Release/KeyRecordCapture.build/Objects-normal/arm64/KeyRecordCapture-OutputFileMap.json (in target 'KeyRecordCapture' from project 'KeyRecord' at path '/Users/bytedance/Documents/KeyRecord-wt-t19/Package.swift')
+    cd /Users/bytedance/Documents/KeyRecord-wt-t19
+    write-file /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex/KeyRecord.build/Release/KeyRecordCapture.build/Objects-normal/arm64/KeyRecordCapture-OutputFileMap.json
+
+Copy /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex/GeneratedModuleMaps/KeyRecordCore.modulemap /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex/KeyRecord.build/Release/KeyRecordCore.build/KeyRecordCore.modulemap (in target 'KeyRecordCore' from project 'KeyRecord' at path '/Users/bytedance/Documents/KeyRecord-wt-t19/Package.swift')
+    cd /Users/bytedance/Documents/KeyRecord-wt-t19
+    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -strip-unsigned-binaries -strip-deterministic -strip-tool /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/strip -resolve-src-symlinks /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex/KeyRecord.build/Release/KeyRecordCore.build/KeyRecordCore.modulemap /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex/GeneratedModuleMaps
+
+WriteAuxiliaryFile /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex/KeyRecord.build/Release/KeyRecordCapture.build/KeyRecordCapture.modulemap (in target 'KeyRecordCapture' from project 'KeyRecord' at path '/Users/bytedance/Documents/KeyRecord-wt-t19/Package.swift')
+    cd /Users/bytedance/Documents/KeyRecord-wt-t19
+    write-file /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex/KeyRecord.build/Release/KeyRecordCapture.build/KeyRecordCapture.modulemap
+
+WriteAuxiliaryFile /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex/KeyRecord.build/Release/KeyRecordCapture.build/KeyRecordCapture.DependencyStaticMetadataFileList (in target 'KeyRecordCapture' from project 'KeyRecord' at path '/Users/bytedance/Documents/KeyRecord-wt-t19/Package.swift')
+    cd /Users/bytedance/Documents/KeyRecord-wt-t19
+    write-file /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex/KeyRecord.build/Release/KeyRecordCapture.build/KeyRecordCapture.DependencyStaticMetadataFileList
+
+WriteAuxiliaryFile /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex/KeyRecord.build/Release/KeyRecordCapture.build/KeyRecordCapture.DependencyMetadataFileList (in target 'KeyRecordCapture' from project 'KeyRecord' at path '/Users/bytedance/Documents/KeyRecord-wt-t19/Package.swift')
+    cd /Users/bytedance/Documents/KeyRecord-wt-t19
+    write-file /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex/KeyRecord.build/Release/KeyRecordCapture.build/KeyRecordCapture.DependencyMetadataFileList
+
+WriteAuxiliaryFile /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex/KeyRecord.build/Release/KeyRecordApp.build/Objects-normal/arm64/KeyRecordApp_const_extract_protocols.json (in target 'KeyRecordApp' from project 'KeyRecord' at path '/Users/bytedance/Documents/KeyRecord-wt-t19/KeyRecord.xcodeproj')
+    cd /Users/bytedance/Documents/KeyRecord-wt-t19
+    write-file /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex/KeyRecord.build/Release/KeyRecordApp.build/Objects-normal/arm64/KeyRecordApp_const_extract_protocols.json
+
+WriteAuxiliaryFile /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex/KeyRecord.build/Release/KeyRecordApp.build/Objects-normal/arm64/KeyRecordApp.SwiftConstValuesFileList (in target 'KeyRecordApp' from project 'KeyRecord' at path '/Users/bytedance/Documents/KeyRecord-wt-t19/KeyRecord.xcodeproj')
+    cd /Users/bytedance/Documents/KeyRecord-wt-t19
+    write-file /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex/KeyRecord.build/Release/KeyRecordApp.build/Objects-normal/arm64/KeyRecordApp.SwiftConstValuesFileList
+
+WriteAuxiliaryFile /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex/KeyRecord.build/Release/KeyRecordApp.build/Objects-normal/arm64/KeyRecordApp.LinkFileList (in target 'KeyRecordApp' from project 'KeyRecord' at path '/Users/bytedance/Documents/KeyRecord-wt-t19/KeyRecord.xcodeproj')
+    cd /Users/bytedance/Documents/KeyRecord-wt-t19
+    write-file /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex/KeyRecord.build/Release/KeyRecordApp.build/Objects-normal/arm64/KeyRecordApp.LinkFileList
+
+WriteAuxiliaryFile /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex/KeyRecord.build/Release/KeyRecordApp.build/Objects-normal/arm64/KeyRecordApp.SwiftFileList (in target 'KeyRecordApp' from project 'KeyRecord' at path '/Users/bytedance/Documents/KeyRecord-wt-t19/KeyRecord.xcodeproj')
+    cd /Users/bytedance/Documents/KeyRecord-wt-t19
+    write-file /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex/KeyRecord.build/Release/KeyRecordApp.build/Objects-normal/arm64/KeyRecordApp.SwiftFileList
+
+Copy /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex/GeneratedModuleMaps/KeyRecordCapture.modulemap /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex/KeyRecord.build/Release/KeyRecordCapture.build/KeyRecordCapture.modulemap (in target 'KeyRecordCapture' from project 'KeyRecord' at path '/Users/bytedance/Documents/KeyRecord-wt-t19/Package.swift')
+    cd /Users/bytedance/Documents/KeyRecord-wt-t19
+    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -strip-unsigned-binaries -strip-deterministic -strip-tool /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/strip -resolve-src-symlinks /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex/KeyRecord.build/Release/KeyRecordCapture.build/KeyRecordCapture.modulemap /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex/GeneratedModuleMaps
+
+WriteAuxiliaryFile /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex/KeyRecord.build/Release/KeyRecordApp.build/Objects-normal/arm64/KeyRecordApp-OutputFileMap.json (in target 'KeyRecordApp' from project 'KeyRecord' at path '/Users/bytedance/Documents/KeyRecord-wt-t19/KeyRecord.xcodeproj')
+    cd /Users/bytedance/Documents/KeyRecord-wt-t19
+    write-file /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex/KeyRecord.build/Release/KeyRecordApp.build/Objects-normal/arm64/KeyRecordApp-OutputFileMap.json
+
+WriteAuxiliaryFile /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex/KeyRecord.build/Release/KeyRecordApp.build/KeyRecordApp.hmap (in target 'KeyRecordApp' from project 'KeyRecord' at path '/Users/bytedance/Documents/KeyRecord-wt-t19/KeyRecord.xcodeproj')
+    cd /Users/bytedance/Documents/KeyRecord-wt-t19
+    write-file /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex/KeyRecord.build/Release/KeyRecordApp.build/KeyRecordApp.hmap
+
+WriteAuxiliaryFile /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex/KeyRecord.build/Release/KeyRecordApp.build/KeyRecordApp.DependencyStaticMetadataFileList (in target 'KeyRecordApp' from project 'KeyRecord' at path '/Users/bytedance/Documents/KeyRecord-wt-t19/KeyRecord.xcodeproj')
+    cd /Users/bytedance/Documents/KeyRecord-wt-t19
+    write-file /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex/KeyRecord.build/Release/KeyRecordApp.build/KeyRecordApp.DependencyStaticMetadataFileList
+
+WriteAuxiliaryFile /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex/KeyRecord.build/Release/KeyRecordApp.build/KeyRecordApp.DependencyMetadataFileList (in target 'KeyRecordApp' from project 'KeyRecord' at path '/Users/bytedance/Documents/KeyRecord-wt-t19/KeyRecord.xcodeproj')
+    cd /Users/bytedance/Documents/KeyRecord-wt-t19
+    write-file /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex/KeyRecord.build/Release/KeyRecordApp.build/KeyRecordApp.DependencyMetadataFileList
+
+WriteAuxiliaryFile /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex/KeyRecord.build/Release/KeyRecordApp.build/KeyRecordApp-project-headers.hmap (in target 'KeyRecordApp' from project 'KeyRecord' at path '/Users/bytedance/Documents/KeyRecord-wt-t19/KeyRecord.xcodeproj')
+    cd /Users/bytedance/Documents/KeyRecord-wt-t19
+    write-file /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex/KeyRecord.build/Release/KeyRecordApp.build/KeyRecordApp-project-headers.hmap
+
+WriteAuxiliaryFile /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex/KeyRecord.build/Release/KeyRecordApp.build/KeyRecordApp-own-target-headers.hmap (in target 'KeyRecordApp' from project 'KeyRecord' at path '/Users/bytedance/Documents/KeyRecord-wt-t19/KeyRecord.xcodeproj')
+    cd /Users/bytedance/Documents/KeyRecord-wt-t19
+    write-file /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex/KeyRecord.build/Release/KeyRecordApp.build/KeyRecordApp-own-target-headers.hmap
+
+WriteAuxiliaryFile /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex/KeyRecord.build/Release/KeyRecordApp.build/KeyRecordApp-generated-files.hmap (in target 'KeyRecordApp' from project 'KeyRecord' at path '/Users/bytedance/Documents/KeyRecord-wt-t19/KeyRecord.xcodeproj')
+    cd /Users/bytedance/Documents/KeyRecord-wt-t19
+    write-file /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex/KeyRecord.build/Release/KeyRecordApp.build/KeyRecordApp-generated-files.hmap
+
+WriteAuxiliaryFile /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex/KeyRecord.build/Release/KeyRecordApp.build/KeyRecordApp-all-target-headers.hmap (in target 'KeyRecordApp' from project 'KeyRecord' at path '/Users/bytedance/Documents/KeyRecord-wt-t19/KeyRecord.xcodeproj')
+    cd /Users/bytedance/Documents/KeyRecord-wt-t19
+    write-file /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex/KeyRecord.build/Release/KeyRecordApp.build/KeyRecordApp-all-target-headers.hmap
+
+WriteAuxiliaryFile /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex/KeyRecord.build/Release/KeyRecordApp.build/KeyRecordApp-all-non-framework-target-headers.hmap (in target 'KeyRecordApp' from project 'KeyRecord' at path '/Users/bytedance/Documents/KeyRecord-wt-t19/KeyRecord.xcodeproj')
+    cd /Users/bytedance/Documents/KeyRecord-wt-t19
+    write-file /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex/KeyRecord.build/Release/KeyRecordApp.build/KeyRecordApp-all-non-framework-target-headers.hmap
+
+MkDir /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Products/Release/KeyRecordApp.app/Contents/MacOS (in target 'KeyRecordApp' from project 'KeyRecord' at path '/Users/bytedance/Documents/KeyRecord-wt-t19/KeyRecord.xcodeproj')
+    cd /Users/bytedance/Documents/KeyRecord-wt-t19
+    /bin/mkdir -p /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Products/Release/KeyRecordApp.app/Contents/MacOS
+
+MkDir /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Products/Release/KeyRecordApp.app/Contents/Resources (in target 'KeyRecordApp' from project 'KeyRecord' at path '/Users/bytedance/Documents/KeyRecord-wt-t19/KeyRecord.xcodeproj')
+    cd /Users/bytedance/Documents/KeyRecord-wt-t19
+    /bin/mkdir -p /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Products/Release/KeyRecordApp.app/Contents/Resources
+
+MkDir /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Products/Release/KeyRecordApp.app/Contents (in target 'KeyRecordApp' from project 'KeyRecord' at path '/Users/bytedance/Documents/KeyRecord-wt-t19/KeyRecord.xcodeproj')
+    cd /Users/bytedance/Documents/KeyRecord-wt-t19
+    /bin/mkdir -p /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Products/Release/KeyRecordApp.app/Contents
+
+MkDir /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Products/Release/KeyRecordApp.app (in target 'KeyRecordApp' from project 'KeyRecord' at path '/Users/bytedance/Documents/KeyRecord-wt-t19/KeyRecord.xcodeproj')
+    cd /Users/bytedance/Documents/KeyRecord-wt-t19
+    /bin/mkdir -p /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Products/Release/KeyRecordApp.app
+
+SwiftDriver KeyRecordCore normal arm64 com.apple.xcode.tools.swift.compiler (in target 'KeyRecordCore' from project 'KeyRecord' at path '/Users/bytedance/Documents/KeyRecord-wt-t19/Package.swift')
+    cd /Users/bytedance/Documents/KeyRecord-wt-t19/KeyRecord.xcodeproj
+    builtin-SwiftDriver -- /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -module-name KeyRecordCore -O -whole-module-optimization @/Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex/KeyRecord.build/Release/KeyRecordCore.build/Objects-normal/arm64/KeyRecordCore.SwiftFileList -DSWIFT_PACKAGE -DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE -DXcode -plugin-path /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing -enable-experimental-feature DebugDescriptionMacro -sdk /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk -target arm64-apple-macos14.0 -g -module-cache-path /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/ModuleCache.noindex -Xfrontend -serialize-debugging-options -suppress-warnings -warnings-as-errors -swift-version 6 -I /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Products/Release -Isystem /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib -F /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Products/Release -F /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks -c -num-threads 8 -Xcc -ivfsstatcache -Xcc /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/SDKStatCaches.noindex/macosx26.5-25F70-e082c4a02f00227109f4ed75e425c832.sdkstatcache -output-file-map /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex/KeyRecord.build/Release/KeyRecordCore.build/Objects-normal/arm64/KeyRecordCore-OutputFileMap.json -use-frontend-parseable-output -save-temps -no-color-diagnostics -explicit-module-build -module-cache-path /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules -clang-scanner-module-cache-path /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/ModuleCache.noindex -sdk-module-cache-path /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/ModuleCache.noindex -serialize-diagnostics -emit-dependencies -emit-module -emit-module-path /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex/KeyRecord.build/Release/KeyRecordCore.build/Objects-normal/arm64/KeyRecordCore.swiftmodule -validate-clang-modules-once -clang-build-session-file /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/ModuleCache.noindex/Session.modulevalidation -package-name keyrecord_wt_t19 -Xcc -I/Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex/KeyRecord.build/Release/KeyRecordCore.build/swift-overrides.hmap -emit-const-values -Xfrontend -const-gather-protocols-file -Xfrontend /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex/KeyRecord.build/Release/KeyRecordCore.build/Objects-normal/arm64/KeyRecordCore_const_extract_protocols.json -Xcc -I/Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Products/Release/include -Xcc -I/Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex/KeyRecord.build/Release/KeyRecordCore.build/DerivedSources-normal/arm64 -Xcc -I/Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex/KeyRecord.build/Release/KeyRecordCore.build/DerivedSources/arm64 -Xcc -I/Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex/KeyRecord.build/Release/KeyRecordCore.build/DerivedSources -Xcc -DSWIFT_PACKAGE -emit-objc-header -emit-objc-header-path /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/app-build/Build/Intermediates.noindex/KeyRecord.build/Release/KeyRecordCore.build/Objects-normal/arm64/KeyRecordCore-Swift.h -working-directory /Users/bytedance/Documents/KeyRecord-wt-t19/KeyRecord.xcodeproj -no-emit-module-separately-wmo
+error: conflicting options '-warnings-as-errors' and '-suppress-warnings'
+error: Conflicting options '-warnings-as-errors' and '-suppress-warnings' (in target 'KeyRecordCore' from project 'KeyRecord' at path '/Users/bytedance/Documents/KeyRecord-wt-t19/Package.swift')
+
+** BUILD FAILED **
+
+
+The following build commands failed:
+	SwiftDriver KeyRecordCore normal arm64 com.apple.xcode.tools.swift.compiler (in target 'KeyRecordCore' from project 'KeyRecord' at path '/Users/bytedance/Documents/KeyRecord-wt-t19/Package.swift')
+	Building project KeyRecord with scheme KeyRecordApp and configuration Release
+(2 failures)

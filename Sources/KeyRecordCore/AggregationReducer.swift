@@ -34,6 +34,28 @@ public struct AggregationReducer: Sendable {
 
     public init(cycleID: CycleID) { self.cycleID = cycleID }
 
+    public init(cycleID: CycleID, shortcuts: [DailyShortcutAggregate],
+                bareKeys: [DailyBareKeyAggregate]) throws {
+        self.init(cycleID: cycleID)
+        for row in shortcuts {
+            guard row.cycleID == cycleID else { throw AggregationError.cycleMismatch }
+            let key = ShortcutDay(day: row.day, identity: row.identity)
+            guard shortcutRows[key] == nil else { throw AggregationError.inconsistentTotal }
+            cycleTotal = try Count(cycleTotal).adding(row.sourceCounts.total).value
+            shortcutRows[key] = row
+            encounteredDays.insert(row.day)
+        }
+        for row in bareKeys {
+            guard row.cycleID == cycleID else { throw AggregationError.cycleMismatch }
+            let key = BareDay(day: row.day, keyCode: row.keyCode)
+            guard bareRows[key] == nil else { throw AggregationError.inconsistentTotal }
+            cycleTotal = try Count(cycleTotal).adding(row.sourceCounts.total).value
+            bareRows[key] = row
+            encounteredDays.insert(row.day)
+        }
+        activeDays = encounteredDays.sorted { $0.label < $1.label }
+    }
+
     public var distinctActiveDays: ActiveDayOrdinal {
         get throws { try ActiveDayOrdinal(Int64(activeDays.count)) }
     }

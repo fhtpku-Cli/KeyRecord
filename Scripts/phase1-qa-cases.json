@@ -2,6 +2,12 @@
   "schemaVersion": 2,
   "hostCases": [
     {
+      "mode": "performance",
+      "manifestRequired": true,
+      "argv": ["/bin/bash", "Scripts/phase1-performance-qa.sh", "{manifest}", "{attempt}"],
+      "timeoutSeconds": 15
+    },
+    {
       "mode": "network",
       "manifestRequired": true,
       "argv": ["/bin/bash", "Scripts/phase1-network-qa.sh", "{manifest}", "{attempt}"],
@@ -27,6 +33,22 @@
     }
   ],
   "cases": [
+    {
+      "task": 21,
+      "case": "happy",
+      "argv": ["swift", "test", "--package-path", ".", "--scratch-path", "{attempt}/build/root", "-c", "release", "--filter", "PerformanceDriverTests|PerformanceReceiptTests"],
+      "expectedKind": "xctest",
+      "timeoutSeconds": 420,
+      "minTestCount": 9
+    },
+    {
+      "task": 21,
+      "case": "failure",
+      "argv": ["swift", "test", "--package-path", ".", "--scratch-path", "{attempt}/build/root", "-c", "release", "--filter", "PerformanceReceiptTests"],
+      "expectedKind": "xctest",
+      "timeoutSeconds": 420,
+      "minTestCount": 8
+    },
     {
       "task": 11,
       "case": "happy",

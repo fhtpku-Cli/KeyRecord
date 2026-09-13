@@ -36,10 +36,15 @@ struct NativeAction: View {
     let title: String
     let identifier: String
     var keyEquivalent = ""
+    var role: ButtonRole? = nil
     let action: () -> Void
 
+    private var resolvedRole: ButtonRole? {
+        role ?? (identifier == "destructive.confirm" ? .destructive : nil)
+    }
+
     private var button: some View {
-        Button(role: identifier == "destructive.confirm" ? .destructive : nil) {
+        Button(role: resolvedRole) {
             observeAction?(identifier)
             action()
         } label: {

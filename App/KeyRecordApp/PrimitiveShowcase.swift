@@ -56,6 +56,9 @@ struct PrimitiveHarness: View {
     @State private var state = PrimitiveState.unstarted
     @ObservedObject var selection: HarnessSelection
     @State private var dark = false
+    #if DEBUG
+    @State private var showsFlowPreview = false
+    #endif
     var body: some View {
         let text = NativeText(locale: selection.locale)
         VStack(spacing: NativeLayout.group) {
@@ -68,6 +71,11 @@ struct PrimitiveHarness: View {
                     Text(text("locale.zh-Hans")).tag("zh-Hans")
                 }.accessibilityIdentifier("harness.locale")
                 Toggle(text("harness.dark"), isOn: $dark).accessibilityIdentifier("harness.appearance")
+                #if DEBUG
+                Button(text("flowpreview.open")) { showsFlowPreview = true }
+                    .accessibilityIdentifier("flowpreview.open")
+                    .sheet(isPresented: $showsFlowPreview) { FlowPreviewGallery() }
+                #endif
             }.padding(.horizontal, NativeLayout.page)
             PrimitiveShowcase(fixture: PrimitiveFixture(state: state, locale: selection.locale, dark: dark, stress: false), action: {})
         }.padding(.top, NativeLayout.group)

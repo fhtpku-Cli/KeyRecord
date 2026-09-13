@@ -19,6 +19,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        #if DEBUG
+        if FlowTestComposition.environmentConfigured, let fixture = try? FlowTestComposition.make() {
+            statusItem = FlowTestComposition.boot(fixture)
+            return
+        }
+        #endif
         let locale = Locale.preferredLanguages.first?.hasPrefix("zh") == true ? "zh-Hans" : "en"
         let text = NativeText(locale: locale)
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)

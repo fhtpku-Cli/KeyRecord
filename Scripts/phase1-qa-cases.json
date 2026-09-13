@@ -518,6 +518,22 @@
       "expectedKind": "xctest",
       "timeoutSeconds": 1200,
       "minTestCount": 9
+    },
+    {
+      "task": 19,
+      "case": "happy",
+      "argv": ["swift", "test", "--package-path", ".", "--scratch-path", "{attempt}/build/root", "--filter", "FlushScheduleTests|FlushSchedulerTests|Phase1IntegrationTests"],
+      "expectedKind": "xctest",
+      "timeoutSeconds": 420,
+      "minTestCount": 11
+    },
+    {
+      "task": 19,
+      "case": "failure",
+      "argv": ["swift", "test", "--package-path", ".", "--scratch-path", "{attempt}/build/root", "--filter", "Phase1PersistenceRaceTests|Phase1QueuedProtectionTests|Phase1ReleaseIsolationTests|FencedObjectPersistenceTests|Phase1MaintenanceTests"],
+      "expectedKind": "xctest",
+      "timeoutSeconds": 420,
+      "minTestCount": 15
     }
   ]
 }

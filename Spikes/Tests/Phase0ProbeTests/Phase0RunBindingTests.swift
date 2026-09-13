@@ -17,6 +17,11 @@ final class Phase0RunBindingTests: XCTestCase {
         "Spikes/Sources/EvidenceValidator/SP6ALifecycleDecoder.swift",
         "Spikes/Sources/EvidenceValidator/SP6AAssertionArtifact.swift",
         "Spikes/Sources/EvidenceValidator/SP6AAssertionArtifactValidator.swift",
+        // Task 15 current closeout projection, status table, interim envelope and path canonicalization.
+        "Spikes/Sources/EvidenceValidator/CurrentCloseoutCommand.swift",
+        "Spikes/Sources/EvidenceValidator/CurrentInterimEnvelope.swift",
+        "Spikes/Sources/EvidenceValidator/CurrentStatusTable.swift",
+        "Spikes/Sources/EvidenceValidator/RepositoryURL.swift",
     ]
     private static let qaHelperSources: Set<String> = [
         "Spikes/Scripts/task-qa-common.sh",

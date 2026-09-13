@@ -35,8 +35,8 @@ enum Canonical {
 
 extension URL {
     func relativePath(from root: URL) throws -> String {
-        let rootPath = root.standardizedFileURL.path
-        let path = standardizedFileURL.path
+        let rootPath = RepositoryURL.canonicalPath(root.standardizedFileURL.path)
+        let path = RepositoryURL.canonicalPath(standardizedFileURL.path)
         let prefix = rootPath.hasSuffix("/") ? rootPath : rootPath + "/"
         guard path.hasPrefix(prefix) else { throw ValidatorError("path_outside_repository", path) }
         return String(path.dropFirst(prefix.count))

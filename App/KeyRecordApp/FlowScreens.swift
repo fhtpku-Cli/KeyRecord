@@ -32,6 +32,7 @@ struct FlowDialogView: View {
         dialogContent
             .frame(minWidth: 420)
             .padding(NativeLayout.page)
+            .nativeMotionPolicy()
     }
 
     @ViewBuilder private var dialogContent: some View {

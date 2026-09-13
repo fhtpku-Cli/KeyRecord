@@ -194,6 +194,7 @@ final class ProductComposition: NSObject, NSMenuDelegate {
                 styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
             panel.title = "KeyRecord"
             panel.isReleasedWhenClosed = false
+            panel.animationBehavior = .none
             panel.contentView = NSHostingView(rootView: ProductScreens(flow: flow, text: text))
             panel.center()
             window = panel
@@ -213,5 +214,6 @@ private struct ProductScreens: View {
             SettingsFlowView(flow: flow, text: text).tabItem { Text(text("flowpreview.tab.settings")) }
         }
         .frame(minWidth: NativeLayout.minimum.width, minHeight: NativeLayout.minimum.height)
+        .nativeMotionPolicy()
     }
 }

@@ -38,7 +38,6 @@
 "dialog.delete.message" = "This cannot be undone. Every local artifact is removed: recorded counts and mappings, encryption keys and the login item registration.";
 "dialog.delete.confirm" = "Delete all local data";
 "dialog.delete.cancel" = "Cancel";
-"settings.title" = "Settings";
 "settings.login" = "Open at login";
 "settings.language" = "Language";
 "settings.reset" = "Reset today’s detail…";

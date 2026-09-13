@@ -202,6 +202,7 @@ final class FlowFixture: ObservableObject {
                                  styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
             panel.title = "KeyRecord flow fixture"; panel.minSize = NativeLayout.minimum
             panel.isReleasedWhenClosed = false
+            panel.animationBehavior = .none
             panel.contentView = NSHostingView(rootView: FlowFixtureRootView(fixture: self))
             panel.center(); window = panel
         }

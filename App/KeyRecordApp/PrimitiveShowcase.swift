@@ -80,5 +80,6 @@ struct PrimitiveHarness: View {
             PrimitiveShowcase(fixture: PrimitiveFixture(state: state, locale: selection.locale, dark: dark, stress: false), action: {})
         }.padding(.top, NativeLayout.group)
             .background(.background)
+            .nativeMotionPolicy()
     }
 }

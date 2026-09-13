@@ -1,5 +1,31 @@
 import SwiftUI
 
+private struct NativeReduceMotionKey: EnvironmentKey {
+    static let defaultValue = false
+}
+
+extension EnvironmentValues {
+    var nativeReduceMotion: Bool {
+        get { self[NativeReduceMotionKey.self] }
+        set { self[NativeReduceMotionKey.self] = newValue }
+    }
+}
+
+private struct NativeMotionPolicy: ViewModifier {
+    @Environment(\.accessibilityReduceMotion) private var systemReducedMotion
+    @Environment(\.nativeReduceMotion) private var injectedReducedMotion
+
+    func body(content: Content) -> some View {
+        content.transaction { transaction in
+            NativeMotion.apply(to: &transaction, reducedMotion: systemReducedMotion || injectedReducedMotion)
+        }
+    }
+}
+
+extension View {
+    func nativeMotionPolicy() -> some View { modifier(NativeMotionPolicy()) }
+}
+
 enum PrimitiveFocus {
     static let order = ["consent.accept", "consent.reject", "capture.primary",
                         "settings.exclusions", "destructive.cancel", "destructive.confirm"]

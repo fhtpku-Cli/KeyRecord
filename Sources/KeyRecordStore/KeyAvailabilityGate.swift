@@ -40,6 +40,15 @@ public final class KeyAvailabilityGate: KeyAvailabilityFencing, @unchecked Senda
         }
     }
 
+    public func renewOpenGeneration() throws -> CaptureGeneration {
+        try mutex.withLock {
+            _ = try begin()
+            update(.unknown)
+            update(.unlocked)
+            return try begin()
+        }
+    }
+
     public func check(_ candidate: CaptureGeneration) throws {
         try mutex.withLock { try checkLocked(candidate) }
     }

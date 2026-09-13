@@ -48,7 +48,7 @@ public actor FlushScheduler: LifecycleFlushing {
 
     public func reopen() throws {
         discard()
-        schedule.reopen(generation: try gate.begin(), now: clock.now())
+        schedule.reopen(generation: try gate.renewOpenGeneration(), now: clock.now())
     }
 
     public nonisolated func close(_ state: SessionLockState = .locked) async {
@@ -76,10 +76,13 @@ public actor FlushScheduler: LifecycleFlushing {
 
     public func tick() { start(force: false) }
 
+    public func waitForIssuedWrite() async { await writing?.value }
+
     public func completion() async -> FlushCompletion {
         guard let generation = schedule.generation,
               (try? gate.check(generation)) != nil else { return .locked }
         if schedule.revision == schedule.durableRevision { return .saved }
+        if physicalID != nil && schedule.active == nil { return .timedOut }
         return await withCheckedContinuation { continuation in
             waiters.append(continuation)
             start(force: true)

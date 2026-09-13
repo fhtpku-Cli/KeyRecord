@@ -476,6 +476,22 @@
       "expectedKind": "xctest",
       "timeoutSeconds": 1200,
       "minTestCount": 11
+    },
+    {
+      "task": 17,
+      "case": "happy",
+      "argv": ["swift", "test", "--package-path", ".", "--scratch-path", "{attempt}/build/root", "--filter", "LocalDeletionPlanTests|LocalDeletionCoordinatorTests"],
+      "expectedKind": "xctest",
+      "timeoutSeconds": 1200,
+      "minTestCount": 10
+    },
+    {
+      "task": 17,
+      "case": "failure",
+      "argv": ["swift", "test", "--package-path", ".", "--scratch-path", "{attempt}/build/root", "--filter", "LocalDeletionRealFSTests|LocalDeletionDestructionRecoveryTests"],
+      "expectedKind": "xctest",
+      "timeoutSeconds": 1200,
+      "minTestCount": 9
     }
   ]
 }

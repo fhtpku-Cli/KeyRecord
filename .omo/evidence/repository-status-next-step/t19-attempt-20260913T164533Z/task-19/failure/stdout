@@ -1,0 +1,44 @@
+Test Suite 'Selected tests' started at 2026-09-14 00:58:43.929.
+Test Suite 'KeyRecordPackageTests.xctest' started at 2026-09-14 00:58:43.930.
+Test Suite 'FencedObjectPersistenceTests' started at 2026-09-14 00:58:43.930.
+Test Case '-[KeyRecordStoreTests.FencedObjectPersistenceTests testEncryptedObjectRecoversWhenFencedBatchCommits]' started.
+Test Case '-[KeyRecordStoreTests.FencedObjectPersistenceTests testEncryptedObjectRecoversWhenFencedBatchCommits]' passed (0.011 seconds).
+Test Case '-[KeyRecordStoreTests.FencedObjectPersistenceTests testNoCiphertextPublishedWhenQueuedGenerationWasRevoked]' started.
+Test Case '-[KeyRecordStoreTests.FencedObjectPersistenceTests testNoCiphertextPublishedWhenQueuedGenerationWasRevoked]' passed (0.009 seconds).
+Test Suite 'FencedObjectPersistenceTests' passed at 2026-09-14 00:58:43.950.
+	 Executed 2 tests, with 0 failures (0 unexpected) in 0.020 (0.021) seconds
+Test Suite 'Phase1PersistenceRaceTests' started at 2026-09-14 00:58:43.950.
+Test Case '-[KeyRecordIntegrationTests.Phase1PersistenceRaceTests testEveryReopenRevokesPreviousGenerationEvenWithoutLockNotification]' started.
+Test Case '-[KeyRecordIntegrationTests.Phase1PersistenceRaceTests testEveryReopenRevokesPreviousGenerationEvenWithoutLockNotification]' passed (0.005 seconds).
+Test Case '-[KeyRecordIntegrationTests.Phase1PersistenceRaceTests testLockDuringCiphertextIONeverPublishesReadableManifest]' started.
+Test Case '-[KeyRecordIntegrationTests.Phase1PersistenceRaceTests testLockDuringCiphertextIONeverPublishesReadableManifest]' passed (0.008 seconds).
+Test Case '-[KeyRecordIntegrationTests.Phase1PersistenceRaceTests testLockedReadCannotReturnPlaintextFromPreviouslyCommittedObject]' started.
+Test Case '-[KeyRecordIntegrationTests.Phase1PersistenceRaceTests testLockedReadCannotReturnPlaintextFromPreviouslyCommittedObject]' passed (0.008 seconds).
+Test Case '-[KeyRecordIntegrationTests.Phase1PersistenceRaceTests testSlowFsyncTimesOutWithoutClaimingSavedOrStartingSecondWriter]' started.
+Test Case '-[KeyRecordIntegrationTests.Phase1PersistenceRaceTests testSlowFsyncTimesOutWithoutClaimingSavedOrStartingSecondWriter]' passed (0.005 seconds).
+Test Suite 'Phase1PersistenceRaceTests' passed at 2026-09-14 00:58:43.976.
+	 Executed 4 tests, with 0 failures (0 unexpected) in 0.026 (0.026) seconds
+Test Suite 'Phase1QueuedProtectionTests' started at 2026-09-14 00:58:43.976.
+Test Case '-[KeyRecordIntegrationTests.Phase1QueuedProtectionTests testQueuedWriterCannotReplaceCommittedCountsAfterLockAndReopen]' started.
+Test Case '-[KeyRecordIntegrationTests.Phase1QueuedProtectionTests testQueuedWriterCannotReplaceCommittedCountsAfterLockAndReopen]' passed (0.011 seconds).
+Test Case '-[KeyRecordIntegrationTests.Phase1QueuedProtectionTests testReadCompletionCannotDecryptAfterKeyRetrievalRacesWithLock]' started.
+Test Case '-[KeyRecordIntegrationTests.Phase1QueuedProtectionTests testReadCompletionCannotDecryptAfterKeyRetrievalRacesWithLock]' passed (0.008 seconds).
+Test Suite 'Phase1QueuedProtectionTests' passed at 2026-09-14 00:58:43.995.
+	 Executed 2 tests, with 0 failures (0 unexpected) in 0.019 (0.019) seconds
+Test Suite 'Phase1ReleaseIsolationTests' started at 2026-09-14 00:58:43.995.
+Test Case '-[KeyRecordIntegrationTests.Phase1ReleaseIsolationTests testProductCompositionCannotSelectPortsFromEnvironmentOrArguments]' started.
+Test Case '-[KeyRecordIntegrationTests.Phase1ReleaseIsolationTests testProductCompositionCannotSelectPortsFromEnvironmentOrArguments]' passed (0.004 seconds).
+Test Case '-[KeyRecordIntegrationTests.Phase1ReleaseIsolationTests testProductSourcesHaveNoNetworkOrShellExecutionAPIs]' started.
+Test Case '-[KeyRecordIntegrationTests.Phase1ReleaseIsolationTests testProductSourcesHaveNoNetworkOrShellExecutionAPIs]' passed (0.083 seconds).
+Test Case '-[KeyRecordIntegrationTests.Phase1ReleaseIsolationTests testReleaseCannotReferenceDebugFixtureComposition]' started.
+Test Case '-[KeyRecordIntegrationTests.Phase1ReleaseIsolationTests testReleaseCannotReferenceDebugFixtureComposition]' passed (0.227 seconds).
+Test Suite 'Phase1ReleaseIsolationTests' passed at 2026-09-14 00:58:44.310.
+	 Executed 3 tests, with 0 failures (0 unexpected) in 0.315 (0.315) seconds
+Test Suite 'KeyRecordPackageTests.xctest' passed at 2026-09-14 00:58:44.310.
+	 Executed 11 tests, with 0 failures (0 unexpected) in 0.380 (0.380) seconds
+Test Suite 'Selected tests' passed at 2026-09-14 00:58:44.310.
+	 Executed 11 tests, with 0 failures (0 unexpected) in 0.380 (0.381) seconds
+◇ Test run started.
+↳ Testing Library Version: 1902
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.

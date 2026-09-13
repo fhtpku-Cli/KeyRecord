@@ -1,0 +1,193 @@
+[0/1] Planning build
+Building for debugging...
+[0/3] Write sources
+[1/3] Write swift-version--58304C5D6DBC2206.txt
+[3/8] Compiling KeyRecordCore PreferencesRepository.swift
+[4/8] Compiling KeyRecordCore LifecycleOrchestrator.swift
+[5/8] Compiling KeyRecordCore LifecyclePorts.swift
+[6/8] Compiling KeyRecordCore Phase1FlowModel.swift
+[7/8] Emitting module KeyRecordCore
+[8/13] Compiling KeyRecordCore LoginItemPolicy.swift
+[9/13] Compiling KeyRecordCore LifecycleTransitions.swift
+[10/13] Compiling KeyRecordCore LifecyclePauseTransitions.swift
+[11/13] Compiling KeyRecordCore LifecycleReducer.swift
+[12/13] Compiling KeyRecordCore LifecycleReopenTransitions.swift
+[13/59] Compiling KeyRecordCapture SecureInputBridge.swift
+[14/60] Compiling KeyRecordCapture SystemSecureInputBackend.swift
+[15/60] Compiling KeyRecordCapture SystemForegroundBackend.swift
+[16/60] Compiling KeyRecordCapture ListenOnlyEventSource.swift
+[17/60] Compiling KeyRecordStore AggregatePersistence.swift
+[18/60] Compiling KeyRecordStore AtomicFileSystem.swift
+[19/60] Compiling KeyRecordTestSupport DomainFixtures.swift
+[20/60] Compiling KeyRecordTestSupport LifecycleFixtures.swift
+[21/60] Emitting module KeyRecordTestSupport
+[22/60] Compiling KeyRecordTestSupport SourceInspection.swift
+[23/60] Compiling KeyRecordTestSupport LifecycleReducerFixtures.swift
+[24/60] Compiling KeyRecordTestSupport LifecycleHarness.swift
+[25/60] Emitting module KeyRecordCapture
+[26/60] Compiling KeyRecordStore KeyringProtectedAccess.swift
+[27/60] Compiling KeyRecordStore KeyringRecovery.swift
+[28/60] Compiling KeyRecordStore KeyringRotation.swift
+[29/60] Compiling KeyRecordStore LocalDeletionCoordinator.swift
+[30/60] Compiling KeyRecordCapture CaptureProviders.swift
+[31/60] Compiling KeyRecordCapture CaptureQueue.swift
+[32/64] Emitting module KeyRecordStore
+[33/64] Compiling KeyRecordStore LocalDeletionPlan.swift
+[34/64] Compiling KeyRecordStore LocatorCodec.swift
+[35/64] Compiling KeyRecordStore ObjectStore.swift
+[36/64] Compiling KeyRecordStore ObjectStoreBootstrap.swift
+[37/64] Compiling KeyRecordStore EncryptedManifest.swift
+[38/64] Compiling KeyRecordStore FencedObjectPersistence.swift
+[39/64] Compiling KeyRecordStore FlushSchedule.swift
+[40/64] Compiling KeyRecordStore FlushScheduler.swift
+[41/64] Compiling KeyRecordStore KeyAvailabilityGate.swift
+[42/64] Compiling KeyRecordStore KeychainKeyring.swift
+[43/64] Compiling KeyRecordStore KeyringMetadata.swift
+[44/64] Compiling KeyRecordStore KeyringPorts.swift
+[45/80] Compiling KeyRecordStore ProtectedReferences.swift
+[46/80] Compiling KeyRecordStore SerialObjectWriter.swift
+[47/80] Compiling KeyRecordStore StorageWire.swift
+[48/80] Compiling KeyRecordStore StoreProtectedSession.swift
+[49/80] Compiling KeyRecordCoreTests LifecycleRestartTests.swift
+[50/80] Compiling KeyRecordCoreTests LifecycleTests.swift
+[51/80] Compiling KeyRecordStore CycleResetObjectAccess.swift
+[52/80] Compiling KeyRecordStore CycleResetRecovery.swift
+[53/80] Compiling KeyRecordStore CycleResetTransaction.swift
+[54/80] Compiling KeyRecordCapture SystemTapBackend.swift
+[55/81] Compiling KeyRecordStore StoreProviders.swift
+[56/81] Compiling KeyRecordStore StoreRecovery.swift
+[57/81] Compiling KeyRecordStore SystemLocalDeletion.swift
+[58/81] Compiling KeyRecordStore SystemMasterMaterial.swift
+[59/81] Compiling KeyRecordCoreTests PreferencesTests.swift
+[60/81] Compiling KeyRecordCoreTests PrivacyGateTests.swift
+[61/81] Compiling KeyRecordCoreTests NormalizationFixtures.swift
+[62/81] Compiling KeyRecordCoreTests NormalizationRuleTests.swift
+[63/81] Compiling KeyRecordCoreTests AggregatePresentationTests.swift
+[64/89] Compiling KeyRecordCoreTests LoginItemTests.swift
+[65/89] Compiling KeyRecordCoreTests NormalizationBoundaryTests.swift
+[66/89] Compiling KeyRecordCoreTests NormalizationTests.swift
+[67/89] Compiling KeyRecordCoreTests Phase1FlowModelTests.swift
+[68/89] Compiling KeyRecordCoreTests LifecycleBoundaryTests.swift
+/Users/bytedance/Documents/KeyRecord-wt-t19/Tests/KeyRecordCoreTests/LifecycleOrchestrationTests.swift:59:9: warning: no 'async' operations occur within 'await' expression
+ 57 |         let harness = LifecycleHarness()
+ 58 |         harness.orchestrator.requestConsent()
+ 59 |         await harness.orchestrator.denyConsent()
+    |         `- warning: no 'async' operations occur within 'await' expression
+ 60 |         let saves = await harness.storage.saveCount
+ 61 |         let provisions = await harness.keys.provisionCount
+[69/89] Compiling KeyRecordCoreTests LifecycleOrchestrationTests.swift
+/Users/bytedance/Documents/KeyRecord-wt-t19/Tests/KeyRecordCoreTests/LifecycleOrchestrationTests.swift:59:9: warning: no 'async' operations occur within 'await' expression
+ 57 |         let harness = LifecycleHarness()
+ 58 |         harness.orchestrator.requestConsent()
+ 59 |         await harness.orchestrator.denyConsent()
+    |         `- warning: no 'async' operations occur within 'await' expression
+ 60 |         let saves = await harness.storage.saveCount
+ 61 |         let provisions = await harness.keys.provisionCount
+/Users/bytedance/Documents/KeyRecord-wt-t19/Tests/KeyRecordCoreTests/LifecycleTests.swift:97:23: warning: no calls to throwing functions occur within 'try' expression
+ 95 |         // Given: persist done; When: capture starts; Then: collecting, login registration is the only effect.
+ 96 |         let state = try run(try run(try FX.acceptedStartState(), .keyProvisioned), .bootstrapPersisted)
+ 97 |         let outcome = try reduce(state, .captureStarted)
+    |                       `- warning: no calls to throwing functions occur within 'try' expression
+ 98 |         XCTAssertEqual(outcome.state.phase, .collecting)
+ 99 |         XCTAssertEqual(outcome.effects, [.registerLoginItem])
+/Users/bytedance/Documents/KeyRecord-wt-t19/Tests/KeyRecordCoreTests/LifecycleTests.swift:97:23: warning: no calls to throwing functions occur within 'try' expression
+ 95 |         // Given: persist done; When: capture starts; Then: collecting, login registration is the only effect.
+ 96 |         let state = try run(try run(try FX.acceptedStartState(), .keyProvisioned), .bootstrapPersisted)
+ 97 |         let outcome = try reduce(state, .captureStarted)
+    |                       `- warning: no calls to throwing functions occur within 'try' expression
+ 98 |         XCTAssertEqual(outcome.state.phase, .collecting)
+ 99 |         XCTAssertEqual(outcome.effects, [.registerLoginItem])
+[76/91] Emitting module KeyRecordCoreTests
+/Users/bytedance/Documents/KeyRecord-wt-t19/Tests/KeyRecordCoreTests/AggregatePresentationTests.swift:25:5: warning: no calls to throwing functions occur within 'try' expression
+ 23 | 
+ 24 | private func shortcut(_ day: LocalDay, _ bucket: ChordBucket, _ counts: SourceCounts) throws -> DailyShortcutAggregate {
+ 25 |     try DailyShortcutAggregate(cycleID: cycle, day: day, identity: bucket,
+    |     `- warning: no calls to throwing functions occur within 'try' expression
+ 26 |                                classification: ChordRuleTable.v1.classify(bucket.chord),
+ 27 |                                sourceCounts: counts)
+[78/91] Compiling KeyRecordCoreTests AggregationTests.swift
+/Users/bytedance/Documents/KeyRecord-wt-t19/Tests/KeyRecordCoreTests/AggregatePresentationTests.swift:25:5: warning: no calls to throwing functions occur within 'try' expression
+ 23 | 
+ 24 | private func shortcut(_ day: LocalDay, _ bucket: ChordBucket, _ counts: SourceCounts) throws -> DailyShortcutAggregate {
+ 25 |     try DailyShortcutAggregate(cycleID: cycle, day: day, identity: bucket,
+    |     `- warning: no calls to throwing functions occur within 'try' expression
+ 26 |                                classification: ChordRuleTable.v1.classify(bucket.chord),
+ 27 |                                sourceCounts: counts)
+[79/91] Compiling KeyRecordCoreTests DomainSchemaTests.swift
+/Users/bytedance/Documents/KeyRecord-wt-t19/Tests/KeyRecordCoreTests/AggregatePresentationTests.swift:25:5: warning: no calls to throwing functions occur within 'try' expression
+ 23 | 
+ 24 | private func shortcut(_ day: LocalDay, _ bucket: ChordBucket, _ counts: SourceCounts) throws -> DailyShortcutAggregate {
+ 25 |     try DailyShortcutAggregate(cycleID: cycle, day: day, identity: bucket,
+    |     `- warning: no calls to throwing functions occur within 'try' expression
+ 26 |                                classification: ChordRuleTable.v1.classify(bucket.chord),
+ 27 |                                sourceCounts: counts)
+[80/91] Compiling KeyRecordIntegrationTests ProviderCompositionTests.swift
+[81/91] Compiling KeyRecordIntegrationTests Phase1QueuedProtectionTests.swift
+[82/91] Compiling KeyRecordIntegrationTests Phase1PersistenceRaceTests.swift
+[83/91] Compiling KeyRecordIntegrationTests Phase1IntegrationTests.swift
+[84/91] Compiling KeyRecordIntegrationTests Phase1MaintenanceTests.swift
+[85/91] Compiling KeyRecordIntegrationTests Phase1ReleaseIsolationTests.swift
+[86/91] Emitting module KeyRecordIntegrationTests
+[87/91] Compiling KeyRecordIntegrationTests Phase1IntegrationFixture.swift
+[88/91] Compiling KeyRecordCoreTests ProductBoundaryTests.swift
+[89/91] Compiling KeyRecordCoreTests SummaryTests.swift
+[89/91] Write Objects.LinkFileList
+[90/91] Linking KeyRecordPackageTests
+Build complete! (3.99s)
+Test Suite 'Selected tests' started at 2026-09-14 01:29:25.364.
+Test Suite 'KeyRecordPackageTests.xctest' started at 2026-09-14 01:29:25.365.
+Test Suite 'LifecycleBoundaryTests' started at 2026-09-14 01:29:25.365.
+Test Case '-[KeyRecordCoreTests.LifecycleBoundaryTests testAppTreeNeverTouchesKeychainDirectly]' started.
+Test Case '-[KeyRecordCoreTests.LifecycleBoundaryTests testAppTreeNeverTouchesKeychainDirectly]' passed (0.039 seconds).
+Test Case '-[KeyRecordCoreTests.LifecycleBoundaryTests testControllersMakeNoDirectSystemLoginOrKeychainCalls]' started.
+Test Case '-[KeyRecordCoreTests.LifecycleBoundaryTests testControllersMakeNoDirectSystemLoginOrKeychainCalls]' passed (0.001 seconds).
+Test Case '-[KeyRecordCoreTests.LifecycleBoundaryTests testLifecycleExposesNoDirectTimeOrFileIO]' started.
+Test Case '-[KeyRecordCoreTests.LifecycleBoundaryTests testLifecycleExposesNoDirectTimeOrFileIO]' passed (0.010 seconds).
+Test Case '-[KeyRecordCoreTests.LifecycleBoundaryTests testLifecycleFilesStayUnder250LinesAndImportOnlyFoundation]' started.
+Test Case '-[KeyRecordCoreTests.LifecycleBoundaryTests testLifecycleFilesStayUnder250LinesAndImportOnlyFoundation]' passed (0.005 seconds).
+Test Case '-[KeyRecordCoreTests.LifecycleBoundaryTests testRootSourcesContainNoLoginKeychainOrTapSystemEffects]' started.
+Test Case '-[KeyRecordCoreTests.LifecycleBoundaryTests testRootSourcesContainNoLoginKeychainOrTapSystemEffects]' passed (0.095 seconds).
+Test Case '-[KeyRecordCoreTests.LifecycleBoundaryTests testSMAppServiceLivesInExactlyOneThinAppBackend]' started.
+Test Case '-[KeyRecordCoreTests.LifecycleBoundaryTests testSMAppServiceLivesInExactlyOneThinAppBackend]' passed (0.026 seconds).
+Test Case '-[KeyRecordCoreTests.LifecycleBoundaryTests testTestSourcesNeverImportTheConcreteLoginServiceModule]' started.
+Test Case '-[KeyRecordCoreTests.LifecycleBoundaryTests testTestSourcesNeverImportTheConcreteLoginServiceModule]' passed (0.094 seconds).
+Test Suite 'LifecycleBoundaryTests' passed at 2026-09-14 01:29:25.636.
+	 Executed 7 tests, with 0 failures (0 unexpected) in 0.270 (0.271) seconds
+Test Suite 'Phase1MaintenanceTests' started at 2026-09-14 01:29:25.636.
+Test Case '-[KeyRecordIntegrationTests.Phase1MaintenanceTests testMaintenanceTimeoutDoesNotAllowDeletionWhileCiphertextIsOutstanding]' started.
+Test Case '-[KeyRecordIntegrationTests.Phase1MaintenanceTests testMaintenanceTimeoutDoesNotAllowDeletionWhileCiphertextIsOutstanding]' passed (0.008 seconds).
+Test Case '-[KeyRecordIntegrationTests.Phase1MaintenanceTests testPreferencesAndAggregateShareOneWriterWithoutLeaseContention]' started.
+Test Case '-[KeyRecordIntegrationTests.Phase1MaintenanceTests testPreferencesAndAggregateShareOneWriterWithoutLeaseContention]' passed (0.014 seconds).
+Test Case '-[KeyRecordIntegrationTests.Phase1MaintenanceTests testResetReloadUsesNewCycleForSubsequentPreferenceWritesAndRestartsExpectation]' started.
+Test Case '-[KeyRecordIntegrationTests.Phase1MaintenanceTests testResetReloadUsesNewCycleForSubsequentPreferenceWritesAndRestartsExpectation]' passed (0.001 seconds).
+Test Suite 'Phase1MaintenanceTests' passed at 2026-09-14 01:29:25.659.
+	 Executed 3 tests, with 0 failures (0 unexpected) in 0.023 (0.023) seconds
+Test Suite 'PreferencesTests' started at 2026-09-14 01:29:25.659.
+Test Case '-[KeyRecordCoreTests.PreferencesTests testEncodedWireCarriesSchemaVersionOne]' started.
+Test Case '-[KeyRecordCoreTests.PreferencesTests testEncodedWireCarriesSchemaVersionOne]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.PreferencesTests testExclusionChangeSurvivesRepositoryReopen]' started.
+Test Case '-[KeyRecordCoreTests.PreferencesTests testExclusionChangeSurvivesRepositoryReopen]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.PreferencesTests testFirstRunLoadReturnsNilWithoutWrites]' started.
+Test Case '-[KeyRecordCoreTests.PreferencesTests testFirstRunLoadReturnsNilWithoutWrites]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.PreferencesTests testMalformedJSONIsRejectedAsCorrupt]' started.
+Test Case '-[KeyRecordCoreTests.PreferencesTests testMalformedJSONIsRejectedAsCorrupt]' passed (0.001 seconds).
+Test Case '-[KeyRecordCoreTests.PreferencesTests testSaveThenLoadRoundTripsEveryField]' started.
+Test Case '-[KeyRecordCoreTests.PreferencesTests testSaveThenLoadRoundTripsEveryField]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.PreferencesTests testStorageLoadFailureIsTypedUnavailable]' started.
+Test Case '-[KeyRecordCoreTests.PreferencesTests testStorageLoadFailureIsTypedUnavailable]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.PreferencesTests testStorageSaveFailureIsTypedUnavailable]' started.
+Test Case '-[KeyRecordCoreTests.PreferencesTests testStorageSaveFailureIsTypedUnavailable]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.PreferencesTests testUnknownFieldsAreRejectedAsCorrupt]' started.
+Test Case '-[KeyRecordCoreTests.PreferencesTests testUnknownFieldsAreRejectedAsCorrupt]' passed (0.000 seconds).
+Test Case '-[KeyRecordCoreTests.PreferencesTests testUnsupportedSchemaVersionIsRejectedAsCorrupt]' started.
+Test Case '-[KeyRecordCoreTests.PreferencesTests testUnsupportedSchemaVersionIsRejectedAsCorrupt]' passed (0.000 seconds).
+Test Suite 'PreferencesTests' passed at 2026-09-14 01:29:25.661.
+	 Executed 9 tests, with 0 failures (0 unexpected) in 0.002 (0.002) seconds
+Test Suite 'KeyRecordPackageTests.xctest' passed at 2026-09-14 01:29:25.661.
+	 Executed 19 tests, with 0 failures (0 unexpected) in 0.295 (0.296) seconds
+Test Suite 'Selected tests' passed at 2026-09-14 01:29:25.661.
+	 Executed 19 tests, with 0 failures (0 unexpected) in 0.295 (0.298) seconds
+◇ Test run started.
+↳ Testing Library Version: 1902
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.

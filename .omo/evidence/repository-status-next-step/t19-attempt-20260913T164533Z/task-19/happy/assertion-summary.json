@@ -1,0 +1,21 @@
+{
+  "outcome": "PASS",
+  "code": "assertions_passed",
+  "childExitStatus": 0,
+  "runnerExitStatus": 0,
+  "executed": 11,
+  "skipped": 0,
+  "failed": 0,
+  "timedOut": false,
+  "timeoutSeconds": 420.0,
+  "argv": [
+    "swift",
+    "test",
+    "--package-path",
+    ".",
+    "--scratch-path",
+    "/Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T164533Z/build/root",
+    "--filter",
+    "FlushScheduleTests|FlushSchedulerTests|Phase1IntegrationTests"
+  ]
+}

@@ -51,6 +51,16 @@ final class ProductReduction: @unchecked Sendable {
             }
         }
     }
+
+    func snapshot() throws -> AggregateSnapshot? {
+        try mutex.withLock {
+            let generation = try gate.begin()
+            return try gate.use(generation) {
+                guard let aggregate else { return nil }
+                return try AggregateSnapshot(shortcuts: aggregate.shortcuts, bareKeys: aggregate.bareKeys)
+            }
+        }
+    }
 }
 
 actor ProductFlush: LifecycleFlushing {

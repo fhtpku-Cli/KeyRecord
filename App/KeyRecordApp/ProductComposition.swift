@@ -5,6 +5,12 @@ import KeyRecordCapture
 import KeyRecordStore
 
 @MainActor
+final class ProductMaintenanceHooks {
+    var stop: () -> Void = {}
+    var start: () -> Void = {}
+}
+
+@MainActor
 final class ProductComposition: NSObject, NSMenuDelegate {
     let lifecycle: LifecycleOrchestrator
     let flow: AppFlowObservable
@@ -21,7 +27,7 @@ final class ProductComposition: NSObject, NSMenuDelegate {
 
     static func make() async throws -> ProductComposition {
         let root = try FileManager.default.url(for: .applicationSupportDirectory, in: .userDomainMask,
-                                               appropriateFor: nil, create: false).appendingPathComponent("KeyRecord")
+            appropriateFor: nil, create: false).appendingPathComponent("com.keyrecord.app/store", isDirectory: true)
         let gate = KeyAvailabilityGate()
         let namespace = try KeychainNamespace("com.keyrecord.app")
         // T7 has no qualified system-lock witness. Never replace this boundary with
@@ -33,10 +39,12 @@ final class ProductComposition: NSObject, NSMenuDelegate {
         let keyring = KeychainKeyring(configuration: KeyringConfiguration(namespace: namespace),
             ports: KeyringPorts(backend: backend, entropy: SystemMasterMaterial(), creation: consent,
                                 references: store, clock: ProductClock()), gate: gate)
-        let persistence = ProductPersistence(store: store, keyring: keyring, consent: consent, gate: gate)
+        let clock = SystemFlushClock()
+        let writer = SerialObjectWriter(writer: FencedObjectWriter(store: store, gate: gate), clock: clock)
+        let persistence = ProductPersistence(store: store, keyring: keyring, consent: consent, gate: gate,
+                                             writer: writer, ownedRoot: root)
         let reduction = ProductReduction(gate: gate)
-        let scheduler = FlushScheduler(gate: gate, writer: FencedObjectWriter(store: store, gate: gate),
-                                       clock: SystemFlushClock())
+        let scheduler = FlushScheduler(gate: gate, writer: writer, clock: clock)
         let queue = CaptureQueue()
         let eventSource = await ListenOnlyEventSource.system(queue: queue, qualification: UnqualifiedCapture())
         let capture = ProductCapture(source: eventSource, queue: queue, reduction: reduction,
@@ -45,23 +53,31 @@ final class ProductComposition: NSObject, NSMenuDelegate {
         let login = ProductLogin.make()
         let deletion = LocalDeletionCoordinator(ownedRoot: root.path, fileSystem: FileSystemDeletionAdapter(),
             keychain: KeychainDeletionAdapter(keyring: keyring), loginItems: ProductDeletionLogin(login: login))
-        let destruction = ProductDestruction(store: store, gate: gate, flush: flush, capture: capture,
-                                             deletion: deletion, clear: { reduction.clear() })
         let lifecycle = LifecycleOrchestrator(ports: LifecyclePorts(preferences: persistence, keys: persistence,
             capture: capture, flush: flush, readiness: capture, login: login, cycleIDs: ProductCycleIDs()))
+        let hooks = ProductMaintenanceHooks()
+        let destruction = ProductDestruction(store: store, gate: gate, flush: flush, capture: capture,
+            deletion: deletion, scheduler: scheduler, writer: writer, beforeMaintenance: { hooks.stop() },
+            afterReset: { await lifecycle.reloadAfterCycleReset(); hooks.start() }, clear: { reduction.clear() })
         let flow = AppFlowObservable(flow: Phase1FlowModel(lifecycle: lifecycle,
             cycleReset: destruction, localDataEraser: destruction))
         return ProductComposition(lifecycle: lifecycle, flow: flow, gate: gate, reduction: reduction,
-                                  scheduler: scheduler, flush: flush, capture: capture, store: store)
+                                  scheduler: scheduler, flush: flush, capture: capture, store: store, hooks: hooks)
     }
 
     private init(lifecycle: LifecycleOrchestrator, flow: AppFlowObservable, gate: KeyAvailabilityGate,
                  reduction: ProductReduction, scheduler: FlushScheduler, flush: ProductFlush,
-                 capture: ProductCapture, store: ObjectStore) {
+                 capture: ProductCapture, store: ObjectStore, hooks: ProductMaintenanceHooks) {
         self.lifecycle = lifecycle; self.flow = flow; self.gate = gate; self.reduction = reduction
         self.scheduler = scheduler; self.flush = flush; self.capture = capture; self.store = store
         text = NativeText(locale: Locale.preferredLanguages.first?.hasPrefix("zh") == true ? "zh-Hans" : "en")
         super.init()
+        hooks.stop = { [weak self] in
+            self?.pulse?.cancel(); self?.pulse = nil
+            self?.flow.snapshot = nil
+            self?.flow.update(phase: .blocked)
+        }
+        hooks.start = { [weak self] in self?.sync(); self?.startPulseIfCollecting() }
         flow.actions = FlowActions(
             accept: { [weak self] in await self?.accept() },
             decline: { lifecycle.denyConsent() },
@@ -72,10 +88,12 @@ final class ProductComposition: NSObject, NSMenuDelegate {
             setExclusions: { [weak self] ids in await lifecycle.setExclusions(ids); self?.sync() },
             setLoginItem: { [weak self] enabled in await lifecycle.setLoginItem(enabled: enabled); self?.sync() },
             openSettings: { [weak self] in self?.showWindow() })
+        let queue = capture.queue
         for name in [NSWorkspace.willSleepNotification, NSWorkspace.sessionDidResignActiveNotification] {
             observers.append(NSWorkspace.shared.notificationCenter.addObserver(forName: name, object: nil,
-                queue: nil) { [weak self, gate, reduction] _ in
+                queue: nil) { [weak self, gate, reduction, queue] _ in
                     gate.update(.unknown)
+                    queue.revoke()
                     reduction.clear()
                     Task { @MainActor in await self?.closeProtectedState() }
                 })
@@ -107,14 +125,24 @@ final class ProductComposition: NSObject, NSMenuDelegate {
         catch { sync(); return }
         await lifecycle.acceptConsent()
         sync()
+        startPulseIfCollecting()
+    }
+
+    private func startPulseIfCollecting() {
         guard lifecycle.phase == .collecting else { return }
         pulse?.cancel()
         pulse = Task { [weak self] in
             while !Task.isCancelled {
                 do { try await Task.sleep(for: .seconds(1)) } catch { return }
                 guard let self else { return }
-                do { try await self.flush.pulse() }
-                catch { await self.closeProtectedState(); return }
+                do {
+                    try await self.flush.pulse()
+                    self.flow.snapshot = try self.reduction.snapshot()
+                }
+                catch {
+                    if !Task.isCancelled { await self.closeProtectedState() }
+                    return
+                }
             }
         }
     }

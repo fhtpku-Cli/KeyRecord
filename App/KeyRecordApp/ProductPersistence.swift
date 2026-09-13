@@ -49,19 +49,25 @@ actor ProductPersistence: LifecycleKeyProviding, PreferencesPersisting {
     let keyring: KeychainKeyring
     let consent: ProductConsent
     let gate: KeyAvailabilityGate
+    let writer: SerialObjectWriter
+    let ownedRoot: URL
 
-    init(store: ObjectStore, keyring: KeychainKeyring, consent: ProductConsent, gate: KeyAvailabilityGate) {
+    init(store: ObjectStore, keyring: KeychainKeyring, consent: ProductConsent, gate: KeyAvailabilityGate,
+         writer: SerialObjectWriter, ownedRoot: URL) {
         self.store = store; self.keyring = keyring; self.consent = consent; self.gate = gate
+        self.writer = writer; self.ownedRoot = ownedRoot
     }
 
     func provisionAfterConsent() async throws {
         _ = try gate.begin()
+        try AtomicFileSystem().preparePrivateRoot(at: ownedRoot.deletingLastPathComponent())
         let state = try await store.bootstrap()
         await consent.authorize(fresh: state == .freshInstall)
         if state == .freshInstall {
             _ = try await keyring.bootstrap()
             try await store.initializeFreshInstallation()
         } else { _ = try await keyring.open() }
+        try await writer.resume()
     }
 
     func load() async throws -> Preferences? {
@@ -81,7 +87,7 @@ actor ProductPersistence: LifecycleKeyProviding, PreferencesPersisting {
                                     createdDay: ProductClock().day, closedDay: nil, isCurrent: true)
             objects.append(FlushObject(identity: CycleResetObjects.currentCycle, payload: try JSONEncoder().encode(cycle)))
         }
-        try await FencedObjectWriter(store: store, gate: gate).write(objects, generation: generation)
+        try await writer.write(objects, generation: generation)
     }
 }
 
@@ -100,25 +106,60 @@ actor ProductDestruction: CycleResetting, LocalDataErasing {
     let capture: any LifecycleCaptureControlling
     let deletion: LocalDeletionCoordinator
     let clear: @Sendable () -> Void
+    let scheduler: FlushScheduler
+    let writer: SerialObjectWriter
+    let beforeMaintenance: @MainActor @Sendable () -> Void
+    let afterReset: @MainActor @Sendable () async -> Void
+    private var busy = false
+    private var resetOperation: UUID?
     init(store: ObjectStore, gate: KeyAvailabilityGate, flush: any LifecycleFlushing,
          capture: any LifecycleCaptureControlling, deletion: LocalDeletionCoordinator,
+         scheduler: FlushScheduler, writer: SerialObjectWriter,
+         beforeMaintenance: @escaping @MainActor @Sendable () -> Void,
+         afterReset: @escaping @MainActor @Sendable () async -> Void,
          clear: @escaping @Sendable () -> Void) {
         self.store = store; self.gate = gate; self.flush = flush
         self.capture = capture; self.deletion = deletion; self.clear = clear
+        self.scheduler = scheduler; self.writer = writer
+        self.beforeMaintenance = beforeMaintenance; self.afterReset = afterReset
     }
     func performCycleReset() async throws {
+        guard !busy else { throw LifecycleFlushError.failed }
+        busy = true
+        defer { busy = false }
+        await beforeMaintenance()
         await capture.stop()
-        try await flush.flushWhileUnlocked()
-        _ = try gate.begin()
-        _ = try await store.resetCycle(operationID: UUID(), day: ProductClock().day)
+        if resetOperation == nil { try await flush.flushWhileUnlocked() }
+        try await quiesce()
+        let operation = resetOperation ?? UUID()
+        resetOperation = operation
+        _ = try await store.resetCycle(operationID: operation, day: ProductClock().day)
         clear()
+        resetOperation = nil
+        try await writer.resume()
+        await afterReset()
     }
     func eraseAllLocalData() async throws {
+        guard !busy else { throw LifecycleFlushError.failed }
+        busy = true
+        defer { busy = false }
+        await beforeMaintenance()
         await capture.stop()
-        _ = try gate.begin()
-        let report = try await deletion.deleteEverything()
+        try await quiesce()
         clear()
         await store.closeProtectedSession()
+        let report = try await deletion.deleteEverything()
         guard report.succeeded else { throw LifecycleStoreError.filesystemFailure }
+    }
+
+    private func quiesce() async throws {
+        _ = try gate.renewOpenGeneration()
+        await scheduler.suspend()
+        switch await writer.suspendAndDrain() {
+        case .saved: return
+        case .failed: throw LifecycleFlushError.failed
+        case .timedOut: throw LifecycleFlushError.timedOut
+        case .locked: throw LifecycleFlushError.locked
+        }
     }
 }

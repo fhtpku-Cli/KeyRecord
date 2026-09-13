@@ -48,7 +48,11 @@ final class ProductBoundaryTests: XCTestCase {
         }
         for file in try SourceInspection.swiftFiles(in: SourceInspection.root.appendingPathComponent("Tests")) {
             let imports = try SourceInspection.imports(in: String(contentsOf: file, encoding: .utf8))
-            XCTAssertTrue(imports.isSubset(of: ["Foundation", "XCTest", "KeyRecordCore", "KeyRecordCapture", "KeyRecordStore", "KeyRecordTestSupport"]))
+            var allowed: Set<String> = ["Foundation", "XCTest", "KeyRecordCore", "KeyRecordCapture", "KeyRecordStore", "KeyRecordTestSupport"]
+            let performanceRoot = SourceInspection.root.appendingPathComponent("Tests/KeyRecordIntegrationTests")
+            if file == performanceRoot.appendingPathComponent("PerformanceReceipt.swift") { allowed.insert("CryptoKit") }
+            if file == performanceRoot.appendingPathComponent("PerformanceSystemSampler.swift") { allowed.insert("Darwin") }
+            XCTAssertTrue(imports.isSubset(of: allowed), file.path)
         }
     }
 

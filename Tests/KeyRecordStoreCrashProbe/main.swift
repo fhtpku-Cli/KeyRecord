@@ -67,6 +67,56 @@ actor BackedKeySource: ObjectStoreKeySource {
     }
 }
 
+actor DeterministicResetKeys: ObjectStoreKeySource {
+    private var initialized: Bool
+
+    init(manifestPresent: Bool) { initialized = manifestPresent }
+
+    func namespaceKeyVersions() async throws -> Set<KeyVersion> {
+        initialized ? [KeyVersion(rawValue: 1)] : []
+    }
+
+    func material(for version: KeyVersion) async throws -> Data {
+        guard version.rawValue == 1 else { throw ObjectStoreError.corruption(.envelopeKeyMissing) }
+        initialized = true
+        return Data(repeating: 7, count: 32)
+    }
+}
+
+let probeResetOperation = UUID(uuidString: "D178B166-9866-4361-AD90-996941ED4101")!
+let probeOldCycle = CycleID(rawValue: "old-cycle")
+
+func seedResetFixture(_ store: ObjectStore) async throws {
+    let encoder = JSONEncoder()
+    _ = try await store.put(
+        identity: CycleResetObjects.preferences,
+        payload: try encoder.encode(Preferences(currentCycleID: probeOldCycle, expectedCollecting: true)))
+    _ = try await store.put(
+        identity: CycleResetObjects.currentCycle,
+        payload: try encoder.encode(CycleRecord(cycleID: probeOldCycle, index: try Count(1),
+            createdDay: LocalDay("2026-09-11"), closedDay: nil, isCurrent: true)))
+    let chord = try ChordBucket(chord: Chord(keyCode: try KeyCode(12), modifiers: ModifierSet()), appBucket: .unknown)
+    for day in ["2026-09-11", "2026-09-12"] {
+        let counts = try SourceCounts(ordinary: try Count(2), suspectedInjection: try Count(1))
+        let shortcuts = [DailyShortcutAggregate(cycleID: probeOldCycle, day: LocalDay(day), identity: chord,
+            classification: ShortcutClassification(kind: .discrete, scope: .normal), sourceCounts: counts)]
+        let keys = try [DailyBareKeyAggregate(cycleID: probeOldCycle, day: LocalDay(day),
+            keyCode: try KeyCode(0), sourceCounts: counts)]
+        _ = try await store.put(
+            identity: .shard(cycleID: probeOldCycle.rawValue, dayKey: day, aggregateType: "shortcut"),
+            payload: try encoder.encode(shortcuts))
+        _ = try await store.put(
+            identity: .shard(cycleID: probeOldCycle.rawValue, dayKey: day, aggregateType: "bareKey"),
+            payload: try encoder.encode(keys))
+    }
+    for kind in ["mapping", "backup", "preferences", "ignored"] {
+        _ = try await store.put(
+            identity: CanonicalLogicalIdentity(objectType: "com.keyrecord.\(kind)", schemaVersion: 1,
+                                               logicalIDText: "opaque-fixture"),
+            payload: Data([0xff, 0, 0x80, 42]))
+    }
+}
+
 func parseBoundary(_ spec: String) throws -> (DurabilityPhase, DurabilityBoundary) {
     let parts = spec.split(separator: "-", maxSplits: 1).map(String.init)
     guard parts.count == 2,
@@ -82,8 +132,30 @@ func injection() throws -> DurabilityInjection {
     return DurabilityInjection(killPhase: phase, killAt: boundary)
 }
 
+func resetInjection(_ spec: String) throws -> CycleResetInjection {
+    guard spec != "none" else { return .none }
+    if spec.hasPrefix("stage-") {
+        let point = String(spec.dropFirst("stage-".count))
+        guard let kill = ResetKillPoint(rawValue: point) else { throw ProbeFailure(message: "bad stage \(spec)") }
+        return CycleResetInjection(killAfter: kill)
+    }
+    let parts = spec.split(separator: "-", maxSplits: 1).map(String.init)
+    guard parts.count == 2 else { throw ProbeFailure(message: "bad reset spec \(spec)") }
+    let (slot, boundarySpec) = (parts[0], parts[1])
+    let (phase, boundary) = try parseBoundary(boundarySpec)
+    let file = DurabilityInjection(killPhase: phase, killAt: boundary)
+    switch slot {
+    case "journal": return CycleResetInjection(journalWrite: file)
+    case "summary": return CycleResetInjection(summaryWrite: file)
+    case "details": return CycleResetInjection(detailDelete: file)
+    case "cycle": return CycleResetInjection(cycleWrite: file)
+    case "clear": return CycleResetInjection(journalClear: file)
+    default: throw ProbeFailure(message: "bad reset slot \(spec)")
+    }
+}
+
 let arguments = CommandLine.arguments
-guard arguments.count >= 3 else { throw ProbeFailure(message: "usage: probe <root> <put|rotate> [boundary]") }
+guard arguments.count >= 3 else { throw ProbeFailure(message: "usage: probe <root> <put|rotate|reset> [boundary]") }
 let root = URL(fileURLWithPath: arguments[1], isDirectory: true)
 let operation = arguments[2]
 let boundarySpec = arguments.count >= 4 ? arguments[3] : "none"
@@ -109,6 +181,11 @@ case "rotate":
     case .cleanup: migration = MigrationInjection(cleanup: DurabilityInjection(killPhase: .cleanup, killAt: boundary))
     }
     store = ObjectStore(root: root, keySource: keySource, migrationInjection: migration)
+case "reset":
+    let manifestPresent = FileManager.default.fileExists(
+        atPath: root.appendingPathComponent(ManifestDiscovery.fileName).path)
+    store = ObjectStore(root: root, keySource: DeterministicResetKeys(manifestPresent: manifestPresent),
+                        resetInjection: try resetInjection(boundarySpec))
 default:
     throw ProbeFailure(message: "unknown operation \(operation)")
 }
@@ -139,6 +216,15 @@ case "rotate":
                                            schemaVersion: 1, logicalIDText: "rotate-object"),
         payload: Data("rotate-object-payload".utf8))
     try await ring.rotate(to: KeyVersion(rawValue: 2))
+case "reset":
+    switch try await store.bootstrap() {
+    case .freshInstall:
+        try await store.initializeFreshInstallation()
+        try await seedResetFixture(store)
+    case .opened:
+        break
+    }
+    _ = try await store.resetCycle(operationID: probeResetOperation, day: LocalDay("2026-09-13"))
 default:
     break
 }

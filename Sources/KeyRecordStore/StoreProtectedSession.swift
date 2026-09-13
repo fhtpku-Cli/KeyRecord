@@ -116,8 +116,9 @@ extension ObjectStore {
         let nonManifest = classified.filter {
             if case .manifest = $0.1 { return false } else { return true }
         }
+        let journalLocators = try await pendingJournalLocators(known: versions)
         try await reconcileUnreferenced(nonManifest,
-                                        referenced: try opened().locators, known: versions)
+                                        referenced: try opened().locators.union(journalLocators), known: versions)
     }
 
     /// Complete protected-reference scan. Every referenced artifact is authenticated.

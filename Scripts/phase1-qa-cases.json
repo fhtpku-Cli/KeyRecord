@@ -460,6 +460,22 @@
       "expectedKind": "xctest",
       "timeoutSeconds": 1200,
       "minTestCount": 5
+    },
+    {
+      "task": 16,
+      "case": "happy",
+      "argv": ["swift", "test", "--package-path", ".", "--scratch-path", "{attempt}/build/root", "--filter", "CycleResetTests|CycleResetRotationTests"],
+      "expectedKind": "xctest",
+      "timeoutSeconds": 1200,
+      "minTestCount": 9
+    },
+    {
+      "task": 16,
+      "case": "failure",
+      "argv": ["swift", "test", "--package-path", ".", "--scratch-path", "{attempt}/build/root", "--filter", "CycleResetJournalFailureTests|CycleResetCrashTests"],
+      "expectedKind": "xctest",
+      "timeoutSeconds": 1200,
+      "minTestCount": 11
     }
   ]
 }

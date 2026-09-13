@@ -17,14 +17,20 @@ public actor ObjectStore {
     var unresolvedArtifacts: [String] = []
     private var nonces = NonceReuseDetector()
     var lease: UUID?
+    let cycleJournals: CycleResetJournalStore
+    let configuredResetInjection: CycleResetInjection
 
     public init(root: URL, keySource: any ObjectStoreKeySource,
-                journalSource: any StoreJournalRecoverySource = EmptyJournalRecoverySource(),
-                migrationInjection: MigrationInjection = .none) {
+                journalSource: (any StoreJournalRecoverySource)? = nil,
+                migrationInjection: MigrationInjection = .none,
+                resetInjection: CycleResetInjection = .none) {
         self.root = root
         self.keySource = keySource
-        self.journalSource = journalSource
+        let journals = CycleResetJournalStore(root: root)
+        self.cycleJournals = journals
+        self.journalSource = journalSource ?? journals
         self.configuredMigrationInjection = migrationInjection
+        self.configuredResetInjection = resetInjection
     }
 
     public func bootstrapState() -> StoreBootstrapState? { phase }
@@ -68,9 +74,10 @@ public actor ObjectStore {
             try await loadMaterial(Set([manifest.encryptionKeyVersion]
                 + manifest.manifest.entries.map(\.keyVersion)), known: versions)
             try validateReferencedFiles(manifest.manifest)
+            let journalLocators = try await pendingJournalLocators(known: versions)
             try await reconcileUnreferenced(classified.filter {
                 if case .manifest = $0.1 { return false } else { return true }
-            }, referenced: manifest.manifest.locators, known: versions)
+            }, referenced: manifest.manifest.locators.union(journalLocators), known: versions)
             manifestBox = manifest.manifest
             phase = .opened
             return .opened

@@ -15,6 +15,7 @@ public enum StoreCorruption: String, Error, Equatable, Sendable {
     case referencedObjectMissing
     case envelopeKeyMissing
     case unindexedDataWithNamespaceKey
+    case resetJournalUnreadable
 }
 
 public enum ObjectStoreError: Error, Equatable, Sendable {
@@ -28,6 +29,7 @@ public enum ObjectStoreError: Error, Equatable, Sendable {
     case manifest(ManifestError)
     case identity(LogicalIdentityError)
     case filesystem(FileSystemError)
+    case reset(CycleResetError)
 }
 
 public enum StoreBootstrapState: Equatable, Sendable {
@@ -56,10 +58,24 @@ public protocol StoreJournalRecoverySource: Sendable {
     func reencryptJournals(rotation: KeyRotation, access: KeyringProtectedAccess) async throws
     /// Protected references contributed by journals. `.unreadable` entries block retirement.
     func journalProtectedReferences(access: KeyringProtectedAccess) async throws -> [ProtectedReference]
+    /// Locators of unfinished journal envelopes, which are never manifest entries.
+    /// Bootstrap reconcile MUST union these into the referenced set; otherwise the first
+    /// reopen after a crash would unlink the pending journal as a proven-owned orphan.
+    func pendingJournalLocators(
+        knownVersions: Set<KeyVersion>,
+        material: @Sendable (KeyVersion) async throws -> Data
+    ) async throws -> Set<ObjectLocator>
 }
 
-/// A no-op journal source for the pre-task-16 store. An empty unfinished-journal set is
-/// itself complete coverage; task 16 replaces this with the real journal enumeration.
+extension StoreJournalRecoverySource {
+    public func pendingJournalLocators(
+        knownVersions: Set<KeyVersion>,
+        material: @Sendable (KeyVersion) async throws -> Data
+    ) async throws -> Set<ObjectLocator> { [] }
+}
+
+/// A no-op journal source for journal-less stores. An empty unfinished-journal set is
+/// itself complete coverage; the reset-capable store defaults to the real journal store.
 public struct EmptyJournalRecoverySource: StoreJournalRecoverySource {
     public init() {}
     public func reencryptJournals(rotation: KeyRotation, access: KeyringProtectedAccess) async throws {}

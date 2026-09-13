@@ -69,6 +69,23 @@ public struct CanonicalLogicalIdentity: Hashable, Sendable {
                                      logicalID: encodeTriple(cycleID, dayKey, aggregateType))
     }
 
+    /// Recover the `(cycleId, dayKey, aggregateType)` triple of a shard identity. Fails on
+    /// non-shard objects, trailing bytes, or non-UTF-8 components.
+    public func shardComponents() throws -> (cycleID: String, dayKey: String, aggregateType: String) {
+        guard objectType == Self.shardObjectType else { throw LogicalIdentityError.malformedEncoding }
+        var reader = LengthPrefixedReader(logicalID)
+        let cycleBytes = try reader.nextField()
+        let dayBytes = try reader.nextField()
+        let typeBytes = try reader.nextField()
+        guard reader.isExhausted,
+              let cycleID = String(bytes: cycleBytes, encoding: .utf8),
+              let dayKey = String(bytes: dayBytes, encoding: .utf8),
+              let aggregateType = String(bytes: typeBytes, encoding: .utf8),
+              !cycleID.isEmpty, !dayKey.isEmpty, !aggregateType.isEmpty
+        else { throw LogicalIdentityError.malformedEncoding }
+        return (cycleID, dayKey, aggregateType)
+    }
+
     /// UTF-8 text form for ordinary (non-shard) objects; nil for binary shard composites.
     public var logicalIDText: String? { String(bytes: logicalID, encoding: .utf8) }
 

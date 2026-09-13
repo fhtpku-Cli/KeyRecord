@@ -42,7 +42,7 @@ final class ProductComposition: NSObject, NSMenuDelegate {
         let capture = ProductCapture(source: eventSource, queue: queue, reduction: reduction,
             persistence: persistence, scheduler: scheduler, foreground: SystemForegroundProvider())
         let flush = ProductFlush(reduction: reduction, scheduler: scheduler)
-        let login = SMAppServiceLoginItemBackend()
+        let login = ProductLogin.make()
         let deletion = LocalDeletionCoordinator(ownedRoot: root.path, fileSystem: FileSystemDeletionAdapter(),
             keychain: KeychainDeletionAdapter(keyring: keyring), loginItems: ProductDeletionLogin(login: login))
         let destruction = ProductDestruction(store: store, gate: gate, flush: flush, capture: capture,

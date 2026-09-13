@@ -86,7 +86,7 @@ actor ProductPersistence: LifecycleKeyProviding, PreferencesPersisting {
 }
 
 struct ProductDeletionLogin: DeletionLoginItems {
-    let login: SMAppServiceLoginItemBackend
+    let login: any LoginItemBackend
     func unregisterProductLoginItem() async throws -> DeletionOutcome {
         try await login.unregister()
         return .succeeded

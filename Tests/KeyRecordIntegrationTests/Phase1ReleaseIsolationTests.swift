@@ -54,6 +54,6 @@ final class Phase1ReleaseIsolationTests: XCTestCase {
         XCTAssertTrue(code.contains("qualification: UnqualifiedCapture()"))
         XCTAssertTrue(code.contains("LifecycleOrchestrator(ports:"))
         XCTAssertTrue(code.contains("LocalDeletionCoordinator("))
-        XCTAssertTrue(code.contains("SMAppServiceLoginItemBackend()"))
+        XCTAssertTrue(code.contains("ProductLogin.make()"))
     }
 }

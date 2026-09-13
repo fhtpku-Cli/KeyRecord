@@ -78,6 +78,8 @@ public actor FlushScheduler: LifecycleFlushing {
 
     public func waitForIssuedWrite() async { await writing?.value }
 
+    public func suspend() { discard() }
+
     public func completion() async -> FlushCompletion {
         guard let generation = schedule.generation,
               (try? gate.check(generation)) != nil else { return .locked }

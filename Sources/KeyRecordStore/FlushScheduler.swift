@@ -146,8 +146,11 @@ public actor FlushScheduler: LifecycleFlushing {
         writing = nil
         timeout?.cancel()
         timeout = nil
-        guard (try? gate.check(ticket.generation)) != nil,
-              schedule.complete(ticket, result: result) else { return }
+        guard (try? gate.check(ticket.generation)) != nil else {
+            if schedule.generation == ticket.generation { discard() }
+            return
+        }
+        guard schedule.complete(ticket, result: result) else { return }
         lastResult = result
         if result == .saved && schedule.durableRevision < schedule.revision {
             if !waiters.isEmpty { start(force: true) }

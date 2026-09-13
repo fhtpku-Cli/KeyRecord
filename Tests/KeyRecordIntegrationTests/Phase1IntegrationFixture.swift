@@ -5,9 +5,27 @@ import KeyRecordStore
 
 actor IntegrationKeys: ObjectStoreKeySource {
     private var installed = false
+    private var suspended = false
+    private var pending: CheckedContinuation<Void, Never>?
+    private var observers: [CheckedContinuation<Void, Never>] = []
     func install() { installed = true }
     func namespaceKeyVersions() -> Set<KeyVersion> { installed ? [KeyVersion(rawValue: 1)] : [] }
-    func material(for version: KeyVersion) -> Data { Data(repeating: 0x19, count: 32) }
+    func material(for version: KeyVersion) async -> Data {
+        if suspended {
+            await withCheckedContinuation { continuation in
+                pending = continuation
+                for observer in observers { observer.resume() }
+                observers.removeAll()
+            }
+        }
+        return Data(repeating: 0x19, count: 32)
+    }
+    func suspend() { suspended = true }
+    func entered() async {
+        if pending != nil { return }
+        await withCheckedContinuation { observers.append($0) }
+    }
+    func release() { suspended = false; pending?.resume(); pending = nil }
 }
 
 struct IntegrationClock: LocalClock {

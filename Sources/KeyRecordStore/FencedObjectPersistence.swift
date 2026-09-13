@@ -46,6 +46,7 @@ extension ObjectStore {
         let snapshot = try opened()
         let version = snapshot.currentKeyVersion
         let bytes = try await keySource.material(for: KeyVersion(rawValue: version))
+        try protection.check()
         let prepared = try protection.gate.use(protection.generation) {
             var manifest = snapshot
             var sealed: [SealedObject] = []

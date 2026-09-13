@@ -62,6 +62,16 @@ public enum DeletionDecision: Equatable, Sendable {
     case proceed([DeletionEntry])
 }
 
+/// Typed failure surface for the deletion ports and coordinator.
+public enum DeletionError: Error, Equatable, Sendable {
+    /// An owned keychain item was already gone when deletion reached it.
+    case missingOwnedKey(String)
+    /// A filesystem or login-item operation failed with a diagnostic message.
+    case ioFailure(String)
+    /// Planning refused to perform any destructive action for these reasons.
+    case blocked([DeletionBlock])
+}
+
 /// Pure deletion planning: decides whether scanned entries are safe to remove.
 /// No Security, filesystem, or other system APIs are called.
 public enum DeletionPlanner {

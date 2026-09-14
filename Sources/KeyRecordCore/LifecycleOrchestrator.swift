@@ -6,6 +6,7 @@ import Foundation
 public final class LifecycleOrchestrator {
     public internal(set) var state = LifecycleState.initial
     private let ports: LifecyclePorts
+    private let preferenceTransactions = PreferenceTransactions()
 
     public init(ports: LifecyclePorts) {
         self.ports = ports
@@ -63,11 +64,14 @@ public final class LifecycleOrchestrator {
     }
 
     public func setLocale(_ locale: ProductLocale) async throws {
+        try await preferenceTransactions.acquire()
+        defer { preferenceTransactions.release() }
         guard let preferences = state.preferences else { throw PreferencesRepositoryError.storageUnavailable }
         let updated = preferences.updating(locale: locale)
         try await ports.preferences.save(updated)
-        guard state.preferences == preferences else { throw PreferencesRepositoryError.storageUnavailable }
-        state.preferences = updated
+        // Exclusions revoke privacy immediately, even during this save. Publish only
+        // our field; their queued save snapshots the merged state after this release.
+        state.preferences = state.preferences?.updating(locale: locale)
     }
 
     public func observe(_ conditions: RuntimeConditions) {
@@ -165,17 +169,20 @@ public final class LifecycleOrchestrator {
         default: event = .exclusionsPersisted
         }
         do {
-            guard let preferences = state.preferences else {
-                await finish(event)
-                return
-            }
-            try await ports.preferences.save(preferences)
+            try await saveCurrentPreferences()
             await finish(event)
         } catch let error as PreferencesRepositoryError {
             await persistFailed(Self.storeError(error))
         } catch {
             await persistFailed(.protectedDataUnavailable)
         }
+    }
+
+    private func saveCurrentPreferences() async throws {
+        try await preferenceTransactions.acquire()
+        defer { preferenceTransactions.release() }
+        guard let preferences = state.preferences else { return }
+        try await ports.preferences.save(preferences)
     }
 
     private func persistFailed(_ error: LifecycleStoreError) async {

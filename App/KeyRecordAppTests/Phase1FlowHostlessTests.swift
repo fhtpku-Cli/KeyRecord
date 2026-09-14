@@ -132,7 +132,7 @@ final class Phase1FlowHostlessTests: XCTestCase {
     func testFailureAggregateHiddenWhileLocked() async throws {
         let fixture = try makeFixture()
         await collecting(fixture)
-        fixture.flow.snapshot = AggregateSnapshot(rows: [
+        fixture.flow.snapshot = try AggregateSnapshot(rows: [
             KeyRecordCore.AggregateRow(identity: .bareKey(try KeyCode(1)), total: 3,
                          classification: .discrete, sourceConfidence: .ordinary),
         ])

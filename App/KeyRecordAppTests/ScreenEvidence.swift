@@ -84,7 +84,7 @@ enum ScreenEvidence {
         case .aggregate:
             return AnyView(AggregateFlowView(snapshot: flow.snapshot, text: text))
         case .aggregateEmpty:
-            return AnyView(AggregateFlowView(snapshot: AggregateSnapshot(rows: []), text: text))
+            return AnyView(AggregateFlowView(snapshot: try? AggregateSnapshot(rows: []), text: text))
         case .aggregateLocked:
             return AnyView(AggregateFlowView(snapshot: nil, text: text))
         case .dialogReset:

@@ -41,6 +41,26 @@ private func keyCode(of identity: AggregateRowIdentity) -> Int {
 // MARK: - Tests
 
 final class AggregatePresentationTests: XCTestCase {
+    func testDistinctBareBucketsOverflowThrowsCountError() throws {
+        // Given: two individually valid maximum counts in distinct buckets.
+        let rows = [try bare(day1, 1, counts(.max)), try bare(day1, 2, counts(.max))]
+        // When/Then: presentation fails closed rather than trapping.
+        XCTAssertThrowsError(try AggregateSnapshot(shortcuts: [], bareKeys: rows)) {
+            XCTAssertEqual($0 as? CountError, .overflow)
+        }
+    }
+
+    func testDistinctShortcutBucketsOverflowThrowsCountError() throws {
+        // Given: two individually valid maximum shortcut counts.
+        let rows = try [1, 2].map {
+            try shortcut(day1, bucket($0, modifiers(command: true), .unknown), counts(.max))
+        }
+        // When/Then: cross-bucket addition reports the typed count error.
+        XCTAssertThrowsError(try AggregateSnapshot(shortcuts: rows, bareKeys: [])) {
+            XCTAssertEqual($0 as? CountError, .overflow)
+        }
+    }
+
     func testSameChordAndBucketSumsAcrossDays() throws {
         // Given: the same Cmd-S in the same app on two active days; When: presented;
         // Then: one cycle row with summed total and the suspected-injection marker.
@@ -169,7 +189,7 @@ final class AggregatePresentationTests: XCTestCase {
             AggregateRow(identity: .bareKey(try KeyCode(1)), total: 2,
                          classification: .discrete, sourceConfidence: .ordinary),
         ]
-        let snapshot = AggregateSnapshot(rows: rows)
+        let snapshot = try AggregateSnapshot(rows: rows)
         XCTAssertEqual(snapshot.shortcutTotal, 7)
         XCTAssertEqual(snapshot.bareKeyTotal, 9)
     }

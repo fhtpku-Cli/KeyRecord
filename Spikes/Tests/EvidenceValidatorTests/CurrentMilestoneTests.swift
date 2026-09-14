@@ -7,9 +7,21 @@ final class CurrentMilestoneTests: XCTestCase {
             .deletingLastPathComponent().deletingLastPathComponent()
     }
 
-    func testHappyCompleteAllocation() throws {
-        // Given the published matrix, when validating, then all allocations are accepted.
-        XCTAssertEqual(try check { _ in }, 0)
+    func testHappyStructuralAllocationIsNotApproval() throws {
+        // Given the published matrix, when checking structure, then evidence stays unchecked.
+        let result = try checkResult(options: ["--structure-only"]) { _ in }
+        XCTAssertEqual(result.status, 2)
+        XCTAssertTrue(result.output.contains("STRUCTURE=VALID"))
+        XCTAssertTrue(result.output.contains("physical_evidence=NOT_CHECKED"))
+        XCTAssertFalse(result.output.contains("CURRENT_MILESTONE=PASS"))
+    }
+
+    func testFailureDefaultMissingEvidence() throws {
+        // Given unavailable declared artifacts, when checking by default, then fail closed.
+        let result = try checkResult { _ in }
+        XCTAssertEqual(result.status, 1)
+        XCTAssertTrue(result.output.contains("evidence_unavailable:"))
+        XCTAssertFalse(result.output.contains("CURRENT_MILESTONE=PASS"))
     }
 
     func testFailureMissingMapping() throws {
@@ -61,20 +73,29 @@ final class CurrentMilestoneTests: XCTestCase {
     }
 
     private func check(_ mutate: (inout [String: Any]) throws -> Void) throws -> Int32 {
+        try checkResult(options: ["--structure-only"], mutate).status
+    }
+
+    private func checkResult(
+        options: [String] = [], _ mutate: (inout [String: Any]) throws -> Void
+    ) throws -> MilestoneCLIResult {
         let original = try Data(contentsOf: repository.appendingPathComponent("docs/milestone-allocation.json"))
         var document = try XCTUnwrap(JSONSerialization.jsonObject(with: original) as? [String: Any])
-        try mutate(&document)
-        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let directory = URL(fileURLWithPath: "/private/tmp").appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: directory) }
+        // Never consult historical host paths, including paths inherited from the environment.
+        var evidence = try XCTUnwrap(document["evidence"] as? [String: [String: String]])
+        for key in evidence.keys {
+            evidence[key]?["path"] = directory.appendingPathComponent("\(key)-receipt.json").path
+        }
+        document["evidence"] = evidence
+        try mutate(&document)
         let input = directory.appendingPathComponent("allocation.json")
         try JSONSerialization.data(withJSONObject: document).write(to: input)
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/bin/bash")
-        process.arguments = ["Spikes/Scripts/verify-current-milestone.sh", input.path]
-        process.currentDirectoryURL = repository
-        try process.run()
-        process.waitUntilExit()
-        return process.terminationStatus
+        return try MilestoneFixture.run(
+            ["Spikes/Scripts/verify-current-milestone.sh", input.path] + options,
+            repository: repository
+        )
     }
 }

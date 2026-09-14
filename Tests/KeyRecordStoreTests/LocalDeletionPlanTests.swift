@@ -5,17 +5,16 @@ final class LocalDeletionPlanTests: XCTestCase {
     private let ownedRoot = "/Users/tester/KeyRecord/store"
 
     func testHappyAllOwnedProceeds() {
-        // Given: owned file, an unrecognized file, and a nested directory, all under root
+        // Given: recognized owned files under the flat root
         let entries = [
             DeletionEntry(path: ownedRoot + "/ab/cd.krenc", kind: .ownedFile),
-            DeletionEntry(path: ownedRoot + "/stray.bin", kind: .unrecognizedOwnedFile),
-            DeletionEntry(path: ownedRoot + "/nested", kind: .directory),
+            DeletionEntry(path: ownedRoot + "/manifest.krenc", kind: .ownedFile),
         ]
 
         // When
         let decision = DeletionPlanner.evaluate(ownedRoot: ownedRoot, entries: entries)
 
-        // Then: proceeds with the original list, unrecognized entry retained in order
+        // Then: proceeds with the original list
         XCTAssertEqual(decision, .proceed(entries))
     }
 

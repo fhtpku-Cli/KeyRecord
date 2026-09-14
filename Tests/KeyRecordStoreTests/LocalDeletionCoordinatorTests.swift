@@ -7,8 +7,8 @@ final class LocalDeletionCoordinatorTests: XCTestCase {
     private func seededEntries() -> [DeletionEntry] {
         [
             DeletionEntry(path: root + "/ab/cd.krenc", kind: .ownedFile),
-            DeletionEntry(path: root + "/stray.tmp", kind: .unrecognizedOwnedFile),
-            DeletionEntry(path: root + "/nested", kind: .directory),
+            DeletionEntry(path: root + "/.keyrecord-tmp-0123456789", kind: .ownedFile),
+            DeletionEntry(path: root + "/manifest.krenc", kind: .ownedFile),
         ]
     }
     private func makeCoordinator(
@@ -25,7 +25,7 @@ final class LocalDeletionCoordinatorTests: XCTestCase {
     }
 
     func testHappyDeletesOwnedFilesKeysAndLoginItemOnce() async throws {
-        // Given: two owned key items, three entries (one unrecognized), one external key
+        // Given: two owned key items, three recognized entries, one external key
         let entries = seededEntries()
         let keychain = FakeDeletionKeychain(
             ownedIDs: ["master-v1", "master-v3"], externalIDs: ["external.item.v9"])
@@ -147,7 +147,7 @@ final class LocalDeletionCoordinatorTests: XCTestCase {
 
     func testFileIOFailureLeavesRootAndReportsFailure() async throws {
         // Given: one entry whose removal fails with an I/O error
-        let failingPath = root + "/stray.tmp"
+        let failingPath = root + "/.keyrecord-tmp-0123456789"
         let keychain = FakeDeletionKeychain(ownedIDs: ["master-v1"])
         let (coordinator, fileSystem, loginItems) = makeCoordinator(
             entries: seededEntries(), keychain: keychain, failingPaths: [failingPath])
@@ -173,7 +173,7 @@ final class LocalDeletionCoordinatorTests: XCTestCase {
         await fileSystem.setFailingPaths([])
         let second = try await coordinator.deleteEverything()
         // Then: the partial state converges to a full success
-        let remainingEntry = DeletionEntry(path: failingPath, kind: .unrecognizedOwnedFile)
+        let remainingEntry = DeletionEntry(path: failingPath, kind: .ownedFile)
         XCTAssertTrue(second.succeeded)
         XCTAssertEqual(second.decision, .proceed([remainingEntry]))
         XCTAssertEqual(second.fileOutcomes, [failingPath: .succeeded, root: .succeeded])

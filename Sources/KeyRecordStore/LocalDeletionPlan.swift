@@ -4,14 +4,14 @@ import Foundation
 public enum DeletionEntryKind: Equatable, Sendable {
     /// Envelope file the store owns and accounts for.
     case ownedFile
-    /// File inside the owned root the store cannot account for. Retained in the
-    /// proceed list so the executor can report it per item.
+    /// Unrecognized file inside the root; location alone does not prove ownership.
+    /// Requires a backend safeguard before any destructive action.
     case unrecognizedOwnedFile
     /// Symbolic link. Never traversed or removed; its presence blocks deletion.
     case symlink
     /// Entry owned by another component; deletion must not touch it.
     case foreignEntry
-    /// Directory nested inside the owned root.
+    /// Unrecognized directory in the flat store layout; requires a backend safeguard.
     case directory
 }
 
@@ -29,6 +29,8 @@ public struct DeletionEntry: Equatable, Sendable {
 
 /// Reason deletion cannot proceed as planned.
 public enum DeletionBlock: Equatable, Sendable {
+    /// Unknown state may belong to a future backend whose deletion safeguards are unavailable.
+    case safeguardRequired(String)
     /// A symbolic link exists at the given path.
     case symlinkPresent(String)
     /// An entry owned by another component exists at the given path.
@@ -81,9 +83,10 @@ public enum DeletionPlanner {
     ///   `.foreignEntryPresent`; any path that lexical normalization places outside
     ///   the root (including `..` escapes and sibling directories) blocks with
     ///   `.pathOutsideOwnedRoot`. All applicable blocks are returned, in entry order.
-    /// - Otherwise (only owned files, unrecognized owned files, and directories, all
-    ///   strictly inside the root) returns `.proceed` with the original entry list,
-    ///   unrecognized entries retained in order. An empty root proceeds with `[]`.
+    /// - Unrecognized files and directories block with `.safeguardRequired`; the
+    ///   owned root is not proof that unknown backend state is safe to destroy.
+    /// - Otherwise only recognized owned files strictly inside the root proceed.
+    ///   An empty root proceeds with `[]`.
     public static func evaluate(ownedRoot: String, entries: [DeletionEntry]) -> DeletionDecision {
         guard let root = normalizedComponents(ownedRoot) else {
             return .blocked(entries.map { .pathOutsideOwnedRoot($0.path) })
@@ -99,7 +102,9 @@ public enum DeletionPlanner {
                 blocks.append(.symlinkPresent(entry.path))
             case .foreignEntry:
                 blocks.append(.foreignEntryPresent(entry.path))
-            case .ownedFile, .unrecognizedOwnedFile, .directory:
+            case .unrecognizedOwnedFile, .directory:
+                blocks.append(.safeguardRequired(entry.path))
+            case .ownedFile:
                 break
             }
         }

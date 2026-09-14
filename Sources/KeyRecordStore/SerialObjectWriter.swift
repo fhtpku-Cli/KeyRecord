@@ -10,6 +10,7 @@ public actor SerialObjectWriter: FlushWriting {
     private var busy = false
     private var waiters: [CheckedContinuation<Void, Never>] = []
     private var drains: [UUID: (CheckedContinuation<FlushCompletion, Never>, Task<Void, Never>)] = [:]
+    var drainCount: Int { drains.count }
 
     public init(writer: any FlushWriting, clock: any FlushClock) {
         self.writer = writer; self.clock = clock
@@ -28,16 +29,25 @@ public actor SerialObjectWriter: FlushWriting {
 
     /// No new writes, and no deletion until all already-issued ciphertext I/O has
     /// returned. Timeout leaves the writer suspended; it never pretends to drain.
+    /// Like write waiters, at most 32 drains retain a continuation and timeout task.
+    /// Excess or cancelled callers receive .failed, never permission to delete.
     public func suspendAndDrain() async -> FlushCompletion {
         accepting = false
+        guard !Task.isCancelled else { return .failed }
         guard busy else { return .saved }
+        guard drains.count < 32 else { return .failed }
         let id = UUID(), deadline = clock.now() + .seconds(5)
-        return await withCheckedContinuation { continuation in
-            let timeout = Task {
-                do { try await clock.sleep(until: deadline) } catch { return }
-                self.drains.removeValue(forKey: id)?.0.resume(returning: .timedOut)
+        return await withTaskCancellationHandler {
+            await withCheckedContinuation { continuation in
+                guard !Task.isCancelled else { continuation.resume(returning: .failed); return }
+                let timeout = Task {
+                    do { try await clock.sleep(until: deadline) } catch { return }
+                    self.finishDrain(id, result: .timedOut)
+                }
+                drains[id] = (continuation, timeout)
             }
-            drains[id] = (continuation, timeout)
+        } onCancel: {
+            Task { await self.finishDrain(id, result: .failed) }
         }
     }
 
@@ -49,8 +59,12 @@ public actor SerialObjectWriter: FlushWriting {
     private func release() {
         if !waiters.isEmpty { waiters.removeFirst().resume(); return }
         busy = false
-        let current = drains
-        drains.removeAll()
-        for (_, drain) in current { drain.1.cancel(); drain.0.resume(returning: .saved) }
+        for id in Array(drains.keys) { finishDrain(id, result: .saved) }
+    }
+
+    private func finishDrain(_ id: UUID, result: FlushCompletion) {
+        guard let drain = drains.removeValue(forKey: id) else { return }
+        drain.1.cancel()
+        drain.0.resume(returning: result)
     }
 }

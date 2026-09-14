@@ -2,10 +2,22 @@ import SwiftUI
 import KeyRecordCore
 
 @MainActor
+enum ProductStartup {
+    static func restore(flow: AppFlowObservable, lifecycle: LifecycleOrchestrator,
+                        preferredLanguages: [String]) async {
+        await lifecycle.reload()
+        ProductLanguage.bind(flow: flow, lifecycle: lifecycle, preferredLanguages: preferredLanguages)
+        flow.sync(from: lifecycle.state)
+        if lifecycle.state.failure != nil { flow.noticeKey = "flow.actionUnavailable" }
+    }
+}
+
+@MainActor
 enum ProductLanguage {
     static func bind(flow: AppFlowObservable, lifecycle: LifecycleOrchestrator,
                      preferredLanguages: [String]) {
-        let fallback = preferredLanguages.first?.hasPrefix("zh") == true ? "zh-Hans" : "en"
+        let fallback = lifecycle.state.failure == nil
+            ? (preferredLanguages.first?.hasPrefix("zh") == true ? "zh-Hans" : "en") : flow.language
         flow.language = lifecycle.state.preferences?.locale.rawValue ?? fallback
         flow.actions.setLanguage = { [weak flow] code in
             guard let flow else { return }
@@ -194,7 +206,6 @@ final class AppFlowObservable: ObservableObject {
     }
 
     func setLanguage(_ code: String) async {
-        language = code
         await actions.setLanguage(code)
     }
 

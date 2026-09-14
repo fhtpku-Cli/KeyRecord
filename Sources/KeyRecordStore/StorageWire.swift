@@ -146,13 +146,28 @@ public enum AuthenticatedStorageEnvelope {
 }
 
 public struct NonceReuseDetector: Sendable {
+    // Random 96-bit nonces are the primary collision defense. This bounded replay
+    // window is only a secondary session-local check, not lifetime nonce history.
+    static let capacity = 4096
     private var observed = Set<String>()
+    private var ring: [String] = []
+    private var oldest = 0
+    var retainedCount: Int { observed.count }
     public init() {}
     public mutating func record(_ nonce: Data, keyVersion: UInt32) throws {
         guard nonce.count == 12 else { throw StorageEnvelopeError.invalidLength }
-        guard observed.insert("\(keyVersion):\(nonce.hex)").inserted else {
+        let entry = "\(keyVersion):\(nonce.hex)"
+        guard !observed.contains(entry) else {
             throw StorageEnvelopeError.duplicateNonce
         }
+        if ring.count == Self.capacity {
+            observed.remove(ring[oldest])
+            ring[oldest] = entry
+            oldest = (oldest + 1) % Self.capacity
+        } else {
+            ring.append(entry)
+        }
+        observed.insert(entry)
     }
 }
 

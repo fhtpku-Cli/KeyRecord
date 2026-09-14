@@ -62,6 +62,14 @@ All three detached committed versions remain reachable through `backup/pre-prove
 
 Paths under `.omo/evidence/` point to retained local evidence on this machine: receipts, stdout and stderr captures, exit-status files, manifests and the relocated content-addressed objects. They are local records of runs and reviews, not committed portable test fixtures. A clean checkout without those bytes cannot replay physical verification, and the checker fails closed rather than substituting them.
 
+## Signing strategy decision (2026-09-14, user-confirmed)
+
+Continue with a **free Apple ID (Personal Team)** for local development for now; defer the paid Apple Developer Program until real-device acceptance or distribution is actually needed. This decision does not unblock the mandatory signed-host gates below.
+
+Verified facts (Apple developer documentation): the free-account 7-day expiry applies to on-device iOS/iPadOS App ID/device/provisioning limits, not to a generic Mac development-signing countdown. The real Mac cost of free/ad-hoc signing is that TCC Accessibility/Input Monitoring grants are keyed to code identity: an ad-hoc signature anchors to the binary cdhash, so every recompilation can be treated as a new app and silently loses the grant (the System Settings toggle may still appear on). Local development should use a **stable self-signed Code Signing certificate** (keychain, no fee) so the designated requirement anchors to a stable certificate leaf and the grant survives rebuilds; this is local-only and does not satisfy Gatekeeper/notarization for recipients.
+
+`com.keyrecord.app` is the permanent bundle ID for both stages; it names the data root (`~/Library/Application Support/com.keyrecord.app/store`) and the Keychain service, independent of Team ID. Recorded encrypted statistics therefore survive an in-place same-Apple-ID upgrade to paid signing (same bundle ID, overwrite install, unchanged Keychain service) and remain decryptable with the retained master key; deleting/reinstalling, changing the bundle ID, or clearing Keychain loses the key and is unrecoverable by design.
+
 ## Remaining inputs
 
 1. Authorized signing identity and team configuration, plus the host manifest and controller for signed hosted builds.
@@ -69,6 +77,11 @@ Paths under `.omo/evidence/` point to retained local evidence on this machine: r
 3. Real network attribution and signed UI plus native interaction checks, including live Keychain and session lifecycle receipts.
 4. Authentic backups of the pinned plan bytes and the removed worktree working files, or a separately authorized new evidence-generation path that does not relabel the historical snapshot as passed.
 5. A zero-skip final suite run bound to one immutable candidate, plan and build, attempted only after the above inputs exist.
+
+### Checkpoints before any paid-signing switch
+
+- **CP-LOCAL-DEV-SIGNING**: build local development with a stable self-signed certificate instead of ad-hoc so Accessibility/Input Monitoring grants survive recompilation; certificate is local-only and never used for distribution.
+- **CP-KEYCHAIN-MIGRATION**: on first paid Developer ID build, prove free-version data survives an in-place overwrite install: free-version writes encrypted statistics → overwrite with paid-signed same-bundle-ID app → retained master key still reads and historical data decrypts/continues. First fake-keychain regression for same-service/different-identity reads; real-device check on upgrade; add a Keychain access-group entitlement only if an identity difference actually appears. No data-format change or reset.
 
 ## Gates retained independently
 

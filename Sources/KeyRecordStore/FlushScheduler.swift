@@ -39,6 +39,7 @@ public actor FlushScheduler: LifecycleFlushing {
     private var writing: Task<Void, Never>?
     private var timeout: Task<Void, Never>?
     private var waiters: [CheckedContinuation<FlushCompletion, Never>] = []
+    var waiterCount: Int { waiters.count }
     private var physicalID: UUID?
     private var lastResult: FlushCompletion?
 
@@ -85,6 +86,7 @@ public actor FlushScheduler: LifecycleFlushing {
               (try? gate.check(generation)) != nil else { return .locked }
         if schedule.revision == schedule.durableRevision { return .saved }
         if physicalID != nil && schedule.active == nil { return .timedOut }
+        guard waiters.count < 32 else { return .failed }
         return await withCheckedContinuation { continuation in
             waiters.append(continuation)
             start(force: true)

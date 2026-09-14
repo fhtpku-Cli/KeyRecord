@@ -40,6 +40,47 @@ final class Phase1FlowHostlessTests: XCTestCase {
         XCTAssertFalse(fixture.journalEvents.contains("keyProvision"))
     }
 
+    func testProductLanguageUsesSystemOnlyWithoutPreferences() throws {
+        // Given: no loaded preferences and a deterministic system-language provider.
+        let fixture = try makeFixture()
+        ProductLanguage.bind(flow: fixture.flow, lifecycle: fixture.orchestrator,
+                                        preferredLanguages: ["zh-Hans"])
+        // When/Then: initial text resolves through the system default.
+        XCTAssertEqual(fixture.flow.language, "zh-Hans")
+    }
+
+    func testProductLanguagePersistsChineseAndSwitchesBackToEnglish() async throws {
+        // Given: the real product language action bound to a hostless repository.
+        let fixture = try makeFixture()
+        await collecting(fixture)
+        ProductLanguage.bind(flow: fixture.flow, lifecycle: fixture.orchestrator,
+                                        preferredLanguages: ["en"])
+        // When: the settings action selects Chinese, independently of the system.
+        await fixture.flow.setLanguage("zh-Hans")
+        // Then: current and persisted preferences select the Chinese catalog.
+        XCTAssertEqual(fixture.orchestrator.state.preferences?.locale, .simplifiedChinese)
+        XCTAssertEqual(NativeText(locale: fixture.flow.language)("action.start"),
+                       NativeText(locale: "zh-Hans")("action.start"))
+        let reopened = try makeFixture()
+        await reopened.orchestrator.reload()
+        XCTAssertEqual(reopened.orchestrator.state.preferences?.locale, .simplifiedChinese)
+        await fixture.flow.setLanguage("en")
+        XCTAssertEqual(fixture.orchestrator.state.preferences?.locale, .english)
+        XCTAssertEqual(fixture.flow.language, "en")
+    }
+
+    func testProductLanguageRestoresSelectionWhenPreferencesUnavailable() async throws {
+        // Given: a fresh session cannot persist protected preferences.
+        let fixture = try makeFixture()
+        ProductLanguage.bind(flow: fixture.flow, lifecycle: fixture.orchestrator,
+                             preferredLanguages: ["en"])
+        // When: selecting another language without an available repository.
+        await fixture.flow.setLanguage("zh-Hans")
+        // Then: the selection is restored and failure is visible.
+        XCTAssertEqual(fixture.flow.language, "en")
+        XCTAssertEqual(fixture.flow.noticeKey, "flow.actionUnavailable")
+    }
+
     func testHappyConsentAcceptancePauseResume() async throws {
         let fixture = try makeFixture()
         await collecting(fixture)
@@ -132,7 +173,7 @@ final class Phase1FlowHostlessTests: XCTestCase {
     func testFailureAggregateHiddenWhileLocked() async throws {
         let fixture = try makeFixture()
         await collecting(fixture)
-        fixture.flow.snapshot = AggregateSnapshot(rows: [
+        fixture.flow.snapshot = try AggregateSnapshot(rows: [
             KeyRecordCore.AggregateRow(identity: .bareKey(try KeyCode(1)), total: 3,
                          classification: .discrete, sourceConfidence: .ordinary),
         ])

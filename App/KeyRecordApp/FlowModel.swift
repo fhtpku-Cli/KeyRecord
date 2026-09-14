@@ -1,6 +1,27 @@
 import SwiftUI
 import KeyRecordCore
 
+@MainActor
+enum ProductLanguage {
+    static func bind(flow: AppFlowObservable, lifecycle: LifecycleOrchestrator,
+                     preferredLanguages: [String]) {
+        let fallback = preferredLanguages.first?.hasPrefix("zh") == true ? "zh-Hans" : "en"
+        flow.language = lifecycle.state.preferences?.locale.rawValue ?? fallback
+        flow.actions.setLanguage = { [weak flow] code in
+            guard let flow else { return }
+            do {
+                guard let locale = ProductLocale(rawValue: code) else {
+                    throw PreferencesRepositoryError.storageUnavailable
+                }
+                try await lifecycle.setLocale(locale)
+            } catch {
+                flow.noticeKey = "flow.actionUnavailable"
+            }
+            flow.language = lifecycle.state.preferences?.locale.rawValue ?? fallback
+        }
+    }
+}
+
 // MARK: - Menu-bar value state
 
 /// Pure menu snapshot: the SwiftUI menu and previews take this value, never a controller.

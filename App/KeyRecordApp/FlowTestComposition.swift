@@ -166,7 +166,7 @@ final class FlowFixture: ObservableObject {
         let weakOrchestrator = orchestrator
         flow.actions = FlowActions(
             accept: { [weak self] in await weakOrchestrator.acceptConsent(); self?.observe(locked: false)
-                self?.flow.snapshot = AggregateSnapshot(rows: []) },
+                self?.flow.snapshot = try? AggregateSnapshot(rows: []) },
             decline: { weakOrchestrator.denyConsent() },
             start: { [weak self] in
                 weakOrchestrator.requestConsent(); await weakOrchestrator.acceptConsent(); self?.observe(locked: false)

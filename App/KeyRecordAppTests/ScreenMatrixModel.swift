@@ -162,7 +162,7 @@ enum MatrixContent {
             KeyRecordCore.AggregateRow(identity: .bareKey(try! KeyCode(99)), total: stress ? 65_432 : 7,
                          classification: .discrete, sourceConfidence: .ordinary),
         ]
-        return AggregateSnapshot(rows: rows)
+        return try! AggregateSnapshot(rows: rows)
     }
 
     /// Exclusion-picker rows; stress uses long CJK display names (synthetic user data).

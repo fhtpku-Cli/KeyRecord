@@ -1,29 +1,5 @@
 import Foundation
 
-/// All side effects for lifecycle orchestration. Fakes stand in for tasks 11/12/13; task 19 composes real ones.
-public struct LifecyclePorts: Sendable {
-    public let preferences: any PreferencesPersisting
-    public let keys: any LifecycleKeyProviding
-    public let capture: any LifecycleCaptureControlling
-    public let flush: any LifecycleFlushing
-    public let readiness: any RestartReadinessChecking
-    public let login: any LoginItemBackend
-    public let cycleIDs: any CycleIDGenerator
-
-    public init(preferences: any PreferencesPersisting, keys: any LifecycleKeyProviding,
-                capture: any LifecycleCaptureControlling, flush: any LifecycleFlushing,
-                readiness: any RestartReadinessChecking, login: any LoginItemBackend,
-                cycleIDs: any CycleIDGenerator) {
-        self.preferences = preferences
-        self.keys = keys
-        self.capture = capture
-        self.flush = flush
-        self.readiness = readiness
-        self.login = login
-        self.cycleIDs = cycleIDs
-    }
-}
-
 /// Async shell around the pure `reduce` FSM. Every state change originates here or in a port completion;
 /// the reducer alone decides ordering, so side-effect counts in fakes prove the consent/flush contracts.
 @MainActor
@@ -84,6 +60,14 @@ public final class LifecycleOrchestrator {
 
     public func setLoginItem(enabled: Bool) async {
         await run(.loginItemSetEnabled(enabled))
+    }
+
+    public func setLocale(_ locale: ProductLocale) async throws {
+        guard let preferences = state.preferences else { throw PreferencesRepositoryError.storageUnavailable }
+        let updated = preferences.updating(locale: locale)
+        try await ports.preferences.save(updated)
+        guard state.preferences == preferences else { throw PreferencesRepositoryError.storageUnavailable }
+        state.preferences = updated
     }
 
     public func observe(_ conditions: RuntimeConditions) {

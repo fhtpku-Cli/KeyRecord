@@ -164,7 +164,7 @@ final class Phase1FlowModelTests: XCTestCase {
         // return to a visible phase.
         let driver = FakeLifecycleDriver(state: openGateCollectingState())
         let model = Phase1FlowModel(lifecycle: driver)
-        let snapshot = AggregateSnapshot(rows: [
+        let snapshot = try AggregateSnapshot(rows: [
             AggregateRow(identity: .bareKey(try KeyCode(1)), total: 7,
                          classification: .discrete, sourceConfidence: .ordinary),
         ])

@@ -73,18 +73,18 @@ public struct AggregateSnapshot: Equatable, Sendable {
     public var shortcutTotal: Int64
     public var bareKeyTotal: Int64
 
-    public init(rows: [AggregateRow]) {
+    public init(rows: [AggregateRow]) throws {
         self.rows = rows
-        var shortcuts = Int64(0)
-        var bareKeys = Int64(0)
+        var shortcuts = try Count(0)
+        var bareKeys = try Count(0)
         for row in rows {
             switch row.identity {
-            case .shortcut: shortcuts += row.total
-            case .bareKey: bareKeys += row.total
+            case .shortcut: shortcuts = try shortcuts.adding(Count(row.total))
+            case .bareKey: bareKeys = try bareKeys.adding(Count(row.total))
             }
         }
-        shortcutTotal = shortcuts
-        bareKeyTotal = bareKeys
+        shortcutTotal = shortcuts.value
+        bareKeyTotal = bareKeys.value
     }
 
     /// Build from the task 9 reducer's daily records. Checked count arithmetic precedes
@@ -127,6 +127,6 @@ public struct AggregateSnapshot: Equatable, Sendable {
             rows.append(AggregateRow(identity: .bareKey(keyCode), total: counts.total.value,
                                      classification: .discrete, sourceConfidence: SourceConfidence(counts)))
         }
-        self.init(rows: rows)
+        try self.init(rows: rows)
     }
 }

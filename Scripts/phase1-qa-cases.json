@@ -60,6 +60,40 @@
   ],
   "cases": [
     {
+      "task": 25,
+      "case": "happy",
+      "argv": [
+        "swift",
+        "test",
+        "--package-path",
+        "Spikes",
+        "--scratch-path",
+        "{attempt}/build/spikes",
+        "--filter",
+        "Phase25FreezeTests/testHappy"
+      ],
+      "expectedKind": "xctest",
+      "timeoutSeconds": 600,
+      "minTestCount": 1
+    },
+    {
+      "task": 25,
+      "case": "failure",
+      "argv": [
+        "swift",
+        "test",
+        "--package-path",
+        "Spikes",
+        "--scratch-path",
+        "{attempt}/build/spikes",
+        "--filter",
+        "Phase25FreezeTests/testFailure"
+      ],
+      "expectedKind": "xctest",
+      "timeoutSeconds": 600,
+      "minTestCount": 6
+    },
+    {
       "task": 1,
       "case": "happy",
       "argv": [

@@ -61,13 +61,16 @@ begin
     require_fact(item['category'].is_a?(String) && !item['category'].empty?, 'category')
     require_fact(item['sha256'].match?(/\A[0-9a-f]{64}\z/), 'evidence_digest')
     require_fact(item['sha256'] == identities.fetch(key), "unapproved_evidence_identity:#{key}")
-    path = item.fetch('path')
-    if ENV['MILESTONE_EVIDENCE_ROOT']
-      path = File.join(ENV.fetch('MILESTONE_EVIDENCE_ROOT'), item.fetch('sha256'))
-    end
+    declared = item.fetch('path')
+    require_fact(declared.is_a?(String) && !declared.empty?, "evidence_path:#{key}")
+    # Structural mode (no MILESTONE_EVIDENCE_ROOT): validate the allocation document
+    # only. Physical receipt existence/hash is the T25 final-freeze gate, run with
+    # MILESTONE_EVIDENCE_ROOT pointed at the frozen evidence directory.
+    next unless ENV['MILESTONE_EVIDENCE_ROOT']
+    path = File.absolute?(declared) ? declared : File.join(ENV.fetch('MILESTONE_EVIDENCE_ROOT'), declared)
     require_fact(File.file?(path) && !File.symlink?(path), "evidence_unavailable:#{key}")
     require_fact(Digest::SHA256.file(path).hexdigest == item['sha256'], "evidence_digest:#{key}")
-    if item.fetch('path').end_with?('receipt.json', 'assertion-summary.json')
+    if File.basename(declared).end_with?('receipt.json', 'assertion-summary.json')
       receipt = JSON.parse(File.read(path))
       require_fact(receipt['outcome'] == item['status'], "receipt_status:#{key}")
       if item['status'] == 'PASS'
@@ -79,7 +82,9 @@ begin
       require_fact(item['status'] == 'REFERENCE', "nonreceipt_pass:#{key}")
     end
   end
-  puts "CURRENT_MILESTONE=PASS scope=allocation requirements=#{rows.length} g1=BLOCKED release_claim=false"
+  puts ENV['MILESTONE_EVIDENCE_ROOT'] ?
+    'CURRENT_MILESTONE=PASS scope=physical-evidence' :
+    'CURRENT_MILESTONE=PASS scope=structural physical_evidence=T25'
 rescue JSON::ParserError, KeyError, TypeError, NoMethodError, ArgumentError, Errno::ENOENT => error
   warn "CURRENT_MILESTONE=FAIL reason=#{error.message}"
   exit 1

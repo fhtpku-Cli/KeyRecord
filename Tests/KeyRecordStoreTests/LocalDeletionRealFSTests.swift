@@ -25,15 +25,13 @@ final class LocalDeletionRealFSTests: XCTestCase {
                                  keychain: keychain, loginItems: login)
     }
 
-    func testRealFileSystemHappyDeletesKnownUnrecognizedAndDirectory() async throws {
-        // Given: a real 0700 root with manifest, locator file, unknown regular, empty dir
+    func testRealFileSystemExplicitlyDeletesRecognizedCorruptCiphertext() async throws {
+        // Given: a real 0700 root with corrupt manifest, locator and owned temporary bytes
         let (parent, root) = try makeParentAndRoot()
         defer { try? FileManager.default.removeItem(at: parent) }
         try seed(root, "manifest.krenc")
         try seed(root, locatorName)
-        try seed(root, "stray.bin")
-        try FileManager.default.createDirectory(at: root.appendingPathComponent("nested"),
-                                                withIntermediateDirectories: false)
+        try seed(root, ".keyrecord-tmp-0123456789")
         let keychain = RealFSTestKeychain(ids: ["master-v1"])
         let login = RealFSTestLogin()
 
@@ -41,10 +39,10 @@ final class LocalDeletionRealFSTests: XCTestCase {
         let report = try await makeCoordinator(root, keychain: keychain, login: login)
             .deleteEverything()
 
-        // Then: known/unrecognized files and the empty directory all removed, root gone
+        // Then: recognized corrupt ciphertext is explicitly removable, root gone
         guard case .proceed(let planned) = report.decision else { return XCTFail("expected proceed") }
-        XCTAssertEqual(planned.filter { $0.kind == .unrecognizedOwnedFile }.map(\.path),
-                       [root.appendingPathComponent("stray.bin").path])
+        XCTAssertEqual(planned.count, 3)
+        XCTAssertTrue(planned.allSatisfy { $0.kind == .ownedFile })
         for entry in planned { XCTAssertEqual(report.fileOutcomes[entry.path], .succeeded) }
         XCTAssertEqual(report.fileOutcomes[root.path], .succeeded)
         XCTAssertTrue(report.succeeded)
@@ -114,7 +112,7 @@ final class LocalDeletionRealFSTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: parent) }
         try seed(root, "manifest.krenc")
         try seed(root, locatorName)
-        try seed(root, "stray.bin")
+        try seed(root, ".keyrecord-tmp-0123456789")
         try FileManager.default.removeItem(at: root.appendingPathComponent(locatorName))
 
         // When: reopen with a brand-new coordinator and delete
@@ -125,7 +123,7 @@ final class LocalDeletionRealFSTests: XCTestCase {
         XCTAssertTrue(report.succeeded)
         XCTAssertEqual(report.fileOutcomes[root.appendingPathComponent("manifest.krenc").path],
                        .succeeded)
-        XCTAssertEqual(report.fileOutcomes[root.appendingPathComponent("stray.bin").path],
+        XCTAssertEqual(report.fileOutcomes[root.appendingPathComponent(".keyrecord-tmp-0123456789").path],
                        .succeeded)
         XCTAssertNil(report.fileOutcomes[root.appendingPathComponent(locatorName).path])
         XCTAssertEqual(report.fileOutcomes[root.path], .succeeded)
@@ -149,7 +147,7 @@ final class LocalDeletionRealFSTests: XCTestCase {
         let metadata = KeyringMetadata(current: v2, versions: [v1, v2],
                                        retirementPending: [v1], rotation: KeyRotation(from: v1, to: v2))
         try await backend.seed(.metadata(namespace), bytes: metadata.encoded())
-        try await backend.seed(.key(namespace, v1), bytes: Data(repeating: 7, count: 32))
+        await backend.seed(.key(namespace, v1), bytes: Data(repeating: 7, count: 32))
         let login = RealFSTestLogin()
 
         // When

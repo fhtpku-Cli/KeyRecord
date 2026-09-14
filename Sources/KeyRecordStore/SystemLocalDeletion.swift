@@ -61,7 +61,8 @@ public struct FileSystemDeletionAdapter: DeletionFileSystem {
         switch entry.kind {
         case .regular:
             // manifest.krenc, strict <64hex>.krenc locators and owned crash-safe temp
-            // names are recognized; every other regular file is reported as unrecognized.
+            // names are recognized even if ciphertext is corrupt (explicit deletion only).
+            // Every other regular file requires a safeguard, not an ownership guess.
             let isKnown = RootEntryClassifier.classify(entry) != .foreign
             return DeletionEntry(path: path,
                                  kind: isKnown ? .ownedFile : .unrecognizedOwnedFile)

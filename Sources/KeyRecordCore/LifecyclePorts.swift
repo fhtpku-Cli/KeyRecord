@@ -76,3 +76,27 @@ public protocol PreferencesPersisting: Sendable {
 extension PreferencesPersisting {
     public func reloadAfterMaintenance() async throws -> Preferences? { try await load() }
 }
+
+/// All side effects for lifecycle orchestration. Fakes stand in for tasks 11/12/13; task 19 composes real ones.
+public struct LifecyclePorts: Sendable {
+    public let preferences: any PreferencesPersisting
+    public let keys: any LifecycleKeyProviding
+    public let capture: any LifecycleCaptureControlling
+    public let flush: any LifecycleFlushing
+    public let readiness: any RestartReadinessChecking
+    public let login: any LoginItemBackend
+    public let cycleIDs: any CycleIDGenerator
+
+    public init(preferences: any PreferencesPersisting, keys: any LifecycleKeyProviding,
+                capture: any LifecycleCaptureControlling, flush: any LifecycleFlushing,
+                readiness: any RestartReadinessChecking, login: any LoginItemBackend,
+                cycleIDs: any CycleIDGenerator) {
+        self.preferences = preferences
+        self.keys = keys
+        self.capture = capture
+        self.flush = flush
+        self.readiness = readiness
+        self.login = login
+        self.cycleIDs = cycleIDs
+    }
+}

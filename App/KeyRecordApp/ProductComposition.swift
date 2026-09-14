@@ -23,7 +23,7 @@ final class ProductComposition: NSObject, NSMenuDelegate {
     private var window: NSWindow?
     private var pulse: Task<Void, Never>?
     private var observers: [any NSObjectProtocol] = []
-    private let text: NativeText
+    private var text: NativeText { NativeText(locale: flow.language) }
 
     static func make() async throws -> ProductComposition {
         let root = try FileManager.default.url(for: .applicationSupportDirectory, in: .userDomainMask,
@@ -70,7 +70,6 @@ final class ProductComposition: NSObject, NSMenuDelegate {
                  capture: ProductCapture, store: ObjectStore, hooks: ProductMaintenanceHooks) {
         self.lifecycle = lifecycle; self.flow = flow; self.gate = gate; self.reduction = reduction
         self.scheduler = scheduler; self.flush = flush; self.capture = capture; self.store = store
-        text = NativeText(locale: Locale.preferredLanguages.first?.hasPrefix("zh") == true ? "zh-Hans" : "en")
         super.init()
         hooks.stop = { [weak self] in
             self?.pulse?.cancel(); self?.pulse = nil
@@ -88,6 +87,7 @@ final class ProductComposition: NSObject, NSMenuDelegate {
             setExclusions: { [weak self] ids in await lifecycle.setExclusions(ids); self?.sync() },
             setLoginItem: { [weak self] enabled in await lifecycle.setLoginItem(enabled: enabled); self?.sync() },
             openSettings: { [weak self] in self?.showWindow() })
+        ProductLanguage.bind(flow: flow, lifecycle: lifecycle, preferredLanguages: Locale.preferredLanguages)
         let queue = capture.queue
         for name in [NSWorkspace.willSleepNotification, NSWorkspace.sessionDidResignActiveNotification] {
             observers.append(NSWorkspace.shared.notificationCenter.addObserver(forName: name, object: nil,
@@ -139,7 +139,12 @@ final class ProductComposition: NSObject, NSMenuDelegate {
                     try await self.flush.pulse()
                     self.flow.snapshot = try self.reduction.snapshot()
                 }
-                catch {
+                catch is CountError {
+                    await self.closeProtectedState()
+                    self.flow.noticeKey = "flow.actionUnavailable"
+                    self.flow.update(phase: .failed)
+                    return
+                } catch {
                     if !Task.isCancelled { await self.closeProtectedState() }
                     return
                 }
@@ -149,6 +154,7 @@ final class ProductComposition: NSObject, NSMenuDelegate {
 
     private func sync() {
         flow.sync(from: lifecycle.state)
+        if let locale = lifecycle.state.preferences?.locale { flow.language = locale.rawValue }
         switch lifecycle.state.notice {
         case .pauseFlushFailed, .quitFlushFailed: flow.noticeKey = "flow.actionUnavailable"
         default: break
@@ -186,7 +192,11 @@ final class ProductComposition: NSObject, NSMenuDelegate {
     @objc private func resumeCollection() { Task { await flow.resume() } }
     @objc private func settings() { showWindow() }
     @objc private func quit() { Task { await requestQuit() } }
-    func menuWillOpen(_ menu: NSMenu) { sync() }
+    func menuWillOpen(_ menu: NSMenu) {
+        sync()
+        let keys = ["action.start", "action.pause", "action.resume", "action.settings", "action.quit"]
+        for (item, key) in zip(menu.items.dropFirst(), keys) { item.title = text(key) }
+    }
 
     private func showWindow() {
         if window == nil {
@@ -195,7 +205,7 @@ final class ProductComposition: NSObject, NSMenuDelegate {
             panel.title = "KeyRecord"
             panel.isReleasedWhenClosed = false
             panel.animationBehavior = .none
-            panel.contentView = NSHostingView(rootView: ProductScreens(flow: flow, text: text))
+            panel.contentView = NSHostingView(rootView: ProductScreens(flow: flow))
             panel.center()
             window = panel
         }
@@ -206,7 +216,7 @@ final class ProductComposition: NSObject, NSMenuDelegate {
 
 private struct ProductScreens: View {
     @ObservedObject var flow: AppFlowObservable
-    let text: NativeText
+    private var text: NativeText { NativeText(locale: flow.language) }
     var body: some View {
         TabView {
             ConsentFlowView(flow: flow, text: text).tabItem { Text(text("flowpreview.tab.consent")) }

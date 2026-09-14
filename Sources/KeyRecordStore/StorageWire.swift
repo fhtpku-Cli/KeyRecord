@@ -2,7 +2,7 @@ import CryptoKit
 import Foundation
 
 public enum StorageEnvelopeError: Error, Equatable, Sendable {
-    case duplicateNonce, invalidAlgorithm, invalidFormat, invalidKeyVersion, invalidLength
+    case invalidAlgorithm, invalidFormat, invalidKeyVersion, invalidLength
     case invalidVersion, missingKeyVersion
 }
 
@@ -61,10 +61,6 @@ public enum AuthenticatedStorageEnvelope {
     static let formatVersion: UInt8 = 1
     static let algorithmAESGCM256: UInt8 = 1
     static let tagByteCount = 16
-
-    public static func fixedNonce(_ bytes: Data) throws -> AES.GCM.Nonce {
-        try AES.GCM.Nonce(data: bytes)
-    }
 
     public static func seal(_ plaintext: Data, material: Data, keyVersion: UInt32,
                             locator: Data, nonce: AES.GCM.Nonce? = nil) throws -> Data {        try seal(plaintext, masterKey: StorageKeySchedule.key(material),
@@ -142,32 +138,6 @@ public enum AuthenticatedStorageEnvelope {
 
     static func readUInt64(_ data: Data, at offset: Int) -> UInt64 {
         data[offset..<(offset + 8)].reduce(0) { ($0 << 8) | UInt64($1) }
-    }
-}
-
-public struct NonceReuseDetector: Sendable {
-    // Random 96-bit nonces are the primary collision defense. This bounded replay
-    // window is only a secondary session-local check, not lifetime nonce history.
-    static let capacity = 4096
-    private var observed = Set<String>()
-    private var ring: [String] = []
-    private var oldest = 0
-    var retainedCount: Int { observed.count }
-    public init() {}
-    public mutating func record(_ nonce: Data, keyVersion: UInt32) throws {
-        guard nonce.count == 12 else { throw StorageEnvelopeError.invalidLength }
-        let entry = "\(keyVersion):\(nonce.hex)"
-        guard !observed.contains(entry) else {
-            throw StorageEnvelopeError.duplicateNonce
-        }
-        if ring.count == Self.capacity {
-            observed.remove(ring[oldest])
-            ring[oldest] = entry
-            oldest = (oldest + 1) % Self.capacity
-        } else {
-            ring.append(entry)
-        }
-        observed.insert(entry)
     }
 }
 

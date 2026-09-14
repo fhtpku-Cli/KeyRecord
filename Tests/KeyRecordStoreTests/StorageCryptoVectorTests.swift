@@ -37,10 +37,11 @@ final class StorageCryptoVectorTests: XCTestCase {
     func testVectorEnvelopeIsByteIdenticalToMeasuredSP6A() throws {
         // Given: the exact SP6A nonce/keyVersion/plaintext tuple
         let locator = StorageKeySchedule.locator(material: masterMaterial, objectID: objectID)
-        let nonce = try AuthenticatedStorageEnvelope.fixedNonce(Data(repeating: 0x42, count: 12))
+        let nonceBytes = Data(repeating: 0x42, count: 12)
         // When: sealing with the ported implementation
         let envelope = try AuthenticatedStorageEnvelope.seal(
-            plaintext, material: masterMaterial, keyVersion: 7, locator: locator, nonce: nonce)
+            plaintext, material: masterMaterial, keyVersion: 7, locator: locator,
+            nonce: .init(data: nonceBytes))
         // Then: the wire bytes are identical to the measured Spikes output.
         XCTAssertEqual(envelope.hex, goldenEnvelope)
         XCTAssertEqual(envelope.count, AuthenticatedStorageEnvelope.headerByteCount + plaintext.count + 16)
@@ -67,16 +68,14 @@ final class StorageCryptoVectorTests: XCTestCase {
     }
 
     func testVectorRandomNoncesAreFreshAcrossSeals() throws {
+        // Given: diagnostic retention exists only within this test.
         var seen = Set<Data>()
-        var detector = NonceReuseDetector()
         for _ in 0..<64 {
+            // When: sealing with the production random nonce generator.
             let parsed = try AuthenticatedStorageEnvelope.parse(try makeEnvelope())
+            // Then: every nonce has the wire length and is fresh in this sample.
+            XCTAssertEqual(parsed.header.nonce.count, 12)
             XCTAssertTrue(seen.insert(parsed.header.nonce).inserted)
-            try detector.record(parsed.header.nonce, keyVersion: parsed.header.keyVersion)
-        }
-        let duplicate = try XCTUnwrap(seen.first)
-        XCTAssertThrowsError(try detector.record(duplicate, keyVersion: 7)) {
-            XCTAssertEqual($0 as? StorageEnvelopeError, .duplicateNonce)
         }
     }
 
@@ -140,6 +139,18 @@ final class StorageCryptoVectorTests: XCTestCase {
     func testRejectsLocatorOfWrongLength() throws {
         XCTAssertThrowsError(try AuthenticatedStorageEnvelope.seal(
             plaintext, material: masterMaterial, keyVersion: 1, locator: Data(count: 31))) {
+            XCTAssertEqual($0 as? StorageEnvelopeError, .invalidLength)
+        }
+    }
+
+    func testRejectsNonceOutsideTwelveByteWireContract() throws {
+        // Given: CryptoKit accepts a longer nonce, but the v1 wire requires 12 bytes.
+        let nonceBytes = Data(repeating: 0x42, count: 16)
+        let locator = StorageKeySchedule.locator(material: masterMaterial, objectID: objectID)
+        // When/Then: sealing rejects it rather than changing the authenticated layout.
+        XCTAssertThrowsError(try AuthenticatedStorageEnvelope.seal(
+            plaintext, material: masterMaterial, keyVersion: 7, locator: locator,
+            nonce: .init(data: nonceBytes))) {
             XCTAssertEqual($0 as? StorageEnvelopeError, .invalidLength)
         }
     }

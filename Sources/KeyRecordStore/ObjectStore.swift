@@ -15,7 +15,6 @@ public actor ObjectStore {
     var manifestBox: EncryptedManifest?
     var materialCache: [UInt32: Data] = [UInt32: Data]()
     var unresolvedArtifacts: [String] = []
-    private var nonces = NonceReuseDetector()
     var lease: UUID?
     let cycleJournals: CycleResetJournalStore
     let configuredResetInjection: CycleResetInjection
@@ -119,7 +118,6 @@ public actor ObjectStore {
         } catch let error as LocatorCodecError {
             throw ObjectStoreError.locator(error)
         }
-        try nonces.record(sealed.envelope[44..<56], keyVersion: version)
         let previous = manifest.entry(for: identity)
         do {
             try fileSystem.commitFile(name: sealed.locator.fileName, in: root, bytes: sealed.envelope,

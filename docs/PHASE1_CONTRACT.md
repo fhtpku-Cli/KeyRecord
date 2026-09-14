@@ -14,7 +14,7 @@ Precedence: approved owner contract > PRD normative behavior > architecture norm
 
 ## 1. Historical/current separation
 
-Fixed contract 1: preserve `evidence/phase0/**`, old candidate/receipts and ConclusionGenerator v1 semantics byte-identically. Current-readiness modules/commands are additive and reject stale sources while recomputing semantics. Task 15's new `evidence/phase1/readiness.json` will cite exact historical hashes; later SP6A goes under `evidence/phase1/sp6a/`, never over v3 history. Label old dependency lists and stale local prose historical; do not repair them by regenerating evidence.
+Fixed contract 1: preserve `evidence/phase0/**`, old candidate/receipts and ConclusionGenerator v1 semantics byte-identically. Current-readiness modules/commands are additive and reject stale sources while recomputing semantics. Task 15 published `evidence/phase1/readiness.json` with exact historical hashes; later commits supersede that snapshot as current authority without rewriting it. T24 publishes docs and attempt-local projections only. Later SP6A goes under `evidence/phase1/sp6a/`, never over v3 history. Label old dependency lists and stale local prose historical; do not repair them by regenerating evidence.
 
 ## 2. Three outcome levels
 
@@ -53,6 +53,8 @@ Rotation: add key → atomically publish current-version Keychain metadata retai
 Before metadata publication a new key remains an owned pending candidate, not a replacement for a missing key; after publication retain both for recovery. Resume retirement-pending deletion only after a fresh complete scan. A missing retirement-pending key is tolerated only if that scan proves it unnecessary; other missing keys fail closed. A versioned encrypted journal coordinates reset. Empty storage plus no namespace keys is fresh; a root/manifest lacking a required key is not fresh and must not auto-create replacements. Missing/corrupt manifest is corruption, not permission to delete unindexed data. Clean only proven-owned orphans after authenticated manifest/journal recovery; unknown schema/corrupt envelopes fail closed without deletion.
 
 ## 8. Durability and lock
+
+User-visible data-loss boundary: locking the screen or crashing can discard **all statistics collected since the last completed durable save**. Previously committed statistics remain. The one-second flush cadence is only a scheduling target, not a promise to save within one second or to lose at most one second of data. Unlocking does not restore discarded, unsaved statistics. [Milestone qualification](MILESTONE_STATUS.md) separates this implemented contract from the still-blocked live lifecycle receipt.
 
 Fixed contract 8: callback performs no disk/Keychain/process/network work; one bounded 4096-event handoff feeds the serial reducer. Overflow closes gate/invalidates generation atomically; no event-derived dropped-count log. Unlocked encrypted flushes target a 1-second scheduling cadence, not a durable latency/count-loss bound. Scheduler delay, queued writes and slow fsync extend the uncommitted interval. Crash/lock can lose all deltas since the last completed durable commit, never previously committed counts.
 

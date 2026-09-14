@@ -1,10 +1,12 @@
 # Current project status
 
+Latest milestone: [verified outcomes and independent gates](MILESTONE_STATUS.md), with the machine-readable [requirement allocation](milestone-allocation.json). Code implementation is complete in the scoped milestone; live performance, Intel, signing, hosted UI and FR-P6 remain independent BLOCKED gates. This is not overall G1 or public-release completion.
+
 ## Authority and reproduction
 
 This is the current-status entry point, not a new Phase 0 conclusion or a release approval. The [approved plan](../.omo/plans/repository-status-next-step.md#scope) establishes precedence: owner contract > PRD normative behavior > architecture normative behavior > verified current evidence for measured facts. Requirement allocation and implementation constraints are in [PHASE1_CONTRACT.md](PHASE1_CONTRACT.md).
 
-The observation below was parsed on 2026-09-12 from a locally generated schema-v1 projection at base `985d6af`. It is not a promise about a later checkout. Generate a fresh, nonexisting output under the current attempt, then validate it using the built `EvidenceValidator`:
+The observation below was rechecked from a clean schema-v1 projection at base `064164e47fe2dfb1957ea8fc601269ecb2c8812e` in T24. Exact attempt identities are in the milestone report. It is not a promise about a later checkout. Generate a fresh, nonexisting output under the current attempt, then validate it using the built `EvidenceValidator`:
 
 ```sh
 "$VALIDATOR" current-readiness --historical evidence/phase0 --lifecycle none --output "$A/current-projection.json"

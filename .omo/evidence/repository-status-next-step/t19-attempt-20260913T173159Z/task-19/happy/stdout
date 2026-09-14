@@ -1,0 +1,41 @@
+Test Suite 'Selected tests' started at 2026-09-14 01:32:46.402.
+Test Suite 'KeyRecordPackageTests.xctest' started at 2026-09-14 01:32:46.404.
+Test Suite 'FlushScheduleTests' started at 2026-09-14 01:32:46.404.
+Test Case '-[KeyRecordStoreTests.FlushScheduleTests testCloseDiscardsPendingAndRejectsCompletionWhenGenerationReopens]' started.
+Test Case '-[KeyRecordStoreTests.FlushScheduleTests testCloseDiscardsPendingAndRejectsCompletionWhenGenerationReopens]' passed (0.002 seconds).
+Test Case '-[KeyRecordStoreTests.FlushScheduleTests testCoalescesDirtyRevisionsWhenOneSecondElapses]' started.
+Test Case '-[KeyRecordStoreTests.FlushScheduleTests testCoalescesDirtyRevisionsWhenOneSecondElapses]' passed (0.000 seconds).
+Test Case '-[KeyRecordStoreTests.FlushScheduleTests testDelayedTriggerStartsOnlyOneWriteWhenManyTicksWereMissed]' started.
+Test Case '-[KeyRecordStoreTests.FlushScheduleTests testDelayedTriggerStartsOnlyOneWriteWhenManyTicksWereMissed]' passed (0.000 seconds).
+Test Case '-[KeyRecordStoreTests.FlushScheduleTests testExplicitFlushBypassesCadenceWhenPauseRequestsCompletion]' started.
+Test Case '-[KeyRecordStoreTests.FlushScheduleTests testExplicitFlushBypassesCadenceWhenPauseRequestsCompletion]' passed (0.000 seconds).
+Test Case '-[KeyRecordStoreTests.FlushScheduleTests testFailureDoesNotClaimSavedWhenWriterFails]' started.
+Test Case '-[KeyRecordStoreTests.FlushScheduleTests testFailureDoesNotClaimSavedWhenWriterFails]' passed (0.000 seconds).
+Test Case '-[KeyRecordStoreTests.FlushScheduleTests testPendingDeltaSurvivesWhenEarlierWriteCompletes]' started.
+Test Case '-[KeyRecordStoreTests.FlushScheduleTests testPendingDeltaSurvivesWhenEarlierWriteCompletes]' passed (0.000 seconds).
+Test Suite 'FlushScheduleTests' passed at 2026-09-14 01:32:46.407.
+	 Executed 6 tests, with 0 failures (0 unexpected) in 0.003 (0.003) seconds
+Test Suite 'FlushSchedulerTests' started at 2026-09-14 01:32:46.407.
+Test Case '-[KeyRecordStoreTests.FlushSchedulerTests testFailedWhenWriterThrows]' started.
+Test Case '-[KeyRecordStoreTests.FlushSchedulerTests testFailedWhenWriterThrows]' passed (0.000 seconds).
+Test Case '-[KeyRecordStoreTests.FlushSchedulerTests testLockedWhenPendingObjectsAreDiscarded]' started.
+Test Case '-[KeyRecordStoreTests.FlushSchedulerTests testLockedWhenPendingObjectsAreDiscarded]' passed (0.000 seconds).
+Test Case '-[KeyRecordStoreTests.FlushSchedulerTests testSavedWhenWriterActuallyCompletes]' started.
+Test Case '-[KeyRecordStoreTests.FlushSchedulerTests testSavedWhenWriterActuallyCompletes]' passed (0.000 seconds).
+Test Suite 'FlushSchedulerTests' passed at 2026-09-14 01:32:46.408.
+	 Executed 3 tests, with 0 failures (0 unexpected) in 0.001 (0.001) seconds
+Test Suite 'Phase1IntegrationTests' started at 2026-09-14 01:32:46.408.
+Test Case '-[KeyRecordIntegrationTests.Phase1IntegrationTests testCadenceCoalescesWhenTimerDeliveryIsDelayed]' started.
+Test Case '-[KeyRecordIntegrationTests.Phase1IntegrationTests testCadenceCoalescesWhenTimerDeliveryIsDelayed]' passed (0.014 seconds).
+Test Case '-[KeyRecordIntegrationTests.Phase1IntegrationTests testRoundTripRestoresOnlyCommittedCountsWhenPendingDeltaIsLost]' started.
+Test Case '-[KeyRecordIntegrationTests.Phase1IntegrationTests testRoundTripRestoresOnlyCommittedCountsWhenPendingDeltaIsLost]' passed (0.016 seconds).
+Test Suite 'Phase1IntegrationTests' passed at 2026-09-14 01:32:46.438.
+	 Executed 2 tests, with 0 failures (0 unexpected) in 0.030 (0.030) seconds
+Test Suite 'KeyRecordPackageTests.xctest' passed at 2026-09-14 01:32:46.438.
+	 Executed 11 tests, with 0 failures (0 unexpected) in 0.033 (0.034) seconds
+Test Suite 'Selected tests' passed at 2026-09-14 01:32:46.438.
+	 Executed 11 tests, with 0 failures (0 unexpected) in 0.033 (0.036) seconds
+◇ Test run started.
+↳ Testing Library Version: 1902
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.

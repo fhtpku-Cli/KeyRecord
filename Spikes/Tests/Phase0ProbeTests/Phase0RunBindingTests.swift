@@ -4,6 +4,25 @@ import XCTest
 @testable import Phase0Support
 
 final class Phase0RunBindingTests: XCTestCase {
+    // These approved task-2 sources are bound by the NEW phase1 current-candidate
+    // binder (task 4), never by phase0 historical run binding. Every addition must
+    // correspond to an approved phase1 task; stray and stale exemptions must fail.
+    private static let phase1MilestoneSources: Set<String> = [
+        "Spikes/Sources/EvidenceValidator/CurrentReadinessModels.swift",
+        "Spikes/Sources/EvidenceValidator/CurrentReadinessDeriver.swift",
+        "Spikes/Sources/EvidenceValidator/CurrentReadinessValidator.swift",
+        "Spikes/Sources/EvidenceValidator/CurrentCandidateBinder.swift",
+        "Spikes/Sources/EvidenceValidator/CurrentCandidateModels.swift",
+        "Spikes/Sources/EvidenceValidator/CurrentCandidateCommand.swift",
+        "Spikes/Sources/EvidenceValidator/SP6ALifecycleDecoder.swift",
+        "Spikes/Sources/EvidenceValidator/SP6AAssertionArtifact.swift",
+        "Spikes/Sources/EvidenceValidator/SP6AAssertionArtifactValidator.swift",
+        // Task 15 current closeout projection, status table, interim envelope and path canonicalization.
+        "Spikes/Sources/EvidenceValidator/CurrentCloseoutCommand.swift",
+        "Spikes/Sources/EvidenceValidator/CurrentInterimEnvelope.swift",
+        "Spikes/Sources/EvidenceValidator/CurrentStatusTable.swift",
+        "Spikes/Sources/EvidenceValidator/RepositoryURL.swift",
+    ]
     private static let qaHelperSources: Set<String> = [
         "Spikes/Scripts/task-qa-common.sh",
         "Spikes/Scripts/task-qa-1-4.sh",
@@ -33,8 +52,10 @@ final class Phase0RunBindingTests: XCTestCase {
             }
         }
 
-        let requiredBuildInputs = compiledSources.union(["Spikes/Package.swift"])
-        XCTAssertTrue(requiredBuildInputs.isSubset(of: Phase0RunBinding.sourcePaths))
+        compiledSources.insert("Spikes/Package.swift")
+        XCTAssertTrue(compiledSources.subtracting(Self.phase1MilestoneSources).isSubset(of: Phase0RunBinding.sourcePaths))
+        XCTAssertEqual(compiledSources.subtracting(Phase0RunBinding.sourcePaths), Self.phase1MilestoneSources)
+        XCTAssertTrue(Self.phase1MilestoneSources.isSubset(of: compiledSources))
     }
 
     func testRunAllAndConclusionBindingsIncludeEveryQAHelper() {

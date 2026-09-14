@@ -157,6 +157,8 @@
 
 ## 5. 采集与统计生命周期
 
+> **Current-status note — status-capture (2026-09-12):** This section remains normative product behavior, not proof of implementation. The validated [current projection](PROJECT_STATUS.md#parsed-current-state), `gates[id=G0].status`, is PASS; `gates[id=G1_IMPLEMENTATION]` remains BLOCKED with its listed receipt causes. The owner-approved lock stops and exact §5.1 reset retention are in [PHASE1_CONTRACT](PHASE1_CONTRACT.md#allocation-and-owner-approval); approval does not imply implementation PASS.
+
 ### 5.1 生命周期规则
 
 - L1：首次打开必须显式询问用户是否开始采集；未同意前不采集任何数据。
@@ -241,6 +243,8 @@
 
 ### 6.3 加密边界与密钥生命周期
 
+> **Current-status note — status-privacy:** [Current schema](PROJECT_STATUS.md#authority-and-reproduction) `localLifecycleAssessment` and `gates[id=SP6A_LOCAL_LIFECYCLE]` are BLOCKED pending keychainPolicy/sessionLock/restart/sleepWake receipts. Historical SP6A selection/crypto fixtures are not signed product-lifecycle qualification. Normative EK requirements below remain unchanged; apply the approved [lock/durability contract](PHASE1_CONTRACT.md#8-durability-and-lock), including possible loss since the last durable commit, without a time guarantee.
+
 - EK1：应用管理的本地存储一律经认证加密；加密密钥为仅存本机、不随任何云同步的 Keychain 密钥项。
 - EK2：不提供明文回退模式；事件数据不以明文写入日志或临时文件。
 - EK3：密钥缺失或不可用时失败关闭：采集与读取停止，不生成任何本地明文副本。
@@ -274,6 +278,8 @@
 | FR-P5 | 加密存储 | 本地数据经认证加密；密钥为仅本机、不同步的 Keychain 项；无明文回退；日志与临时文件无事件数据明文 |
 | FR-P6 | 备份加密 | 完整备份使用独立加盐版本化 KDF 信封，须密码解密方可恢复；常规导出文件不含统计表 |
 | FR-P7 | 密钥生命周期 | 删除或损坏 Keychain 密钥后启动：采集停止且无本地明文副本；完整删除后 Keychain 材料不存在 |
+
+> **Current-status note — status-backup:** `retainedReleaseBlockers[id=FULL_BACKUP_FINAL_RELEASE]` in the [validated projection](PROJECT_STATUS.md#parsed-current-state) remains required. FR-P6 is independently gated, not waived or marked passed by this milestone's FR-P1–P5/P7 allocation; no normative requirement in this table is removed.
 
 ---
 
@@ -662,6 +668,8 @@ UX 与平台：
 ## 16. 未决事项登记
 
 以下事项有意未定，任何文档与实现不得擅自填补。
+
+> **Current-status note — status-o6:** The table's Phase 0 writeback is historical status prose, not a current recomputation. In particular its O6 OPEN wording is stale: parsed `historicalAssessment.o_items[id=O6].status` is RESOLVED, with `evidence_paths=[sp2/evidence.json]` and empty `blocker_refs`, in the [validated current projection](PROJECT_STATUS.md#parsed-current-state). Resolution is limited to that bound SP2 generation; it neither changes C7/C8 nor qualifies current product lifecycle or every macOS version.
 
 | 编号 | 事项 | 当前状态 | 说明 |
 |---|---|---|---|

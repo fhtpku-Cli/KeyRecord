@@ -1,0 +1,55 @@
+Test Suite 'Selected tests' started at 2026-09-14 01:32:47.284.
+Test Suite 'KeyRecordPackageTests.xctest' started at 2026-09-14 01:32:47.285.
+Test Suite 'FencedObjectPersistenceTests' started at 2026-09-14 01:32:47.285.
+Test Case '-[KeyRecordStoreTests.FencedObjectPersistenceTests testEncryptedObjectRecoversWhenFencedBatchCommits]' started.
+Test Case '-[KeyRecordStoreTests.FencedObjectPersistenceTests testEncryptedObjectRecoversWhenFencedBatchCommits]' passed (0.013 seconds).
+Test Case '-[KeyRecordStoreTests.FencedObjectPersistenceTests testNoCiphertextPublishedWhenQueuedGenerationWasRevoked]' started.
+Test Case '-[KeyRecordStoreTests.FencedObjectPersistenceTests testNoCiphertextPublishedWhenQueuedGenerationWasRevoked]' passed (0.007 seconds).
+Test Suite 'FencedObjectPersistenceTests' passed at 2026-09-14 01:32:47.304.
+	 Executed 2 tests, with 0 failures (0 unexpected) in 0.019 (0.020) seconds
+Test Suite 'Phase1MaintenanceTests' started at 2026-09-14 01:32:47.305.
+Test Case '-[KeyRecordIntegrationTests.Phase1MaintenanceTests testDrainedWriterCannotResurrectFilesAfterRealFilesystemDeletion]' started.
+Test Case '-[KeyRecordIntegrationTests.Phase1MaintenanceTests testDrainedWriterCannotResurrectFilesAfterRealFilesystemDeletion]' passed (0.006 seconds).
+Test Case '-[KeyRecordIntegrationTests.Phase1MaintenanceTests testMaintenanceTimeoutDoesNotAllowDeletionWhileCiphertextIsOutstanding]' started.
+Test Case '-[KeyRecordIntegrationTests.Phase1MaintenanceTests testMaintenanceTimeoutDoesNotAllowDeletionWhileCiphertextIsOutstanding]' passed (0.011 seconds).
+Test Case '-[KeyRecordIntegrationTests.Phase1MaintenanceTests testPreferencesAndAggregateShareOneWriterWithoutLeaseContention]' started.
+Test Case '-[KeyRecordIntegrationTests.Phase1MaintenanceTests testPreferencesAndAggregateShareOneWriterWithoutLeaseContention]' passed (0.009 seconds).
+Test Case '-[KeyRecordIntegrationTests.Phase1MaintenanceTests testResetReloadUsesNewCycleForSubsequentPreferenceWritesAndRestartsExpectation]' started.
+Test Case '-[KeyRecordIntegrationTests.Phase1MaintenanceTests testResetReloadUsesNewCycleForSubsequentPreferenceWritesAndRestartsExpectation]' passed (0.001 seconds).
+Test Suite 'Phase1MaintenanceTests' passed at 2026-09-14 01:32:47.331.
+	 Executed 4 tests, with 0 failures (0 unexpected) in 0.026 (0.027) seconds
+Test Suite 'Phase1PersistenceRaceTests' started at 2026-09-14 01:32:47.331.
+Test Case '-[KeyRecordIntegrationTests.Phase1PersistenceRaceTests testEveryReopenRevokesPreviousGenerationEvenWithoutLockNotification]' started.
+Test Case '-[KeyRecordIntegrationTests.Phase1PersistenceRaceTests testEveryReopenRevokesPreviousGenerationEvenWithoutLockNotification]' passed (0.003 seconds).
+Test Case '-[KeyRecordIntegrationTests.Phase1PersistenceRaceTests testLockDuringCiphertextIONeverPublishesReadableManifest]' started.
+Test Case '-[KeyRecordIntegrationTests.Phase1PersistenceRaceTests testLockDuringCiphertextIONeverPublishesReadableManifest]' passed (0.004 seconds).
+Test Case '-[KeyRecordIntegrationTests.Phase1PersistenceRaceTests testLockedReadCannotReturnPlaintextFromPreviouslyCommittedObject]' started.
+Test Case '-[KeyRecordIntegrationTests.Phase1PersistenceRaceTests testLockedReadCannotReturnPlaintextFromPreviouslyCommittedObject]' passed (0.005 seconds).
+Test Case '-[KeyRecordIntegrationTests.Phase1PersistenceRaceTests testSlowFsyncTimesOutWithoutClaimingSavedOrStartingSecondWriter]' started.
+Test Case '-[KeyRecordIntegrationTests.Phase1PersistenceRaceTests testSlowFsyncTimesOutWithoutClaimingSavedOrStartingSecondWriter]' passed (0.003 seconds).
+Test Suite 'Phase1PersistenceRaceTests' passed at 2026-09-14 01:32:47.347.
+	 Executed 4 tests, with 0 failures (0 unexpected) in 0.015 (0.015) seconds
+Test Suite 'Phase1QueuedProtectionTests' started at 2026-09-14 01:32:47.347.
+Test Case '-[KeyRecordIntegrationTests.Phase1QueuedProtectionTests testQueuedWriterCannotReplaceCommittedCountsAfterLockAndReopen]' started.
+Test Case '-[KeyRecordIntegrationTests.Phase1QueuedProtectionTests testQueuedWriterCannotReplaceCommittedCountsAfterLockAndReopen]' passed (0.006 seconds).
+Test Case '-[KeyRecordIntegrationTests.Phase1QueuedProtectionTests testReadCompletionCannotDecryptAfterKeyRetrievalRacesWithLock]' started.
+Test Case '-[KeyRecordIntegrationTests.Phase1QueuedProtectionTests testReadCompletionCannotDecryptAfterKeyRetrievalRacesWithLock]' passed (0.006 seconds).
+Test Suite 'Phase1QueuedProtectionTests' passed at 2026-09-14 01:32:47.360.
+	 Executed 2 tests, with 0 failures (0 unexpected) in 0.013 (0.013) seconds
+Test Suite 'Phase1ReleaseIsolationTests' started at 2026-09-14 01:32:47.360.
+Test Case '-[KeyRecordIntegrationTests.Phase1ReleaseIsolationTests testProductCompositionCannotSelectPortsFromEnvironmentOrArguments]' started.
+Test Case '-[KeyRecordIntegrationTests.Phase1ReleaseIsolationTests testProductCompositionCannotSelectPortsFromEnvironmentOrArguments]' passed (0.005 seconds).
+Test Case '-[KeyRecordIntegrationTests.Phase1ReleaseIsolationTests testProductSourcesHaveNoNetworkOrShellExecutionAPIs]' started.
+Test Case '-[KeyRecordIntegrationTests.Phase1ReleaseIsolationTests testProductSourcesHaveNoNetworkOrShellExecutionAPIs]' passed (0.096 seconds).
+Test Case '-[KeyRecordIntegrationTests.Phase1ReleaseIsolationTests testReleaseCannotReferenceDebugFixtureComposition]' started.
+Test Case '-[KeyRecordIntegrationTests.Phase1ReleaseIsolationTests testReleaseCannotReferenceDebugFixtureComposition]' passed (0.221 seconds).
+Test Suite 'Phase1ReleaseIsolationTests' passed at 2026-09-14 01:32:47.682.
+	 Executed 3 tests, with 0 failures (0 unexpected) in 0.322 (0.322) seconds
+Test Suite 'KeyRecordPackageTests.xctest' passed at 2026-09-14 01:32:47.682.
+	 Executed 15 tests, with 0 failures (0 unexpected) in 0.396 (0.397) seconds
+Test Suite 'Selected tests' passed at 2026-09-14 01:32:47.682.
+	 Executed 15 tests, with 0 failures (0 unexpected) in 0.396 (0.398) seconds
+◇ Test run started.
+↳ Testing Library Version: 1902
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.

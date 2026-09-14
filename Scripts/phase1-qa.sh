@@ -1,0 +1,273 @@
+#!/usr/bin/env bash
+set -euo pipefail
+# Trust model: the committed, operator-controlled registry maps task/case to exact
+# XCTest argv. The dispatcher never evaluates arbitrary command strings or CLI
+# overrides. Fabricated stdout from a tampered registry is outside this trust model;
+# unknown schema fields are rejected. This is not a hostile same-UID sandbox.
+# SchemaVersion=2 adds strict read-only hostCases; version 1 remains supported.
+# Task entries require task, case, argv,
+# expectedKind (xctest), minTestCount, and optional timeoutSeconds (default 1200).
+# Runner exits: PASS=0, FAIL=1, BLOCKED=2;
+# receipts retain raw child exits. Ruby supplies JSON and process-group timeouts.
+command -v ruby >/dev/null || { printf 'outcome=BLOCKED code=missing_ruby\n' >&2; exit 2; }
+exec ruby - "$0" "$@" <<'RUBY'
+require 'json'
+require 'pathname'
+require 'time'
+require 'open3'
+
+module QAProcessTree
+  def self.parents(text)
+    text.each_line.each_with_object({}) do |line, result|
+      match = /\A\s*(\d+)\s+(\d+)\s*\z/.match(line)
+      result[match[1].to_i] = match[2].to_i if match && match[1].to_i > 1
+    end
+  end
+
+  def self.descendants(text, root)
+    return [] unless root > 1
+    mapping = parents(text)
+    depths = []
+    mapping.each_key do |pid|
+      next if pid == root
+      cursor, depth, seen = pid, 0, {}
+      while mapping.key?(cursor) && !seen[cursor]
+        seen[cursor] = true
+        cursor = mapping[cursor]
+        depth += 1
+        if cursor == root
+          depths << [pid, depth]
+          break
+        end
+      end
+    end
+    depths.sort_by { |pid, depth| [-depth, pid] }.map(&:first)
+  end
+
+  def self.snapshot
+    text, status = Open3.capture2('/bin/ps', '-eo', 'pid=,ppid=')
+    raise IOError, 'process_snapshot_failed' unless status.success?
+    text
+  end
+
+  def self.signal_owned(signal, pid, root)
+    text = snapshot
+    return unless parents(text)[root] == Process.pid
+    return unless pid == root || descendants(text, root).include?(pid)
+    Process.kill(signal, pid)
+  rescue Errno::ESRCH
+  end
+
+  def self.terminate(root)
+    deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + 2
+    # Keep ancestors alive until descendants exit, so revalidation never relies on stale orphan PIDs.
+    descendants(snapshot, root).each do |pid|
+      signal_owned('TERM', pid, root)
+      while Process.clock_gettime(Process::CLOCK_MONOTONIC) < deadline && descendants(snapshot, root).include?(pid)
+        sleep 0.02
+      end
+      signal_owned('KILL', pid, root)
+    end
+    if signal_owned('TERM', root, root)
+      loop do
+        waited = Process.waitpid2(root, Process::WNOHANG)
+        return waited[1] if waited
+        break if Process.clock_gettime(Process::CLOCK_MONOTONIC) >= deadline
+        sleep 0.02
+      end
+      signal_owned('KILL', root, root)
+      return Process.waitpid2(root)[1]
+    end
+    nil
+  ensure
+    # An absent leader can still have its original group; a reused, unrelated leader must be skipped.
+    parent = parents(snapshot)[root]
+    if parent.nil? || parent == Process.pid
+      begin
+        Process.kill('KILL', -root)
+      rescue Errno::ESRCH
+      end
+    end
+  end
+end
+
+class Rejection < StandardError; end
+def reject(code)
+  raise Rejection, code
+end
+def exclusive(path, content)
+  File.open(path, File::WRONLY | File::CREAT | File::EXCL, 0600) { |f| f.write(content) }
+end
+def safe_directory(path, root)
+  reject('invalid_attempt') unless path.start_with?(root + '/') && !path.split('/').include?('..')
+  reject('invalid_attempt') unless Pathname.new(path).absolute? && File.expand_path(path) == path
+  current = ''
+  path.split('/').reject(&:empty?).each do |component|
+    current += '/' + component
+    begin
+      before = File.lstat(current)
+    rescue Errno::ENOENT
+      before = nil
+    end
+    reject('invalid_attempt') if before && before.symlink?
+    unless before
+      begin
+        Dir.mkdir(current, 0700)
+      rescue Errno::EEXIST
+        # A concurrent creator must still pass the non-following check below.
+      end
+    end
+    stat = File.lstat(current)
+    reject('invalid_attempt') unless stat.directory? && !stat.symlink?
+    if current.start_with?(root + '/')
+      reject('invalid_attempt') unless stat.uid == Process.uid && File.writable?(current)
+    end
+  end
+  reject('invalid_attempt') unless File.realpath(path) == path
+end
+
+begin
+  script = ARGV.shift
+  root = File.dirname(File.dirname(File.realpath(script)))
+  mode = ARGV.shift
+  case mode
+  when 'task'
+    reject('invalid_arguments') unless ARGV.length == 4 && ARGV[2] == '--attempt'
+    task, name, _, attempt = ARGV
+    reject('unknown_task_case') unless task.match?(/\A[1-9][0-9]*\z/) && %w[happy failure].include?(name)
+  when 'host'
+    reject('invalid_arguments') unless ARGV.length == 5 && ARGV[1] == '--manifest' && ARGV[3] == '--attempt'
+    name, _, manifest, _, attempt = ARGV
+  else
+    reject('invalid_arguments')
+  end
+  registry = JSON.parse(File.read(File.join(root, 'Scripts/phase1-qa-cases.json'), encoding: 'UTF-8'))
+  reject('invalid_registry') unless registry.is_a?(Hash) && registry['schemaVersion'].is_a?(Integer) && [1, 2].include?(registry['schemaVersion'])
+  keys = registry['schemaVersion'] == 1 ? %w[cases schemaVersion] : %w[cases hostCases schemaVersion]
+  reject('invalid_registry') unless registry.keys.sort == keys && registry['cases'].is_a?(Array)
+  hosts = registry.fetch('hostCases', [])
+  reject('invalid_registry') unless hosts.is_a?(Array)
+  hosts.each do |host|
+    reject('invalid_registry') unless host.is_a?(Hash) && host.keys.sort == %w[argv manifestRequired mode timeoutSeconds]
+    reject('invalid_registry') unless %w[sp6a capture network performance signed-build].include?(host['mode']) && host['manifestRequired'] == true
+    args = host['argv']
+    reject('invalid_registry') unless args.is_a?(Array) && !args.empty? && args.all? { |v| v.is_a?(String) && !v.empty? && !v.include?("\0") }
+    args.each do |value|
+      remainder = value == '{manifest}' ? '' : value.sub(/\A\{attempt\}(?=\/|\z)/, '')
+      reject('invalid_registry') if remainder.match?(/\{[^{}]*\}/)
+    end
+    reject('invalid_registry') unless args.include?('{manifest}') && args.include?('{attempt}')
+    seconds = host['timeoutSeconds']
+    reject('invalid_registry') unless (seconds.is_a?(Integer) || seconds.is_a?(Float)) && seconds.finite? && seconds > 0
+  end
+  reject('invalid_registry') unless hosts.map { |h| h['mode'] }.uniq.length == hosts.length
+  required = %w[task case argv expectedKind minTestCount]
+  registry['cases'].each do |candidate|
+    reject('invalid_registry') unless candidate.is_a?(Hash)
+    reject('invalid_registry') unless (required - candidate.keys).empty? && (candidate.keys - required - ['timeoutSeconds']).empty?
+    reject('invalid_registry') unless candidate['task'].is_a?(Integer) && candidate['task'] > 0 && %w[happy failure].include?(candidate['case'])
+    reject('invalid_registry') unless candidate['expectedKind'] == 'xctest' && candidate['minTestCount'].is_a?(Integer) && candidate['minTestCount'] > 0
+    args = candidate['argv']
+    reject('invalid_registry') unless args.is_a?(Array) && !args.empty? && args.all? { |v| v.is_a?(String) && !v.empty? && !v.include?("\0") }
+    # Allow {attempt} only as the entire argument or its leading slash-delimited prefix.
+    # Reject all other brace tokens before any spawn; suffix bytes are otherwise preserved verbatim.
+    args.each do |value|
+      remainder = value.sub(/\A\{attempt\}(?=\/|\z)/, '')
+      reject('invalid_registry') if remainder.match?(/\{[^{}]*\}/)
+    end
+    seconds = candidate.fetch('timeoutSeconds', 1200)
+    reject('invalid_registry') unless (seconds.is_a?(Integer) || seconds.is_a?(Float)) && seconds.finite? && seconds > 0
+  end
+  identities = registry['cases'].map { |e| [e['task'], e['case']] }
+  reject('invalid_registry') unless identities.uniq.length == identities.length
+  entries = mode == 'host' ? hosts.select { |e| e['mode'] == name } : registry['cases'].select { |e| e['task'] == task.to_i && e['case'] == name }
+  reject(mode == 'host' ? 'unregistered_host' : 'unknown_task_case') if entries.empty?
+  reject('invalid_registry') unless entries.length == 1
+  entry = entries.first
+  argv = entry['argv']
+  minimum = entry.fetch('minTestCount', 1)
+  timeout = Float(ENV.fetch('PHASE1_QA_TIMEOUT_SECONDS', entry.fetch('timeoutSeconds', 1200)))
+  reject('invalid_timeout') unless timeout.finite? && timeout > 0
+  safe_directory(attempt, root)
+  parent = File.join(attempt, mode == 'host' ? 'host' : 'task-' + task)
+  safe_directory(parent, root)
+  result = File.join(parent, name)
+  begin
+    Dir.mkdir(result, 0700)
+  rescue Errno::EEXIST
+    reject('attempt_reused')
+  end
+  argv = argv.map { |value| mode == 'host' && value == '{manifest}' ? manifest : value.sub(/\A\{attempt\}(?=\/|\z)/) { attempt } }
+  exclusive(File.join(result, 'command.json'), JSON.pretty_generate(argv) + "\n")
+  stdout = File.open(File.join(result, 'stdout'), File::WRONLY | File::CREAT | File::EXCL, 0600)
+  stderr = File.open(File.join(result, 'stderr'), File::WRONLY | File::CREAT | File::EXCL, 0600)
+  pid = nil
+  timed_out = false
+  cancelled = false
+  cleaned = false
+  missing_executable = false
+  %w[TERM INT HUP].each { |signal| Signal.trap(signal) { cancelled = true } }
+  started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+  begin
+    pid = Process.spawn({'PHASE1_QA_ATTEMPT' => attempt}, [argv.first, argv.first], *argv.drop(1), chdir: root, out: stdout, err: stderr, pgroup: true)
+    status = nil
+    until status
+      waited = Process.waitpid2(pid, Process::WNOHANG)
+      status = waited[1] if waited
+      if !status && (cancelled || Process.clock_gettime(Process::CLOCK_MONOTONIC) - started >= timeout)
+        timed_out = !cancelled
+        status = QAProcessTree.terminate(pid)
+        cleaned = true
+        status ||= Process.waitpid2(pid)[1]
+      end
+      sleep 0.02 unless status
+    end
+    child_exit = status.exitstatus || 128 + status.termsig
+  rescue Errno::ENOENT, Errno::EACCES => error
+    stderr.puts(error.class.name)
+    missing_executable = true
+    child_exit = 127
+  ensure
+    QAProcessTree.terminate(pid) if pid && !cleaned
+    stdout.close
+    stderr.close
+  end
+  text = File.read(File.join(result, 'stdout'), encoding: 'UTF-8').scrub + "\n" + File.read(File.join(result, 'stderr'), encoding: 'UTF-8').scrub
+  counts = text.scan(/Executed (\d+) tests?, with (?:(\d+) tests? skipped and )?(\d+) failures?/)
+  executed = counts.map { |c| c[0].to_i }.max || 0
+  skipped = [counts.map { |c| c[1].to_i }.max || 0, text.scan(/Test Case .* skipped/).length].max
+  failed = [counts.map { |c| c[2].to_i }.max || 0, text.scan(/Test Case .* failed/).length].max
+  completed = text.scan(/Test Case .* (?:passed|failed|skipped) \(/).length
+  code = if cancelled then 'child_cancelled'
+         elsif timed_out then 'child_timeout'
+         elsif missing_executable then 'missing_executable'
+         elsif child_exit != 0 then 'child_failed'
+         elsif skipped > 0 then 'skipped_tests'
+         elsif failed > 0 then 'assertions_failed'
+         elsif executed < minimum then 'insufficient_tests'
+         elsif completed != executed then 'incomplete_test_output'
+         else 'assertions_passed'
+         end
+  outcome = code == 'assertions_passed' ? 'PASS' : (missing_executable ? 'BLOCKED' : 'FAIL')
+  if mode == 'host' && !cancelled
+    # This schema dispatches preflight only; even exit 0 cannot claim lifecycle PASS.
+    code = child_exit == 2 ? 'host_preflight_blocked' : (child_exit == 0 ? 'host_lifecycle_unrun' : code)
+    outcome = [0, 2].include?(child_exit) && !timed_out || missing_executable ? 'BLOCKED' : 'FAIL'
+  end
+  exit_status = {'PASS' => 0, 'FAIL' => 1, 'BLOCKED' => 2}.fetch(outcome)
+  exclusive(File.join(result, 'exit-status'), child_exit.to_s + "\n")
+  summary = {outcome: outcome, code: code, childExitStatus: child_exit, runnerExitStatus: exit_status, executed: executed, skipped: skipped, failed: failed, timedOut: timed_out, timeoutSeconds: timeout, argv: argv}
+  exclusive(File.join(result, 'assertion-summary.json'), JSON.pretty_generate(summary) + "\n")
+  puts "outcome=#{outcome} code=#{code} executed=#{executed} skipped=#{skipped} child_exit=#{child_exit}"
+  exit exit_status
+rescue Rejection => error
+  warn "outcome=FAIL code=#{error.message}"
+  exit 1
+rescue JSON::ParserError, KeyError, TypeError, ArgumentError
+  warn 'outcome=FAIL code=invalid_registry'
+  exit 1
+rescue SystemCallError => error
+  warn "outcome=FAIL code=filesystem_error detail=#{error.class.name}"
+  exit 1
+end
+RUBY

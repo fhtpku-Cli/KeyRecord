@@ -1,0 +1,535 @@
+Building for debugging...
+[0/13] /Users/bytedance/Documents/KeyRecord-wt-t19/.omo/evidence/repository-status-next-step/t19-attempt-20260913T173159Z/build/root/arm64-apple-macosx/debug/KeyRecordPackageTests.derived/runner.swift
+[1/13] Write sources
+[10/13] Write swift-version--58304C5D6DBC2206.txt
+[12/41] Compiling KeyRecordCore GateInputs.swift
+[13/41] Compiling KeyRecordCore IdentityProviders.swift
+[14/41] Compiling KeyRecordCore KeyCode.swift
+[15/41] Compiling KeyRecordCore LifecycleOrchestrator.swift
+[16/44] Compiling KeyRecordCore AggregatePresentation.swift
+[17/44] Compiling KeyRecordCore AggregationOrdering.swift
+[18/44] Compiling KeyRecordCore AggregationReducer.swift
+[19/44] Compiling KeyRecordCore Chord.swift
+[20/44] Compiling KeyRecordCore LifecyclePauseTransitions.swift
+[21/44] Compiling KeyRecordCore LifecyclePorts.swift
+[22/44] Compiling KeyRecordCore LifecycleReducer.swift
+[23/44] Compiling KeyRecordCore LifecycleReopenTransitions.swift
+[24/44] Compiling KeyRecordCore CycleSummaryReducer.swift
+[25/44] Compiling KeyRecordCore DailyAggregates.swift
+[26/44] Compiling KeyRecordCore DomainErrors.swift
+[27/44] Compiling KeyRecordCore FlowDialogs.swift
+[28/44] Emitting module KeyRecordCore
+[29/44] Compiling KeyRecordCore ChordNormalizer.swift
+[30/44] Compiling KeyRecordCore ChordRuleTable.swift
+[31/44] Compiling KeyRecordCore Counts.swift
+[32/44] Compiling KeyRecordCore CycleRecords.swift
+[33/44] Compiling KeyRecordCore LifecycleTransitions.swift
+[34/44] Compiling KeyRecordCore LoginItemPolicy.swift
+[35/44] Compiling KeyRecordCore ModifierReconstructor.swift
+[36/44] Compiling KeyRecordCore NormalizationOutput.swift
+[37/44] Compiling KeyRecordCore ObservedKeyEvent.swift
+[38/44] Compiling KeyRecordCore Phase1FlowModel.swift
+[39/44] Compiling KeyRecordCore Preferences.swift
+[40/44] Compiling KeyRecordCore PreferencesRepository.swift
+[41/44] Compiling KeyRecordCore PrivacyGate.swift
+[42/44] Compiling KeyRecordCore Schema.swift
+[43/91] Emitting module KeyRecordTestSupport
+[44/91] Compiling KeyRecordTestSupport LifecycleReducerFixtures.swift
+[45/91] Compiling KeyRecordTestSupport LifecycleHarness.swift
+[46/91] Compiling KeyRecordTestSupport LifecycleFixtures.swift
+[47/91] Compiling KeyRecordTestSupport DomainFixtures.swift
+[48/91] Compiling KeyRecordTestSupport SourceInspection.swift
+[49/91] Emitting module KeyRecordStore
+[50/111] Compiling KeyRecordCoreTests NormalizationBoundaryTests.swift
+[51/111] Compiling KeyRecordCoreTests AggregatePresentationTests.swift
+[52/111] Compiling KeyRecordCoreTests AggregationTests.swift
+[53/111] Compiling KeyRecordCoreTests DomainSchemaTests.swift
+[54/111] Compiling KeyRecordCoreTests LifecycleTests.swift
+[55/111] Compiling KeyRecordCoreTests NormalizationTests.swift
+[56/111] Compiling KeyRecordCoreTests Phase1FlowModelTests.swift
+[57/111] Compiling KeyRecordCoreTests LoginItemTests.swift
+[58/111] Compiling KeyRecordStore KeyAvailabilityGate.swift
+[59/111] Compiling KeyRecordStore KeychainKeyring.swift
+[60/111] Compiling KeyRecordStore KeyringMetadata.swift
+[61/111] Compiling KeyRecordStore KeyringPorts.swift
+[62/111] Compiling KeyRecordStore LocalDeletionPlan.swift
+[63/111] Compiling KeyRecordStore LocatorCodec.swift
+[64/111] Compiling KeyRecordStore ObjectStore.swift
+[65/111] Compiling KeyRecordStore ObjectStoreBootstrap.swift
+[66/111] Compiling KeyRecordStore StoreProviders.swift
+[67/111] Compiling KeyRecordStore StoreRecovery.swift
+[68/111] Compiling KeyRecordStore SystemLocalDeletion.swift
+[69/111] Compiling KeyRecordStore SystemMasterMaterial.swift
+[70/111] Compiling KeyRecordCoreTests NormalizationFixtures.swift
+[71/111] Compiling KeyRecordCoreTests NormalizationRuleTests.swift
+[72/111] Compiling KeyRecordStore StorageWire.swift
+[73/111] Compiling KeyRecordStore StoreProtectedSession.swift
+[74/111] Compiling KeyRecordCoreTests LifecycleBoundaryTests.swift
+[75/111] Compiling KeyRecordCoreTests LifecycleOrchestrationTests.swift
+[76/111] Compiling KeyRecordCoreTests PreferencesTests.swift
+[77/111] Compiling KeyRecordCoreTests PrivacyGateTests.swift
+[78/111] Compiling KeyRecordCoreTests LifecycleRestartTests.swift
+[79/111] Compiling KeyRecordStore CycleResetJournalPayload.swift
+[80/111] Compiling KeyRecordStore CycleResetJournalStore.swift
+[81/111] Compiling KeyRecordStore CycleResetObjectAccess.swift
+[82/111] Compiling KeyRecordStore CycleResetRecovery.swift
+[83/111] Compiling KeyRecordStore CycleResetTransaction.swift
+[84/135] Compiling KeyRecordCapture SecureInputBridge.swift
+[85/136] Emitting module KeyRecordCapture
+[86/136] Compiling KeyRecordCapture ListenOnlyEventSource.swift
+[87/136] Compiling KeyRecordStoreTests CycleResetJournalFailureTests.swift
+[88/136] Compiling KeyRecordStoreTests CycleResetRotationTests.swift
+[89/136] Compiling KeyRecordCapture CaptureQueue.swift
+[90/136] Compiling KeyRecordStoreTests CrashProbeTests.swift
+[91/136] Compiling KeyRecordStoreTests CycleResetCrashTests.swift
+[92/136] Compiling KeyRecordCapture SystemTapBackend.swift
+[93/136] Compiling KeyRecordCapture SystemForegroundBackend.swift
+[94/136] Compiling KeyRecordCapture SystemSecureInputBackend.swift
+[95/154] Emitting module KeyRecordCaptureTests
+[96/155] Emitting module KeyRecordStoreTests
+[97/158] Compiling KeyRecordStoreTests KeyringTests.swift
+[98/158] Compiling KeyRecordStoreTests LocalDeletionCoordinatorTests.swift
+[99/160] Compiling KeyRecordCaptureTests CaptureInvalidationTests.swift
+[100/160] Compiling KeyRecordCaptureTests CaptureIsolationTests.swift
+[101/160] Compiling KeyRecordCaptureTests CaptureActivationTests.swift
+[102/160] Compiling KeyRecordCaptureTests CaptureDeliveryTests.swift
+[103/160] Compiling KeyRecordStoreTests KeyringRecoveryTests.swift
+[104/160] Compiling KeyRecordStoreTests LocalDeletionPlanTests.swift
+[105/160] Compiling KeyRecordStoreTests LocalDeletionRealFSTests.swift
+[106/160] Compiling KeyRecordStoreTests ManifestRecoveryTests.swift
+[107/160] Compiling KeyRecordCaptureTests CaptureSubscriptionTests.swift
+[108/160] Compiling KeyRecordCaptureTests CaptureRefreshTests.swift
+[109/160] Compiling KeyRecordCaptureTests CaptureQueueTests.swift
+[110/160] Compiling KeyRecordCaptureTests CaptureProviderRaceTests.swift
+[111/160] Compiling KeyRecordCaptureTests CaptureProviderTests.swift
+[112/160] Compiling KeyRecordIntegrationTests Phase1ReleaseIsolationTests.swift
+[113/160] Compiling KeyRecordIntegrationTests Phase1QueuedProtectionTests.swift
+[114/160] Compiling KeyRecordIntegrationTests Phase1PersistenceRaceTests.swift
+[115/160] Compiling KeyRecordIntegrationTests ProviderCompositionTests.swift
+[116/160] Compiling KeyRecordIntegrationTests Phase1IntegrationFixture.swift
+[117/160] Compiling KeyRecordIntegrationTests Phase1IntegrationTests.swift
+[118/160] Emitting module KeyRecordIntegrationTests
+[119/160] Compiling KeyRecordIntegrationTests Phase1MaintenanceTests.swift
+[122/160] Compiling KeyRecordCoreTests ProductBoundaryTests.swift
+[124/160] Compiling KeyRecordStoreTests CycleResetTests.swift
+[126/160] Compiling KeyRecordStoreTests FencedObjectPersistenceTests.swift
+[127/160] Compiling KeyRecordStoreTests FlushScheduleTests.swift
+[128/160] Compiling KeyRecordStoreTests FlushSchedulerTests.swift
+[129/160] Compiling KeyRecordCoreTests SummaryTests.swift
+[130/160] Compiling KeyRecordStoreTests KeyringBoundaryTests.swift
+[131/160] Compiling KeyRecordStoreTests KeyringFixture.swift
+[132/160] Compiling KeyRecordStoreTests KeyringLifecycleHostTests.swift
+/Users/bytedance/Documents/KeyRecord-wt-t19/Tests/KeyRecordCoreTests/LifecycleTests.swift:97:23: warning: no calls to throwing functions occur within 'try' expression
+ 95 |         // Given: persist done; When: capture starts; Then: collecting, login registration is the only effect.
+ 96 |         let state = try run(try run(try FX.acceptedStartState(), .keyProvisioned), .bootstrapPersisted)
+ 97 |         let outcome = try reduce(state, .captureStarted)
+    |                       `- warning: no calls to throwing functions occur within 'try' expression
+ 98 |         XCTAssertEqual(outcome.state.phase, .collecting)
+ 99 |         XCTAssertEqual(outcome.effects, [.registerLoginItem])
+[133/160] Compiling KeyRecordStoreTests KeyringLockTests.swift
+/Users/bytedance/Documents/KeyRecord-wt-t19/Tests/KeyRecordCoreTests/LifecycleTests.swift:97:23: warning: no calls to throwing functions occur within 'try' expression
+ 95 |         // Given: persist done; When: capture starts; Then: collecting, login registration is the only effect.
+ 96 |         let state = try run(try run(try FX.acceptedStartState(), .keyProvisioned), .bootstrapPersisted)
+ 97 |         let outcome = try reduce(state, .captureStarted)
+    |                       `- warning: no calls to throwing functions occur within 'try' expression
+ 98 |         XCTAssertEqual(outcome.state.phase, .collecting)
+ 99 |         XCTAssertEqual(outcome.effects, [.registerLoginItem])
+[134/160] Emitting module KeyRecordCoreTests
+/Users/bytedance/Documents/KeyRecord-wt-t19/Tests/KeyRecordCoreTests/LifecycleOrchestrationTests.swift:59:9: warning: no 'async' operations occur within 'await' expression
+ 57 |         let harness = LifecycleHarness()
+ 58 |         harness.orchestrator.requestConsent()
+ 59 |         await harness.orchestrator.denyConsent()
+    |         `- warning: no 'async' operations occur within 'await' expression
+ 60 |         let saves = await harness.storage.saveCount
+ 61 |         let provisions = await harness.keys.provisionCount
+/Users/bytedance/Documents/KeyRecord-wt-t19/Tests/KeyRecordCoreTests/LifecycleOrchestrationTests.swift:59:9: warning: no 'async' operations occur within 'await' expression
+ 57 |         let harness = LifecycleHarness()
+ 58 |         harness.orchestrator.requestConsent()
+ 59 |         await harness.orchestrator.denyConsent()
+    |         `- warning: no 'async' operations occur within 'await' expression
+ 60 |         let saves = await harness.storage.saveCount
+ 61 |         let provisions = await harness.keys.provisionCount
+[137/160] Compiling KeyRecordStoreTests ObjectStoreTests.swift
+/Users/bytedance/Documents/KeyRecord-wt-t19/Tests/KeyRecordCoreTests/AggregatePresentationTests.swift:25:5: warning: no calls to throwing functions occur within 'try' expression
+ 23 | 
+ 24 | private func shortcut(_ day: LocalDay, _ bucket: ChordBucket, _ counts: SourceCounts) throws -> DailyShortcutAggregate {
+ 25 |     try DailyShortcutAggregate(cycleID: cycle, day: day, identity: bucket,
+    |     `- warning: no calls to throwing functions occur within 'try' expression
+ 26 |                                classification: ChordRuleTable.v1.classify(bucket.chord),
+ 27 |                                sourceCounts: counts)
+[138/160] Compiling KeyRecordStoreTests RotationRecoveryTests.swift
+/Users/bytedance/Documents/KeyRecord-wt-t19/Tests/KeyRecordCoreTests/AggregatePresentationTests.swift:25:5: warning: no calls to throwing functions occur within 'try' expression
+ 23 | 
+ 24 | private func shortcut(_ day: LocalDay, _ bucket: ChordBucket, _ counts: SourceCounts) throws -> DailyShortcutAggregate {
+ 25 |     try DailyShortcutAggregate(cycleID: cycle, day: day, identity: bucket,
+    |     `- warning: no calls to throwing functions occur within 'try' expression
+ 26 |                                classification: ChordRuleTable.v1.classify(bucket.chord),
+ 27 |                                sourceCounts: counts)
+[139/160] Compiling KeyRecordStoreTests StorageCryptoVectorTests.swift
+/Users/bytedance/Documents/KeyRecord-wt-t19/Tests/KeyRecordCoreTests/AggregatePresentationTests.swift:25:5: warning: no calls to throwing functions occur within 'try' expression
+ 23 | 
+ 24 | private func shortcut(_ day: LocalDay, _ bucket: ChordBucket, _ counts: SourceCounts) throws -> DailyShortcutAggregate {
+ 25 |     try DailyShortcutAggregate(cycleID: cycle, day: day, identity: bucket,
+    |     `- warning: no calls to throwing functions occur within 'try' expression
+ 26 |                                classification: ChordRuleTable.v1.classify(bucket.chord),
+ 27 |                                sourceCounts: counts)
+/Users/bytedance/Documents/KeyRecord-wt-t19/Tests/KeyRecordStoreTests/LocalDeletionRealFSTests.swift:152:9: warning: no calls to throwing functions occur within 'try' expression
+150 |                                        retirementPending: [v1], rotation: KeyRotation(from: v1, to: v2))
+151 |         try await backend.seed(.metadata(namespace), bytes: metadata.encoded())
+152 |         try await backend.seed(.key(namespace, v1), bytes: Data(repeating: 7, count: 32))
+    |         `- warning: no calls to throwing functions occur within 'try' expression
+153 |         let login = RealFSTestLogin()
+154 | 
+
+/Users/bytedance/Documents/KeyRecord-wt-t19/Tests/KeyRecordStoreTests/ManifestRecoveryTests.swift:69:29: warning: result of call to 'put(identity:payload:injection:)' is unused [#no-usage]
+ 67 |             defer { harness.cleanup() }
+ 68 |             let store = try await harness.bootFresh()
+ 69 |             try await store.put(identity: try objectIdentity("a"), payload: payloadA)
+    |                             `- warning: result of call to 'put(identity:payload:injection:)' is unused [#no-usage]
+ 70 |             let url = harness.root.appendingPathComponent(ManifestDiscovery.fileName)
+ 71 |             var bytes = try Data(contentsOf: url)
+
+/Users/bytedance/Documents/KeyRecord-wt-t19/Tests/KeyRecordStoreTests/ManifestRecoveryTests.swift:94:25: warning: result of call to 'put(identity:payload:injection:)' is unused [#no-usage]
+ 92 |         defer { harness.cleanup() }
+ 93 |         let store = try await harness.bootFresh()
+ 94 |         try await store.put(identity: try objectIdentity("a"), payload: payloadA)
+    |                         `- warning: result of call to 'put(identity:payload:injection:)' is unused [#no-usage]
+ 95 |         let manifest = try EncryptedManifest(currentKeyVersion: 1)
+ 96 |         var json = try manifest.payloadData()
+
+/Users/bytedance/Documents/KeyRecord-wt-t19/Tests/KeyRecordStoreTests/ManifestRecoveryTests.swift:115:25: warning: result of call to 'put(identity:payload:injection:)' is unused [#no-usage]
+113 |         defer { harness.cleanup() }
+114 |         let store = try await harness.bootFresh()
+115 |         try await store.put(identity: try objectIdentity("a"), payload: payloadA)
+    |                         `- warning: result of call to 'put(identity:payload:injection:)' is unused [#no-usage]
+116 |         await harness.keySource.remove(version: 1)
+117 |         let reopened = harness.makeStore()
+
+/Users/bytedance/Documents/KeyRecord-wt-t19/Tests/KeyRecordStoreTests/ManifestRecoveryTests.swift:169:25: warning: result of call to 'put(identity:payload:injection:)' is unused [#no-usage]
+167 |         defer { harness.cleanup() }
+168 |         let store = try await harness.bootFresh()
+169 |         try await store.put(identity: try objectIdentity("committed-a"), payload: payloadA)
+    |                         `- warning: result of call to 'put(identity:payload:injection:)' is unused [#no-usage]
+170 |         let injection = DurabilityInjection(
+171 |             failPhase: .data, failAt: .afterDirectoryFsync)
+
+/Users/bytedance/Documents/KeyRecord-wt-t19/Tests/KeyRecordStoreTests/ManifestRecoveryTests.swift:199:29: warning: result of call to 'put(identity:payload:injection:)' is unused [#no-usage]
+197 |             defer { harness.cleanup() }
+198 |             let store = try await harness.bootFresh()
+199 |             try await store.put(identity: try objectIdentity("a"), payload: payloadA)
+    |                             `- warning: result of call to 'put(identity:payload:injection:)' is unused [#no-usage]
+200 |             let injection = DurabilityInjection(failPhase: .data, failAt: boundary)
+201 |             await expectStoreError(.filesystem(.posix(
+/Users/bytedance/Documents/KeyRecord-wt-t19/Tests/KeyRecordStoreTests/LocalDeletionRealFSTests.swift:152:9: warning: no calls to throwing functions occur within 'try' expression
+150 |                                        retirementPending: [v1], rotation: KeyRotation(from: v1, to: v2))
+151 |         try await backend.seed(.metadata(namespace), bytes: metadata.encoded())
+152 |         try await backend.seed(.key(namespace, v1), bytes: Data(repeating: 7, count: 32))
+    |         `- warning: no calls to throwing functions occur within 'try' expression
+153 |         let login = RealFSTestLogin()
+154 | 
+
+/Users/bytedance/Documents/KeyRecord-wt-t19/Tests/KeyRecordStoreTests/ManifestRecoveryTests.swift:69:29: warning: result of call to 'put(identity:payload:injection:)' is unused [#no-usage]
+ 67 |             defer { harness.cleanup() }
+ 68 |             let store = try await harness.bootFresh()
+ 69 |             try await store.put(identity: try objectIdentity("a"), payload: payloadA)
+    |                             `- warning: result of call to 'put(identity:payload:injection:)' is unused [#no-usage]
+ 70 |             let url = harness.root.appendingPathComponent(ManifestDiscovery.fileName)
+ 71 |             var bytes = try Data(contentsOf: url)
+
+/Users/bytedance/Documents/KeyRecord-wt-t19/Tests/KeyRecordStoreTests/ManifestRecoveryTests.swift:94:25: warning: result of call to 'put(identity:payload:injection:)' is unused [#no-usage]
+ 92 |         defer { harness.cleanup() }
+ 93 |         let store = try await harness.bootFresh()
+ 94 |         try await store.put(identity: try objectIdentity("a"), payload: payloadA)
+    |                         `- warning: result of call to 'put(identity:payload:injection:)' is unused [#no-usage]
+ 95 |         let manifest = try EncryptedManifest(currentKeyVersion: 1)
+ 96 |         var json = try manifest.payloadData()
+
+/Users/bytedance/Documents/KeyRecord-wt-t19/Tests/KeyRecordStoreTests/ManifestRecoveryTests.swift:115:25: warning: result of call to 'put(identity:payload:injection:)' is unused [#no-usage]
+113 |         defer { harness.cleanup() }
+114 |         let store = try await harness.bootFresh()
+115 |         try await store.put(identity: try objectIdentity("a"), payload: payloadA)
+    |                         `- warning: result of call to 'put(identity:payload:injection:)' is unused [#no-usage]
+116 |         await harness.keySource.remove(version: 1)
+117 |         let reopened = harness.makeStore()
+
+/Users/bytedance/Documents/KeyRecord-wt-t19/Tests/KeyRecordStoreTests/ManifestRecoveryTests.swift:169:25: warning: result of call to 'put(identity:payload:injection:)' is unused [#no-usage]
+167 |         defer { harness.cleanup() }
+168 |         let store = try await harness.bootFresh()
+169 |         try await store.put(identity: try objectIdentity("committed-a"), payload: payloadA)
+    |                         `- warning: result of call to 'put(identity:payload:injection:)' is unused [#no-usage]
+170 |         let injection = DurabilityInjection(
+171 |             failPhase: .data, failAt: .afterDirectoryFsync)
+
+/Users/bytedance/Documents/KeyRecord-wt-t19/Tests/KeyRecordStoreTests/ManifestRecoveryTests.swift:199:29: warning: result of call to 'put(identity:payload:injection:)' is unused [#no-usage]
+197 |             defer { harness.cleanup() }
+198 |             let store = try await harness.bootFresh()
+199 |             try await store.put(identity: try objectIdentity("a"), payload: payloadA)
+    |                             `- warning: result of call to 'put(identity:payload:injection:)' is unused [#no-usage]
+200 |             let injection = DurabilityInjection(failPhase: .data, failAt: boundary)
+201 |             await expectStoreError(.filesystem(.posix(
+/Users/bytedance/Documents/KeyRecord-wt-t19/Tests/KeyRecordStoreTests/LocalDeletionRealFSTests.swift:152:9: warning: no calls to throwing functions occur within 'try' expression
+150 |                                        retirementPending: [v1], rotation: KeyRotation(from: v1, to: v2))
+151 |         try await backend.seed(.metadata(namespace), bytes: metadata.encoded())
+152 |         try await backend.seed(.key(namespace, v1), bytes: Data(repeating: 7, count: 32))
+    |         `- warning: no calls to throwing functions occur within 'try' expression
+153 |         let login = RealFSTestLogin()
+154 | 
+
+/Users/bytedance/Documents/KeyRecord-wt-t19/Tests/KeyRecordStoreTests/ManifestRecoveryTests.swift:69:29: warning: result of call to 'put(identity:payload:injection:)' is unused [#no-usage]
+ 67 |             defer { harness.cleanup() }
+ 68 |             let store = try await harness.bootFresh()
+ 69 |             try await store.put(identity: try objectIdentity("a"), payload: payloadA)
+    |                             `- warning: result of call to 'put(identity:payload:injection:)' is unused [#no-usage]
+ 70 |             let url = harness.root.appendingPathComponent(ManifestDiscovery.fileName)
+ 71 |             var bytes = try Data(contentsOf: url)
+
+/Users/bytedance/Documents/KeyRecord-wt-t19/Tests/KeyRecordStoreTests/ManifestRecoveryTests.swift:94:25: warning: result of call to 'put(identity:payload:injection:)' is unused [#no-usage]
+ 92 |         defer { harness.cleanup() }
+ 93 |         let store = try await harness.bootFresh()
+ 94 |         try await store.put(identity: try objectIdentity("a"), payload: payloadA)
+    |                         `- warning: result of call to 'put(identity:payload:injection:)' is unused [#no-usage]
+ 95 |         let manifest = try EncryptedManifest(currentKeyVersion: 1)
+ 96 |         var json = try manifest.payloadData()
+
+/Users/bytedance/Documents/KeyRecord-wt-t19/Tests/KeyRecordStoreTests/ManifestRecoveryTests.swift:115:25: warning: result of call to 'put(identity:payload:injection:)' is unused [#no-usage]
+113 |         defer { harness.cleanup() }
+114 |         let store = try await harness.bootFresh()
+115 |         try await store.put(identity: try objectIdentity("a"), payload: payloadA)
+    |                         `- warning: result of call to 'put(identity:payload:injection:)' is unused [#no-usage]
+116 |         await harness.keySource.remove(version: 1)
+117 |         let reopened = harness.makeStore()
+
+/Users/bytedance/Documents/KeyRecord-wt-t19/Tests/KeyRecordStoreTests/ManifestRecoveryTests.swift:169:25: warning: result of call to 'put(identity:payload:injection:)' is unused [#no-usage]
+167 |         defer { harness.cleanup() }
+168 |         let store = try await harness.bootFresh()
+169 |         try await store.put(identity: try objectIdentity("committed-a"), payload: payloadA)
+    |                         `- warning: result of call to 'put(identity:payload:injection:)' is unused [#no-usage]
+170 |         let injection = DurabilityInjection(
+171 |             failPhase: .data, failAt: .afterDirectoryFsync)
+
+/Users/bytedance/Documents/KeyRecord-wt-t19/Tests/KeyRecordStoreTests/ManifestRecoveryTests.swift:199:29: warning: result of call to 'put(identity:payload:injection:)' is unused [#no-usage]
+197 |             defer { harness.cleanup() }
+198 |             let store = try await harness.bootFresh()
+199 |             try await store.put(identity: try objectIdentity("a"), payload: payloadA)
+    |                             `- warning: result of call to 'put(identity:payload:injection:)' is unused [#no-usage]
+200 |             let injection = DurabilityInjection(failPhase: .data, failAt: boundary)
+201 |             await expectStoreError(.filesystem(.posix(
+[146/160] Compiling KeyRecordCaptureTests CaptureTestBackend.swift
+/Users/bytedance/Documents/KeyRecord-wt-t19/Tests/KeyRecordStoreTests/ObjectStoreTests.swift:29:33: warning: result of call to 'put(identity:payload:injection:)' is unused [#no-usage]
+ 27 |             do {
+ 28 |                 let store = try await harness.bootFresh()
+ 29 |                 try await store.put(identity: identity, payload: payload)
+    |                                 `- warning: result of call to 'put(identity:payload:injection:)' is unused [#no-usage]
+ 30 |             }
+ 31 |             let reopened = harness.makeStore()
+
+/Users/bytedance/Documents/KeyRecord-wt-t19/Tests/KeyRecordStoreTests/ObjectStoreTests.swift:43:33: warning: result of call to 'put(identity:payload:injection:)' is unused [#no-usage]
+ 41 |             let store = try await harness.bootFresh()
+ 42 |             for index in 0..<5 {
+ 43 |                 try await store.put(identity: try objectIdentity("obj-\(index)"),
+    |                                 `- warning: result of call to 'put(identity:payload:injection:)' is unused [#no-usage]
+ 44 |                                    payload: Data("payload-\(index)".utf8))
+ 45 |             }
+
+/Users/bytedance/Documents/KeyRecord-wt-t19/Tests/KeyRecordStoreTests/ObjectStoreTests.swift:60:29: warning: result of call to 'put(identity:payload:injection:)' is unused [#no-usage]
+ 58 |             let shard = try CanonicalLogicalIdentity.shard(cycleID: "cycle-9", dayKey: "2026-09-13",
+ 59 |                                                            aggregateType: "bareKey")
+ 60 |             try await store.put(identity: shard, payload: payload)
+    |                             `- warning: result of call to 'put(identity:payload:injection:)' is unused [#no-usage]
+ 61 |             let files = try harness.rootEntries()
+ 62 |             let objectFiles = files.filter { $0 != "manifest.krenc" }
+
+/Users/bytedance/Documents/KeyRecord-wt-t19/Tests/KeyRecordStoreTests/ObjectStoreTests.swift:79:29: warning: result of call to 'put(identity:payload:injection:)' is unused [#no-usage]
+ 77 |         try await withHarness { harness in
+ 78 |             let store = try await harness.bootFresh()
+ 79 |             try await store.put(identity: try objectIdentity("perm"), payload: payload)
+    |                             `- warning: result of call to 'put(identity:payload:injection:)' is unused [#no-usage]
+ 80 |             let rootStatus = try statStatus(harness.root)
+ 81 |             XCTAssertEqual(rootStatus.st_mode & 0o777, 0o700)
+
+/Users/bytedance/Documents/KeyRecord-wt-t19/Tests/KeyRecordStoreTests/ObjectStoreTests.swift:110:33: warning: result of call to 'put(identity:payload:injection:)' is unused [#no-usage]
+108 |             do {
+109 |                 let store = try await harness.bootFresh()
+110 |                 try await store.put(identity: identity, payload: payload)
+    |                                 `- warning: result of call to 'put(identity:payload:injection:)' is unused [#no-usage]
+111 |                 try await store.delete(identity)
+112 |                 let entries = try await store.entries()
+
+/Users/bytedance/Documents/KeyRecord-wt-t19/Tests/KeyRecordStoreTests/ObjectStoreTests.swift:168:29: warning: result of call to 'put(identity:payload:injection:)' is unused [#no-usage]
+166 |             let real = try objectIdentity("real-object")
+167 |             let other = try objectIdentity("other-object")
+168 |             try await store.put(identity: real, payload: payload)
+    |                             `- warning: result of call to 'put(identity:payload:injection:)' is unused [#no-usage]
+169 |             await expectStoreError(.unknownObject) {
+170 |                 try await store.read(other)
+/Users/bytedance/Documents/KeyRecord-wt-t19/Tests/KeyRecordStoreTests/ObjectStoreTests.swift:29:33: warning: result of call to 'put(identity:payload:injection:)' is unused [#no-usage]
+ 27 |             do {
+ 28 |                 let store = try await harness.bootFresh()
+ 29 |                 try await store.put(identity: identity, payload: payload)
+    |                                 `- warning: result of call to 'put(identity:payload:injection:)' is unused [#no-usage]
+ 30 |             }
+ 31 |             let reopened = harness.makeStore()
+
+/Users/bytedance/Documents/KeyRecord-wt-t19/Tests/KeyRecordStoreTests/ObjectStoreTests.swift:43:33: warning: result of call to 'put(identity:payload:injection:)' is unused [#no-usage]
+ 41 |             let store = try await harness.bootFresh()
+ 42 |             for index in 0..<5 {
+ 43 |                 try await store.put(identity: try objectIdentity("obj-\(index)"),
+    |                                 `- warning: result of call to 'put(identity:payload:injection:)' is unused [#no-usage]
+ 44 |                                    payload: Data("payload-\(index)".utf8))
+ 45 |             }
+
+/Users/bytedance/Documents/KeyRecord-wt-t19/Tests/KeyRecordStoreTests/ObjectStoreTests.swift:60:29: warning: result of call to 'put(identity:payload:injection:)' is unused [#no-usage]
+ 58 |             let shard = try CanonicalLogicalIdentity.shard(cycleID: "cycle-9", dayKey: "2026-09-13",
+ 59 |                                                            aggregateType: "bareKey")
+ 60 |             try await store.put(identity: shard, payload: payload)
+    |                             `- warning: result of call to 'put(identity:payload:injection:)' is unused [#no-usage]
+ 61 |             let files = try harness.rootEntries()
+ 62 |             let objectFiles = files.filter { $0 != "manifest.krenc" }
+
+/Users/bytedance/Documents/KeyRecord-wt-t19/Tests/KeyRecordStoreTests/ObjectStoreTests.swift:79:29: warning: result of call to 'put(identity:payload:injection:)' is unused [#no-usage]
+ 77 |         try await withHarness { harness in
+ 78 |             let store = try await harness.bootFresh()
+ 79 |             try await store.put(identity: try objectIdentity("perm"), payload: payload)
+    |                             `- warning: result of call to 'put(identity:payload:injection:)' is unused [#no-usage]
+ 80 |             let rootStatus = try statStatus(harness.root)
+ 81 |             XCTAssertEqual(rootStatus.st_mode & 0o777, 0o700)
+
+/Users/bytedance/Documents/KeyRecord-wt-t19/Tests/KeyRecordStoreTests/ObjectStoreTests.swift:110:33: warning: result of call to 'put(identity:payload:injection:)' is unused [#no-usage]
+108 |             do {
+109 |                 let store = try await harness.bootFresh()
+110 |                 try await store.put(identity: identity, payload: payload)
+    |                                 `- warning: result of call to 'put(identity:payload:injection:)' is unused [#no-usage]
+111 |                 try await store.delete(identity)
+112 |                 let entries = try await store.entries()
+
+/Users/bytedance/Documents/KeyRecord-wt-t19/Tests/KeyRecordStoreTests/ObjectStoreTests.swift:168:29: warning: result of call to 'put(identity:payload:injection:)' is unused [#no-usage]
+166 |             let real = try objectIdentity("real-object")
+167 |             let other = try objectIdentity("other-object")
+168 |             try await store.put(identity: real, payload: payload)
+    |                             `- warning: result of call to 'put(identity:payload:injection:)' is unused [#no-usage]
+169 |             await expectStoreError(.unknownObject) {
+170 |                 try await store.read(other)
+/Users/bytedance/Documents/KeyRecord-wt-t19/Tests/KeyRecordStoreTests/ObjectStoreTests.swift:29:33: warning: result of call to 'put(identity:payload:injection:)' is unused [#no-usage]
+ 27 |             do {
+ 28 |                 let store = try await harness.bootFresh()
+ 29 |                 try await store.put(identity: identity, payload: payload)
+    |                                 `- warning: result of call to 'put(identity:payload:injection:)' is unused [#no-usage]
+ 30 |             }
+ 31 |             let reopened = harness.makeStore()
+
+/Users/bytedance/Documents/KeyRecord-wt-t19/Tests/KeyRecordStoreTests/ObjectStoreTests.swift:43:33: warning: result of call to 'put(identity:payload:injection:)' is unused [#no-usage]
+ 41 |             let store = try await harness.bootFresh()
+ 42 |             for index in 0..<5 {
+ 43 |                 try await store.put(identity: try objectIdentity("obj-\(index)"),
+    |                                 `- warning: result of call to 'put(identity:payload:injection:)' is unused [#no-usage]
+ 44 |                                    payload: Data("payload-\(index)".utf8))
+ 45 |             }
+
+/Users/bytedance/Documents/KeyRecord-wt-t19/Tests/KeyRecordStoreTests/ObjectStoreTests.swift:60:29: warning: result of call to 'put(identity:payload:injection:)' is unused [#no-usage]
+ 58 |             let shard = try CanonicalLogicalIdentity.shard(cycleID: "cycle-9", dayKey: "2026-09-13",
+ 59 |                                                            aggregateType: "bareKey")
+ 60 |             try await store.put(identity: shard, payload: payload)
+    |                             `- warning: result of call to 'put(identity:payload:injection:)' is unused [#no-usage]
+ 61 |             let files = try harness.rootEntries()
+ 62 |             let objectFiles = files.filter { $0 != "manifest.krenc" }
+
+/Users/bytedance/Documents/KeyRecord-wt-t19/Tests/KeyRecordStoreTests/ObjectStoreTests.swift:79:29: warning: result of call to 'put(identity:payload:injection:)' is unused [#no-usage]
+ 77 |         try await withHarness { harness in
+ 78 |             let store = try await harness.bootFresh()
+ 79 |             try await store.put(identity: try objectIdentity("perm"), payload: payload)
+    |                             `- warning: result of call to 'put(identity:payload:injection:)' is unused [#no-usage]
+ 80 |             let rootStatus = try statStatus(harness.root)
+ 81 |             XCTAssertEqual(rootStatus.st_mode & 0o777, 0o700)
+
+/Users/bytedance/Documents/KeyRecord-wt-t19/Tests/KeyRecordStoreTests/ObjectStoreTests.swift:110:33: warning: result of call to 'put(identity:payload:injection:)' is unused [#no-usage]
+108 |             do {
+109 |                 let store = try await harness.bootFresh()
+110 |                 try await store.put(identity: identity, payload: payload)
+    |                                 `- warning: result of call to 'put(identity:payload:injection:)' is unused [#no-usage]
+111 |                 try await store.delete(identity)
+112 |                 let entries = try await store.entries()
+
+/Users/bytedance/Documents/KeyRecord-wt-t19/Tests/KeyRecordStoreTests/ObjectStoreTests.swift:168:29: warning: result of call to 'put(identity:payload:injection:)' is unused [#no-usage]
+166 |             let real = try objectIdentity("real-object")
+167 |             let other = try objectIdentity("other-object")
+168 |             try await store.put(identity: real, payload: payload)
+    |                             `- warning: result of call to 'put(identity:payload:injection:)' is unused [#no-usage]
+169 |             await expectStoreError(.unknownObject) {
+170 |                 try await store.read(other)
+[154/160] Compiling KeyRecordStoreTests StoreFixture.swift
+/Users/bytedance/Documents/KeyRecord-wt-t19/Tests/KeyRecordStoreTests/StoreOrphanRecoveryTests.swift:13:25: warning: result of call to 'put(identity:payload:injection:)' is unused [#no-usage]
+11 |         defer { harness.cleanup() }
+12 |         let store = try await harness.bootFresh()
+13 |         try await store.put(identity: try objectIdentity("a"), payload: payloadA)
+   |                         `- warning: result of call to 'put(identity:payload:injection:)' is unused [#no-usage]
+14 |         let fakeObjectName = String(repeating: "a", count: 64) + ".krenc"
+15 |         try Data("not-an-envelope".utf8).write(to: harness.root.appendingPathComponent(fakeObjectName))
+
+/Users/bytedance/Documents/KeyRecord-wt-t19/Tests/KeyRecordStoreTests/StoreOrphanRecoveryTests.swift:32:25: warning: result of call to 'put(identity:payload:injection:)' is unused [#no-usage]
+30 |         defer { harness.cleanup() }
+31 |         let store = try await harness.bootFresh()
+32 |         try await store.put(identity: try objectIdentity("a"), payload: payloadA)
+   |                         `- warning: result of call to 'put(identity:payload:injection:)' is unused [#no-usage]
+33 |         let sealed = try LocatorCodec.seal(
+34 |             identity: try objectIdentity("orphan-written-then-crashed"),
+
+/Users/bytedance/Documents/KeyRecord-wt-t19/Tests/KeyRecordStoreTests/StoreOrphanRecoveryTests.swift:51:25: warning: result of call to 'put(identity:payload:injection:)' is unused [#no-usage]
+49 |         defer { harness.cleanup() }
+50 |         let store = try await harness.bootFresh()
+51 |         try await store.put(identity: try objectIdentity("a"), payload: payloadA)
+   |                         `- warning: result of call to 'put(identity:payload:injection:)' is unused [#no-usage]
+52 |         for _ in 0..<3 {
+53 |             let reopened = harness.makeStore()
+[155/160] Compiling KeyRecordStoreTests StoreOrphanRecoveryTests.swift
+/Users/bytedance/Documents/KeyRecord-wt-t19/Tests/KeyRecordStoreTests/StoreOrphanRecoveryTests.swift:13:25: warning: result of call to 'put(identity:payload:injection:)' is unused [#no-usage]
+11 |         defer { harness.cleanup() }
+12 |         let store = try await harness.bootFresh()
+13 |         try await store.put(identity: try objectIdentity("a"), payload: payloadA)
+   |                         `- warning: result of call to 'put(identity:payload:injection:)' is unused [#no-usage]
+14 |         let fakeObjectName = String(repeating: "a", count: 64) + ".krenc"
+15 |         try Data("not-an-envelope".utf8).write(to: harness.root.appendingPathComponent(fakeObjectName))
+
+/Users/bytedance/Documents/KeyRecord-wt-t19/Tests/KeyRecordStoreTests/StoreOrphanRecoveryTests.swift:32:25: warning: result of call to 'put(identity:payload:injection:)' is unused [#no-usage]
+30 |         defer { harness.cleanup() }
+31 |         let store = try await harness.bootFresh()
+32 |         try await store.put(identity: try objectIdentity("a"), payload: payloadA)
+   |                         `- warning: result of call to 'put(identity:payload:injection:)' is unused [#no-usage]
+33 |         let sealed = try LocatorCodec.seal(
+34 |             identity: try objectIdentity("orphan-written-then-crashed"),
+
+/Users/bytedance/Documents/KeyRecord-wt-t19/Tests/KeyRecordStoreTests/StoreOrphanRecoveryTests.swift:51:25: warning: result of call to 'put(identity:payload:injection:)' is unused [#no-usage]
+49 |         defer { harness.cleanup() }
+50 |         let store = try await harness.bootFresh()
+51 |         try await store.put(identity: try objectIdentity("a"), payload: payloadA)
+   |                         `- warning: result of call to 'put(identity:payload:injection:)' is unused [#no-usage]
+52 |         for _ in 0..<3 {
+53 |             let reopened = harness.makeStore()
+[156/160] Compiling KeyRecordStoreTests StoreProviderTests.swift
+/Users/bytedance/Documents/KeyRecord-wt-t19/Tests/KeyRecordStoreTests/StoreOrphanRecoveryTests.swift:13:25: warning: result of call to 'put(identity:payload:injection:)' is unused [#no-usage]
+11 |         defer { harness.cleanup() }
+12 |         let store = try await harness.bootFresh()
+13 |         try await store.put(identity: try objectIdentity("a"), payload: payloadA)
+   |                         `- warning: result of call to 'put(identity:payload:injection:)' is unused [#no-usage]
+14 |         let fakeObjectName = String(repeating: "a", count: 64) + ".krenc"
+15 |         try Data("not-an-envelope".utf8).write(to: harness.root.appendingPathComponent(fakeObjectName))
+
+/Users/bytedance/Documents/KeyRecord-wt-t19/Tests/KeyRecordStoreTests/StoreOrphanRecoveryTests.swift:32:25: warning: result of call to 'put(identity:payload:injection:)' is unused [#no-usage]
+30 |         defer { harness.cleanup() }
+31 |         let store = try await harness.bootFresh()
+32 |         try await store.put(identity: try objectIdentity("a"), payload: payloadA)
+   |                         `- warning: result of call to 'put(identity:payload:injection:)' is unused [#no-usage]
+33 |         let sealed = try LocatorCodec.seal(
+34 |             identity: try objectIdentity("orphan-written-then-crashed"),
+
+/Users/bytedance/Documents/KeyRecord-wt-t19/Tests/KeyRecordStoreTests/StoreOrphanRecoveryTests.swift:51:25: warning: result of call to 'put(identity:payload:injection:)' is unused [#no-usage]
+49 |         defer { harness.cleanup() }
+50 |         let store = try await harness.bootFresh()
+51 |         try await store.put(identity: try objectIdentity("a"), payload: payloadA)
+   |                         `- warning: result of call to 'put(identity:payload:injection:)' is unused [#no-usage]
+52 |         for _ in 0..<3 {
+53 |             let reopened = harness.makeStore()
+[159/162] Compiling KeyRecordPackageTests runner.swift
+[160/162] Emitting module KeyRecordPackageTests
+[160/162] Write Objects.LinkFileList
+[161/162] Linking KeyRecordPackageTests
+Build complete! (14.13s)

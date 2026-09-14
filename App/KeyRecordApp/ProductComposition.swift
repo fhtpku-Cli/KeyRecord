@@ -87,7 +87,6 @@ final class ProductComposition: NSObject, NSMenuDelegate {
             setExclusions: { [weak self] ids in await lifecycle.setExclusions(ids); self?.sync() },
             setLoginItem: { [weak self] enabled in await lifecycle.setLoginItem(enabled: enabled); self?.sync() },
             openSettings: { [weak self] in self?.showWindow() })
-        ProductLanguage.bind(flow: flow, lifecycle: lifecycle, preferredLanguages: Locale.preferredLanguages)
         let queue = capture.queue
         for name in [NSWorkspace.willSleepNotification, NSWorkspace.sessionDidResignActiveNotification] {
             observers.append(NSWorkspace.shared.notificationCenter.addObserver(forName: name, object: nil,
@@ -101,7 +100,9 @@ final class ProductComposition: NSObject, NSMenuDelegate {
         sync()
     }
 
-    func boot() -> NSStatusItem {
+    func boot() async -> NSStatusItem {
+        await ProductStartup.restore(flow: flow, lifecycle: lifecycle, preferredLanguages: Locale.preferredLanguages)
+        sync()
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         item.button?.image = NSImage(systemSymbolName: "keyboard", accessibilityDescription: "KeyRecord")
         item.button?.setAccessibilityIdentifier("menu.open")

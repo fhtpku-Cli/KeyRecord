@@ -28,7 +28,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             do {
                 let composition = try await ProductComposition.make()
                 product = composition
-                statusItem = composition.boot()
+                statusItem = await composition.boot()
             } catch {
                 let text = NativeText(locale: Locale.preferredLanguages.first?.hasPrefix("zh") == true ? "zh-Hans" : "en")
                 let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)

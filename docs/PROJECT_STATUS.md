@@ -1,6 +1,6 @@
 # Current project status
 
-Latest milestone: [verified outcomes and independent gates](MILESTONE_STATUS.md), with the machine-readable [requirement allocation](milestone-allocation.json). Code implementation is complete in the scoped milestone; live performance, Intel, signing, hosted UI and FR-P6 remain independent BLOCKED gates. This is not overall G1 or public-release completion.
+Latest milestone: the [execution checkpoint](EXECUTION_CHECKPOINT.md) is the current handoff at code checkpoint `22cb8e9`; the final milestone is BLOCKED/REJECTED with no valid frozen candidate and no F1-F4 approval. The measured baseline report is [verified outcomes and independent gates](MILESTONE_STATUS.md), with the machine-readable [requirement allocation](milestone-allocation.json). Live performance, Intel, signing, hosted UI, evidence binding, preservation and FR-P6 remain independent BLOCKED gates. This is not overall G1 or public-release completion.
 
 ## Authority and reproduction
 

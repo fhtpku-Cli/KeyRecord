@@ -16,15 +16,33 @@ final class AppProjectTests: XCTestCase {
         XCTAssertFalse(objects.values.contains { $0["isa"] as? String == "XCRemoteSwiftPackageReference" })
         XCTAssertEqual(objects.values.first { $0["isa"] as? String == "XCLocalSwiftPackageReference" }?["relativePath"] as? String, ".")
         let list = try XCTUnwrap(app["buildConfigurationList"] as? String)
-        for id in try XCTUnwrap(objects[list]?["buildConfigurations"] as? [String]) {
-            let settings = try XCTUnwrap(objects[id]?["buildSettings"] as? [String: Any])
-            XCTAssertEqual(settings["ENABLE_HARDENED_RUNTIME"] as? String, "YES")
+        let configurations = try XCTUnwrap(objects[list]?["buildConfigurations"] as? [String])
+            .map { id -> (name: String, settings: [String: Any]) in
+                let configuration = try XCTUnwrap(objects[id])
+                let name = try XCTUnwrap(configuration["name"] as? String)
+                let settings = try XCTUnwrap(configuration["buildSettings"] as? [String: Any])
+                return (name, settings)
+            }
+        let settingsByName = Dictionary(uniqueKeysWithValues: configurations.map { ($0.name, $0.settings) })
+        XCTAssertEqual(Set(settingsByName.keys), ["Debug", "Release"])
+        for settings in settingsByName.values {
             XCTAssertEqual(settings["ENABLE_APP_SANDBOX"] as? String, "NO")
+            XCTAssertEqual(settings["PRODUCT_BUNDLE_IDENTIFIER"] as? String, "com.keyrecord.app")
             XCTAssertNil(settings["CODE_SIGN_ENTITLEMENTS"])
-            XCTAssertNil(settings["DEVELOPMENT_TEAM"])
             XCTAssertNil(settings["ENABLE_OUTGOING_NETWORK_CONNECTIONS"])
             XCTAssertNil(settings["ENABLE_INCOMING_NETWORK_CONNECTIONS"])
         }
+        let debug = try XCTUnwrap(settingsByName["Debug"])
+        // Debug signs automatically with the stable local development team so TCC grants persist.
+        XCTAssertEqual(debug["CODE_SIGN_STYLE"] as? String, "Automatic")
+        XCTAssertEqual(debug["DEVELOPMENT_TEAM"] as? String, "P3W62C39TN")
+        XCTAssertEqual(debug["CODE_SIGN_IDENTITY"] as? String, "Apple Development")
+        XCTAssertEqual(debug["ENABLE_HARDENED_RUNTIME"] as? String, "NO")
+        let release = try XCTUnwrap(settingsByName["Release"])
+        // Release carries no team or signing identity; CI wrappers build it unsigned/ad-hoc.
+        XCTAssertNil(release["DEVELOPMENT_TEAM"])
+        XCTAssertNil(release["CODE_SIGN_IDENTITY"])
+        XCTAssertEqual(release["ENABLE_HARDENED_RUNTIME"] as? String, "YES")
         XCTAssertEqual(objects.values.filter { $0["productType"] as? String == "com.apple.product-type.application" }.count, 1)
         XCTAssertFalse(objects.values.contains { $0["isa"] as? String == "PBXCopyFilesBuildPhase" })
     }

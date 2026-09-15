@@ -87,20 +87,24 @@ actor ProductCapture: LifecycleCaptureControlling, RestartReadinessChecking {
     let scheduler: FlushScheduler
     let foreground: SystemForegroundProvider
     let secure: SystemSecureInputProvider
-    let qualification = UnqualifiedCapture()
+    let qualification: any CaptureQualification
+    private let sessionLock: any SessionLockProvider
     init(source: ListenOnlyEventSource, queue: CaptureQueue, reduction: ProductReduction,
-         persistence: ProductPersistence, scheduler: FlushScheduler, foreground: SystemForegroundProvider) {
+         persistence: ProductPersistence, scheduler: FlushScheduler, foreground: SystemForegroundProvider,
+         qualification: any CaptureQualification = UnqualifiedCapture(),
+         sessionLock: any SessionLockProvider = UnqualifiedSessionLockProvider()) {
         self.source = source; self.queue = queue; self.reduction = reduction
         self.persistence = persistence; self.scheduler = scheduler; self.foreground = foreground
+        self.qualification = qualification; self.sessionLock = sessionLock
         secure = SystemSecureInputProvider()
         control = CaptureControl(queue: queue, providers: CaptureProviderSet(
-            foreground: foreground, secureInput: secure, sessionLock: UnqualifiedSessionLockProvider()))
+            foreground: foreground, secureInput: secure, sessionLock: sessionLock))
     }
     func verifyRestartReadiness() async throws -> RuntimeConditions {
         guard await qualification.liveCaptureQualified() else { throw LifecycleReadinessError.sessionLocked }
         _ = try reduction.gate.begin()
         return RuntimeConditions(keyAvailability: .available,
-            sessionLock: await UnqualifiedSessionLockProvider().sessionLockState(),
+            sessionLock: await sessionLock.sessionLockState(),
             secureInput: await secure.secureInputState(), foreground: await foreground.foregroundState())
     }
     func start() async throws {

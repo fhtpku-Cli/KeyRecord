@@ -5,6 +5,9 @@ public enum KeyringError: Error, Equatable, Sendable {
     case locked, staleGeneration, busy, creationDenied, entropyDenied, duplicateItem
     case corruptMetadata, metadataConflict, invalidNamespace, invalidVersion, unknownReferences
     case liveQualificationBlocked
+    /// Live backend rejected an operation for a non-enumerated infrastructure reason
+    /// (e.g. an unmapped SecItem OSStatus). Carries no status or material payload.
+    case backendUnavailable
     case missingKey(KeyVersion), corruptKey(KeyVersion), versionReferenced(KeyVersion)
     case unpublishedCandidates(Set<KeyVersion>)
 }

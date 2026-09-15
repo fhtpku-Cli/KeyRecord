@@ -53,6 +53,9 @@ final class ProductReleaseBoundaryTests: XCTestCase {
     func testRejectsFakeTokenInBuiltResource() throws {
         try rejectBundleMutation("Contents/Resources/injected.txt", bytes: "KEYRECORD_FLOW_FIXTURE")
     }
+    func testRejectsLocalCaptureTokenInBuiltResource() throws {
+        try rejectBundleMutation("Contents/Resources/injected.txt", bytes: "KEYRECORD_LOCAL_CAPTURE")
+    }
     func testRejectsExtraExecutableEvenWithoutExecuteBit() throws {
         try rejectBundleMutation("Contents/MacOS/helper", bytes: "helper")
     }

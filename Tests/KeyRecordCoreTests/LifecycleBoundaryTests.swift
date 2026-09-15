@@ -75,10 +75,48 @@ final class LifecycleBoundaryTests: XCTestCase {
     }
 
     func testAppTreeNeverTouchesKeychainDirectly() throws {
-        // Given: App sources; When: scanned; Then: key operations remain behind the task-11 port boundary.
-        for file in try SourceInspection.swiftFiles(in: SourceInspection.root.appendingPathComponent("App")) {
+        // Given: App sources; When: scanned; Then: SecItem CRUD lives in exactly one DEBUG-only
+        // adapter behind the KeychainBackend port; every other App file has zero SecItem calls.
+        let crudSymbols = ["SecItemAdd", "SecItemDelete", "SecItemUpdate", "SecItemCopyMatching"]
+        let crudFiles = try SourceInspection.swiftFiles(in: SourceInspection.root.appendingPathComponent("App"))
+            .filter { file in
+                let code = SourceInspection.codeOnly(try String(contentsOf: file, encoding: .utf8))
+                return crudSymbols.contains { code.contains($0) }
+            }
+        XCTAssertEqual(crudFiles.map(\.lastPathComponent), ["LocalKeychainBackend.swift"])
+
+        let backend = try SourceInspection.root
+            .appendingPathComponent("App/KeyRecordApp/LocalKeychainBackend.swift")
+        let source = try String(contentsOf: backend, encoding: .utf8)
+        let trimmed = source.trimmingCharacters(in: .whitespacesAndNewlines)
+        // The whole adapter is compiled out of Release and non-armed Debug ships BlockedLiveKeychain.
+        XCTAssertTrue(trimmed.hasPrefix("#if DEBUG"), backend.lastPathComponent)
+        XCTAssertTrue(trimmed.hasSuffix("#endif"), backend.lastPathComponent)
+        let code = SourceInspection.codeOnly(source)
+        for symbol in crudSymbols { XCTAssertTrue(code.contains(symbol), "\(symbol) missing from adapter") }
+        XCTAssertFalse(code.contains("print("))
+        XCTAssertFalse(code.contains("NSLog"))
+
+        // The pure query builder is the other DEBUG-only adapter file and performs no CRUD itself.
+        let queriesURL = try SourceInspection.root
+            .appendingPathComponent("App/KeyRecordApp/LocalKeychainQueries.swift")
+        let queriesSource = try String(contentsOf: queriesURL, encoding: .utf8)
+        let queriesTrimmed = queriesSource.trimmingCharacters(in: .whitespacesAndNewlines)
+        XCTAssertTrue(queriesTrimmed.hasPrefix("#if DEBUG"), queriesURL.lastPathComponent)
+        XCTAssertTrue(queriesTrimmed.hasSuffix("#endif"), queriesURL.lastPathComponent)
+        // Exact-item data-protection invariants: one match, no iCloud, no enumeration, no logging.
+        let queries = SourceInspection.codeOnly(queriesSource)
+        for symbol in crudSymbols { XCTAssertFalse(queries.contains(symbol), "\(symbol) in pure builder") }
+        XCTAssertTrue(queries.contains("kSecMatchLimitOne"))
+        XCTAssertFalse(queries.contains("kSecMatchLimitAll"))
+        XCTAssertFalse(queries.contains("m_LimitAll"))
+        XCTAssertFalse(queries.contains("print("))
+        XCTAssertFalse(queries.contains("NSLog"))
+
+        for file in try SourceInspection.swiftFiles(in: SourceInspection.root.appendingPathComponent("App"))
+        where file.lastPathComponent != "LocalKeychainBackend.swift" {
             let code = SourceInspection.codeOnly(try String(contentsOf: file, encoding: .utf8))
-            for symbol in ["SecItemAdd", "SecItemDelete", "SecItemUpdate", "SecItemCopyMatching"] {
+            for symbol in crudSymbols {
                 XCTAssertFalse(code.contains(symbol), "\(symbol) must not appear in \(file.lastPathComponent)")
             }
         }

@@ -35,8 +35,9 @@ public actor ListenOnlyEventSource: EventSource {
     }
 
     public static func system(queue: CaptureQueue,
-                              qualification: any CaptureQualification = UnqualifiedCapture()) async -> ListenOnlyEventSource {
-        let backend = await SystemTapBackend(queue: queue)
+                              qualification: any CaptureQualification = UnqualifiedCapture(),
+                              sessionLock: any SessionLockProvider = UnqualifiedSessionLockProvider()) async -> ListenOnlyEventSource {
+        let backend = await SystemTapBackend(queue: queue, sessionLock: sessionLock)
         return ListenOnlyEventSource(queue: queue, qualification: qualification, backend: backend)
     }
 

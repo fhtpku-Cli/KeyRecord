@@ -20,6 +20,11 @@ final class ProductComposition: NSObject, NSMenuDelegate {
     let flush: ProductFlush
     let capture: ProductCapture
     let store: ObjectStore
+    #if DEBUG
+    private(set) var localCapture: LocalDevelopmentCapture?
+    private(set) var localSessionLock: (any SessionLockProvider)?
+    private var developerMenu: LocalDevelopmentCaptureMenu?
+    #endif
     private var window: NSWindow?
     private var pulse: Task<Void, Never>?
     private var observers: [any NSObjectProtocol] = []
@@ -28,11 +33,21 @@ final class ProductComposition: NSObject, NSMenuDelegate {
     static func make() async throws -> ProductComposition {
         let root = try FileManager.default.url(for: .applicationSupportDirectory, in: .userDomainMask,
             appropriateFor: nil, create: false).appendingPathComponent("com.keyrecord.app/store", isDirectory: true)
+        let fs = AtomicFileSystem()
+        try fs.preparePrivateRoot(at: root.deletingLastPathComponent())
+        try fs.preparePrivateRoot(at: root)
         let gate = KeyAvailabilityGate()
         let namespace = try KeychainNamespace("com.keyrecord.app")
         // T7 has no qualified system-lock witness. Never replace this boundary with
         // an environment switch, cached unlocked assumption, or fake-success backend.
-        let backend = BlockedLiveKeychain()
+        #if DEBUG
+        // KEYRECORD_LOCAL_CAPTURE=1 is the sole, DEBUG-only arm that persists against the
+        // real exact-namespace SecItem keychain. Non-armed Debug and all Release builds stay Blocked.
+        let backend: any KeychainBackend = LocalDevelopmentCaptureArmament.environmentArmed
+            ? LocalKeychainBackend() : BlockedLiveKeychain()
+        #else
+        let backend: any KeychainBackend = BlockedLiveKeychain()
+        #endif
         let source = ProductKeySource(backend: backend, namespace: namespace, gate: gate)
         let store = ObjectStore(root: root, keySource: source)
         let consent = ProductConsent()
@@ -46,9 +61,22 @@ final class ProductComposition: NSObject, NSMenuDelegate {
         let reduction = ProductReduction(gate: gate)
         let scheduler = FlushScheduler(gate: gate, writer: writer, clock: clock)
         let queue = CaptureQueue()
+        #if DEBUG
+        let localCapture: LocalDevelopmentCapture? = LocalDevelopmentCaptureArmament.environmentArmed
+            ? LocalDevelopmentCapture() : nil
+        let qualification: any CaptureQualification = localCapture ?? UnqualifiedCapture()
+        let sessionLock: any SessionLockProvider = localCapture == nil
+            ? UnqualifiedSessionLockProvider() : SystemSessionLockProvider()
+        let eventSource = await ListenOnlyEventSource.system(queue: queue, qualification: qualification,
+                                                             sessionLock: sessionLock)
+        let capture = ProductCapture(source: eventSource, queue: queue, reduction: reduction,
+            persistence: persistence, scheduler: scheduler, foreground: SystemForegroundProvider(),
+            qualification: qualification, sessionLock: sessionLock)
+        #else
         let eventSource = await ListenOnlyEventSource.system(queue: queue, qualification: UnqualifiedCapture())
         let capture = ProductCapture(source: eventSource, queue: queue, reduction: reduction,
             persistence: persistence, scheduler: scheduler, foreground: SystemForegroundProvider())
+        #endif
         let flush = ProductFlush(reduction: reduction, scheduler: scheduler)
         let login = ProductLogin.make()
         let deletion = LocalDeletionCoordinator(ownedRoot: root.path, fileSystem: FileSystemDeletionAdapter(),
@@ -61,8 +89,13 @@ final class ProductComposition: NSObject, NSMenuDelegate {
             afterReset: { await lifecycle.reloadAfterCycleReset(); hooks.start() }, clear: { reduction.clear() })
         let flow = AppFlowObservable(flow: Phase1FlowModel(lifecycle: lifecycle,
             cycleReset: destruction, localDataEraser: destruction))
-        return ProductComposition(lifecycle: lifecycle, flow: flow, gate: gate, reduction: reduction,
+        let composition = ProductComposition(lifecycle: lifecycle, flow: flow, gate: gate, reduction: reduction,
                                   scheduler: scheduler, flush: flush, capture: capture, store: store, hooks: hooks)
+        #if DEBUG
+        composition.localCapture = localCapture
+        composition.localSessionLock = localCapture == nil ? nil : sessionLock
+        #endif
+        return composition
     }
 
     private init(lifecycle: LifecycleOrchestrator, flow: AppFlowObservable, gate: KeyAvailabilityGate,
@@ -101,7 +134,20 @@ final class ProductComposition: NSObject, NSMenuDelegate {
     }
 
     func boot() async -> NSStatusItem {
+        #if DEBUG
+        // Gate must be primed from the real session-lock state BEFORE restore()
+        // reloads preferences (which calls gate.begin()); a locked/unknown Mac stays closed.
+        if LocalDevelopmentCaptureArmament.consentPreAccepted, let sessionLock = localSessionLock {
+            if await sessionLock.sessionLockState() == .unlocked { gate.update(.unlocked) }
+        }
+        #endif
         await ProductStartup.restore(flow: flow, lifecycle: lifecycle, preferredLanguages: Locale.preferredLanguages)
+        #if DEBUG
+        if LocalDevelopmentCaptureArmament.consentPreAccepted {
+            lifecycle.requestConsent()
+            try? await lifecycle.acceptConsent()
+        }
+        #endif
         sync()
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         item.button?.image = NSImage(systemSymbolName: "keyboard", accessibilityDescription: "KeyRecord")
@@ -117,6 +163,11 @@ final class ProductComposition: NSObject, NSMenuDelegate {
             entry.target = self
             menu.addItem(entry)
         }
+        #if DEBUG
+        let developerMenu = LocalDevelopmentCaptureMenu(qualification: localCapture)
+        developerMenu.addItems(to: menu)
+        self.developerMenu = developerMenu
+        #endif
         item.menu = menu
         return item
     }
@@ -197,6 +248,9 @@ final class ProductComposition: NSObject, NSMenuDelegate {
         sync()
         let keys = ["action.start", "action.pause", "action.resume", "action.settings", "action.quit"]
         for (item, key) in zip(menu.items.dropFirst(), keys) { item.title = text(key) }
+        #if DEBUG
+        developerMenu?.refresh()
+        #endif
     }
 
     private func showWindow() {

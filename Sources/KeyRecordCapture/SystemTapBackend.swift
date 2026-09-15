@@ -37,8 +37,12 @@ final class SystemTapBackend: CaptureTapBackend {
     private var workspaceFence: CaptureWorkspaceFence?
     private var invalidate: (@Sendable (CaptureInvalidation) -> Void)?
     private nonisolated let cached = CaptureLock(CaptureProviderSnapshot.unknown)
+    private let sessionLock: any SessionLockProvider
 
-    init(queue: CaptureQueue) { self.queue = queue }
+    init(queue: CaptureQueue, sessionLock: any SessionLockProvider = UnqualifiedSessionLockProvider()) {
+        self.queue = queue
+        self.sessionLock = sessionLock
+    }
 
     isolated deinit {
         workspaceFence?.stop()
@@ -65,9 +69,8 @@ final class SystemTapBackend: CaptureTapBackend {
         let generation = queue.generation
         let foreground = await SystemForegroundProvider().foregroundState()
         let secure = await SystemSecureInputProvider().secureInputState()
-        // No qualified initial lock witness or complete security-change feed exists yet.
-        // Unknown keeps this backend closed; cached samples alone cannot authorize live capture.
-        let lock = await UnqualifiedSessionLockProvider().sessionLockState()
+        // Default witness stays .unknown (gate closed); only an explicit caller injects a real lock witness.
+        let lock = await sessionLock.sessionLockState()
         let current = CaptureProviderSnapshot(GateInputs(sessionLock: lock, secureInput: secure, foreground: foreground))
         guard queue.generation == generation else { return .unknown }
         cached.withLock { $0 = current }

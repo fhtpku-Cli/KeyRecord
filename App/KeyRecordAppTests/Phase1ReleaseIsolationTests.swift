@@ -10,7 +10,7 @@ final class Phase1ReleaseIsolationTests: XCTestCase {
         .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
     private let forbiddenReleaseTokens = [
         "KEYRECORD_LOCAL_CAPTURE", "LocalDevelopmentCapture", "SystemSessionLockProvider",
-        "LocalKeychainBackend", "LocalKeychainQueries",
+        "LocalKeychainBackend", "LocalKeychainQueries", "debug.localCaptureEnabled",
     ]
 
     func testLocalCaptureArmamentRequiresExactEnvValue() {
@@ -22,9 +22,22 @@ final class Phase1ReleaseIsolationTests: XCTestCase {
         XCTAssertTrue(LocalDevelopmentCaptureArmament.isArmed(in: ["KEYRECORD_LOCAL_CAPTURE": "1"]))
     }
 
+    func testLocalCaptureArmamentPersistsAcrossInstancesViaUserDefaults() {
+        let key = LocalDevelopmentCaptureArmament.defaultsKey
+        UserDefaults.standard.removeObject(forKey: key)
+        defer { UserDefaults.standard.removeObject(forKey: key) }
+        XCTAssertFalse(LocalDevelopmentCaptureArmament.defaultsArmed)
+        LocalDevelopmentCaptureArmament.setDefaultsArmed(true)
+        XCTAssertTrue(LocalDevelopmentCaptureArmament.defaultsArmed)
+        XCTAssertTrue(LocalDevelopmentCaptureArmament.isArmed)
+        LocalDevelopmentCaptureArmament.setDefaultsArmed(false)
+        XCTAssertFalse(LocalDevelopmentCaptureArmament.defaultsArmed)
+    }
+
     func testDefaultLocalCaptureIsUnqualifiedWithoutEnvironment() async {
-        // Given: no KEYRECORD_LOCAL_CAPTURE in the hostless environment.
-        XCTAssertFalse(LocalDevelopmentCaptureArmament.environmentArmed)
+        // Given: no env and no persisted toggle.
+        UserDefaults.standard.removeObject(forKey: LocalDevelopmentCaptureArmament.defaultsKey)
+        XCTAssertFalse(LocalDevelopmentCaptureArmament.isArmed)
         // When: a default and an explicit-disabled qualification are queried.
         let defaultResult = await LocalDevelopmentCapture().liveCaptureQualified()
         let disabledResult = await LocalDevelopmentCapture(armed: false).liveCaptureQualified()

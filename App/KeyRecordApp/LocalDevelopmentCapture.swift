@@ -9,6 +9,7 @@ import KeyRecordCapture
 
 enum LocalDevelopmentCaptureArmament {
     static let environmentKey = "KEYRECORD_LOCAL_CAPTURE"
+    static let defaultsKey = "debug.localCaptureEnabled"
 
     static func isArmed(in environment: [String: String]) -> Bool {
         environment[environmentKey] == "1"
@@ -18,22 +19,20 @@ enum LocalDevelopmentCaptureArmament {
         isArmed(in: ProcessInfo.processInfo.environment)
     }
 
-    static let consentEnvironmentKey = "KEYRECORD_LOCAL_CONSENT"
+    static var defaultsArmed: Bool { UserDefaults.standard.bool(forKey: defaultsKey) }
 
-    static func consentPreAccepted(in environment: [String: String]) -> Bool {
-        isArmed(in: environment) && environment[consentEnvironmentKey] == "1"
+    static func setDefaultsArmed(_ on: Bool) {
+        UserDefaults.standard.set(on, forKey: defaultsKey)
     }
 
-    static var consentPreAccepted: Bool {
-        consentPreAccepted(in: ProcessInfo.processInfo.environment)
-    }
+    static var isArmed: Bool { environmentArmed || defaultsArmed }
 }
 
 final class LocalDevelopmentCapture: CaptureQualification, @unchecked Sendable {
     private let mutex = NSLock()
     private var armed: Bool
 
-    init(armed: Bool = LocalDevelopmentCaptureArmament.environmentArmed) {
+    init(armed: Bool = LocalDevelopmentCaptureArmament.isArmed) {
         self.armed = armed
     }
 
@@ -122,7 +121,9 @@ final class LocalDevelopmentCaptureMenu: NSObject {
 
     @objc func toggle() {
         guard let qualification else { return }
-        qualification.setArmed(!qualification.isArmed)
+        let next = !qualification.isArmed
+        qualification.setArmed(next)
+        LocalDevelopmentCaptureArmament.setDefaultsArmed(next)
         refresh()
     }
 
@@ -132,15 +133,9 @@ final class LocalDevelopmentCaptureMenu: NSObject {
         let armed = qualification?.isArmed ?? false
         item.state = armed ? .on : .off
         item.isEnabled = qualification != nil
-        let title: String
-        if qualification == nil {
-            title = "Developer: Local Capture Off (\(LocalDevelopmentCaptureArmament.environmentKey)=1 arms)"
-        } else if armed {
-            title = "Developer: Local Capture Armed"
-        } else {
-            title = "Developer: Local Capture Disarmed"
-        }
-        item.title = title
+        item.title = armed
+            ? "Developer: Local Capture On"
+            : "Developer: Local Capture Off"
         return item
     }
 }

@@ -41,9 +41,10 @@ final class ProductComposition: NSObject, NSMenuDelegate {
         // T7 has no qualified system-lock witness. Never replace this boundary with
         // an environment switch, cached unlocked assumption, or fake-success backend.
         #if DEBUG
-        // KEYRECORD_LOCAL_CAPTURE=1 is the sole, DEBUG-only arm that persists against the
-        // real exact-namespace SecItem keychain. Non-armed Debug and all Release builds stay Blocked.
-        let backend: any KeychainBackend = LocalDevelopmentCaptureArmament.environmentArmed
+        // DEBUG self-use: armed by the persistent Developer menu toggle (UserDefaults)
+        // or the KEYRECORD_LOCAL_CAPTURE=1 automation env. Non-armed Debug and all
+        // Release builds stay Blocked.
+        let backend: any KeychainBackend = LocalDevelopmentCaptureArmament.isArmed
             ? LocalKeychainBackend() : BlockedLiveKeychain()
         #else
         let backend: any KeychainBackend = BlockedLiveKeychain()
@@ -62,7 +63,7 @@ final class ProductComposition: NSObject, NSMenuDelegate {
         let scheduler = FlushScheduler(gate: gate, writer: writer, clock: clock)
         let queue = CaptureQueue()
         #if DEBUG
-        let localCapture: LocalDevelopmentCapture? = LocalDevelopmentCaptureArmament.environmentArmed
+        let localCapture: LocalDevelopmentCapture? = LocalDevelopmentCaptureArmament.isArmed
             ? LocalDevelopmentCapture() : nil
         let qualification: any CaptureQualification = localCapture ?? UnqualifiedCapture()
         let sessionLock: any SessionLockProvider = localCapture == nil
@@ -135,19 +136,14 @@ final class ProductComposition: NSObject, NSMenuDelegate {
 
     func boot() async -> NSStatusItem {
         #if DEBUG
-        // Gate must be primed from the real session-lock state BEFORE restore()
-        // reloads preferences (which calls gate.begin()); a locked/unknown Mac stays closed.
-        if LocalDevelopmentCaptureArmament.consentPreAccepted, let sessionLock = localSessionLock {
-            if await sessionLock.sessionLockState() == .unlocked { gate.update(.unlocked) }
+        // Prime the gate from the real session-lock state BEFORE restore() reloads
+        // preferences (which calls gate.begin()); a locked/unknown Mac stays closed.
+        if localCapture != nil, let sessionLock = localSessionLock,
+           await sessionLock.sessionLockState() == .unlocked {
+            gate.update(.unlocked)
         }
         #endif
         await ProductStartup.restore(flow: flow, lifecycle: lifecycle, preferredLanguages: Locale.preferredLanguages)
-        #if DEBUG
-        if LocalDevelopmentCaptureArmament.consentPreAccepted {
-            lifecycle.requestConsent()
-            try? await lifecycle.acceptConsent()
-        }
-        #endif
         sync()
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         item.button?.image = NSImage(systemSymbolName: "keyboard", accessibilityDescription: "KeyRecord")

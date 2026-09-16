@@ -5,7 +5,7 @@ require 'find'
 class BoundaryFailure < StandardError; end
 
 module ReleaseBoundary
-  TOKENS = /KEYRECORD_(?:FLOW|QA|TEST|DEBUG|LOCAL_CAPTURE)|FlowTestComposition|FlowPreview|FlowFixture|FileFixturePreferences|JournalingKeyAndFlush|JournalingCapture|FixedReadiness|ConfiguredLogin|FixedCycleID|Fake[A-Z]\w*|Phase1QARunner|XCTest|XCUITest|KeyRecordTestSupport|LocalDevelopmentCapture(?:Armament|Menu)?|SystemSessionLockProvider|LocalKeychain(?:Backend|Queries)|task\d+-qa\.sh/
+  TOKENS = /KEYRECORD_(?:FLOW|QA|TEST|DEBUG|LOCAL_CAPTURE)|FlowTestComposition|FlowPreview|FlowFixture|FileFixturePreferences|JournalingKeyAndFlush|JournalingCapture|FixedReadiness|ConfiguredLogin|FixedCycleID|Fake[A-Z]\w*|Phase1QARunner|XCTest|XCUITest|KeyRecordTestSupport|LocalDevelopmentCapture(?:Armament|Menu)?|SystemSessionLockProvider|LocalKeychain(?:Backend|Queries)|debug\.localCaptureEnabled|task\d+-qa\.sh/
   ENTITLEMENTS = /com\.apple\.security\.(?:network\.|device\.|files\.|temporary-exception\.|personal-information\.|automation\.|cs\.)/
   SPAWN = /\b(?:Process|NSTask|URLSession|URLRequest|NWConnection|NWListener)\s*[.(]|\b(?:posix_spawn\w*|execve|fork|popen|getenv)\s*\(|(?<!\.)(?<!func )\bsystem\s*\(|\bCommandLine\b|\/bin\/(?:sh|bash)|\bimport\s+(?:Network|CFNetwork)\b/
 

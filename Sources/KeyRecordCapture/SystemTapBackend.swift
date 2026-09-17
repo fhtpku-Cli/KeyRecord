@@ -1,3 +1,4 @@
+import Foundation
 import CoreGraphics
 import KeyRecordCore
 
@@ -83,6 +84,13 @@ final class SystemTapBackend: CaptureTapBackend {
         guard tap == nil else { throw CaptureStartError.alreadyStarted }
         guard workspaceFence != nil, let invalidate,
               queue.validate(queue.snapshot, current: cachedProviders()) else { throw CaptureStartError.closed }
+        // Preflight only reports current status; it never prompts. On first run (or after a
+        // fresh binary path invalidates the old grant) call request once so macOS presents the
+        // Input Monitoring prompt, then re-check before failing closed. If the user has not
+        // granted it yet, start surfaces .revoked; after granting, Start again succeeds.
+        if !CGPreflightListenEventAccess() {
+            CGRequestListenEventAccess()
+        }
         guard CGPreflightListenEventAccess() else {
             invalidate(.permissionRevoked)
             throw CaptureStartError.revoked
@@ -102,6 +110,10 @@ final class SystemTapBackend: CaptureTapBackend {
         self.tap = tap
         self.source = source
         CFRunLoopAddSource(CFRunLoopGetMain(), source, .commonModes)
+        // A freshly created tap is disabled until explicitly enabled; without this the
+        // callback never fires (tapCreate still succeeds). Re-enable is also required
+        // after a tapDisabledByTimeout/UserInput event.
+        CGEvent.tapEnable(tap: tap, enable: true)
     }
 
     func stop() {

@@ -26,6 +26,7 @@ final class ProductComposition: NSObject, NSMenuDelegate {
     private var developerMenu: LocalDevelopmentCaptureMenu?
     #endif
     private var window: NSWindow?
+    private var statusItem: NSMenuItem?
     private var pulse: Task<Void, Never>?
     private var observers: [any NSObjectProtocol] = []
     private var text: NativeText { NativeText(locale: flow.language) }
@@ -122,15 +123,38 @@ final class ProductComposition: NSObject, NSMenuDelegate {
             setLoginItem: { [weak self] enabled in await lifecycle.setLoginItem(enabled: enabled); self?.sync() },
             openSettings: { [weak self] in self?.showWindow() })
         let queue = capture.queue
-        for name in [NSWorkspace.willSleepNotification, NSWorkspace.sessionDidResignActiveNotification] {
-            observers.append(NSWorkspace.shared.notificationCenter.addObserver(forName: name, object: nil,
-                queue: nil) { [weak self, gate, reduction, queue] _ in
-                    gate.update(.unknown)
+        // Sleep may lock the session, so close capture on sleep. Do NOT close on
+        // sessionDidResignActive: that fires whenever the user switches to another app,
+        // which is normal foreground use, not a lock. Actual screen-lock transitions are
+        // observed separately via SystemSessionLockProvider notifications (DEBUG) / the
+        // qualified host (T7) and must be the only thing that gates capture off mid-session.
+        observers.append(NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.willSleepNotification, object: nil, queue: nil) { [weak self, gate, reduction, queue] _ in
+                gate.update(.unknown)
+                queue.revoke()
+                reduction.clear()
+                Task { @MainActor in await self?.closeProtectedState() }
+            })
+        #if DEBUG
+        if let sessionLock = localSessionLock {
+            let center = DistributedNotificationCenter.default()
+            observers.append(center.addObserver(forName: Notification.Name("com.apple.screenIsLocked"),
+                object: nil, queue: nil) { [weak self, gate, reduction, queue] _ in
+                    gate.update(.locked)
                     queue.revoke()
                     reduction.clear()
                     Task { @MainActor in await self?.closeProtectedState() }
                 })
+            observers.append(center.addObserver(forName: Notification.Name("com.apple.screenIsUnlocked"),
+                object: nil, queue: nil) { [weak self, gate] _ in
+                    guard let self, self.lifecycle.phase == .collecting
+                            || self.lifecycle.phase == .paused else { return }
+                    gate.update(.unlocked)
+                    Task { @MainActor in self.sync() }
+                })
+            _ = sessionLock
         }
+        #endif
         sync()
     }
 
@@ -151,7 +175,9 @@ final class ProductComposition: NSObject, NSMenuDelegate {
         let menu = NSMenu()
         menu.autoenablesItems = false
         menu.delegate = self
-        menu.addItem(NSMenuItem(title: "BLOCKED — T7", action: nil, keyEquivalent: ""))
+        let statusItem = NSMenuItem(title: "", action: nil, keyEquivalent: "")
+        self.statusItem = statusItem
+        menu.addItem(statusItem)
         for (key, selector) in [("action.start", #selector(start)), ("action.pause", #selector(pauseCollection)),
                                 ("action.resume", #selector(resumeCollection)), ("action.settings", #selector(settings)),
                                 ("action.quit", #selector(quit))] {
@@ -207,7 +233,24 @@ final class ProductComposition: NSObject, NSMenuDelegate {
         case .pauseFlushFailed, .quitFlushFailed: flow.noticeKey = "flow.actionUnavailable"
         default: break
         }
-        if (try? gate.begin()) == nil { flow.snapshot = nil; flow.update(phase: .blocked) }
+        let gateOpen = (try? gate.begin()) != nil
+        if !gateOpen { flow.snapshot = nil; flow.update(phase: .blocked) }
+        statusItem?.title = Self.statusTitle(phase: lifecycle.phase,
+                                            reason: lifecycle.state.blockedReason, gateOpen: gateOpen)
+    }
+
+    static func statusTitle(phase: LifecyclePhase, reason: BlockedReason?, gateOpen: Bool) -> String {
+        if !gateOpen || phase == .blocked {
+            if let reason { return "BLOCKED — \(reason)" }
+            return "BLOCKED — locked"
+        }
+        switch phase {
+        case .collecting: return "● Collecting"
+        case .paused: return "❚❚ Paused"
+        case .stopped: return "■ Stopped"
+        case .unstarted, .consent: return "Not started"
+        default: return String(describing: phase).capitalized
+        }
     }
 
     private func closeProtectedState() async {

@@ -20,7 +20,16 @@ public final class KeyAvailabilityGate: KeyAvailabilityFencing, @unchecked Senda
 
     public init(generation: CaptureGeneration = CaptureGeneration(rawValue: 0)) { self.generation = generation }
 
-    public func update(_ next: SessionLockState) {
+    #if DEBUG
+    /// Who last changed the gate, for diagnostics only. A caller-supplied label from a
+    /// fixed set of call sites — never user data. DEBUG-only so Release cannot carry it.
+    public private(set) var lastUpdateSource: String?
+    #endif
+
+    public func update(_ next: SessionLockState, source: StaticString = #function) {
+        #if DEBUG
+        mutex.withLock { lastUpdateSource = "\(source)->\(next)" }
+        #endif
         mutex.withLock {
             guard !exhausted, state != next else { return }
             let (value, overflow) = generation.rawValue.addingReportingOverflow(1)

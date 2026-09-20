@@ -57,7 +57,7 @@ extension CaptureProviderTests {
         queue.install(.safe, for: queue.generation)
         let backend = FakeTap()
         let source = ListenOnlyEventSource(queue: queue,
-            qualification: Qualification(allowed: true, barrier: nil), backend: backend)
+            qualification: Qualification(allowed: true, barrier: nil), backend: backend, permission: GrantedPermission())
         let key = try KeyCode(0)
         let received: ObservedKeyEvent? = await withCheckedContinuation { continuation in
             Task {
@@ -90,7 +90,7 @@ extension CaptureProviderTests {
         let queue = CaptureQueue()
         queue.install(.safe, for: queue.generation)
         let backend = FakeTap()
-        let source = ListenOnlyEventSource(queue: queue, qualification: UnqualifiedCapture(), backend: backend)
+        let source = ListenOnlyEventSource(queue: queue, qualification: UnqualifiedCapture(), backend: backend, permission: GrantedPermission())
         do { try await source.start { _ in .accepted }; XCTFail("must block") }
         catch { XCTAssertEqual(error as? CaptureStartError, .unqualified) }
         let starts = await backend.starts
@@ -103,7 +103,7 @@ extension CaptureProviderTests {
         let barrier = CaptureBarrier()
         let backend = FakeTap()
         let source = ListenOnlyEventSource(queue: queue,
-            qualification: Qualification(allowed: true, barrier: barrier), backend: backend)
+            qualification: Qualification(allowed: true, barrier: barrier), backend: backend, permission: GrantedPermission())
         let start = Task { try await source.start { _ in .accepted } }
         await barrier.waitForArrival()
         await source.stop()
@@ -121,7 +121,7 @@ extension CaptureProviderTests {
         let barrier = CaptureBarrier()
         let backend = FakeTap(barrier: barrier)
         let source = ListenOnlyEventSource(queue: queue,
-            qualification: Qualification(allowed: true, barrier: nil), backend: backend)
+            qualification: Qualification(allowed: true, barrier: nil), backend: backend, permission: GrantedPermission())
         let start = Task { try await source.start { _ in .accepted } }
         await barrier.waitForArrival()
         do { try await source.start { _ in .accepted }; XCTFail("duplicate start") }
@@ -140,7 +140,7 @@ extension CaptureProviderTests {
         queue.install(.safe, for: queue.generation)
         let original = queue.generation
         let source = ListenOnlyEventSource(queue: queue,
-            qualification: Qualification(allowed: true, barrier: nil), backend: FakeTap(fails: true))
+            qualification: Qualification(allowed: true, barrier: nil), backend: FakeTap(fails: true), permission: GrantedPermission())
         do { try await source.start { _ in .accepted }; XCTFail("unavailable tap") }
         catch { XCTAssertEqual(error as? CaptureStartError, .unavailable) }
         XCTAssertFalse(queue.isOpen)
@@ -152,7 +152,7 @@ extension CaptureProviderTests {
         queue.install(.safe, for: queue.generation)
         let backend = FakeTap()
         let source = ListenOnlyEventSource(queue: queue,
-            qualification: Qualification(allowed: true, barrier: nil), backend: backend)
+            qualification: Qualification(allowed: true, barrier: nil), backend: backend, permission: GrantedPermission())
         try await source.start { _ in .accepted }
         do { try await source.start { _ in .accepted }; XCTFail("duplicate") }
         catch { XCTAssertEqual(error as? CaptureStartError, .alreadyStarted) }

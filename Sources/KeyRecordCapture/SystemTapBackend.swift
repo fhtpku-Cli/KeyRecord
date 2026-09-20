@@ -39,10 +39,13 @@ final class SystemTapBackend: CaptureTapBackend {
     private var invalidate: (@Sendable (CaptureInvalidation) -> Void)?
     private nonisolated let cached = CaptureLock(CaptureProviderSnapshot.unknown)
     private let sessionLock: any SessionLockProvider
+    private let permission: any InputMonitoringPermission
 
-    init(queue: CaptureQueue, sessionLock: any SessionLockProvider = UnqualifiedSessionLockProvider()) {
+    init(queue: CaptureQueue, sessionLock: any SessionLockProvider = UnqualifiedSessionLockProvider(),
+         permission: any InputMonitoringPermission = SystemInputMonitoringPermission()) {
         self.queue = queue
         self.sessionLock = sessionLock
+        self.permission = permission
     }
 
     isolated deinit {
@@ -63,7 +66,9 @@ final class SystemTapBackend: CaptureTapBackend {
     }
 
     func readProviders() async -> CaptureProviderSnapshot {
-        guard workspaceFence != nil, CGPreflightListenEventAccess() else {
+        // Read-only: preflight never prompts. Requesting the grant is the exclusive job of
+        // the user-initiated start path (KR-07), so a provider read can never pop a dialog.
+        guard workspaceFence != nil, permission.preflight() == .granted else {
             invalidate?(.permissionRevoked)
             return .unknown
         }
@@ -84,14 +89,10 @@ final class SystemTapBackend: CaptureTapBackend {
         guard tap == nil else { throw CaptureStartError.alreadyStarted }
         guard workspaceFence != nil, let invalidate,
               queue.validate(queue.snapshot, current: cachedProviders()) else { throw CaptureStartError.closed }
-        // Preflight only reports current status; it never prompts. On first run (or after a
-        // fresh binary path invalidates the old grant) call request once so macOS presents the
-        // Input Monitoring prompt, then re-check before failing closed. If the user has not
-        // granted it yet, start surfaces .revoked; after granting, Start again succeeds.
-        if !CGPreflightListenEventAccess() {
-            CGRequestListenEventAccess()
-        }
-        guard CGPreflightListenEventAccess() else {
+        // Final fail-closed re-check immediately before the tap is created. The prompt is
+        // NOT shown here: by this point an explicit user start has already handled the
+        // denied case. A revocation between entry and here must close, not re-prompt.
+        guard permission.preflight() == .granted else {
             invalidate(.permissionRevoked)
             throw CaptureStartError.revoked
         }
@@ -110,9 +111,10 @@ final class SystemTapBackend: CaptureTapBackend {
         self.tap = tap
         self.source = source
         CFRunLoopAddSource(CFRunLoopGetMain(), source, .commonModes)
-        // A freshly created tap is disabled until explicitly enabled; without this the
-        // callback never fires (tapCreate still succeeds). Re-enable is also required
-        // after a tapDisabledByTimeout/UserInput event.
+        // Apple documents that "event taps are normally enabled when created", so this is a
+        // defensive no-op on a fresh tap, NOT an explanation for missing callbacks. It is
+        // retained because re-enabling is genuinely required after a
+        // tapDisabledByTimeout/UserInput event.
         CGEvent.tapEnable(tap: tap, enable: true)
     }
 

@@ -5,6 +5,15 @@ struct AllowedCapture: CaptureQualification {
     func liveCaptureQualified() async -> Bool { true }
 }
 
+/// Input Monitoring already granted. Existing capture tests exercise provider/generation
+/// behaviour, not the permission gate, so they inject this explicitly; the production
+/// default stays fail-closed (`DeniedInputMonitoringPermission`).
+struct GrantedPermission: InputMonitoringPermission {
+    func preflight() -> InputMonitoringStatus { .granted }
+    @discardableResult
+    func request() -> InputMonitoringStatus { .granted }
+}
+
 final class CaptureTestBackend: CaptureTapBackend, FrontmostAppProvider, SecureInputProvider, SessionLockProvider {
     private struct State: Sendable {
         var foreground: ForegroundState = .attributable(bundleID: "test.app")

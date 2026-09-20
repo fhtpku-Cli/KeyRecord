@@ -53,6 +53,7 @@ final class ProductComposition: NSObject, NSMenuDelegate {
     /// Exists because the 2026-09-18 live run ended with capture provably not starting and
     /// zero observable signal to say which layer stopped.
     let diagnostics = CaptureDiagnosticsRecorder()
+    private var diagnosticSummaryWritten = false
     #endif
     /// Whether a capture session is currently established. Set only by the paths that
     /// actually start or stop the event source, so the UI cannot infer liveness from
@@ -576,7 +577,22 @@ final class ProductComposition: NSObject, NSMenuDelegate {
                         self.captureSessionLive = live
                         self.sync()
                     }
-                    self.flow.snapshot = try self.reduction.snapshot()
+                    let snapshot: AggregateSnapshot?
+                    do {
+                        snapshot = try self.reduction.snapshot()
+                    } catch {
+                        #if DEBUG
+                        self.diagnostics.recordSnapshotReadFailure()
+                        #endif
+                        throw error
+                    }
+                    self.flow.snapshot = snapshot
+                    #if DEBUG
+                    if let snapshot {
+                        self.diagnostics.recordPublication(shortcutTotal: snapshot.shortcutTotal,
+                                                           bareKeyTotal: snapshot.bareKeyTotal)
+                    }
+                    #endif
                 }
                 catch is CountError {
                     await self.closeProtectedState()
@@ -635,6 +651,19 @@ final class ProductComposition: NSObject, NSMenuDelegate {
         }
         #endif
     }
+
+    #if DEBUG
+    func writeDiagnosticSummaryOnTermination() {
+        guard !diagnosticSummaryWritten else { return }
+        diagnosticSummaryWritten = true
+        do {
+            try diagnostics.writeRunSummary(
+                to: ProcessInfo.processInfo.environment["KEYRECORD_DIAGNOSTIC_SUMMARY_PATH"])
+        } catch {
+            fputs("KeyRecord diagnostic summary write failed\n", stderr)
+        }
+    }
+    #endif
 
     /// Delegates to `CaptureStatusPresentation` in Core (KR-08), so the rule that a
     /// "Collecting" claim requires a live capture session has a single definition and is

@@ -19,10 +19,7 @@ public struct CaptureDiagnostics: Equatable, Sendable {
     // Layer 1 — did a keyboard event reach this process at all?
     /// Whether the per-layer counters below are actually written in this build.
     ///
-    /// The harness increments them; the production App does not. Reading an unwritten
-    /// counter as a measured zero made the menu claim "no keyboard event reached this
-    /// process" while capture was in fact running — a fabricated finding. A gauge that is
-    /// not wired must say so rather than report a reading.
+    /// Composition sets this only after installing the counter hooks.
     public var countersInstrumented = false
     public var tapCallbackKeyDown = 0
     public var tapCallbackKeyUp = 0
@@ -255,6 +252,30 @@ private final class CaptureDiagnosticCounterStorage: @unchecked Sendable {
     }
 }
 
+public struct CaptureRunSummary: Encodable, Sendable {
+    public var tapCallbackKeyDown: Int64 = 0
+    public var tapCallbackKeyUp: Int64 = 0
+    public var tapCallbackFlagsChanged: Int64 = 0
+    public var tapDisabledEvents: Int64 = 0
+    public var handoffAccepted: Int64 = 0
+    public var handoffClosed: Int64 = 0
+    public var handoffOverflow: Int64 = 0
+    public var normalizationOutput: Int64 = 0
+    public var aggregateDelta: Int64 = 0
+    public var flushIssued: Int64 = 0
+    public var flushDurable: Int64 = 0
+    public var flushFailed: Int64 = 0
+    public var flushTimedOut: Int64 = 0
+    public var sessionCount = 0
+    public var snapshotPublicationCount = 0
+    public var snapshotReadFailureCount = 0
+    public var lastPublishedShortcutTotal: Int64?
+    public var lastPublishedBareKeyTotal: Int64?
+    public var countersInstrumented = false
+    public var captureSessionLive = false
+    public var sensitiveContentVisible = false
+}
+
 /// Thread-safe collector. DEBUG-only by construction: the product wires it in `#if DEBUG`
 /// blocks, and `Phase1ReleaseIsolationTests` asserts Release cannot reach a control entry.
 ///
@@ -266,6 +287,7 @@ public final class CaptureDiagnosticsRecorder: @unchecked Sendable {
     private let atomicCounters = CaptureDiagnosticCounterStorage()
     private var counterBaseline: [Int64]
     private var counterInstrumentationConfigured = false
+    private var run = CaptureRunSummary()
 
     public init() {
         counterBaseline = atomicCounters.snapshot()
@@ -295,6 +317,51 @@ public final class CaptureDiagnosticsRecorder: @unchecked Sendable {
         lock.withLock { body(&counters) }
     }
 
+    public var runSummary: CaptureRunSummary {
+        var result = lock.withLock {
+            var result = run
+            result.countersInstrumented = counters.countersInstrumented
+            result.captureSessionLive = counters.captureSessionLive
+            result.sensitiveContentVisible = counters.sensitiveContentVisible
+            return result
+        }
+        let values = atomicCounters.snapshot()
+        result.tapCallbackKeyDown = values[CaptureDiagnosticCounter.tapCallbackKeyDown.rawValue]
+        result.tapCallbackKeyUp = values[CaptureDiagnosticCounter.tapCallbackKeyUp.rawValue]
+        result.tapCallbackFlagsChanged = values[CaptureDiagnosticCounter.tapCallbackFlagsChanged.rawValue]
+        result.tapDisabledEvents = values[CaptureDiagnosticCounter.tapDisabledEvent.rawValue]
+        result.handoffAccepted = values[CaptureDiagnosticCounter.handoffAccepted.rawValue]
+        result.handoffClosed = values[CaptureDiagnosticCounter.handoffClosed.rawValue]
+        result.handoffOverflow = values[CaptureDiagnosticCounter.handoffOverflow.rawValue]
+        result.normalizationOutput = values[CaptureDiagnosticCounter.normalizationOutput.rawValue]
+        result.aggregateDelta = values[CaptureDiagnosticCounter.aggregateDelta.rawValue]
+        result.flushIssued = values[CaptureDiagnosticCounter.flushIssued.rawValue]
+        result.flushDurable = values[CaptureDiagnosticCounter.flushDurable.rawValue]
+        result.flushFailed = values[CaptureDiagnosticCounter.flushFailed.rawValue]
+        result.flushTimedOut = values[CaptureDiagnosticCounter.flushTimedOut.rawValue]
+        return result
+    }
+
+    /// Records assignment to the presentation model, not proof of screen rendering.
+    public func recordPublication(shortcutTotal: Int64, bareKeyTotal: Int64) {
+        lock.withLock {
+            run.snapshotPublicationCount += 1
+            run.lastPublishedShortcutTotal = shortcutTotal
+            run.lastPublishedBareKeyTotal = bareKeyTotal
+        }
+    }
+
+    public func recordSnapshotReadFailure() {
+        lock.withLock { run.snapshotReadFailureCount += 1 }
+    }
+
+    public func writeRunSummary(to path: String?) throws {
+        guard let path, !path.isEmpty else { return }
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        try encoder.encode(runSummary).write(to: URL(fileURLWithPath: path), options: .atomic)
+    }
+
     /// Marks that composition has installed every counter-producing hook.
     public func configureCounterInstrumentation() {
         lock.withLock {
@@ -312,6 +379,7 @@ public final class CaptureDiagnosticsRecorder: @unchecked Sendable {
     public func beginSession(generation: UInt64) {
         let baseline = atomicCounters.snapshot()
         lock.withLock {
+            run.sessionCount += 1
             counters.tapCallbackKeyDown = 0
             counters.tapCallbackKeyUp = 0
             counters.tapCallbackFlagsChanged = 0

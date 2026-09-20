@@ -3,6 +3,54 @@ import KeyRecordCore
 
 final class CaptureDiagnosticCounterTests: XCTestCase {
 
+    func testRunSummaryRetainsCountersAcrossSessionReset() {
+        let recorder = CaptureDiagnosticsRecorder()
+        recorder.beginSession(generation: 1)
+        recorder.increment(.tapCallbackKeyDown)
+        recorder.beginSession(generation: 2)
+        recorder.increment(.tapCallbackKeyDown)
+        XCTAssertEqual(recorder.snapshot.tapCallbackKeyDown, 1)
+        XCTAssertEqual(recorder.runSummary.tapCallbackKeyDown, 2)
+        XCTAssertEqual(recorder.runSummary.sessionCount, 2)
+    }
+
+    func testRunSummaryTracksPublicationWithoutPretendingUnpublishedIsZero() {
+        let recorder = CaptureDiagnosticsRecorder()
+        XCTAssertNil(recorder.runSummary.lastPublishedShortcutTotal)
+        recorder.recordPublication(shortcutTotal: 5, bareKeyTotal: 7)
+        recorder.recordSnapshotReadFailure()
+        recorder.beginSession(generation: 1)
+        XCTAssertEqual(recorder.runSummary.snapshotPublicationCount, 1)
+        XCTAssertEqual(recorder.runSummary.snapshotReadFailureCount, 1)
+        XCTAssertEqual(recorder.runSummary.lastPublishedShortcutTotal, 5)
+        XCTAssertEqual(recorder.runSummary.lastPublishedBareKeyTotal, 7)
+    }
+
+    func testRunReceiptIsOptInAndContainsOnlyNumericOrBooleanValues() throws {
+        let recorder = CaptureDiagnosticsRecorder()
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        try recorder.writeRunSummary(to: nil)
+        XCTAssertTrue(try FileManager.default.contentsOfDirectory(atPath: root.path).isEmpty)
+        let output = root.appendingPathComponent("receipt.json")
+        recorder.recordPublication(shortcutTotal: 5, bareKeyTotal: 7)
+        try recorder.writeRunSummary(to: output.path)
+        let data = try Data(contentsOf: output)
+        let object = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        XCTAssertEqual(Set(object.keys), Set([
+            "tapCallbackKeyDown", "tapCallbackKeyUp", "tapCallbackFlagsChanged", "tapDisabledEvents",
+            "handoffAccepted", "handoffClosed", "handoffOverflow", "normalizationOutput", "aggregateDelta",
+            "flushIssued", "flushDurable", "flushFailed", "flushTimedOut", "sessionCount",
+            "snapshotPublicationCount", "snapshotReadFailureCount", "lastPublishedShortcutTotal",
+            "lastPublishedBareKeyTotal", "countersInstrumented", "captureSessionLive", "sensitiveContentVisible"
+        ]))
+        for (key, value) in object {
+            XCTAssertTrue(value is NSNumber, "Unexpected payload shape: \(key)")
+        }
+        XCTAssertThrowsError(try recorder.writeRunSummary(to: root.appendingPathComponent("missing/receipt.json").path))
+    }
+
     func testIncrementRecordsExactCountsUnderConcurrentWriters() {
         // Given: one recorder for independent callback-path increments.
         let recorder = CaptureDiagnosticsRecorder()
@@ -45,6 +93,11 @@ final class CaptureDiagnosticCounterTests: XCTestCase {
         XCTAssertEqual(snapshot.flushDurable, 1)
         XCTAssertEqual(snapshot.flushFailed, 1)
         XCTAssertEqual(snapshot.flushTimedOut, 1)
+        let run = recorder.runSummary
+        XCTAssertEqual([run.tapCallbackKeyDown, run.tapCallbackKeyUp, run.tapCallbackFlagsChanged,
+                        run.tapDisabledEvents, run.handoffAccepted, run.handoffClosed, run.handoffOverflow,
+                        run.normalizationOutput, run.aggregateDelta, run.flushIssued, run.flushDurable,
+                        run.flushFailed, run.flushTimedOut], Array(repeating: 1, count: 13))
     }
 
     func testCounterInstrumentationStateIsControlledByComposition() {

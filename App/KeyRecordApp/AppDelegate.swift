@@ -61,4 +61,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Task { sender.reply(toApplicationShouldTerminate: await product.prepareQuit()) }
         return .terminateLater
     }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        #if DEBUG
+        product?.writeDiagnosticSummaryOnTermination()
+        #endif
+    }
 }

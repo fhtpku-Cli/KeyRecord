@@ -653,12 +653,11 @@ final class ProductComposition: NSObject, NSMenuDelegate {
     }
 
     #if DEBUG
-    func writeDiagnosticSummaryOnTermination() {
+    func writeDiagnosticSummaryOnTermination(to path: String?) {
         guard !diagnosticSummaryWritten else { return }
         diagnosticSummaryWritten = true
         do {
-            try diagnostics.writeRunSummary(
-                to: ProcessInfo.processInfo.environment["KEYRECORD_DIAGNOSTIC_SUMMARY_PATH"])
+            try diagnostics.writeRunSummary(to: path)
         } catch {
             fputs("KeyRecord diagnostic summary write failed\n", stderr)
         }

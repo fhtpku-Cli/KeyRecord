@@ -64,7 +64,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationWillTerminate(_ notification: Notification) {
         #if DEBUG
-        product?.writeDiagnosticSummaryOnTermination()
+        product?.writeDiagnosticSummaryOnTermination(
+            to: ProcessInfo.processInfo.environment["KEYRECORD_DIAGNOSTIC_SUMMARY_PATH"])
         #endif
     }
 }

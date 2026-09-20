@@ -22,7 +22,7 @@ final class PrivacySerializationTests: XCTestCase {
                 }
             }
         }
-        // Then: no product receipt DTO exists today; adding one must extend this reviewed registry.
+        // Then: every product DTO, including the numeric/bool run summary, requires explicit registration.
         XCTAssertEqual(observed, PrivacySchemaAudit.serializableTypes)
     }
 

@@ -19,13 +19,28 @@ final class ProductBoundaryTests: XCTestCase {
         XCTAssertEqual(Set(manifest.products.map(\.name)), ["KeyRecordCore", "KeyRecordCapture", "KeyRecordStore"])
         XCTAssertTrue(manifest.products.allSatisfy { Set($0.type.keys) == ["library"] })
         let graph = Dictionary(uniqueKeysWithValues: manifest.targets.map { ($0.name, $0) })
-        XCTAssertEqual(Set(graph.keys), ["KeyRecordCore", "KeyRecordCapture", "KeyRecordStore", "KeyRecordTestSupport", "KeyRecordCoreTests", "KeyRecordCaptureTests", "KeyRecordStoreTests", "KeyRecordIntegrationTests"])
+        XCTAssertEqual(Set(graph.keys), ["KeyRecordCore", "KeyRecordCapture", "KeyRecordStore", "KeyRecordTestSupport", "KeyRecordStoreCrashProbe", "KeyRecordCaptureHarness", "KeyRecordCoreTests", "KeyRecordCaptureTests", "KeyRecordStoreTests", "KeyRecordIntegrationTests"])
         XCTAssertEqual(graph["KeyRecordCore"]?.dependencies.count, 0)
         for name in ["KeyRecordCapture", "KeyRecordStore", "KeyRecordTestSupport"] {
             XCTAssertEqual(graph[name]?.dependencies.compactMap { $0.byName.first ?? nil }, ["KeyRecordCore"])
         }
         XCTAssertEqual(graph["KeyRecordCoreTests"]?.dependencies.compactMap { $0.byName.first ?? nil }, ["KeyRecordCore", "KeyRecordTestSupport"])
-        XCTAssertTrue(manifest.targets.allSatisfy { ["regular", "test"].contains($0.type) })
+        // The crash probe is a test-only executable target: it may depend on the product
+        // libraries, it is never published as a product, and no other target depends on it.
+        XCTAssertEqual(graph["KeyRecordStoreCrashProbe"]?.type, "executable")
+        XCTAssertEqual(graph["KeyRecordStoreCrashProbe"]?.dependencies.compactMap { $0.byName.first ?? nil },
+                       ["KeyRecordCore", "KeyRecordStore"])
+        XCTAssertFalse(manifest.products.map(\.name).contains("KeyRecordStoreCrashProbe"))
+        // The live-capture harness is likewise test-only: never a published product.
+        XCTAssertEqual(graph["KeyRecordCaptureHarness"]?.type, "executable")
+        XCTAssertFalse(manifest.products.map(\.name).contains("KeyRecordCaptureHarness"))
+        for (name, target) in graph {
+            for probe in ["KeyRecordStoreCrashProbe", "KeyRecordCaptureHarness"] {
+                XCTAssertFalse(target.dependencies.compactMap { $0.byName.first ?? nil }
+                    .contains(probe), "\(name) -> \(probe)")
+            }
+        }
+        XCTAssertTrue(manifest.targets.allSatisfy { ["regular", "test", "executable"].contains($0.type) })
         let source = try String(contentsOf: SourceInspection.root.appendingPathComponent("Package.swift"), encoding: .utf8)
         XCTAssertEqual(try SourceInspection.imports(in: source), ["PackageDescription"])
     }
@@ -52,6 +67,12 @@ final class ProductBoundaryTests: XCTestCase {
             let performanceRoot = SourceInspection.root.appendingPathComponent("Tests/KeyRecordIntegrationTests")
             if file == performanceRoot.appendingPathComponent("PerformanceReceipt.swift") { allowed.insert("CryptoKit") }
             if file == performanceRoot.appendingPathComponent("PerformanceSystemSampler.swift") { allowed.insert("Darwin") }
+            // The bounded live-capture harness is a test-only executable that must drive a
+            // real CGEventTap, so it needs the same system frameworks KeyRecordCapture uses.
+            // It is never a product and nothing depends on it (asserted in the manifest test).
+            if file.path.contains("Tests/KeyRecordCaptureHarness/") {
+                allowed.formUnion(["AppKit", "CoreGraphics"])
+            }
             XCTAssertTrue(imports.isSubset(of: allowed), file.path)
         }
     }

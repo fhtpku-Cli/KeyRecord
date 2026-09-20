@@ -167,60 +167,29 @@ final class CrashProbeTests: XCTestCase {
     }
 }
 
+/// Resolves the crash probe executable.
+///
+/// The probe is a declared SwiftPM executable target (`KeyRecordStoreCrashProbe`), so it is
+/// built alongside the tests and sits next to the test bundle. The previous resolver walked
+/// up to eight ancestor directories looking for a `Modules/` + `KeyRecordStore.build/` layout
+/// and relinked the probe from raw object files; the current build backend does not produce
+/// that layout, so a harness fault surfaced as 20 product-test failures.
+///
+/// Every failure here surfaces as `TestArtifactLocator.LocatorError`, naming the harness as
+/// the failing party rather than the product.
 enum CrashProbeResolver {
+    static let executableName = "KeyRecordStoreCrashProbe"
+
     private static let lock = NSLock()
     nonisolated(unsafe) private static var cached: URL?
 
     static func resolve() throws -> URL {
         lock.lock(); defer { lock.unlock() }
         if let cached, FileManager.default.isExecutableFile(atPath: cached.path) { return cached }
-        let probe = try compile()
+        let products = try TestArtifactLocator.productsDirectory()
+        let probe = try TestArtifactLocator.validateProbe(
+            at: products.appendingPathComponent(executableName))
         cached = probe
         return probe
     }
-
-    private static func compile() throws -> URL {
-        let source = SourceInspection.root
-            .appendingPathComponent("Tests/KeyRecordStoreCrashProbe/main.swift")
-        guard FileManager.default.fileExists(atPath: source.path) else {
-            throw probeError("probe source missing at \(source.path)")
-        }
-        var location = Bundle(for: BundleAnchor.self).bundleURL
-        var buildDirectory: URL?
-        for _ in 0..<8 {
-            if FileManager.default.fileExists(
-                atPath: location.appendingPathComponent("Modules/KeyRecordStore.swiftmodule").path),
-               FileManager.default.fileExists(
-                atPath: location.appendingPathComponent("KeyRecordStore.build").path) {
-                buildDirectory = location
-                break
-            }
-            location.deleteLastPathComponent()
-        }
-        guard let build = buildDirectory else { throw probeError("store build directory not found") }
-        let objects = try ["KeyRecordStore.build", "KeyRecordCore.build"].flatMap { directory in
-            let path = build.appendingPathComponent(directory).path
-            return try FileManager.default.contentsOfDirectory(atPath: path)
-                .filter { $0.hasSuffix(".o") }
-                .map { build.appendingPathComponent(directory).appendingPathComponent($0).path }
-        }
-        let output = URL(fileURLWithPath: NSTemporaryDirectory())
-            .appendingPathComponent("keyrecord-crashprobe-\(UUID().uuidString)")
-        var arguments = ["swiftc", "-swift-version", "6",
-                         "-I", build.appendingPathComponent("Modules").path,
-                         source.path, "-o", output.path]
-        arguments.append(contentsOf: objects)
-        let result = try SourceInspection.run(arguments, in: build.deletingLastPathComponent())
-        guard result.status == 0, FileManager.default.isExecutableFile(atPath: output.path) else {
-            throw probeError("probe compilation failed (\(result.status)): \(result.output)")
-        }
-        return output
-    }
-
-    private static func probeError(_ message: String) -> NSError {
-        NSError(domain: "CrashProbeResolver", code: 1,
-                userInfo: [NSLocalizedDescriptionKey: message])
-    }
 }
-
-private final class BundleAnchor: NSObject {}

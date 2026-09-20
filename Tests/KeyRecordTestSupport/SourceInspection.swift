@@ -49,15 +49,11 @@ public enum SourceInspection {
         return output
     }
 
+    /// Isolated per-run scratch space. Works under the default SwiftPM `.build`
+    /// layout and under an explicit `--scratch-path <attempt>/build/root`;
+    /// see `TestArtifactLocator` for the layout-independent resolution.
     public static func scratchDirectory() throws -> URL {
-        var location = Bundle(for: BundleAnchor.self).bundleURL
-        while location.path != "/", location.lastPathComponent != "build" {
-            location.deleteLastPathComponent()
-        }
-        guard location.lastPathComponent == "build" else { throw InspectionError.missingAttemptBuild }
-        let directory = location.deletingLastPathComponent().appendingPathComponent("test-scratch/\(UUID().uuidString)")
-        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        return directory
+        try TestArtifactLocator.scratchDirectory()
     }
 
     public static func properties(of type: String, in source: String) throws -> Set<String> {
@@ -118,6 +114,7 @@ public enum SourceInspection {
         return try run(["swiftc", "-swift-version", "6", "-typecheck", "-module-name", "CoreBoundaryProbe", "-module-cache-path", directory.appendingPathComponent("module-cache").path] + sources.map(\.path) + [probe.path], in: directory)
     }
 
-    private final class BundleAnchor: NSObject {}
+    /// Retained for source compatibility. Resolver faults are now reported as
+    /// `TestArtifactLocator.LocatorError`, which names the harness as the failing party.
     public enum InspectionError: Error { case missingAttemptBuild }
 }

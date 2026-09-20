@@ -43,6 +43,10 @@ public final class LifecycleOrchestrator {
         await run(.retry)
     }
 
+    public func requireRecovery(reason: BlockedReason) {
+        dispatch(.runtimeRecoveryRequired(reason))
+    }
+
     public func reload(afterMaintenance: Bool = false) async {
         do {
             let preferences = try await (afterMaintenance

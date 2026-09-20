@@ -19,10 +19,7 @@ public struct CaptureDiagnostics: Equatable, Sendable {
     // Layer 1 — did a keyboard event reach this process at all?
     /// Whether the per-layer counters below are actually written in this build.
     ///
-    /// The harness increments them; the production App does not. Reading an unwritten
-    /// counter as a measured zero made the menu claim "no keyboard event reached this
-    /// process" while capture was in fact running — a fabricated finding. A gauge that is
-    /// not wired must say so rather than report a reading.
+    /// Composition sets this only after installing the counter hooks.
     public var countersInstrumented = false
     public var tapCallbackKeyDown = 0
     public var tapCallbackKeyUp = 0
@@ -214,28 +211,190 @@ public enum CaptureInvalidationReason: String, Sendable, Equatable, CaseIterable
     case permissionRevoked, sleep, tapDisabled
 }
 
+/// Numeric-only diagnostic counters that may be incremented from callback paths.
+public enum CaptureDiagnosticCounter: Int, CaseIterable, Sendable {
+    case tapCallbackKeyDown
+    case tapCallbackKeyUp
+    case tapCallbackFlagsChanged
+    case tapDisabledEvent
+    case handoffAccepted
+    case handoffClosed
+    case handoffOverflow
+    case normalizationOutput
+    case aggregateDelta
+    case flushIssued
+    case flushDurable
+    case flushFailed
+    case flushTimedOut
+}
+
+private final class CaptureDiagnosticCounterStorage: @unchecked Sendable {
+    private let values: UnsafeMutablePointer<Int64>
+
+    init() {
+        values = .allocate(capacity: CaptureDiagnosticCounter.allCases.count)
+        values.initialize(repeating: 0, count: CaptureDiagnosticCounter.allCases.count)
+    }
+
+    deinit {
+        values.deinitialize(count: CaptureDiagnosticCounter.allCases.count)
+        values.deallocate()
+    }
+
+    func increment(_ counter: CaptureDiagnosticCounter) {
+        _ = OSAtomicAdd64Barrier(1, values.advanced(by: counter.rawValue))
+    }
+
+    func snapshot() -> [Int64] {
+        CaptureDiagnosticCounter.allCases.map {
+            OSAtomicAdd64Barrier(0, values.advanced(by: $0.rawValue))
+        }
+    }
+}
+
+public struct CaptureRunSummary: Encodable, Sendable {
+    public var tapCallbackKeyDown: Int64 = 0
+    public var tapCallbackKeyUp: Int64 = 0
+    public var tapCallbackFlagsChanged: Int64 = 0
+    public var tapDisabledEvents: Int64 = 0
+    public var handoffAccepted: Int64 = 0
+    public var handoffClosed: Int64 = 0
+    public var handoffOverflow: Int64 = 0
+    public var normalizationOutput: Int64 = 0
+    public var aggregateDelta: Int64 = 0
+    public var flushIssued: Int64 = 0
+    public var flushDurable: Int64 = 0
+    public var flushFailed: Int64 = 0
+    public var flushTimedOut: Int64 = 0
+    public var sessionCount = 0
+    public var snapshotPublicationCount = 0
+    public var snapshotReadFailureCount = 0
+    public var lastPublishedShortcutTotal: Int64?
+    public var lastPublishedBareKeyTotal: Int64?
+    public var countersInstrumented = false
+    public var captureSessionLive = false
+    public var sensitiveContentVisible = false
+}
+
 /// Thread-safe collector. DEBUG-only by construction: the product wires it in `#if DEBUG`
 /// blocks, and `Phase1ReleaseIsolationTests` asserts Release cannot reach a control entry.
 ///
-/// Every mutation is a bounded counter bump, so it is safe to call from the tap callback,
-/// which must not perform disk, Keychain, process, network or UI work.
+/// `increment(_:)` is safe for callback paths. `record(_:)` remains for lifecycle state and
+/// must not be called from a capture callback.
 public final class CaptureDiagnosticsRecorder: @unchecked Sendable {
     private let lock = NSLock()
     private var counters = CaptureDiagnostics()
+    private let atomicCounters = CaptureDiagnosticCounterStorage()
+    private var counterBaseline: [Int64]
+    private var counterInstrumentationConfigured = false
+    private var run = CaptureRunSummary()
 
-    public init() {}
+    public init() {
+        counterBaseline = atomicCounters.snapshot()
+    }
 
-    public var snapshot: CaptureDiagnostics { lock.withLock { counters } }
+    public var snapshot: CaptureDiagnostics {
+        let state = lock.withLock { (counters, counterBaseline) }
+        var result = state.0
+        let atomicValues = atomicCounters.snapshot()
+        result.tapCallbackKeyDown += Int(atomicValues[CaptureDiagnosticCounter.tapCallbackKeyDown.rawValue] - state.1[CaptureDiagnosticCounter.tapCallbackKeyDown.rawValue])
+        result.tapCallbackKeyUp += Int(atomicValues[CaptureDiagnosticCounter.tapCallbackKeyUp.rawValue] - state.1[CaptureDiagnosticCounter.tapCallbackKeyUp.rawValue])
+        result.tapCallbackFlagsChanged += Int(atomicValues[CaptureDiagnosticCounter.tapCallbackFlagsChanged.rawValue] - state.1[CaptureDiagnosticCounter.tapCallbackFlagsChanged.rawValue])
+        result.tapDisabledEvents += Int(atomicValues[CaptureDiagnosticCounter.tapDisabledEvent.rawValue] - state.1[CaptureDiagnosticCounter.tapDisabledEvent.rawValue])
+        result.handoffAccepted += Int(atomicValues[CaptureDiagnosticCounter.handoffAccepted.rawValue] - state.1[CaptureDiagnosticCounter.handoffAccepted.rawValue])
+        result.handoffClosed += Int(atomicValues[CaptureDiagnosticCounter.handoffClosed.rawValue] - state.1[CaptureDiagnosticCounter.handoffClosed.rawValue])
+        result.handoffOverflow += Int(atomicValues[CaptureDiagnosticCounter.handoffOverflow.rawValue] - state.1[CaptureDiagnosticCounter.handoffOverflow.rawValue])
+        result.normalizationOutput += Int(atomicValues[CaptureDiagnosticCounter.normalizationOutput.rawValue] - state.1[CaptureDiagnosticCounter.normalizationOutput.rawValue])
+        result.aggregateDelta += Int(atomicValues[CaptureDiagnosticCounter.aggregateDelta.rawValue] - state.1[CaptureDiagnosticCounter.aggregateDelta.rawValue])
+        result.flushIssued += Int(atomicValues[CaptureDiagnosticCounter.flushIssued.rawValue] - state.1[CaptureDiagnosticCounter.flushIssued.rawValue])
+        result.flushDurable += Int(atomicValues[CaptureDiagnosticCounter.flushDurable.rawValue] - state.1[CaptureDiagnosticCounter.flushDurable.rawValue])
+        result.flushFailed += Int(atomicValues[CaptureDiagnosticCounter.flushFailed.rawValue] - state.1[CaptureDiagnosticCounter.flushFailed.rawValue])
+        result.flushTimedOut += Int(atomicValues[CaptureDiagnosticCounter.flushTimedOut.rawValue] - state.1[CaptureDiagnosticCounter.flushTimedOut.rawValue])
+        return result
+    }
 
     public func record(_ body: (inout CaptureDiagnostics) -> Void) {
         lock.withLock { body(&counters) }
     }
 
-    /// Resets counts for a new session while retaining the new generation.
-    public func beginSession(generation: UInt64) {
+    public var runSummary: CaptureRunSummary {
+        var result = lock.withLock {
+            var result = run
+            result.countersInstrumented = counters.countersInstrumented
+            result.captureSessionLive = counters.captureSessionLive
+            result.sensitiveContentVisible = counters.sensitiveContentVisible
+            return result
+        }
+        let values = atomicCounters.snapshot()
+        result.tapCallbackKeyDown = values[CaptureDiagnosticCounter.tapCallbackKeyDown.rawValue]
+        result.tapCallbackKeyUp = values[CaptureDiagnosticCounter.tapCallbackKeyUp.rawValue]
+        result.tapCallbackFlagsChanged = values[CaptureDiagnosticCounter.tapCallbackFlagsChanged.rawValue]
+        result.tapDisabledEvents = values[CaptureDiagnosticCounter.tapDisabledEvent.rawValue]
+        result.handoffAccepted = values[CaptureDiagnosticCounter.handoffAccepted.rawValue]
+        result.handoffClosed = values[CaptureDiagnosticCounter.handoffClosed.rawValue]
+        result.handoffOverflow = values[CaptureDiagnosticCounter.handoffOverflow.rawValue]
+        result.normalizationOutput = values[CaptureDiagnosticCounter.normalizationOutput.rawValue]
+        result.aggregateDelta = values[CaptureDiagnosticCounter.aggregateDelta.rawValue]
+        result.flushIssued = values[CaptureDiagnosticCounter.flushIssued.rawValue]
+        result.flushDurable = values[CaptureDiagnosticCounter.flushDurable.rawValue]
+        result.flushFailed = values[CaptureDiagnosticCounter.flushFailed.rawValue]
+        result.flushTimedOut = values[CaptureDiagnosticCounter.flushTimedOut.rawValue]
+        return result
+    }
+
+    /// Records assignment to the presentation model, not proof of screen rendering.
+    public func recordPublication(shortcutTotal: Int64, bareKeyTotal: Int64) {
         lock.withLock {
-            counters = CaptureDiagnostics()
+            run.snapshotPublicationCount += 1
+            run.lastPublishedShortcutTotal = shortcutTotal
+            run.lastPublishedBareKeyTotal = bareKeyTotal
+        }
+    }
+
+    public func recordSnapshotReadFailure() {
+        lock.withLock { run.snapshotReadFailureCount += 1 }
+    }
+
+    public func writeRunSummary(to path: String?) throws {
+        guard let path, !path.isEmpty else { return }
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        try encoder.encode(runSummary).write(to: URL(fileURLWithPath: path), options: .atomic)
+    }
+
+    /// Marks that composition has installed every counter-producing hook.
+    public func configureCounterInstrumentation() {
+        lock.withLock {
+            counterInstrumentationConfigured = true
+            counters.countersInstrumented = true
+        }
+    }
+
+    /// Increments a numeric-only counter without acquiring the lifecycle-state lock.
+    public func increment(_ counter: CaptureDiagnosticCounter) {
+        atomicCounters.increment(counter)
+    }
+
+    /// Starts a new diagnostic session without discarding lifetime atomic totals.
+    public func beginSession(generation: UInt64) {
+        let baseline = atomicCounters.snapshot()
+        lock.withLock {
+            run.sessionCount += 1
+            counters.tapCallbackKeyDown = 0
+            counters.tapCallbackKeyUp = 0
+            counters.tapCallbackFlagsChanged = 0
+            counters.tapDisabledEvents = 0
+            counters.handoffAccepted = 0
+            counters.handoffClosed = 0
+            counters.handoffOverflow = 0
+            counters.normalizationOutput = 0
+            counters.aggregateDelta = 0
+            counters.flushIssued = 0
+            counters.flushDurable = 0
+            counters.flushFailed = 0
+            counters.flushTimedOut = 0
             counters.sessionGeneration = generation
+            counterBaseline = baseline
         }
     }
 }

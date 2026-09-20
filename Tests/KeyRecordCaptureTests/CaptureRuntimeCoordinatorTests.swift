@@ -45,6 +45,30 @@ final class CaptureRuntimeCoordinatorTests: XCTestCase {
         var opens: Int { all.filter { $0.hasPrefix("open") }.count }
     }
 
+    private actor SuspensionBarrier {
+        private var arrived = false
+        private var arrivalWaiter: CheckedContinuation<Void, Never>?
+        private var releaseWaiter: CheckedContinuation<Void, Never>?
+
+        func suspendOnce() async {
+            guard !arrived else { return }
+            arrived = true
+            arrivalWaiter?.resume()
+            arrivalWaiter = nil
+            await withCheckedContinuation { releaseWaiter = $0 }
+        }
+
+        func waitUntilArrived() async {
+            if arrived { return }
+            await withCheckedContinuation { arrivalWaiter = $0 }
+        }
+
+        func release() {
+            releaseWaiter?.resume()
+            releaseWaiter = nil
+        }
+    }
+
     private func makeCoordinator(checks: Checks, journal: Journal,
                                  openSucceeds: Bool = true) -> CaptureRuntimeCoordinator {
         CaptureRuntimeCoordinator(
@@ -163,26 +187,36 @@ final class CaptureRuntimeCoordinatorTests: XCTestCase {
     func testConsecutiveInvalidationsCollapseIntoOneRecoveryTransaction() async throws {
         let checks = Checks()
         let journal = Journal()
-        let coordinator = makeCoordinator(checks: checks, journal: journal)
+        let barrier = SuspensionBarrier()
+        let coordinator = CaptureRuntimeCoordinator(
+            checks: checks,
+            closeSession: {
+                journal.append("close")
+                await barrier.suspendOnce()
+            },
+            openSession: { _ in
+                journal.append("open")
+                return true
+            })
 
-        // Five notifications arriving back to back must not rebuild five sessions.
-        //
-        // Note on the actor: `handle` suspends inside `reconcile`, so queued callers resume
-        // one after another. Coalescing therefore cannot rely on `running` alone — it must
-        // fold pending work into the in-flight transaction. Without that, each of the five
-        // callers ran its own full close/open cycle, tearing down and rebuilding the
-        // session five times for what is logically one burst.
-        await withTaskGroup(of: Void.self) { group in
-            for _ in 0..<5 {
-                group.addTask { _ = await coordinator.handle(.invalidated(.foregroundChanged)) }
-            }
+        // Keep the first transaction in flight until every later notification arrives.
+        // Async test doubles can return without suspending, so task creation alone does
+        // not establish the overlap required by the coordinator's coalescing contract.
+        let recovery = Task { await coordinator.handle(.invalidated(.foregroundChanged)) }
+        await barrier.waitUntilArrived()
+        for _ in 0..<4 {
+            let outcome = await coordinator.handle(.invalidated(.foregroundChanged))
+            XCTAssertEqual(outcome, .coalesced)
         }
+        await barrier.release()
+        let outcome = await recovery.value
+
         let stats = await coordinator.statistics()
-        XCTAssertGreaterThanOrEqual(stats.transactions, 1)
-        XCTAssertLessThanOrEqual(stats.transactions, 2,
-                                 "bursts must coalesce into at most one follow-up transaction")
-        // The session must not be torn down once per notification.
-        XCTAssertLessThanOrEqual(journal.closes, 2, "one burst must not close five sessions")
+        XCTAssertEqual(outcome, .recovered)
+        XCTAssertEqual(stats.transactions, 2, "the burst must produce exactly one follow-up")
+        XCTAssertEqual(journal.closes, 2, "one burst must not close five sessions")
+        XCTAssertEqual(journal.opens, 2)
+        XCTAssertEqual(checks.reads, 2, "both transactions must re-read provider state")
     }
 
     func testUserStopCancelsRecoveryAndPreventsAutomaticReopen() async throws {
@@ -207,6 +241,31 @@ final class CaptureRuntimeCoordinatorTests: XCTestCase {
         await coordinator.clearUserStop()
         let outcome = await coordinator.handle(.unlocked)
         XCTAssertEqual(outcome, .recovered, "an explicit user restart re-arms recovery")
+    }
+
+    func testUserStopWinsWhileRecoveryIsOpening() async throws {
+        let checks = Checks()
+        let journal = Journal()
+        let barrier = SuspensionBarrier()
+        let coordinator = CaptureRuntimeCoordinator(
+            checks: checks,
+            closeSession: { journal.append("close") },
+            openSession: { _ in
+                journal.append("open")
+                await barrier.suspendOnce()
+                return true
+            })
+
+        let recovery = Task { await coordinator.handle(.unlocked) }
+        await barrier.waitUntilArrived()
+        let stopped = await coordinator.handle(.userStopped)
+        await barrier.release()
+        let outcome = await recovery.value
+
+        XCTAssertEqual(stopped, .blocked(.userStopped))
+        XCTAssertEqual(outcome, .blocked(.userStopped))
+        XCTAssertEqual(journal.closes, 3,
+                       "the late open must be closed again after an explicit user stop")
     }
 
     func testEveryInvalidationReasonIsClassifiedExplicitly() {

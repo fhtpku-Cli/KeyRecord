@@ -169,7 +169,7 @@ enum ScreenEvidence {
     }
 
     static func outputDirectory() throws -> URL {
-        let attempt = Bundle(for: ResourceAnchor.self).bundleURL
+        let attempt = NativeEvidence.outputRoot() ?? Bundle(for: ResourceAnchor.self).bundleURL
             .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
             .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
         let directory = attempt.appendingPathComponent("screenshots")

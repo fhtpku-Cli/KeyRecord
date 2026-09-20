@@ -59,10 +59,10 @@ final class AppProjectTests: XCTestCase {
 
     func testHappyUniversalUnsignedProduct() throws {
         // Given the Release product, when inspecting Mach-O, then both unsigned slices exist.
-        let attempt = Bundle(for: Self.self).bundleURL
-            .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
-            .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
-        let binary = attempt.appendingPathComponent("build/app/Build/Products/Release/KeyRecordApp.app/Contents/MacOS/KeyRecordApp")
+        let releasePath = try XCTUnwrap(ProcessInfo.processInfo.environment["T23_RELEASE_APP"],
+            "Set T23_RELEASE_APP to the universal Release app built for this test run")
+        let binary = URL(fileURLWithPath: releasePath)
+            .appendingPathComponent("Contents/MacOS/KeyRecordApp")
         let process = Process()
         let output = Pipe()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/lipo")

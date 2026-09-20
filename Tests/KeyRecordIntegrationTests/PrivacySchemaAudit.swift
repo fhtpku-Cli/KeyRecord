@@ -25,6 +25,7 @@ enum PrivacySchemaAudit {
 
     // File-qualified registration also covers private Wire DTOs and extensions adding conformance.
     static let serializableTypes: [String: Set<String>] = [
+        "CaptureDiagnostics.swift": ["CaptureRunSummary"],
         "Counts.swift": ["Count", "SourceCounts", "ActiveDayOrdinal"],
         "CycleRecords.swift": ["CycleRecord", "CycleSummary"],
         "IdentityProviders.swift": ["CycleID", "KeyVersion", "LocalDay"],
@@ -50,6 +51,12 @@ enum PrivacySchemaAudit {
     }
 
     static let recordFields: [String: [String: Set<String>]] = [
+        "CaptureDiagnostics.swift": ["CaptureRunSummary": [
+            "tapCallbackKeyDown", "tapCallbackKeyUp", "tapCallbackFlagsChanged", "tapDisabledEvents",
+            "handoffAccepted", "handoffClosed", "handoffOverflow", "normalizationOutput", "aggregateDelta",
+            "flushIssued", "flushDurable", "flushFailed", "flushTimedOut", "sessionCount",
+            "snapshotPublicationCount", "snapshotReadFailureCount", "lastPublishedShortcutTotal",
+            "lastPublishedBareKeyTotal", "countersInstrumented", "captureSessionLive", "sensitiveContentVisible"]],
         "Counts.swift": ["Count": ["value"], "SourceCounts": ["ordinary", "suspectedInjection", "total"],
             "ActiveDayOrdinal": ["value"]],
         "IdentityProviders.swift": ["CycleID": ["rawValue"], "KeyVersion": ["rawValue"], "LocalDay": ["label"]],

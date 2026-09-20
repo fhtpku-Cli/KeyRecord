@@ -23,7 +23,16 @@ protocol CaptureTapBackend: Sendable {
     func cachedProviders() -> CaptureProviderSnapshot
     func start(handoff: @escaping @Sendable (ObservedKeyEvent) -> EventHandoffResult) async throws
     func stop() async
+    #if DEBUG
+    func setDiagnostics(_ recorder: CaptureDiagnosticsRecorder) async
+    #endif
 }
+
+#if DEBUG
+extension CaptureTapBackend {
+    func setDiagnostics(_ recorder: CaptureDiagnosticsRecorder) async {}
+}
+#endif
 
 public actor ListenOnlyEventSource: EventSource {
     private let queue: CaptureQueue
@@ -33,6 +42,14 @@ public actor ListenOnlyEventSource: EventSource {
     private let reducer = DispatchQueue(label: "com.keyrecord.capture.reducer")
     private var signal: (any DispatchSourceUserDataAdd)?
     private var starting = false
+    #if DEBUG
+    private var diagnostics: CaptureDiagnosticsRecorder?
+
+    public func setDiagnostics(_ recorder: CaptureDiagnosticsRecorder) async {
+        diagnostics = recorder
+        await backend.setDiagnostics(recorder)
+    }
+    #endif
     private var invalidationSink: (@Sendable (CaptureInvalidation) -> Void)?
 
     init(queue: CaptureQueue, qualification: any CaptureQualification, backend: any CaptureTapBackend,
@@ -55,6 +72,17 @@ public actor ListenOnlyEventSource: EventSource {
     }
 
     public func start(deliver: @escaping @Sendable (ObservedKeyEvent) -> EventHandoffResult) async throws {
+        try await start(requestPermission: true, deliver: deliver)
+    }
+
+    public func start(requestPermission: Bool,
+                      deliver: @escaping @Sendable (ObservedKeyEvent) -> EventHandoffResult) async throws {
+        try await start(requestPermission: requestPermission, prepareDelivery: { _ in deliver })
+    }
+
+    public func start(requestPermission: Bool = true,
+                      prepareDelivery: @escaping @Sendable (CaptureSnapshot)
+                      -> @Sendable (ObservedKeyEvent) -> EventHandoffResult) async throws {
         guard !starting, signal == nil else { throw CaptureStartError.alreadyStarted }
         starting = true
         defer { starting = false }
@@ -77,8 +105,9 @@ public actor ListenOnlyEventSource: EventSource {
         // so prompting here cannot become a background prompt loop. The prompting attempt
         // never continues into a tap: the user grants access, then retries explicitly,
         // which builds a brand-new session with a fresh generation.
-        if permission.preflight() != .granted {
-            permission.request()
+        let permissionStatus = permission.preflight()
+        if permissionStatus != .granted {
+            if requestPermission, permissionStatus == .denied { permission.request() }
             queue.revoke()
             throw CaptureStartError.permissionRequired
         }
@@ -90,6 +119,10 @@ public actor ListenOnlyEventSource: EventSource {
                                                             onInvalidation: invalidationSink)
             let current = await backend.readProviders()
             guard queue.validate(prepared, current: current), !Task.isCancelled else { throw CaptureStartError.revoked }
+            #if DEBUG
+            diagnostics?.beginSession(generation: prepared.generation.rawValue)
+            #endif
+            let deliver = prepareDelivery(prepared)
             try await activate(prepared: prepared, deliver: deliver)
         } catch {
             queue.revoke()
@@ -112,9 +145,23 @@ public actor ListenOnlyEventSource: EventSource {
         }
         signal.activate()
         self.signal = signal
+        #if DEBUG
+        let diagnostics = self.diagnostics
+        #endif
         try await backend.start { event in
-            guard event.generation == prepared.generation else { return .closed }
-            let result = queue.handoff(event, current: { backend.cachedProviders() })
+            let result: EventHandoffResult
+            if event.generation == prepared.generation {
+                result = queue.handoff(event, current: { backend.cachedProviders() })
+            } else {
+                result = .closed
+            }
+            #if DEBUG
+            switch result {
+            case .accepted: diagnostics?.increment(.handoffAccepted)
+            case .closed: diagnostics?.increment(.handoffClosed)
+            case .overflow: diagnostics?.increment(.handoffOverflow)
+            }
+            #endif
             if result == .accepted { signal.add(data: 1) }
             return result
         }
@@ -129,6 +176,12 @@ public actor ListenOnlyEventSource: EventSource {
     /// as the witness for a "Collecting" claim, because lifecycle phase and the key gate
     /// can both look healthy while no event source exists.
     public var hasLiveSession: Bool { signal != nil }
+
+    public func requestPermissionIfNeeded() -> InputMonitoringStatus {
+        let status = permission.preflight()
+        guard status == .denied else { return status }
+        return permission.request()
+    }
 
     /// Forwards typed invalidations to the single serial recovery entry point (KR-02).
     /// Set once by the composition layer; nil in tests that only exercise the source.

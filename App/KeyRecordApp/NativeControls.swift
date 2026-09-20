@@ -89,9 +89,13 @@ struct NativeAction: View {
         }
     }
 
+    private var focusableButton: some View {
+        shortcutButton.focusable()
+    }
+
     var body: some View {
         if let focus {
-            shortcutButton.focusable().focused(focus.binding, equals: identifier)
+            focusableButton.focused(focus.binding, equals: identifier)
                 .onKeyPress(phases: .down) { press in
                     guard press.key == .tab else { return .ignored }
                     guard let index = PrimitiveFocus.order.firstIndex(of: identifier) else { return .ignored }
@@ -100,7 +104,7 @@ struct NativeAction: View {
                     return .handled
                 }
         } else {
-            shortcutButton
+            focusableButton
         }
     }
 }

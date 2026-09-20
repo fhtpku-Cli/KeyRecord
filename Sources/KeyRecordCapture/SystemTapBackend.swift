@@ -7,17 +7,39 @@ private final class TapContext: Sendable {
     let handoff: @Sendable (ObservedKeyEvent) -> EventHandoffResult
     let invalidate: @Sendable (CaptureInvalidation) -> Void
 
+    #if DEBUG
+    let diagnostics: CaptureDiagnosticsRecorder?
+    init(queue: CaptureQueue, handoff: @escaping @Sendable (ObservedKeyEvent) -> EventHandoffResult,
+         invalidate: @escaping @Sendable (CaptureInvalidation) -> Void,
+         diagnostics: CaptureDiagnosticsRecorder?) {
+        self.diagnostics = diagnostics
+        self.queue = queue
+        self.handoff = handoff
+        self.invalidate = invalidate
+    }
+    #else
     init(queue: CaptureQueue, handoff: @escaping @Sendable (ObservedKeyEvent) -> EventHandoffResult,
          invalidate: @escaping @Sendable (CaptureInvalidation) -> Void) {
         self.queue = queue
         self.handoff = handoff
         self.invalidate = invalidate
     }
+    #endif
 }
 
 private let captureCallback: CGEventTapCallBack = { _, type, event, pointer in
     guard let pointer else { return Unmanaged.passUnretained(event) }
     let context = Unmanaged<TapContext>.fromOpaque(pointer).takeUnretainedValue()
+    #if DEBUG
+    switch type {
+    case .keyDown: context.diagnostics?.increment(.tapCallbackKeyDown)
+    case .keyUp: context.diagnostics?.increment(.tapCallbackKeyUp)
+    case .flagsChanged: context.diagnostics?.increment(.tapCallbackFlagsChanged)
+    case .tapDisabledByTimeout, .tapDisabledByUserInput:
+        context.diagnostics?.increment(.tapDisabledEvent)
+    default: break
+    }
+    #endif
     let generation = context.queue.generation
     if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
         context.invalidate(.tapDisabled)
@@ -40,6 +62,13 @@ final class SystemTapBackend: CaptureTapBackend {
     private nonisolated let cached = CaptureLock(CaptureProviderSnapshot.unknown)
     private let sessionLock: any SessionLockProvider
     private let permission: any InputMonitoringPermission
+    #if DEBUG
+    private var diagnostics: CaptureDiagnosticsRecorder?
+
+    func setDiagnostics(_ recorder: CaptureDiagnosticsRecorder) {
+        diagnostics = recorder
+    }
+    #endif
 
     init(queue: CaptureQueue, sessionLock: any SessionLockProvider = UnqualifiedSessionLockProvider(),
          permission: any InputMonitoringPermission = SystemInputMonitoringPermission()) {
@@ -96,7 +125,12 @@ final class SystemTapBackend: CaptureTapBackend {
             invalidate(.permissionRevoked)
             throw CaptureStartError.revoked
         }
+        #if DEBUG
+        let context = TapContext(queue: queue, handoff: handoff, invalidate: invalidate,
+                                 diagnostics: diagnostics)
+        #else
         let context = TapContext(queue: queue, handoff: handoff, invalidate: invalidate)
+        #endif
         let mask = (CGEventMask(1) << CGEventType.keyDown.rawValue)
             | (CGEventMask(1) << CGEventType.keyUp.rawValue)
             | (CGEventMask(1) << CGEventType.flagsChanged.rawValue)

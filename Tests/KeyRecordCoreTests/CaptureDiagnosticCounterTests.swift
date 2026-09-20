@@ -1,0 +1,119 @@
+import XCTest
+import KeyRecordCore
+
+final class CaptureDiagnosticCounterTests: XCTestCase {
+
+    func testRunSummaryRetainsCountersAcrossSessionReset() {
+        let recorder = CaptureDiagnosticsRecorder()
+        recorder.beginSession(generation: 1)
+        recorder.increment(.tapCallbackKeyDown)
+        recorder.beginSession(generation: 2)
+        recorder.increment(.tapCallbackKeyDown)
+        XCTAssertEqual(recorder.snapshot.tapCallbackKeyDown, 1)
+        XCTAssertEqual(recorder.runSummary.tapCallbackKeyDown, 2)
+        XCTAssertEqual(recorder.runSummary.sessionCount, 2)
+    }
+
+    func testRunSummaryTracksPublicationWithoutPretendingUnpublishedIsZero() {
+        let recorder = CaptureDiagnosticsRecorder()
+        XCTAssertNil(recorder.runSummary.lastPublishedShortcutTotal)
+        recorder.recordPublication(shortcutTotal: 5, bareKeyTotal: 7)
+        recorder.recordSnapshotReadFailure()
+        recorder.beginSession(generation: 1)
+        XCTAssertEqual(recorder.runSummary.snapshotPublicationCount, 1)
+        XCTAssertEqual(recorder.runSummary.snapshotReadFailureCount, 1)
+        XCTAssertEqual(recorder.runSummary.lastPublishedShortcutTotal, 5)
+        XCTAssertEqual(recorder.runSummary.lastPublishedBareKeyTotal, 7)
+    }
+
+    func testRunReceiptIsOptInAndContainsOnlyNumericOrBooleanValues() throws {
+        let recorder = CaptureDiagnosticsRecorder()
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        try recorder.writeRunSummary(to: nil)
+        XCTAssertTrue(try FileManager.default.contentsOfDirectory(atPath: root.path).isEmpty)
+        let output = root.appendingPathComponent("receipt.json")
+        recorder.recordPublication(shortcutTotal: 5, bareKeyTotal: 7)
+        try recorder.writeRunSummary(to: output.path)
+        let data = try Data(contentsOf: output)
+        let object = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        XCTAssertEqual(Set(object.keys), Set([
+            "tapCallbackKeyDown", "tapCallbackKeyUp", "tapCallbackFlagsChanged", "tapDisabledEvents",
+            "handoffAccepted", "handoffClosed", "handoffOverflow", "normalizationOutput", "aggregateDelta",
+            "flushIssued", "flushDurable", "flushFailed", "flushTimedOut", "sessionCount",
+            "snapshotPublicationCount", "snapshotReadFailureCount", "lastPublishedShortcutTotal",
+            "lastPublishedBareKeyTotal", "countersInstrumented", "captureSessionLive", "sensitiveContentVisible"
+        ]))
+        for (key, value) in object {
+            XCTAssertTrue(value is NSNumber, "Unexpected payload shape: \(key)")
+        }
+        XCTAssertThrowsError(try recorder.writeRunSummary(to: root.appendingPathComponent("missing/receipt.json").path))
+    }
+
+    func testIncrementRecordsExactCountsUnderConcurrentWriters() {
+        // Given: one recorder for independent callback-path increments.
+        let recorder = CaptureDiagnosticsRecorder()
+        let iterations = 12_000
+
+        // When: callbacks increment two closed counter cases concurrently.
+        DispatchQueue.concurrentPerform(iterations: iterations) { index in
+            recorder.increment(index.isMultiple(of: 2) ? .tapCallbackKeyDown : .handoffAccepted)
+        }
+
+        // Then: no increment is lost and the snapshot exposes only its mapped counters.
+        let snapshot = recorder.snapshot
+        XCTAssertEqual(snapshot.tapCallbackKeyDown, iterations / 2)
+        XCTAssertEqual(snapshot.handoffAccepted, iterations / 2)
+        XCTAssertEqual(snapshot.tapCallbackKeyUp, 0)
+        XCTAssertFalse(snapshot.countersInstrumented)
+    }
+
+    func testSnapshotMapsEveryClosedCounterCase() {
+        // Given: a recorder and every permitted diagnostic counter.
+        let recorder = CaptureDiagnosticsRecorder()
+
+        // When: each case is incremented exactly once.
+        for counter in CaptureDiagnosticCounter.allCases {
+            recorder.increment(counter)
+        }
+
+        // Then: every pipeline field receives its matching numeric count.
+        let snapshot = recorder.snapshot
+        XCTAssertEqual(snapshot.tapCallbackKeyDown, 1)
+        XCTAssertEqual(snapshot.tapCallbackKeyUp, 1)
+        XCTAssertEqual(snapshot.tapCallbackFlagsChanged, 1)
+        XCTAssertEqual(snapshot.tapDisabledEvents, 1)
+        XCTAssertEqual(snapshot.handoffAccepted, 1)
+        XCTAssertEqual(snapshot.handoffClosed, 1)
+        XCTAssertEqual(snapshot.handoffOverflow, 1)
+        XCTAssertEqual(snapshot.normalizationOutput, 1)
+        XCTAssertEqual(snapshot.aggregateDelta, 1)
+        XCTAssertEqual(snapshot.flushIssued, 1)
+        XCTAssertEqual(snapshot.flushDurable, 1)
+        XCTAssertEqual(snapshot.flushFailed, 1)
+        XCTAssertEqual(snapshot.flushTimedOut, 1)
+        let run = recorder.runSummary
+        XCTAssertEqual([run.tapCallbackKeyDown, run.tapCallbackKeyUp, run.tapCallbackFlagsChanged,
+                        run.tapDisabledEvents, run.handoffAccepted, run.handoffClosed, run.handoffOverflow,
+                        run.normalizationOutput, run.aggregateDelta, run.flushIssued, run.flushDurable,
+                        run.flushFailed, run.flushTimedOut], Array(repeating: 1, count: 13))
+    }
+
+    func testCounterInstrumentationStateIsControlledByComposition() {
+        let recorder = CaptureDiagnosticsRecorder()
+        recorder.configureCounterInstrumentation()
+        XCTAssertTrue(recorder.snapshot.countersInstrumented)
+    }
+
+    func testBeginSessionExcludesEarlierAtomicCountersFromItsSnapshot() {
+        let recorder = CaptureDiagnosticsRecorder()
+        recorder.increment(.tapCallbackKeyDown)
+
+        recorder.beginSession(generation: 2)
+
+        XCTAssertEqual(recorder.snapshot.tapCallbackKeyDown, 0)
+        recorder.increment(.tapCallbackKeyDown)
+        XCTAssertEqual(recorder.snapshot.tapCallbackKeyDown, 1)
+    }
+}

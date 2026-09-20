@@ -38,6 +38,7 @@ public enum LifecycleEvent: Equatable, Sendable {
     case loginItemSetEnabled(Bool)
     case loginItemUnregistered
     case loginItemUnregistrationRejected(LoginItemSystemRejection)
+    case runtimeRecoveryRequired(BlockedReason)
     case retry
     case dismissNotice
 }
@@ -170,6 +171,11 @@ extension LifecycleState {
         case .loginItemUnregistrationRejected(let rejection):
             loginItem = .registered
             notice = .loginUnregistrationRejected(rejection)
+            return []
+        case .runtimeRecoveryRequired(let reason):
+            guard preferences?.expectedCollecting == true else { return [] }
+            phase = .blocked
+            blockedReason = reason
             return []
         case .dismissNotice:
             notice = nil

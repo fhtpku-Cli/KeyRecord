@@ -21,6 +21,16 @@ extension ScreenMatrixTests {
         XCTAssertEqual(identical, LocalizationAudit.identicalAllowlist)
     }
 
+    func testLocalizationAuditIgnoresPersistenceKeysAndAccessibilityIdentifiers() {
+        let source = #"""
+        static let defaultsKey = "debug.localCaptureEnabled"
+        cause.setAccessibilityIdentifier("menu.startupFailure")
+        static let diagnosisIdentifier = "menu.developer.diagnosis"
+        Text(text("menu.open"))
+        """#
+        XCTAssertEqual(LocalizationAudit.referencedKeys(in: source), ["menu.open"])
+    }
+
     func testHappySourceInspection() throws {
         for source in try LocalizationAudit.appSources() {
             XCTAssertEqual(SourceInspection.hardcodedColorViolations(source.text, file: source.name), [])

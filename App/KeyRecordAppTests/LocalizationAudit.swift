@@ -11,10 +11,12 @@ enum LocalizationAudit {
         "arrow.counterclockwise.circle", "capture.primary", "capture.status", "capture.symbol",
         "com.apple.screenIsLocked", "com.apple.screenIsUnlocked",
         "com.example.chat", "com.example.editor", "com.keyrecord.app", "consent.panel",
+        "debug.localCaptureEnabled",
         "destructive.cancel", "destructive.panel", "dialog.cancel", "dialog.confirm", "dialog.message",
         "dialog.panel", "exclamationmark.triangle", "flow.notice", "harness.appearance", "lock.circle",
-        "menu.developer.localCapture", "menu.developer.section",
+        "menu.developer.diagnosis", "menu.developer.localCapture", "menu.developer.section",
         "menu.open", "menu.pause", "menu.quit", "menu.resume", "menu.settings", "menu.start", "menu.status",
+        "menu.startupFailure",
         "pause.circle", "record.circle", "preferences.json", "results.journal", "preview.locale",
         "preview.locked.toggle", "settings.form", "settings.exclusions.empty", "settings.exclusions.foreground",
     ]

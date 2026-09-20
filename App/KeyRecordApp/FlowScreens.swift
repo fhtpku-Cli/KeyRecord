@@ -77,16 +77,21 @@ struct MenuBarMenuContent: View {
         let menu = flow.menuState
         CaptureStatus(state: menu.state, text: text)
         Button(text("action.start")) { Task { @MainActor in await flow.start() } }
-            .disabled(!menu.canStart).accessibilityIdentifier("menu.start")
+            .disabled(!menu.canStart).focusable().accessibilitySortPriority(5)
+            .accessibilityIdentifier("menu.start")
         Button(text("action.pause")) { Task { @MainActor in await flow.pause() } }
-            .disabled(!menu.canPause).accessibilityIdentifier("menu.pause")
+            .disabled(!menu.canPause).focusable().accessibilitySortPriority(4)
+            .accessibilityIdentifier("menu.pause")
         Button(text("action.resume")) { Task { @MainActor in await flow.resume() } }
-            .disabled(!menu.canResume).accessibilityIdentifier("menu.resume")
+            .disabled(!menu.canResume).focusable().accessibilitySortPriority(3)
+            .accessibilityIdentifier("menu.resume")
         Divider()
         Button(text("action.settings")) { flow.openSettings() }
-            .keyboardShortcut(",", modifiers: .command).accessibilityIdentifier("menu.settings")
+            .keyboardShortcut(",", modifiers: .command).focusable().accessibilitySortPriority(2)
+            .accessibilityIdentifier("menu.settings")
         Button(text("action.quit")) { Task { @MainActor in await flow.quit() } }
-            .keyboardShortcut("q", modifiers: .command).accessibilityIdentifier("menu.quit")
+            .keyboardShortcut("q", modifiers: .command).focusable().accessibilitySortPriority(1)
+            .accessibilityIdentifier("menu.quit")
     }
 }
 

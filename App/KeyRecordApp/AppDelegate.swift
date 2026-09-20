@@ -61,4 +61,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Task { sender.reply(toApplicationShouldTerminate: await product.prepareQuit()) }
         return .terminateLater
     }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        #if DEBUG
+        product?.writeDiagnosticSummaryOnTermination(
+            to: ProcessInfo.processInfo.environment["KEYRECORD_DIAGNOSTIC_SUMMARY_PATH"])
+        #endif
+    }
 }

@@ -10,11 +10,25 @@ enum ChordDescriptor {
         let chord = bucket.chord
         var words: [String] = []
         let modifiers = chord.modifiers
-        if modifiers.command != .none { words.append(text("modifier.command")) }
-        if modifiers.option != .none { words.append(text("modifier.option")) }
-        if modifiers.control != .none { words.append(text("modifier.control")) }
-        if modifiers.shift != .none { words.append(text("modifier.shift")) }
-        if modifiers.fn == .active { words.append(text("modifier.fn")) }
+        for (key, state) in [("modifier.command", modifiers.command),
+                             ("modifier.option", modifiers.option),
+                             ("modifier.control", modifiers.control),
+                             ("modifier.shift", modifiers.shift)] {
+            let formatKey: String
+            switch state {
+            case .none: continue
+            case .left: formatKey = "modifier.side.left"
+            case .right: formatKey = "modifier.side.right"
+            case .both: formatKey = "modifier.side.both"
+            case .activeSideUnknown: formatKey = "modifier.side.unknown"
+            }
+            words.append(String(format: text(formatKey), text(key)))
+        }
+        switch modifiers.fn {
+        case .none: break
+        case .active: words.append(text("modifier.fn"))
+        case .unknown: words.append(text("modifier.fn.unknown"))
+        }
         words.append(String(format: text("aggregate.keyToken"), chord.keyCode.value))
         let app: String
         switch bucket.appBucket {

@@ -3,3 +3,10 @@ Spikes/.swiftpm/
 evidence/phase0/**/tmp/
 evidence/phase0/**/live-unreviewed/
 evidence/phase0/**/*.unreviewed
+
+# Local SwiftPM and Xcode output (retain .omo plans/evidence visibility).
+/.build/
+/.swiftpm/
+/DerivedData/
+*.xcuserstate
+xcuserdata/

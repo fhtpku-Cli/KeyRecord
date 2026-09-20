@@ -119,6 +119,29 @@ final class CapturePermissionTests: XCTestCase {
         XCTAssertFalse(queue.isOpen, "queue must fail closed after a denied start")
     }
 
+    func testAutomaticDeniedStartNeverRequestsPermission() async throws {
+        // Given: denied permission and an open queue for an automatic recovery attempt.
+        let permission = FakePermission(status: .denied)
+        let queue = CaptureQueue()
+        openQueue(queue)
+        let tap = PermissionAwareTap(permission: permission)
+        let source = makeSource(permission: permission, tap: tap, queue: queue)
+
+        // When: the source starts with permission prompting disabled.
+        do {
+            try await source.start(requestPermission: false, deliver: { _ in .accepted })
+            XCTFail("denied automatic start must fail closed")
+        } catch let error as CaptureStartError {
+            XCTAssertEqual(error, .permissionRequired)
+        }
+
+        // Then: no prompt and no tap creation occur.
+        XCTAssertEqual(permission.counts.request, 0)
+        let tapCreations = await tap.tapCreations
+        XCTAssertEqual(tapCreations, 0)
+        XCTAssertFalse(queue.isOpen)
+    }
+
     func testRepeatedDeniedStartsDoNotLoopThePermissionPrompt() async throws {
         let permission = FakePermission(status: .denied)
         let queue = CaptureQueue()

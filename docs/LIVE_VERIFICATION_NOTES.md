@@ -51,10 +51,19 @@ environment and `errSecItemNotFound` in the other.
 input. Any claim that events are being dropped requires a run where input demonstrably
 occurred.
 
-**The counters are gauges only when something writes them.** The per-layer counters in
-`CaptureDiagnostics` are incremented by the harness and by unit tests, not by the shipping
-app. An unwritten zero read as a measurement previously yielded the fabricated finding that
-no keyboard event had reached the process.
+**The counters are gauges only when something writes them.** The repaired DEBUG product
+wires the per-layer hooks and marks instrumentation explicitly. Earlier builds did not;
+an unwritten zero previously yielded a fabricated finding. Per-session counters reset
+when capture is prepared again, so returning from another app can hide earlier activity.
+The opt-in `KEYRECORD_DIAGNOSTIC_SUMMARY_PATH` writes a process-lifetime numeric JSON summary
+on normal termination. Use a fresh private output path for each approved run; missing output
+is not success. It retains last successful model-publication totals without reading the
+protected store during shutdown. Positive totals cannot attribute a particular keypress,
+and publication is not proof of rendering.
+
+**Identical titles need not mean identical groups.** Aggregation retains modifier sides and
+unknown states. The current display names these distinctions; older titles collapsed them.
+Compare all relevant rows and before/after totals, not one matching label.
 
 **Boot-time samples go stale.** Fields captured once during startup (armed, lock state,
 whether the key gate was open) describe that instant. Rendered without that label, a lock

@@ -1,5 +1,14 @@
 # Current project status
 
+> **Newer than this document:** a corrective round on 2026-09-18/20 landed eight commits on
+> `main` (`45d2ba8a1` -> `36d9115d7`) after the `22cb8e9` checkpoint described below. The
+> parsed projection, gate table and reproduction steps here are **unchanged and still
+> authoritative** - that round touched capture, privacy, lifecycle, persistence and exclusion
+> wiring, not the evidence schema and not any gate. Its outcome is summarized in
+> [Corrective round](#corrective-round-2026-09-1820) at the end of this file; the
+> host-verification constraints learned there are in
+> [LIVE_VERIFICATION_NOTES.md](LIVE_VERIFICATION_NOTES.md).
+
 Latest milestone: the [execution checkpoint](EXECUTION_CHECKPOINT.md) is the current handoff at code checkpoint `22cb8e9`; the final milestone is BLOCKED/REJECTED with no valid frozen candidate and no F1-F4 approval. The measured baseline report is [verified outcomes and independent gates](MILESTONE_STATUS.md), with the machine-readable [requirement allocation](milestone-allocation.json). Live performance, Intel, signing, hosted UI, evidence binding, preservation and FR-P6 remain independent BLOCKED gates. This is not overall G1 or public-release completion.
 
 ## Authority and reproduction
@@ -53,3 +62,65 @@ Reset removes daily details and retains exactly architecture §5.1 CycleSummary 
 The new checker defaults to `--gate G0`: exit 0 means the verified historical prerequisite is satisfied, **not** G1 or release. It always reports `scope`, overall `readiness_exit`, and `release_claim=false`. `--gate all` preserves the full current-readiness outcome; other gate IDs are explicitly selectable. Missing proof is BLOCKED/2; malformed/tampered/waived evidence is FAIL/1. `--candidate <file>` additionally delegates to task 4's `verify-current-candidate <file> --readiness <file>` when available; unavailable/invalid candidate validation never silently passes. No plan checkbox or document phrase grants acceptance.
 
 `CurrentDeliverablesTests/testHappyReviewerReferenceTable` prints parsed claim-to-field pairs for each bounded status note. These synthetic tests prove acceptance behavior, not current host capabilities; use a fresh real projection for the observed state above.
+
+---
+
+## Corrective round 2026-09-18/20
+
+Scope-limited round on capture, privacy, lifecycle, persistence and exclusion wiring.
+It changed no evidence schema, published no projection and claims no gate transition:
+every BLOCKED gate above stays BLOCKED, and this is not a G1 or release claim.
+
+Baseline `45d2ba8a1` -> `36d9115d7`, eight commits, 40 files, +3515/-185.
+
+### Defect classes fixed
+
+Seven came from a 2026-09-18 review; six more surfaced only during host verification.
+Root causes worth remembering, because each was invisible to the tests that existed:
+
+- A provider assigned **after** `init` returned, so the observer block registered inside the
+  initializer captured `nil` - screen lock and unlock were never observed at all.
+- The permission gate ran **after** provider validation, so the single production call to
+  `CGRequestListenEventAccess()` was unreachable in a stable denied state: the user could
+  never be asked.
+- Production `FlowActions.loadChoices` was left at its default empty closure, so the
+  exclusions list was permanently empty while previews and UI doubles looked correct.
+- The status title consulted only lifecycle phase and the key gate. Both look healthy at
+  boot, so the menu bar showed "Collecting" with zero store handles and zero counts.
+- Recovery called a policy-refresh helper that never starts the event source, then asked
+  whether a session was live - necessarily false, so every recovery reported `startFailed`.
+
+### Test counts
+
+Baseline measured 379 executed / 364 passed / **15 failed**. Those 15 were **validator
+faults, not product defects**: a crash probe that searched for a build layout the current
+backend never emits, and a scratch-directory helper that required an ancestor literally
+named `build` (the default is `.build`). After the round: **459 executed, 459 passed, zero
+failed, zero skipped**.
+
+`KeyRecordAppTests` retains 14 pre-existing failures (ScreenMatrixTests,
+T22AccessibilityTests, ProductReleaseBoundaryTests). Re-run in a baseline worktree at
+`45d2ba8a1`, the failing set is **identical**, so they predate this round. They are recorded
+as failures, not waived, and are not counted as PASS anywhere.
+
+### One historical hypothesis is now disproved
+
+Earlier investigation notes speculated that Karabiner's DriverKit layer was swallowing
+physical key events. A bounded 45-second host run with **all four Karabiner daemons
+running** observed tap keyDown 168 / keyUp 168, queue accepted 336, normalized 336,
+aggregate delta 168, zero closed handoffs and zero tapDisabled events.
+
+**Karabiner is not the cause.** Do not spend another round disabling it as a control.
+Secure Input remains an unproven candidate, not a diagnosis. Retaining `tapEnable(true)` is
+harmless, but it is not a root-cause fix - Apple documents newly created taps as enabled.
+
+### Known gap: the layered counters are not wired in production
+
+`CaptureDiagnostics` reports which layer of the capture chain stopped, but its per-layer
+counters are incremented only by the test harness and unit tests - **never by the shipping
+app**. Until they are wired, the chain is verified only as far as "a session exists"; whether
+events actually reach the aggregate and become durable has not been observed in production.
+
+The diagnosis now states `counters are not instrumented in this build` rather than reporting
+an unwritten zero, because reading one as a measurement previously produced the fabricated
+claim that no keyboard event had reached the process.

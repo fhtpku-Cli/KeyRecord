@@ -200,27 +200,21 @@ final class ProductComposition: NSObject, NSMenuDelegate {
     }
 
     private func registerLifecycleObservers(hooks: ProductMaintenanceHooks) {
-        let gate = self.gate
         let reduction = self.reduction
         let queue = capture.queue
         let manualRecoveryFence = self.manualRecoveryFence
-        // Sleep may lock the session, so close capture on sleep. Do NOT close on
-        // sessionDidResignActive: that fires whenever the user switches to another app,
-        // which is normal foreground use, not a lock. Actual screen-lock transitions are
-        // observed separately via development lock-provider notifications (DEBUG) / the
-        // qualified host (T7) and must be the only thing that gates capture off mid-session.
-        observers.append(NSWorkspace.shared.notificationCenter.addObserver(
-            forName: NSWorkspace.willSleepNotification, object: nil, queue: nil
-        ) { [weak self, gate, reduction, queue, manualRecoveryFence] _ in
-            manualRecoveryFence.invalidate()
-            gate.update(.unknown)
-            queue.revoke()
-            reduction.clear()
-            Task { @MainActor in
-                self?.lifecycle.requireRecovery(reason: .keyUnavailable)
-                await self?.closeProtectedState()
-            }
-        })
+        // Sleep and session resignation are privacy boundaries. Ordinary app switches
+        // arrive as foregroundChanged and retain their pending aggregate.
+        for notification in [NSWorkspace.willSleepNotification, NSWorkspace.sessionDidResignActiveNotification] {
+            observers.append(NSWorkspace.shared.notificationCenter.addObserver(
+                forName: notification, object: nil, queue: nil
+            ) { [weak self, reduction, queue, manualRecoveryFence] _ in
+                reduction.revokeProtectedState(queue: queue, recoveryFence: manualRecoveryFence)
+                Task { @MainActor in
+                    await self?.handlePrivacyInvalidation()
+                }
+            })
+        }
         observers.append(NSWorkspace.shared.notificationCenter.addObserver(
             forName: NSWorkspace.didWakeNotification, object: nil, queue: nil) { [weak self] _ in
                 Task { @MainActor in self?.handleRuntimeAvailable() }
@@ -281,17 +275,13 @@ final class ProductComposition: NSObject, NSMenuDelegate {
     private func prepareExplicitCaptureStart(_ attempt: ManualRecoveryAttempt) async -> Bool {
         #if DEBUG
         guard let sessionLock = localSessionLock else {
-            gate.update(.unknown)
-            lifecycle.requireRecovery(reason: .sessionLocked)
-            syncRuntime()
+            await handlePrivacyInvalidation()
             return false
         }
         let lockState = await sessionLock.sessionLockState()
         guard manualRecoveryFence.isCurrent(attempt) else { return false }
         guard lockState == .unlocked else {
-            gate.update(.unknown)
-            lifecycle.requireRecovery(reason: .sessionLocked)
-            syncRuntime()
+            await handlePrivacyInvalidation()
             return false
         }
         gate.update(.unlocked)
@@ -417,7 +407,9 @@ final class ProductComposition: NSObject, NSMenuDelegate {
     private func attachRuntimeCoordinator() async {
         let capture = self.capture
         let coordinator = CaptureRuntimeCoordinator(
-            checks: ProductRuntimeChecks(capture: capture),
+            checks: ProductRuntimeChecks(capture: capture, privacyFailed: { [weak self] in
+                await self?.handlePrivacyInvalidation()
+            }),
             closeSession: { [weak self] in
                 await capture.stop()
                 // Authoritative: the session is gone, so the UI must stop claiming it.
@@ -443,8 +435,19 @@ final class ProductComposition: NSObject, NSMenuDelegate {
                 return exclusion != .unknown && live
             })
         runtimeCoordinator = coordinator
-        await capture.source.setInvalidationSink { reason in
-            Task { await coordinator.handle(.invalidated(reason)) }
+        let reduction = self.reduction
+        let queue = capture.queue
+        let recoveryFence = manualRecoveryFence
+        await capture.source.setInvalidationSink { [weak self] reason in
+            if !reason.allowsAutomaticRecovery {
+                reduction.revokeProtectedState(queue: queue, recoveryFence: recoveryFence)
+                Task { @MainActor in
+                    await self?.handlePrivacyInvalidation()
+                    await coordinator.handle(.invalidated(reason))
+                }
+            } else {
+                Task { await coordinator.handle(.invalidated(reason)) }
+            }
         }
     }
 
@@ -642,9 +645,13 @@ final class ProductComposition: NSObject, NSMenuDelegate {
                                         captureSessionLive: captureSessionLive)
     }
 
+    private func handlePrivacyInvalidation() async {
+        lifecycle.requireRecovery(reason: .sessionLocked)
+        await closeProtectedState()
+    }
+
     private func closeProtectedState() async {
-        gate.update(.unknown)
-        reduction.clear()
+        reduction.revokeProtectedState(queue: capture.queue, recoveryFence: manualRecoveryFence)
         flow.snapshot = nil
         lifecycle.observe(RuntimeConditions(keyAvailability: .unknown, sessionLock: .unknown,
                                             secureInput: .unknown, foreground: .unknown))

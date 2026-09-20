@@ -103,8 +103,7 @@ actor ProductCapture: LifecycleCaptureControlling, RestartReadinessChecking {
     func resumeSession(preferences: Preferences) async -> Bool {
         guard (try? await verifyRestartReadiness()) != nil else { return false }
         guard queue.isOpen else { return false }
-        guard reduction.prepareForSchedulerReopen() else { return false }
-        guard (try? await scheduler.reopen()) != nil else { return false }
+        guard await reduction.reopenScheduler({ try await scheduler.reopen() }) else { return false }
         do {
             try await source.start(requestPermission: false, prepareDelivery: { [reduction] snapshot in
                 _ = reduction.resume(inputs: snapshot.inputs, generation: snapshot.generation)
@@ -149,11 +148,17 @@ actor ProductCapture: LifecycleCaptureControlling, RestartReadinessChecking {
 /// cached, so a recovery can never reopen on stale inputs.
 struct ProductRuntimeChecks: CaptureRuntimeChecking {
     let capture: ProductCapture
+    let privacyFailed: @Sendable () async -> Void
 
     func freshRuntimeConditions() async -> RuntimeConditions? {
         // verifyRestartReadiness re-checks qualification + key availability and samples the
         // providers; a throw means fail closed.
-        try? await capture.verifyRestartReadiness()
+        let conditions = try? await capture.verifyRestartReadiness()
+        guard conditions?.sessionLock == .unlocked else {
+            await privacyFailed()
+            return nil
+        }
+        return conditions
     }
 
     func expectsCollecting() async -> Bool {

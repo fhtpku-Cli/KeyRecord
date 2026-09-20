@@ -125,6 +125,24 @@ final class ProductReduction: @unchecked Sendable {
         }
     }
 
+    func reopenScheduler(_ reopen: @Sendable () async throws -> Void) async -> Bool {
+        guard prepareForSchedulerReopen() else { return false }
+        defer { _ = prepareForSchedulerReopen() }
+        do {
+            try await reopen()
+            return true
+        } catch {
+            return false
+        }
+    }
+
+    func revokeProtectedState(queue: CaptureQueue, recoveryFence: ManualRecoveryFence) {
+        recoveryFence.invalidate()
+        gate.update(.unknown)
+        queue.revoke()
+        clear()
+    }
+
     private func installSession(inputs: GateInputs, generation: CaptureGeneration,
                                 markChanged: Bool) -> Bool {
         normalizer.reset()

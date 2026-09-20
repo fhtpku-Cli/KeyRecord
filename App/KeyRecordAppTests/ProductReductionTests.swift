@@ -1,7 +1,7 @@
 import Foundation
 import XCTest
 import KeyRecordCore
-import KeyRecordCapture
+@testable import KeyRecordCapture
 import KeyRecordStore
 
 final class ProductReductionTests: XCTestCase {
@@ -142,6 +142,76 @@ final class ProductReductionTests: XCTestCase {
         let rows = try objects.flatMap { try JSONDecoder().decode([DailyBareKeyAggregate].self,
                                                                   from: $0.payload) }
         XCTAssertEqual(rows.reduce(0) { $0 + $1.sourceCounts.total.value }, 1)
+    }
+
+    func testPulseDuringSchedulerReopenCannotConsumeRetainedDirtyTruth() async throws {
+        let gate = KeyAvailabilityGate()
+        gate.update(.unlocked)
+        let scheduler = FlushScheduler(gate: gate, writer: RecordingReductionWriter(), clock: SystemFlushClock())
+        try await scheduler.reopen()
+        let reduction = ProductReduction(gate: gate)
+        reduction.open(AggregationReducer(cycleID: CycleID(rawValue: "cycle")),
+                       inputs: inputs(bundleID: "test.app"), generation: CaptureGeneration(rawValue: 4))
+        XCTAssertEqual(reduction.deliver(try bareEvent(generation: 4)), .accepted)
+        let reopened = await reduction.reopenScheduler {
+            try await scheduler.stage(AggregatePersistence.objects(try XCTUnwrap(reduction.take())))
+            XCTAssertFalse(reduction.hasUnflushedChanges())
+            try await scheduler.reopen()
+        }
+        XCTAssertTrue(reopened)
+        XCTAssertTrue(reduction.hasUnflushedChanges(), "failed source preparation must not hide retained totals")
+        XCTAssertEqual(try XCTUnwrap(reduction.take()).totalCount, 1)
+    }
+
+    func testFailedSchedulerReopenRestoresDirtyTruthButNeverResurrectsClearedState() async throws {
+        let reduction = makeReduction()
+        reduction.open(AggregationReducer(cycleID: CycleID(rawValue: "cycle")),
+                       inputs: inputs(bundleID: "test.app"), generation: CaptureGeneration(rawValue: 4))
+        let failed = await reduction.reopenScheduler {
+            _ = try reduction.take()
+            throw LifecycleFlushError.failed
+        }
+        XCTAssertFalse(failed)
+        XCTAssertTrue(reduction.hasUnflushedChanges())
+        let revoked = await reduction.reopenScheduler {
+            reduction.clear()
+            throw LifecycleFlushError.locked
+        }
+        XCTAssertFalse(revoked)
+        XCTAssertFalse(reduction.hasUnflushedChanges())
+        XCTAssertNil(try reduction.snapshot())
+    }
+
+    @MainActor
+    func testPrivacyRevocationStopsProtectedReadsAndInvalidatesManualRecovery() async throws {
+        let reduction = makeReduction()
+        let queue = CaptureQueue()
+        let fence = ManualRecoveryFence()
+        queue.install(inputs(bundleID: "test.app"), for: queue.generation)
+        let generation = queue.generation
+        reduction.open(AggregationReducer(cycleID: CycleID(rawValue: "cycle")),
+                       inputs: inputs(bundleID: "test.app"), generation: generation)
+        XCTAssertEqual(queue.handoff(try bareEvent(generation: generation.rawValue)), .accepted)
+        XCTAssertTrue(queue.isOpen)
+        var started = false
+        var aborted = false
+        let completed = await fence.perform(prepare: { attempt in
+            XCTAssertTrue(fence.isCurrent(attempt))
+            reduction.revokeProtectedState(queue: queue, recoveryFence: fence)
+            XCTAssertFalse(fence.isCurrent(attempt))
+            return true
+        }, start: { started = true }, abort: { aborted = true })
+        XCTAssertFalse(completed)
+        XCTAssertFalse(started)
+        XCTAssertTrue(aborted)
+        XCTAssertFalse(queue.isOpen)
+        XCTAssertEqual(queue.pendingCount, 0)
+        XCTAssertThrowsError(try reduction.gate.begin())
+        XCTAssertThrowsError(try reduction.take(), "a later pulse cannot stage protected data")
+        XCTAssertThrowsError(try reduction.snapshot())
+        reduction.gate.update(.unlocked)
+        XCTAssertNil(try reduction.snapshot(), "fresh unlock cannot resurrect cleared plaintext")
+        XCTAssertFalse(reduction.hasUnflushedChanges())
     }
 
     private func makeReduction() -> ProductReduction {

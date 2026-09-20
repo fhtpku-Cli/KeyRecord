@@ -19,6 +19,9 @@ public enum LifecycleReducerFixtures {
 
     public static func registeringState(conditions: RuntimeConditions? = nil) throws -> LifecycleState {
         var state = transition(transition(try acceptedStartState(), .keyProvisioned), .bootstrapPersisted)
+        // KR-06: first consent reaches capture only through the shared readiness transition,
+        // so the fixture must supply verified conditions rather than skipping straight to start.
+        state = transition(state, .restartReadiness(conditions ?? openConditions))
         state = transition(state, .captureStarted)
         if let conditions { state = transition(state, .conditionsChanged(conditions)) }
         return state
@@ -43,6 +46,16 @@ public enum LifecycleReducerFixtures {
         let flushed = transition(pausing, .pauseFlushSucceeded)
         let persisted = transition(flushed, .pausePersisted)
         return transition(persisted, .pauseRuntimeStopped)
+    }
+
+    /// Collecting reached through resume, which also routes via the shared readiness
+    /// transition (KR-06).
+    public static func resumedCollectingState() throws -> LifecycleState {
+        let paused = try pausedState()
+        let resuming = transition(paused, .resumeRequested)
+        let verifying = transition(resuming, .resumePersisted)
+        let ready = transition(verifying, .restartReadiness(openConditions))
+        return transition(ready, .captureStarted)
     }
 
     public static func reopeningState(loginItemEnabled: Bool = false) throws -> LifecycleState {

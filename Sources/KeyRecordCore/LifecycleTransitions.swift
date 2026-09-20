@@ -88,7 +88,17 @@ extension LifecycleState {
             enterFailure(.keyProvisionFailed(error))
             return []
         case .bootstrapPersisted:
-            return [.startCapture]
+            // KR-06: first consent uses the SAME readiness transition as restart/resume.
+            // Starting capture straight from here left `conditions` at `.unknown`, which
+            // closed the lifecycle gate with `keyUnavailable` and hid the aggregate even
+            // though capture itself was running.
+            return [.verifyRestartReadiness]
+        case .restartReadiness(let candidate):
+            return applyVerifiedReadiness(candidate)
+        case .restartBlocked(let reason):
+            phase = .blocked
+            blockedReason = reason
+            return []
         case .initialPersistenceFailed(let error):
             enterFailure(.initialPersistenceFailed(error))
             return []
@@ -102,6 +112,23 @@ extension LifecycleState {
             return []
         default: return []
         }
+    }
+
+    /// Single place where a verified `RuntimeConditions` snapshot becomes lifecycle state.
+    /// Used by first consent, reopen and resume so the three paths cannot diverge.
+    /// Fail closed: an unsafe snapshot blocks with a visible reason instead of claiming
+    /// a collecting phase the privacy gate would immediately close.
+    mutating func applyVerifiedReadiness(_ candidate: RuntimeConditions) -> [LifecycleEffect] {
+        conditions = candidate
+        guard openUnderCollecting(candidate) else {
+            phase = .blocked
+            var probe = gate
+            probe.update(collectingInputs(candidate))
+            blockedReason = probe.closureReason.flatMap(Self.blockedReason(for:)) ?? .keyUnavailable
+            return []
+        }
+        blockedReason = nil
+        return [.startCapture]
     }
 
     mutating func handleCollecting(_ event: LifecycleEvent) -> [LifecycleEffect] {

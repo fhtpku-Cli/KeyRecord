@@ -7,7 +7,17 @@ extension LifecycleState {
             phase = .consent
             return []
         case .reload(let loaded):
-            guard let loaded else { return [] }
+            guard let loaded else {
+                // KR-09: a nil reload used to be a silent no-op — no phase change, no
+                // reason — which surfaced live as "layer 0 ... (no reason recorded)" with
+                // nothing for the user to act on. nil means the store reported a fresh
+                // install, which is either a genuine first run or an unreadable/unreachable
+                // key. Both must be stated. Preferences already held are never discarded,
+                // so a transient unreadable state cannot erase known configuration.
+                blockedReason = .keyUnavailable
+                return []
+            }
+            blockedReason = nil
             preferences = loaded
             loginItem = loaded.loginItemEnabled ? .registered : .unregistered
             if loaded.expectedCollecting {
@@ -27,15 +37,8 @@ extension LifecycleState {
     mutating func handleReopening(_ event: LifecycleEvent) -> [LifecycleEffect] {
         switch event {
         case .restartReadiness(let candidate):
-            conditions = candidate
-            guard openUnderCollecting(candidate) else {
-                phase = .blocked
-                var probe = gate
-                probe.update(collectingInputs(candidate))
-                blockedReason = probe.closureReason.flatMap(Self.blockedReason(for:)) ?? .keyUnavailable
-                return []
-            }
-            return [.startCapture]
+            // Same verified-readiness transition as first consent and resume (KR-06).
+            return applyVerifiedReadiness(candidate)
         case .restartBlocked(let reason):
             phase = .blocked
             blockedReason = reason
@@ -90,7 +93,9 @@ extension LifecycleState {
                 : failedFromPhase == .resuming ? LifecyclePhase.resuming : LifecyclePhase.starting
             phase = replay
             self.failure = nil
-            return replay == .reopening ? [.verifyRestartReadiness] : [.startCapture]
+            // Every replay re-verifies readiness first: a retry must never reuse the
+            // conditions that were current when the previous start attempt was denied.
+            return [.verifyRestartReadiness]
         case .preferencesLoadFailed:
             phase = .unstarted
             self.failure = nil

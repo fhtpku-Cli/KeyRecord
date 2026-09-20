@@ -33,7 +33,7 @@ final class LifecycleTests: XCTestCase {
     }
 
     func testConsentAcceptedOrdersKeyBeforePersistBeforeCapture() throws {
-        // Given: consent presented; When: accepted; Then: key -> persist(expected) -> capture ordering.
+        // Given: consent presented; When: accepted; Then: key -> persist -> verify readiness -> capture.
         let state = try run(LifecycleState.initial, .consentRequested)
         let accepted = reduce(state, .consentAccepted(cycleID: cycle))
         XCTAssertEqual(accepted.state.phase, .starting)
@@ -43,8 +43,12 @@ final class LifecycleTests: XCTestCase {
         let provisioned = try run(accepted.state, .keyProvisioned, effects: [
             .persistPreferences(try XCTUnwrap(accepted.state.preferences)),
         ])
-        let persisted = try run(provisioned, .bootstrapPersisted, effects: [.startCapture])
+        // KR-06: readiness is verified before capture, so the verified conditions reach
+        // lifecycle state instead of leaving it at `.unknown` while collecting.
+        let persisted = try run(provisioned, .bootstrapPersisted, effects: [.verifyRestartReadiness])
         XCTAssertEqual(persisted.phase, .starting)
+        let verified = try run(persisted, .restartReadiness(FX.openConditions), effects: [.startCapture])
+        XCTAssertEqual(verified.conditions, FX.openConditions)
     }
 
     func testKeyProvisionFailureIsTypedAndCapturesNothing() throws {
@@ -84,11 +88,16 @@ final class LifecycleTests: XCTestCase {
     }
 
     func testRetryAfterCaptureDeniedRetriesCaptureNotPersistence() throws {
-        // Given: capture was denied on first start; When: retried; Then: capture start attempted again.
+        // Given: capture was denied on first start; When: retried; Then: readiness is re-verified
+        // and capture is attempted again — never a repeated persist, and never a start against
+        // the stale conditions that were current when the previous attempt was denied.
         let state = try run(try run(try FX.acceptedStartState(), .keyProvisioned), .bootstrapPersisted)
-        let failed = try run(state, .captureStartDenied(.permissionDenied))
-        let retry = try run(failed, .retry, effects: [.startCapture])
+        let verified = try run(state, .restartReadiness(FX.openConditions))
+        let failed = try run(verified, .captureStartDenied(.permissionDenied))
+        let retry = try run(failed, .retry, effects: [.verifyRestartReadiness])
         XCTAssertEqual(retry.phase, .starting)
+        let restarted = try run(retry, .restartReadiness(FX.openConditions), effects: [.startCapture])
+        XCTAssertEqual(restarted.phase, .starting)
     }
 
     func testLoginItemRegistersOnlyAfterFirstSuccessfulCaptureStart() throws {
@@ -162,23 +171,40 @@ final class LifecycleTests: XCTestCase {
     }
 
     func testResumeFromPausedPersistsTrueBeforeCaptureStart() throws {
-        // Given: paused; When: resume; Then: persist expectation true, then start, no key provisioning.
+        // Given: paused; When: resume; Then: persist expectation true, re-verify readiness,
+        // then start. No key provisioning, and no start on unverified conditions (KR-06).
         let state = try FX.pausedState()
         let expected = try XCTUnwrap(state.preferences).updating(expectedCollecting: true)
         let resuming = try run(state, .resumeRequested, effects: [.persistPreferences(expected)])
         XCTAssertEqual(resuming.phase, .resuming)
-        let started = try run(try run(resuming, .resumePersisted, effects: [.startCapture]),
-                                 .captureStarted, effects: [])
+        let verifying = try run(resuming, .resumePersisted, effects: [.verifyRestartReadiness])
+        let ready = try run(verifying, .restartReadiness(FX.openConditions), effects: [.startCapture])
+        let started = try run(ready, .captureStarted, effects: [])
         XCTAssertEqual(started.phase, .collecting)
         XCTAssertTrue(started.gate.isOpen)
     }
 
+    func testResumeBlocksWhenReadinessIsUnsafeAndNeverStartsCapture() throws {
+        // Given: paused; When: resume readiness reports a locked session; Then: blocked, no start.
+        let state = try FX.pausedState()
+        let resuming = try run(state, .resumeRequested)
+        let verifying = try run(resuming, .resumePersisted, effects: [.verifyRestartReadiness])
+        let locked = RuntimeConditions(keyAvailability: .available, sessionLock: .locked,
+                                       secureInput: .disabled,
+                                       foreground: .attributable(bundleID: "com.ex"))
+        let blocked = try run(verifying, .restartReadiness(locked), effects: [])
+        XCTAssertEqual(blocked.phase, .blocked)
+        XCTAssertEqual(blocked.blockedReason, .sessionLocked)
+        XCTAssertFalse(blocked.gate.isOpen)
+    }
+
     func testResumeCaptureDeniedIsExplicitFailureWithoutSilence() throws {
-        // Given: resuming; When: start denied; Then: explicit failure state the user can retry.
+        // Given: resuming past a verified readiness check; When: start denied; Then: explicit failure.
         let state = try FX.pausedState()
         let resuming = try run(state, .resumeRequested)
         let persisted = try run(resuming, .resumePersisted)
-        let outcome = reduce(persisted, .captureStartDenied(.permissionDenied))
+        let verified = try run(persisted, .restartReadiness(FX.openConditions))
+        let outcome = reduce(verified, .captureStartDenied(.permissionDenied))
         XCTAssertEqual(outcome.state.phase, .failed)
         XCTAssertEqual(outcome.state.failure, .captureStartDenied(.permissionDenied))
     }

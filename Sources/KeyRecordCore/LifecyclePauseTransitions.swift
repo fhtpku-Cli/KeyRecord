@@ -58,7 +58,15 @@ extension LifecycleState {
     mutating func handleResuming(_ event: LifecycleEvent) -> [LifecycleEffect] {
         switch event {
         case .resumePersisted:
-            return [.startCapture]
+            // KR-06: resume re-verifies readiness through the shared transition instead of
+            // starting capture against whatever stale conditions the paused state carried.
+            return [.verifyRestartReadiness]
+        case .restartReadiness(let candidate):
+            return applyVerifiedReadiness(candidate)
+        case .restartBlocked(let reason):
+            phase = .blocked
+            blockedReason = reason
+            return []
         case .resumePersistenceFailed(let error):
             enterFailure(.resumePersistenceFailed(error))
             return []

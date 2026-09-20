@@ -5,6 +5,13 @@ import ApplicationServices
 
 @MainActor
 enum NativeEvidence {
+    static let outputRootKey = "KEYRECORD_QA_OUTPUT_DIR"
+
+    static func outputRoot() -> URL? {
+        guard let path = ProcessInfo.processInfo.environment[outputRootKey], !path.isEmpty else { return nil }
+        return URL(fileURLWithPath: path, isDirectory: true)
+    }
+
     static func primeAccessibility() {
         var role: CFTypeRef?
         let result = AXUIElementCopyAttributeValue(AXUIElementCreateApplication(getpid()),
@@ -161,7 +168,7 @@ enum NativeEvidence {
             MainActor.assumeIsolated { idle(view.layer) }
         }, object: nil)
         XCTAssertEqual(XCTWaiter.wait(for: [settled], timeout: 5), .completed, "Snapshot layers must finish their native animations")
-        let attempt = Bundle(for: ResourceAnchor.self).bundleURL
+        let attempt = outputRoot() ?? Bundle(for: ResourceAnchor.self).bundleURL
             .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
             .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
         let directory = attempt.appendingPathComponent("task-10/\(fixture.stress ? "failure" : "happy")/screenshots")

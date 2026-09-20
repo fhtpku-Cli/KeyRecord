@@ -1,19 +1,24 @@
 # Current project status
 
-> **Newer than this document:** a corrective round on 2026-09-18/20 landed eight commits on
-> `main` (`45d2ba8a1` -> `36d9115d7`) after the `22cb8e9` checkpoint described below. The
-> parsed projection, gate table and reproduction steps here are **unchanged and still
-> authoritative** - that round touched capture, privacy, lifecycle, persistence and exclusion
-> wiring, not the evidence schema and not any gate. Its outcome is summarized in
-> [Corrective round](#corrective-round-2026-09-1820) at the end of this file; the
-> host-verification constraints learned there are in
-> [LIVE_VERIFICATION_NOTES.md](LIVE_VERIFICATION_NOTES.md).
+## 2026-09-21 repair status
 
-Latest milestone: the [execution checkpoint](EXECUTION_CHECKPOINT.md) is the current handoff at code checkpoint `22cb8e9`; the final milestone is BLOCKED/REJECTED with no valid frozen candidate and no F1-F4 approval. The measured baseline report is [verified outcomes and independent gates](MILESTONE_STATUS.md), with the machine-readable [requirement allocation](milestone-allocation.json). Live performance, Intel, signing, hosted UI, evidence binding, preservation and FR-P6 remain independent BLOCKED gates. This is not overall G1 or public-release completion.
+The 2026-09-21 local repair is implemented on `codex/phase1-repair-20260921` based on `6687c296dbf44abe34f78055e7f830dfbe30771a`. It fixes unknown lock-state fail-closed behavior, Release diagnostic isolation, application attribution/session recovery, unsaved-data protection, production-layer counters, keyboard accessibility and reproducible App testing. Phase 1 still requires bounded real-host validation; it is not reliable-daily-use, full G1 or public-release acceptance.
+
+Fresh final verification on macOS 27.0 (26A428), Xcode 27.0 / Swift 6.4: SwiftPM 476/476 passed (Core 216, Capture 64, Store 157, Integration 39), App hostless XCTest 104/104 passed, zero failed or skipped. The focused lock/reduction/accessibility group passed three consecutive 26-test runs. SwiftPM Release, unsigned App universal Release (arm64 and x86_64) and native Debug test compilation passed. Independent safety rereview cleared two additional repaired recovery races. Build logs retain existing compiler warnings; these results do not claim a warning-free toolchain. Local raw logs are in `.omo/repair-20260921/`, with the reproducible workflow transcript at `verify-local.log` and final results in `final-*.log`. GitHub CI configuration is added but has not run remotely.
+
+The first user-assisted read-only cycle returned `unknown → locked → unknown` through the CGSession field. A second approved 60.4-second cycle found explicit `unlocked → locked → unlocked` through the root IORegistry `IOConsoleLocked` boolean, with matching foreground-session checks throughout. The DEBUG provider now combines explicit witnesses with current-user foreground-session checks before and after the console read; any locked witness or lock notification blocks, and missing/malformed evidence cannot default to unlocked. A read-only driver of the actual provider returns `unlocked` on this host. This is an experimental development implementation: the two system reads are not atomic, and fast user switching, sleep, product notification transitions and physical capture remain unqualified. See `.omo/repair-20260921/CONSOLE-WITNESS-INVESTIGATION.md` and `console-lock-fix-result.md` for the follow-up results; the earlier 104-test full run predates this follow-up.
+
+The 2026-09-20 review at `6687c296dbf44abe34f78055e7f830dfbe30771a` measured 459/459 SwiftPM tests passing, SwiftPM Release compilation passing, native unsigned Debug App test compilation passing, App XCTest 71 pass / 20 fail / 1 skip, and unsigned App Release compilation failing. The App run did not supply `T23_RELEASE_APP`, so Release-dependent failures included an unmet test prerequisite. These are pre-repair measurements, not the current repair's results. Earlier claims of only 14 App failures, a usable current Release bundle, and completed product capture qualification are superseded.
+
+The current product physical-input → attribution → durable-save → restart closure remains pending. A prior bounded harness observation with Karabiner running shows that physical events reached that harness at that time; it does not rule out every driver interaction or verify the product pipeline. The verified DEBUG diagnostics wiring enables measurement and does not by itself prove this closure.
+
+Use [README](../README.md#build-and-test) and `Scripts/verify-local.sh` for ordinary development verification. CI deliberately omits App XCTest and real-host operations; successful unsigned universal compilation is not signing, Intel runtime, or host qualification. The portable normative requirements are in [PHASE1_CONTRACT.md](PHASE1_CONTRACT.md).
+
+The sections below retain historical checkpoints and existing qualification rules. Their measurements and old handoff references apply to their stated revisions, not automatically to this repair. No historical receipt, sealed evidence or formal blocker is rewritten or waived. Signed lifecycle/lock/keychain qualification, network and ARM/Intel performance, hosted UI/accessibility and FR-P6 remain independently pending or blocked as documented in [MILESTONE_STATUS.md](MILESTONE_STATUS.md).
 
 ## Authority and reproduction
 
-This is the current-status entry point, not a new Phase 0 conclusion or a release approval. The [approved plan](../.omo/plans/repository-status-next-step.md#scope) establishes precedence: owner contract > PRD normative behavior > architecture normative behavior > verified current evidence for measured facts. Requirement allocation and implementation constraints are in [PHASE1_CONTRACT.md](PHASE1_CONTRACT.md).
+This is the current-status entry point, not a new Phase 0 conclusion or a release approval. The repository-contained [approved contract](PHASE1_CONTRACT.md#allocation-and-owner-approval) establishes precedence: owner contract > PRD normative behavior > architecture normative behavior > verified current evidence for measured facts. Requirement allocation and implementation constraints are in [PHASE1_CONTRACT.md](PHASE1_CONTRACT.md).
 
 The observation below was rechecked from a clean schema-v1 projection at base `064164e47fe2dfb1957ea8fc601269ecb2c8812e` in T24. Exact attempt identities are in the milestone report. It is not a promise about a later checkout. Generate a fresh, nonexisting output under the current attempt, then validate it using the built `EvidenceValidator`:
 
@@ -53,7 +58,7 @@ Line references in this section are pinned to `985d6af`, so bounded insertions i
 
 ## Owner-approved lock and reset contract
 
-Approved plan §Scope, line 26 (2026-09-12): “screen/session lock stops capture and protected-data reads; invalidate volatile key handles and sensitive UI snapshots, resume only after unlock plus fresh key/privacy checks and only if `expectedCollecting` remains true. Do not promise guaranteed zeroization of copies managed by Swift/CryptoKit.”
+Owner-approved behavior (2026-09-12), reproduced in the portable contract: “screen/session lock stops capture and protected-data reads; invalidate volatile key handles and sensitive UI snapshots, resume only after unlock plus fresh key/privacy checks and only if `expectedCollecting` remains true. Do not promise guaranteed zeroization of copies managed by Swift/CryptoKit.”
 
 Reset removes daily details and retains exactly architecture §5.1 CycleSummary fields: `cycleId`, `perChordTotals: [(chord, appBucket, total)]`, `perBareKeyTotals: [(keyCode, total)]`, `distinctActiveDays`; plus existing mappings/backups/ignored items/preferences. No day distribution, `sourceCounts`, `kind` or `scopeClass` survives in the summary. This is approval of behavior, not evidence of implementation. See [contracts 8–9](PHASE1_CONTRACT.md#8-durability-and-lock).
 
@@ -98,25 +103,20 @@ backend never emits, and a scratch-directory helper that required an ancestor li
 named `build` (the default is `.build`). After the round: **459 executed, 459 passed, zero
 failed, zero skipped**.
 
-`KeyRecordAppTests` retains 14 pre-existing failures (ScreenMatrixTests,
-T22AccessibilityTests, ProductReleaseBoundaryTests). Re-run in a baseline worktree at
-`45d2ba8a1`, the failing set is **identical**, so they predate this round. They are recorded
-as failures, not waived, and are not counted as PASS anywhere.
+Correction from the 2026-09-20 raw-log review: the earlier baseline App log contains 61 pass / 19 fail / 1 skip; the corrective round final log contains 67 pass / 23 fail / 1 skip. The prior 14-failure/identical-set claim was incorrect. Counts are test cases, not assertion totals. The newer review measured 71 pass / 20 fail / 1 skip under its stated prerequisites; none of these failures is waived.
 
-### One historical hypothesis is now disproved
+### Historical harness observation
 
 Earlier investigation notes speculated that Karabiner's DriverKit layer was swallowing
 physical key events. A bounded 45-second host run with **all four Karabiner daemons
 running** observed tap keyDown 168 / keyUp 168, queue accepted 336, normalized 336,
 aggregate delta 168, zero closed handoffs and zero tapDisabled events.
 
-**Karabiner is not the cause.** Do not spend another round disabling it as a control.
-Secure Input remains an unproven candidate, not a diagnosis. Retaining `tapEnable(true)` is
-harmless, but it is not a root-cause fix - Apple documents newly created taps as enabled.
+That observation refutes the narrow hypothesis that all physical events were swallowed before reaching that harness during that run. It does not establish the cause of the product failure or permanently exclude Karabiner interactions. Secure Input remains an unproven candidate, not a diagnosis.
 
-### Known gap: the layered counters are not wired in production
+### Historical gap before the 2026-09-21 repair: layered counters
 
-`CaptureDiagnostics` reports which layer of the capture chain stopped, but its per-layer
+At this checkpoint, `CaptureDiagnostics` reports which layer of the capture chain stopped, but its per-layer
 counters are incremented only by the test harness and unit tests - **never by the shipping
 app**. Until they are wired, the chain is verified only as far as "a session exists"; whether
 events actually reach the aggregate and become durable has not been observed in production.

@@ -1,0 +1,31 @@
+name: macOS build and package tests
+
+"on":
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 30
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
+    steps:
+      - uses: actions/checkout@v4
+      - name: Show selected toolchain
+        run: |
+          xcodebuild -version
+          swift --version
+      - name: Test package and build unsigned App
+        run: Scripts/verify-local.sh --build-only
+      - name: Upload verification logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-verification-logs
+          path: .build/verification/**/*.log
+          if-no-files-found: ignore

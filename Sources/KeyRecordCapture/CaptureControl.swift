@@ -72,9 +72,17 @@ public actor CaptureControl {
     }
 
     static func prepare(queue: CaptureQueue, expected: CaptureSnapshot,
-                        backend: any CaptureTapBackend) async throws -> CaptureSnapshot {
+                        backend: any CaptureTapBackend,
+                        onInvalidation: (@Sendable (CaptureInvalidation) -> Void)? = nil)
+        async throws -> CaptureSnapshot {
         let generation = queue.generation
-        try await backend.subscribe { _ in queue.revoke() }
+        // KR-02: still revoke immediately (fail closed), but no longer DISCARD the reason.
+        // Forwarding it lets the composition layer run one serial recovery transaction
+        // instead of leaving the session dead until another full start.
+        try await backend.subscribe { reason in
+            queue.revoke()
+            onInvalidation?(reason)
+        }
         guard queue.generation == generation, !Task.isCancelled else { throw CaptureStartError.revoked }
         let current = await backend.readProviders()
         guard queue.generation == generation, current == CaptureProviderSnapshot(expected.inputs),

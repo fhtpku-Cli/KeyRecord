@@ -11,7 +11,7 @@ extension CaptureProviderTests {
             foreground: backend, secureInput: backend, sessionLock: backend))
         await control.refresh(policy: .collecting)
         backend.report(.foregroundChanged)
-        let source = ListenOnlyEventSource(queue: queue, qualification: AllowedCapture(), backend: backend)
+        let source = ListenOnlyEventSource(queue: queue, qualification: AllowedCapture(), backend: backend, permission: GrantedPermission())
         // When: activate with the now-stale A snapshot, while the current foreground is B.
         do {
             try await source.start { _ in XCTFail("stale foreground event published"); return .accepted }
@@ -42,7 +42,7 @@ extension CaptureProviderTests {
             queue.install(.safe, for: queue.generation)
             let backend = CaptureTestBackend(queue: queue)
             backend.driftDuringStart(reason)
-            let source = ListenOnlyEventSource(queue: queue, qualification: AllowedCapture(), backend: backend)
+            let source = ListenOnlyEventSource(queue: queue, qualification: AllowedCapture(), backend: backend, permission: GrantedPermission())
             do {
                 try await source.start { _ in XCTFail("drifted provider published"); return .accepted }
                 XCTFail("drifted provider activated")
@@ -59,7 +59,7 @@ extension CaptureProviderTests {
         let queue = CaptureQueue()
         queue.install(.safe, for: queue.generation)
         let backend = CaptureTestBackend(queue: queue)
-        let source = ListenOnlyEventSource(queue: queue, qualification: AllowedCapture(), backend: backend)
+        let source = ListenOnlyEventSource(queue: queue, qualification: AllowedCapture(), backend: backend, permission: GrantedPermission())
         try await source.start { _ in .accepted }
         XCTAssertEqual(backend.reads, 2)
         XCTAssertEqual(backend.unsubscribedReads, 0)
@@ -73,7 +73,7 @@ extension CaptureProviderTests {
         let original = queue.generation
         let backend = CaptureTestBackend(queue: queue)
         backend.changeDuringRead(reason)
-        let source = ListenOnlyEventSource(queue: queue, qualification: AllowedCapture(), backend: backend)
+        let source = ListenOnlyEventSource(queue: queue, qualification: AllowedCapture(), backend: backend, permission: GrantedPermission())
         do {
             try await source.start { _ in XCTFail("invalidated sample published"); return .accepted }
             XCTFail("invalidated sample activated")

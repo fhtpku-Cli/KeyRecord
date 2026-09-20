@@ -128,4 +128,81 @@ actor ProductCapture: LifecycleCaptureControlling, RestartReadinessChecking {
         try await source.start { [reduction] in reduction.deliver($0) }
     }
     func stop() async { await source.stop() }
+
+    /// Recompute the capture policy from the supplied preferences and a FRESH foreground
+    /// read, without touching the in-memory aggregate.
+    ///
+    /// KR-04: exclusion changes must reach the real CaptureQueue policy, not just Core/UI.
+    /// Deliberately NOT `start()`: that reloads the aggregate from disk and would discard
+    /// counted-but-unflushed deltas. The persistence boundary is unchanged here — only the
+    /// gate inputs are recomputed, so excluding the current app stops attribution
+    /// immediately and un-excluding reopens it under fresh provider checks.
+    /// Returns the exclusion state actually applied.
+    @discardableResult
+    func reapplyPolicy(preferences: Preferences) async -> ExclusionState {
+        let excluded: ExclusionState
+        switch await foreground.foregroundState() {
+        case .attributable(let bundleID):
+            excluded = preferences.excludedBundleIDs.contains(bundleID) ? .excluded : .included
+        case .reliablyUnattributable: excluded = .included
+        case .unknown: excluded = .unknown
+        }
+        await control.refresh(policy: CapturePolicy(collecting: preferences.expectedCollecting,
+            keyAvailability: .available, exclusion: excluded))
+        return excluded
+    }
+
+    /// Rebuilds the event-source session WITHOUT reloading the aggregate from disk.
+    ///
+    /// `start()` cannot be reused for recovery: it calls `AggregatePersistence.restore`,
+    /// which replaces in-memory counts with the last durable commit and so discards every
+    /// increment since the last flush. A foreground switch or tap re-arm must not cost the
+    /// user data, so recovery refreshes policy, reopens the flush scheduler and starts a
+    /// fresh source session against the EXISTING reduction, leaving the aggregate alone.
+    func resumeSession(preferences: Preferences) async -> Bool {
+        guard (try? await verifyRestartReadiness()) != nil else { return false }
+        guard queue.isOpen else { return false }
+        guard (try? await scheduler.reopen()) != nil else { return false }
+        do {
+            try await source.start { [reduction] in reduction.deliver($0) }
+            return true
+        } catch {
+            return false
+        }
+    }
+
+    /// KR-08: the authoritative answer to "is capture actually running right now".
+    /// Delegates to the event source rather than to any cached flag or lifecycle phase.
+    func hasLiveSession() async -> Bool {
+        await source.hasLiveSession
+    }
+
+    /// Bundle id of the current foreground app, if reliably attributable.
+    func foregroundBundleID() async -> String? {
+        if case .attributable(let bundleID) = await foreground.foregroundState() { return bundleID }
+        return nil
+    }
+
+    /// Whether the persisted user intent is still "collecting". Read from storage rather
+    /// than from a cached flag, so a recovery cannot resurrect capture the user turned off.
+    func persistedExpectsCollecting() async -> Bool {
+        (try? await persistence.load())??.expectedCollecting ?? false
+    }
+}
+
+/// Supplies the coordinator with genuinely fresh runtime state (KR-02 step 3).
+/// Every call re-reads qualification, key gate and all three providers; nothing here is
+/// cached, so a recovery can never reopen on stale inputs.
+struct ProductRuntimeChecks: CaptureRuntimeChecking {
+    let capture: ProductCapture
+
+    func freshRuntimeConditions() async -> RuntimeConditions? {
+        // verifyRestartReadiness re-checks qualification + key availability and samples the
+        // providers; a throw means fail closed.
+        try? await capture.verifyRestartReadiness()
+    }
+
+    func expectsCollecting() async -> Bool {
+        await capture.persistedExpectsCollecting()
+    }
 }

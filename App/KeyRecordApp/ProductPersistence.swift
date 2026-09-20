@@ -31,7 +31,12 @@ struct ProductKeySource: ObjectStoreKeySource {
     let gate: KeyAvailabilityGate
     func namespaceKeyVersions() async throws -> Set<KeyVersion> {
         let generation = try gate.begin()
-        return try await gate.run(generation) { try await backend.versions(in: namespace) }
+        let versions = try await gate.run(generation) { try await backend.versions(in: namespace) }
+        #if DEBUG
+        // Records what bootstrap actually matched the envelope version against.
+        ProductPersistence.lastEnumeratedVersionCount = versions.count
+        #endif
+        return versions
     }
     func material(for version: KeyVersion) async throws -> Data {
         let generation = try gate.begin()
@@ -70,11 +75,73 @@ actor ProductPersistence: LifecycleKeyProviding, PreferencesPersisting {
         try await writer.resume()
     }
 
+    /// Records the last underlying failure so diagnostics can name it.
+    ///
+    /// `LifecycleOrchestrator.reload` funnels every non-`PreferencesRepositoryError` into
+    /// `.protectedDataUnavailable`, which during live verification reported a real,
+    /// specific store error as a generic "protected data unavailable" and hid which step
+    /// actually failed. The typed error stays internal; only its case description is kept.
+    nonisolated(unsafe) static var lastLoadFailure: CaptureDiagnostics.LoadFailureKind?
+    /// Gate openness sampled at the instant load() failed.
+    nonisolated(unsafe) static var lastLoadGateOpen: Bool?
+    /// Number of key versions enumeration produced at the moment load() failed.
+    nonisolated(unsafe) static var lastEnumeratedVersionCount: Int?
+
+    /// Maps a thrown store/keyring error onto the closed diagnostic enum. Deliberately
+    /// lossy: the classification is what a diagnosis needs, and it cannot carry a path.
+    /// Preserves the specific corruption cause. Collapsing all twelve into one value
+    /// would hide which remedy applies.
+    static func classify(_ cause: StoreCorruption) -> CaptureDiagnostics.LoadFailureKind {
+        switch cause {
+        case .rootReplacedBySymlink: return .rootReplacedBySymlink
+        case .rootNotDirectory: return .rootNotDirectory
+        case .insecureRoot: return .insecureRoot
+        case .manifestMissing: return .manifestMissing
+        case .manifestUnreadable: return .manifestUnreadable
+        case .unknownManifestSchemaVersion: return .unknownManifestSchemaVersion
+        case .unexpectedEntry: return .unexpectedEntry
+        case .symlinkEncountered: return .symlinkEncountered
+        case .referencedObjectMissing: return .referencedObjectMissing
+        case .envelopeKeyMissing: return .envelopeKeyMissing
+        case .unindexedDataWithNamespaceKey: return .unindexedDataWithNamespaceKey
+        case .resetJournalUnreadable: return .resetJournalUnreadable
+        default: return .otherCorruption
+        }
+    }
+
+    static func classify(_ error: any Error) -> CaptureDiagnostics.LoadFailureKind {
+        if error is DecodingError { return .decodeFailed }
+        switch error {
+        case let storeError as ObjectStoreError:
+            switch storeError {
+            case .storeNotInitialized: return .storeNotInitialized
+            case .corruption(let cause): return classify(cause)
+            case .envelope, .locator: return .envelopeOrLocator
+            default: return .other
+            }
+        case is KeyringError: return .keyGateLocked
+        default: return .other
+        }
+    }
+
     func load() async throws -> Preferences? {
-        _ = try gate.begin()
-        if try await store.bootstrap() == .freshInstall { return nil }
-        return try JSONDecoder().decode(Preferences.self,
-            from: await store.readProtected(CycleResetObjects.preferences, gate: gate))
+        do {
+            _ = try gate.begin()
+            if try await store.bootstrap() == .freshInstall {
+                Self.lastLoadFailure = .freshInstall
+                return nil
+            }
+            let data = try await store.readProtected(CycleResetObjects.preferences, gate: gate)
+            Self.lastLoadFailure = nil
+            return try JSONDecoder().decode(Preferences.self, from: data)
+        } catch {
+            Self.lastLoadFailure = Self.classify(error)
+            Self.lastLoadGateOpen = (try? gate.begin()) != nil
+            // Re-run enumeration to see what bootstrap actually had to match against.
+            // Count recorded by ProductKeySource on its own enumeration path; widening
+            // KeychainKeyring.inventory to public just for a diagnostic is not warranted.
+            throw error
+        }
     }
 
     func save(_ preferences: Preferences) async throws {

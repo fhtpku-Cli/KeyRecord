@@ -2,7 +2,7 @@
 
 KeyRecord is an in-development native macOS menu-bar app for local, aggregate keyboard-use statistics. It aims to count shortcuts by application and bare keys without storing typed text or event sequences. The codebase uses Swift 6, macOS 14+, and Apple system frameworks.
 
-**Current stage: Phase 1 integration repair and bounded DEBUG validation.** Passing package tests or compiling an App does not establish reliable daily use, full G1 acceptance, or release readiness. Release capture remains blocked pending host qualification. The current repair's real physical-input → application attribution → durable save → restart recovery checks are pending; formal signed lifecycle, lock/keychain, UI/accessibility, ARM/Intel performance and network qualification remain separate. See [current status](docs/PROJECT_STATUS.md) for measured results and their limits.
+**Current stage: Phase 1 integration repair and bounded DEBUG validation.** Passing package tests or compiling an App does not establish reliable daily use, full G1 acceptance, or release readiness. Release capture remains blocked pending host qualification. Owner-approved bounded signed Debug runs observed physical input, attribution to the tested application, displayed increments and retention after normal quit/restart. This qualifies only that observed scenario on one host; formal signed lifecycle, lock/keychain, UI/accessibility, ARM/Intel performance and network qualification remain separate. See [current status](docs/PROJECT_STATUS.md) for measured results and their limits.
 
 ## Build and test
 
@@ -28,7 +28,7 @@ For a headless runner:
 Scripts/verify-local.sh --build-only
 ```
 
-This still runs SwiftPM tests and both App builds, but deliberately skips App XCTest. The ordinary [macOS CI workflow](.github/workflows/macos.yml) uses this mode. The workflow explicitly selects `/Applications/Xcode_26.3.app/Contents/Developer`, listed in the [official macOS 15 runner inventory](https://github.com/actions/runner-images/blob/main/images/macos/macos-15-Readme.md); [Swift 6.2.4 ships in Xcode 26.3](https://forums.swift.org/t/announcing-swift-6-2-4/85050). The local review/repair host uses Xcode 27.0 (27A266a), Apple Swift 6.4; the configured CI workflow has not been run, so local results do not establish Xcode 26.3 compatibility. A green CI run proves only those tests and unsigned compilation. It does not launch capture, exercise WindowServer/VoiceOver, validate Intel execution, prove signing/notarization, or authorize host operations.
+This still runs SwiftPM tests and both App builds, but deliberately skips App XCTest. The ordinary [macOS CI workflow](.github/workflows/macos.yml) uses this mode. The workflow explicitly selects `/Applications/Xcode_26.3.app/Contents/Developer`, listed in the [official macOS 15 runner inventory](https://github.com/actions/runner-images/blob/main/images/macos/macos-15-Readme.md); [Swift 6.2.4 ships in Xcode 26.3](https://forums.swift.org/t/announcing-swift-6-2-4/85050). The local review/repair host uses Xcode 27.0 (27A266a), Apple Swift 6.4; CI passed at `b46316bbb` with Xcode 26.3. Later checks are revision-specific: consult the PR checks for the current commit; older CI or local results do not establish current remote compatibility. A green CI run proves only those tests and unsigned compilation. It does not launch capture, exercise WindowServer/VoiceOver, validate Intel execution, prove signing/notarization, or authorize host operations.
 
 ## Scope and host validation
 

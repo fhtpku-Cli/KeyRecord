@@ -1,5 +1,6 @@
 import Foundation
 import AppKit
+import CoreGraphics
 import XCTest
 import KeyRecordCore
 import KeyRecordCapture
@@ -63,23 +64,158 @@ final class Phase1ReleaseIsolationTests: XCTestCase {
         XCTAssertTrue(rearmed)
     }
 
-    func testSystemSessionLockProviderReportsActualHostSessionLockState() async throws {
-        // Given an independent CGSession witness reading the real lock state of this host.
-        let expected = try Self.spiSessionLockState()
-        // When the product provider queries the same session.
-        let state = await SystemSessionLockProvider().sessionLockState()
-        // Then: it reports the actual host state (locked or unlocked), never an assumed value.
-        XCTAssertEqual(state, expected)
+    func testSystemSessionLockProviderReturnsUnknownWhenSessionWitnessIsUnavailable() async {
+        // Given no usable session dictionary and no lock notification.
+        let provider = SystemSessionLockProvider(sessionDictionaryQuery: { nil },
+                                                 notificationRegistrar: { _ in })
+        // When the capture gate asks for the current lock state.
+        let state = await provider.sessionLockState()
+        // Then the unavailable witness cannot qualify local capture.
+        assertSessionLockState(state, is: .unknown)
     }
 
-    private static func spiSessionLockState() throws -> SessionLockState {
-        let path = "/System/Library/PrivateFrameworks/SkyLight.framework/SkyLight"
-        let handle = try XCTUnwrap(dlopen(path, RTLD_LAZY | RTLD_LOCAL))
-        let symbol = try XCTUnwrap(dlsym(handle, "CGSessionCopyCurrentDictionary"))
-        let copy = unsafeBitCast(symbol, to: (@convention(c) () -> Unmanaged<CFDictionary>?).self)
-        let dictionary = copy()?.takeRetainedValue() as NSDictionary?
-        let locked = (dictionary?["CGSSessionScreenIsLocked"] as? NSNumber)?.intValue == 1
-        return locked ? .locked : .unlocked
+    func testSystemSessionLockProviderReturnsUnknownForMalformedSessionLockValue() async {
+        // Given a session dictionary whose lock field is not a number.
+        let provider = SystemSessionLockProvider(sessionDictionaryQuery: {
+            ["CGSSessionScreenIsLocked": "0"] as NSDictionary
+        }, notificationRegistrar: { _ in })
+        // When the capture gate asks for the current lock state.
+        let state = await provider.sessionLockState()
+        // Then malformed data cannot be interpreted as unlocked.
+        assertSessionLockState(state, is: .unknown)
+    }
+
+    func testSystemSessionLockProviderReturnsUnknownWhenSessionLockFieldIsMissing() async {
+        // Given a session dictionary with no explicit screen-lock value.
+        let provider = SystemSessionLockProvider(sessionDictionaryQuery: {
+            ["CGSSessionUserID": NSNumber(value: 501)] as NSDictionary
+        }, notificationRegistrar: { _ in })
+        // When the capture gate asks for the current lock state.
+        let state = await provider.sessionLockState()
+        // Then the missing field cannot be interpreted as unlocked.
+        assertSessionLockState(state, is: .unknown)
+    }
+
+    func testSystemSessionLockProviderRequiresAnExplicitUnlockedSessionWitness() async {
+        // Given a session dictionary that explicitly states the screen is not locked.
+        let provider = SystemSessionLockProvider(sessionDictionaryQuery: {
+            ["CGSSessionScreenIsLocked": NSNumber(value: 0), kCGSessionOnConsoleKey: true, kCGSessionUserIDKey: NSNumber(value: getuid())] as NSDictionary
+        }, notificationRegistrar: { _ in })
+        // When the capture gate asks for the current lock state.
+        let state = await provider.sessionLockState()
+        // Then that valid, explicit witness qualifies the state as unlocked.
+        assertSessionLockState(state, is: .unlocked)
+    }
+
+    func testSystemSessionLockProviderDoesNotReuseAnOldUnlockedWitnessAfterQueryFailure() async {
+        // Given one explicit unlocked witness followed by an unavailable query.
+        var dictionary: NSDictionary? = ["CGSSessionScreenIsLocked": NSNumber(value: 0), kCGSessionOnConsoleKey: true, kCGSessionUserIDKey: NSNumber(value: getuid())] as NSDictionary
+        let provider = SystemSessionLockProvider(sessionDictionaryQuery: {
+            dictionary
+        }, notificationRegistrar: { _ in })
+        let initialState = await provider.sessionLockState()
+        assertSessionLockState(initialState, is: .unlocked)
+        dictionary = nil
+        // When the next capture gate refresh cannot read the session.
+        let state = await provider.sessionLockState()
+        // Then the old unlocked value cannot keep capture qualified.
+        assertSessionLockState(state, is: .unknown)
+    }
+
+    func testSystemSessionLockProviderLockedNotificationOverridesAnUnlockedQuery() async {
+        // Given a currently-unlocked dictionary witness and an injectable lock notification.
+        var notify: ((SessionLockState) -> Void)?
+        let provider = SystemSessionLockProvider(sessionDictionaryQuery: {
+            ["CGSSessionScreenIsLocked": NSNumber(value: 0), kCGSessionOnConsoleKey: true, kCGSessionUserIDKey: NSNumber(value: getuid())] as NSDictionary
+        }, notificationRegistrar: { receiver in
+            notify = receiver
+        })
+        // When a screen-lock notification arrives.
+        notify?(.locked)
+        let state = await provider.sessionLockState()
+        // Then the provider reports locked immediately, even before the next SPI reading catches up.
+        assertSessionLockState(state, is: .locked)
+    }
+
+    func testConsoleWitnessRequiresExplicitBooleanAndCurrentSession() async {
+        let eligible: NSDictionary = [kCGSessionOnConsoleKey: true, kCGSessionUserIDKey: NSNumber(value: getuid())]
+        let provider = SystemSessionLockProvider(sessionDictionaryQuery: { eligible },
+            consoleLockQuery: { kCFBooleanFalse }, notificationRegistrar: { _ in })
+        assertSessionLockState(await provider.sessionLockState(), is: .unlocked)
+    }
+
+    func testConsoleWitnessRejectsMissingAndNonBooleanValues() async {
+        let eligible: NSDictionary = [kCGSessionOnConsoleKey: true, kCGSessionUserIDKey: NSNumber(value: getuid())]
+        for value: CFTypeRef? in [nil, NSNumber(value: 0), NSNumber(value: 1), "false" as CFString] {
+            let provider = SystemSessionLockProvider(sessionDictionaryQuery: { eligible },
+                consoleLockQuery: { value }, notificationRegistrar: { _ in })
+            assertSessionLockState(await provider.sessionLockState(), is: .unknown)
+        }
+    }
+
+    func testConsoleWitnessRejectsIneligibleOrChangingSessions() async {
+        let eligible: NSDictionary = [kCGSessionOnConsoleKey: true, kCGSessionUserIDKey: NSNumber(value: getuid())]
+        let invalid: [NSDictionary?] = [nil, [:],
+            [kCGSessionOnConsoleKey: false, kCGSessionUserIDKey: NSNumber(value: getuid())],
+            [kCGSessionOnConsoleKey: true, kCGSessionUserIDKey: NSNumber(value: getuid() + 1)],
+            [kCGSessionOnConsoleKey: NSNumber(value: 1), kCGSessionUserIDKey: NSNumber(value: getuid())],
+            [kCGSessionOnConsoleKey: true, kCGSessionUserIDKey: NSNumber(value: Double(getuid()) + 0.5)]]
+        for invalidSession in invalid {
+            for invalidFirst in [false, true] {
+                var calls = 0
+                let provider = SystemSessionLockProvider(sessionDictionaryQuery: {
+                    defer { calls += 1 }
+                    return (calls == 0) == invalidFirst ? invalidSession : eligible
+                }, consoleLockQuery: { kCFBooleanFalse }, notificationRegistrar: { _ in })
+                assertSessionLockState(await provider.sessionLockState(), is: .unknown)
+            }
+        }
+    }
+
+    func testConsoleWitnessDoesNotReuseUnlockedAfterFailure() async {
+        let eligible: NSDictionary = [kCGSessionOnConsoleKey: true, kCGSessionUserIDKey: NSNumber(value: getuid())]
+        var value: CFTypeRef? = kCFBooleanFalse
+        let provider = SystemSessionLockProvider(sessionDictionaryQuery: { eligible },
+            consoleLockQuery: { value }, notificationRegistrar: { _ in })
+        assertSessionLockState(await provider.sessionLockState(), is: .unlocked)
+        value = nil
+        assertSessionLockState(await provider.sessionLockState(), is: .unknown)
+    }
+
+    func testConsoleWitnessCannotOverrideMalformedSessionField() async {
+        for value: Any in ["0", NSNumber(value: 2), NSNumber(value: 0.5)] {
+            let dictionary: NSDictionary = [kCGSessionOnConsoleKey: true,
+                kCGSessionUserIDKey: NSNumber(value: getuid()), "CGSSessionScreenIsLocked": value]
+            let provider = SystemSessionLockProvider(sessionDictionaryQuery: { dictionary },
+                consoleLockQuery: { kCFBooleanFalse }, notificationRegistrar: { _ in })
+            assertSessionLockState(await provider.sessionLockState(), is: .unknown)
+        }
+    }
+
+    func testExplicitLockedWitnessDominatesConflictingUnlockedWitness() async {
+        for sessionLocked in [false, true] {
+            let dictionary: NSDictionary = [kCGSessionOnConsoleKey: true,
+                kCGSessionUserIDKey: NSNumber(value: getuid()), "CGSSessionScreenIsLocked": NSNumber(value: sessionLocked)]
+            let provider = SystemSessionLockProvider(sessionDictionaryQuery: { dictionary },
+                consoleLockQuery: { sessionLocked ? kCFBooleanFalse : kCFBooleanTrue },
+                notificationRegistrar: { _ in })
+            assertSessionLockState(await provider.sessionLockState(), is: .locked)
+        }
+    }
+
+    func testConsoleWitnessStillHonorsLockedNotificationAndFreshReadAfterUnlock() async {
+        let eligible: NSDictionary = [kCGSessionOnConsoleKey: true, kCGSessionUserIDKey: NSNumber(value: getuid())]
+        var notify: ((SessionLockState) -> Void)?
+        var console: CFTypeRef? = kCFBooleanFalse
+        let provider = SystemSessionLockProvider(sessionDictionaryQuery: { eligible },
+            consoleLockQuery: { console }, notificationRegistrar: { notify = $0 })
+        notify?(.locked)
+        assertSessionLockState(await provider.sessionLockState(), is: .locked)
+        notify?(.unlocked)
+        console = nil
+        assertSessionLockState(await provider.sessionLockState(), is: .unknown)
+        console = kCFBooleanFalse
+        assertSessionLockState(await provider.sessionLockState(), is: .unlocked)
     }
 
     func testDeveloperMenuWithoutEnvironmentIsOffAndDisabled() {
@@ -99,7 +235,7 @@ final class Phase1ReleaseIsolationTests: XCTestCase {
         })
     }
 
-    func testDeveloperMenuWithEnvReflectsAndTogglesArmament() {
+    func testDeveloperMenuWithEnvReflectsAndTogglesArmament() async {
         // Given an env-armed qualification.
         let qualification = LocalDevelopmentCapture(armed: true)
         let menu = NSMenu()
@@ -111,10 +247,10 @@ final class Phase1ReleaseIsolationTests: XCTestCase {
         XCTAssertEqual(item.state, .on)
         XCTAssertTrue(item.isEnabled)
         // When the developer toggles it off and back on.
-        section.toggle()
+        await section.applyToggle()
         XCTAssertEqual(item.state, .off)
         XCTAssertFalse(qualification.isArmed)
-        section.toggle()
+        await section.applyToggle()
         // Then: the menu checkmark tracks the same flag Start's qualification gate reads.
         XCTAssertEqual(item.state, .on)
         XCTAssertTrue(qualification.isArmed)
@@ -167,32 +303,43 @@ final class Phase1ReleaseIsolationTests: XCTestCase {
         guard let app else { throw XCTSkip("set T23_RELEASE_APP to run the Release binary-string scan") }
         let executable = app.appendingPathComponent("Contents/MacOS/KeyRecordApp")
         let result = try run("/usr/bin/strings", ["-a", executable.path])
-        XCTAssertEqual(result.status, 0)
+        XCTAssertEqual(result.status, 0, result.error)
         // Then: neither the arming token nor any local-development symbol is in the binary.
         for token in forbiddenReleaseTokens {
             XCTAssertFalse(result.output.contains(token), "Release binary contains \(token)")
         }
     }
 
-    private struct CommandResult { let status: Int32; let output: String }
+    private struct CommandResult { let status: Int32; let output: String; let error: String }
+
+    private func assertSessionLockState(_ state: SessionLockState, is expected: SessionLockState,
+                                        file: StaticString = #filePath, line: UInt = #line) {
+        switch (state, expected) {
+        case (.locked, .locked), (.unlocked, .unlocked), (.unknown, .unknown): return
+        default: XCTFail("unexpected session lock state", file: file, line: line)
+        }
+    }
 
     private func run(_ executable: String, _ arguments: [String]) throws -> CommandResult {
-        let pipe = Pipe()
+        let outputPipe = Pipe()
+        let errorPipe = Pipe()
         let process = Process()
         process.executableURL = URL(fileURLWithPath: executable)
         process.arguments = arguments
-        process.standardOutput = pipe
-        process.standardError = pipe
+        process.standardOutput = outputPipe
+        process.standardError = errorPipe
         try process.run()
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        let output = outputPipe.fileHandleForReading.readDataToEndOfFile()
+        let error = errorPipe.fileHandleForReading.readDataToEndOfFile()
         process.waitUntilExit()
         return CommandResult(status: process.terminationStatus,
-                             output: String(decoding: data, as: UTF8.self))
+                             output: String(decoding: output, as: UTF8.self),
+                             error: String(decoding: error, as: UTF8.self))
     }
 
     private func releasePreprocessed(_ file: URL) throws -> String {
         let result = try run("/usr/bin/unifdef", ["-UDEBUG", file.path])
-        XCTAssertTrue([0, 1].contains(result.status), file.lastPathComponent)
+        XCTAssertTrue([0, 1].contains(result.status), "\(file.lastPathComponent): \(result.error)")
         return result.output
     }
 }

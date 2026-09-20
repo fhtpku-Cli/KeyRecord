@@ -47,6 +47,7 @@ final class ProductComposition: NSObject, NSMenuDelegate {
     #endif
     private var exclusionCandidates: any ExclusionCandidateSource = WorkspaceExclusionCandidates()
     private var runtimeCoordinator: CaptureRuntimeCoordinator?
+    private let manualRecoveryFence = ManualRecoveryFence()
     #if DEBUG
     /// Batch 6: layered diagnostics. DEBUG-only; Release never constructs it.
     /// Exists because the 2026-09-18 live run ended with capture provably not starting and
@@ -136,6 +137,12 @@ final class ProductComposition: NSObject, NSMenuDelegate {
         let composition = ProductComposition(lifecycle: lifecycle, flow: flow, gate: gate, reduction: reduction,
                                   scheduler: scheduler, flush: flush, capture: capture, store: store, hooks: hooks)
         #endif
+        #if DEBUG
+        reduction.configureDiagnostics(composition.diagnostics)
+        await scheduler.setDiagnostics(composition.diagnostics)
+        await eventSource.setDiagnostics(composition.diagnostics)
+        composition.diagnostics.configureCounterInstrumentation()
+        #endif
         return composition
     }
 
@@ -182,9 +189,9 @@ final class ProductComposition: NSObject, NSMenuDelegate {
         flow.actions = FlowActions(
             accept: { [weak self] in await self?.accept() },
             decline: { lifecycle.denyConsent() },
-            start: { [weak self] in lifecycle.requestConsent(); self?.showWindow() },
+            start: { [weak self] in await self?.startOrRetry(); self?.showWindow() },
             pause: { [weak self] in await lifecycle.pause(); await self?.syncRuntimeRefreshingLiveness() },
-            resume: { [weak self] in await lifecycle.resume(); await self?.syncRuntimeRefreshingLiveness() },
+            resume: { [weak self] in await self?.resume() },
             quit: { [weak self] in await self?.requestQuit() },
             setExclusions: { [weak self] ids in await self?.applyExclusions(ids) },
             setLoginItem: { [weak self] enabled in await lifecycle.setLoginItem(enabled: enabled); self?.syncRuntime() },
@@ -196,17 +203,27 @@ final class ProductComposition: NSObject, NSMenuDelegate {
         let gate = self.gate
         let reduction = self.reduction
         let queue = capture.queue
+        let manualRecoveryFence = self.manualRecoveryFence
         // Sleep may lock the session, so close capture on sleep. Do NOT close on
         // sessionDidResignActive: that fires whenever the user switches to another app,
         // which is normal foreground use, not a lock. Actual screen-lock transitions are
-        // observed separately via SystemSessionLockProvider notifications (DEBUG) / the
+        // observed separately via development lock-provider notifications (DEBUG) / the
         // qualified host (T7) and must be the only thing that gates capture off mid-session.
         observers.append(NSWorkspace.shared.notificationCenter.addObserver(
-            forName: NSWorkspace.willSleepNotification, object: nil, queue: nil) { [weak self, gate, reduction, queue] _ in
-                gate.update(.unknown)
-                queue.revoke()
-                reduction.clear()
-                Task { @MainActor in await self?.closeProtectedState() }
+            forName: NSWorkspace.willSleepNotification, object: nil, queue: nil
+        ) { [weak self, gate, reduction, queue, manualRecoveryFence] _ in
+            manualRecoveryFence.invalidate()
+            gate.update(.unknown)
+            queue.revoke()
+            reduction.clear()
+            Task { @MainActor in
+                self?.lifecycle.requireRecovery(reason: .keyUnavailable)
+                await self?.closeProtectedState()
+            }
+        })
+        observers.append(NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didWakeNotification, object: nil, queue: nil) { [weak self] _ in
+                Task { @MainActor in self?.handleRuntimeAvailable() }
             })
         #if DEBUG
         // KR-01: registration now happens with a non-nil provider, because it was injected
@@ -228,28 +245,84 @@ final class ProductComposition: NSObject, NSMenuDelegate {
     /// Lock/sleep contract: revoke immediately, clear queued events and sensitive
     /// snapshots, close the scheduler and key gate, then stop the source.
     func handleSessionLocked() async {
+        manualRecoveryFence.invalidate()
         gate.update(.locked)
         capture.queue.revoke()
         reduction.clear()
+        lifecycle.requireRecovery(reason: .sessionLocked)
         await closeProtectedState()
     }
 
-    /// KR-01/lock contract: unlocking must NOT simply reopen the key gate. Capture only
-    /// resumes when the user still expects collecting AND a fresh readiness check passes,
-    /// which is the same verified-readiness transition used by first consent and resume.
+    /// KR-01/lock contract: unlock only exposes an explicit retry path. The key gate stays
+    /// closed until that action confirms the user still expects collection and a fresh
+    /// lock/readiness check passes.
     func handleSessionUnlocked() async {
-        guard lifecycle.state.preferences?.expectedCollecting == true else {
-            // Nothing to restore: stay closed and merely refresh the presented state.
+        handleRuntimeAvailable()
+    }
+    #endif
+
+    private func handleRuntimeAvailable() {
+        syncRuntime()
+    }
+
+    private func startOrRetry() async {
+        guard lifecycle.phase == .blocked || lifecycle.phase == .failed else {
+            lifecycle.requestConsent()
+            return
+        }
+        if lifecycle.phase == .blocked,
+           lifecycle.state.preferences?.expectedCollecting != true {
             syncRuntime()
             return
         }
-        // Unlock is just another trigger on the one serial recovery path (KR-02).
+        await performManualCaptureEntry { [lifecycle] in await lifecycle.retry() }
+    }
+
+    private func prepareExplicitCaptureStart(_ attempt: ManualRecoveryAttempt) async -> Bool {
+        #if DEBUG
+        guard let sessionLock = localSessionLock else {
+            gate.update(.unknown)
+            lifecycle.requireRecovery(reason: .sessionLocked)
+            syncRuntime()
+            return false
+        }
+        let lockState = await sessionLock.sessionLockState()
+        guard manualRecoveryFence.isCurrent(attempt) else { return false }
+        guard lockState == .unlocked else {
+            gate.update(.unknown)
+            lifecycle.requireRecovery(reason: .sessionLocked)
+            syncRuntime()
+            return false
+        }
+        gate.update(.unlocked)
+        _ = await capture.requestInputMonitoringPermission()
+        guard manualRecoveryFence.isCurrent(attempt) else { return false }
         await runtimeCoordinator?.clearUserStop()
-        await runtimeCoordinator?.handle(.unlocked)
-        await lifecycle.retry()
+        return manualRecoveryFence.isCurrent(attempt)
+        #else
+        gate.update(.unknown)
+        lifecycle.requireRecovery(reason: .keyUnavailable)
+        syncRuntime()
+        return false
+        #endif
+    }
+
+    private func performManualCaptureEntry(_ start: @MainActor () async -> Void) async {
+        let completed = await manualRecoveryFence.perform(
+            prepare: { [weak self] attempt in
+                await self?.prepareExplicitCaptureStart(attempt) ?? false
+            },
+            start: start,
+            abort: { [weak self] in await self?.abortManualCaptureEntry() })
+        if completed, lifecycle.phase != .collecting { gate.update(.unknown) }
+        await syncRuntimeRefreshingLiveness()
+    }
+
+    private func abortManualCaptureEntry() async {
+        await closeProtectedState()
+        lifecycle.requireRecovery(reason: .keyUnavailable)
         syncRuntime()
     }
-    #endif
 
     func boot() async -> NSStatusItem {
         #if DEBUG
@@ -326,8 +399,11 @@ final class ProductComposition: NSObject, NSMenuDelegate {
         // `.verifyRestartReadiness` effect performs it and writes the returned
         // RuntimeConditions into state. Pre-checking here and discarding the result was
         // exactly what left conditions at `.unknown` while the phase said collecting.
-        await lifecycle.acceptConsent()
-        await syncRuntimeRefreshingLiveness()
+        await performManualCaptureEntry { [lifecycle] in await lifecycle.acceptConsent() }
+    }
+
+    private func resume() async {
+        await performManualCaptureEntry { [lifecycle] in await lifecycle.resume() }
     }
 
     /// KR-02: build and attach the single serial recovery coordinator, and route every
@@ -595,28 +671,28 @@ final class ProductComposition: NSObject, NSMenuDelegate {
     /// to claim `.stopped` (contract 8), and quit was cancelled with nothing surfaced — an
     /// app that cannot be closed.
     ///
-    /// Fix: when there is no live session there are no unflushed deltas to protect, so quit
-    /// completes. When there genuinely is unsaved work, quit is still refused, but the
-    /// reason is now made visible so the user can retry or pause instead of being stuck.
+    /// A dead source may still leave retained aggregate or staged changes after recovery
+    /// fails. Quit may bypass a failed flush only when both stores report no unsaved work.
     func prepareQuit() async -> Bool {
         if lifecycle.phase == .unstarted || lifecycle.phase == .consent {
             return true
         }
-        // Nothing was ever collected in this session: with no live source there are no
-        // unflushed deltas to protect, so refusing to quit would protect nothing and would
-        // trap the user in an app that cannot be closed.
-        let hadLiveSession = captureSessionLive
+        let reductionDirtyBefore = reduction.hasUnflushedChanges()
+        let schedulerDirtyBefore = await scheduler.hasPendingChanges()
         await lifecycle.quit()
         syncRuntime()
-        if !hadLiveSession { return true }
         if lifecycle.phase == .stopped { return true }
+        let reductionDirtyAfter = reduction.hasUnflushedChanges()
+        let schedulerDirtyAfter = await scheduler.hasPendingChanges()
+        if !reductionDirtyBefore && !schedulerDirtyBefore
+            && !reductionDirtyAfter && !schedulerDirtyAfter { return true }
         // Refused: contract 8 forbids claiming the data was saved. Surface why, so the
         // menu bar does not simply appear to ignore Quit.
         flow.noticeKey = "flow.actionUnavailable"
         return false
     }
 
-    @objc private func start() { lifecycle.requestConsent(); showWindow() }
+    @objc private func start() { Task { await startOrRetry(); showWindow() } }
     @objc private func pauseCollection() { Task { await flow.pause() } }
     @objc private func resumeCollection() { Task { await flow.resume() } }
     @objc private func settings() { showWindow() }
@@ -657,9 +733,11 @@ extension ProductComposition: LocalCaptureTransacting {
     /// KR-05: a real stop. Revoke delivery, drop the pulse, close the scheduler and key
     /// gate, and stop the event source — all before the menu is allowed to read "Off".
     func stopLocalCapture() async {
+        manualRecoveryFence.invalidate()
         await runtimeCoordinator?.handle(.userStopped)
         capture.queue.revoke()
         reduction.clear()
+        lifecycle.requireRecovery(reason: .keyUnavailable)
         await closeProtectedState()
     }
 

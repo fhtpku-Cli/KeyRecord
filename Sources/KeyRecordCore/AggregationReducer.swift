@@ -74,6 +74,8 @@ public struct AggregationReducer: Sendable {
         }
     }
 
+    public var totalCount: Int64 { cycleTotal }
+
     public mutating func update(_ gate: PrivacyGate) {
         if !gate.isOpen || generation != gate.generation { held.removeAll() }
         generation = gate.isOpen ? gate.generation : nil

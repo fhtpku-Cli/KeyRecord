@@ -160,6 +160,10 @@ public actor CaptureRuntimeCoordinator {
         guard await openSession(conditions) else {
             return finish(.blocked(.startFailed))
         }
+        if userStopped {
+            await closeSession()
+            return finish(.blocked(.userStopped))
+        }
         return finish(.recovered)
     }
 }

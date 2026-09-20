@@ -75,6 +75,7 @@ actor ProductPersistence: LifecycleKeyProviding, PreferencesPersisting {
         try await writer.resume()
     }
 
+    #if DEBUG
     /// Records the last underlying failure so diagnostics can name it.
     ///
     /// `LifecycleOrchestrator.reload` funnels every non-`PreferencesRepositoryError` into
@@ -124,22 +125,30 @@ actor ProductPersistence: LifecycleKeyProviding, PreferencesPersisting {
         }
     }
 
+    #endif
+
     func load() async throws -> Preferences? {
         do {
             _ = try gate.begin()
             if try await store.bootstrap() == .freshInstall {
+                #if DEBUG
                 Self.lastLoadFailure = .freshInstall
+                #endif
                 return nil
             }
             let data = try await store.readProtected(CycleResetObjects.preferences, gate: gate)
+            #if DEBUG
             Self.lastLoadFailure = nil
+            #endif
             return try JSONDecoder().decode(Preferences.self, from: data)
         } catch {
+            #if DEBUG
             Self.lastLoadFailure = Self.classify(error)
             Self.lastLoadGateOpen = (try? gate.begin()) != nil
             // Re-run enumeration to see what bootstrap actually had to match against.
             // Count recorded by ProductKeySource on its own enumeration path; widening
             // KeychainKeyring.inventory to public just for a diagnostic is not warranted.
+            #endif
             throw error
         }
     }

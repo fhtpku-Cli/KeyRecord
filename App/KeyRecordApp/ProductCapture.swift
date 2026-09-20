@@ -3,66 +3,6 @@ import KeyRecordCore
 import KeyRecordCapture
 import KeyRecordStore
 
-final class ProductReduction: @unchecked Sendable {
-    private let mutex = NSLock()
-    private var aggregate: AggregationReducer?
-    private var normalizer = ChordNormalizer()
-    private var changed = false
-    let gate: KeyAvailabilityGate
-    init(gate: KeyAvailabilityGate) { self.gate = gate }
-
-    func open(_ aggregate: AggregationReducer, inputs: GateInputs) {
-        mutex.withLock {
-            self.aggregate = aggregate
-            normalizer = ChordNormalizer()
-            normalizer.update(inputs)
-            self.aggregate?.update(normalizer.gate)
-        }
-    }
-    func clear() {
-        mutex.withLock {
-            aggregate = nil; normalizer.reset(); changed = false
-        }
-    }
-    func deliver(_ event: ObservedKeyEvent) -> EventHandoffResult {
-        mutex.withLock {
-            guard normalizer.gate.isOpen,
-                  let generation = try? gate.begin() else { return .closed }
-            do {
-                return try gate.use(generation) {
-                    let observed = ObservedKeyEvent(keyCode: event.keyCode, kind: event.kind,
-                        isAutoRepeat: event.isAutoRepeat, modifiers: event.modifiers,
-                        source: event.source, generation: normalizer.gate.generation)
-                    let output = normalizer.process(observed)
-                    try aggregate?.process(output, generation: observed.generation, clock: ProductClock())
-                    changed = true
-                    return .accepted
-                }
-            } catch { return .closed }
-        }
-    }
-    func take() throws -> AggregationReducer? {
-        try mutex.withLock {
-            let generation = try gate.begin()
-            return try gate.use(generation) {
-                guard changed else { return nil }
-                changed = false
-                return aggregate
-            }
-        }
-    }
-
-    func snapshot() throws -> AggregateSnapshot? {
-        try mutex.withLock {
-            let generation = try gate.begin()
-            return try gate.use(generation) {
-                guard let aggregate else { return nil }
-                return try AggregateSnapshot(shortcuts: aggregate.shortcuts, bareKeys: aggregate.bareKeys)
-            }
-        }
-    }
-}
-
 actor ProductFlush: LifecycleFlushing {
     let reduction: ProductReduction
     let scheduler: FlushScheduler
@@ -123,9 +63,10 @@ actor ProductCapture: LifecycleCaptureControlling, RestartReadinessChecking {
         try await scheduler.reopen()
         let restored = try await AggregatePersistence.restore(cycleID: preferences.currentCycleID,
             store: persistence.store, gate: reduction.gate)
-        let snapshot = queue.snapshot
-        reduction.open(restored, inputs: snapshot.inputs)
-        try await source.start { [reduction] in reduction.deliver($0) }
+        try await source.start(requestPermission: false, prepareDelivery: { [reduction] snapshot in
+            reduction.open(restored, inputs: snapshot.inputs, generation: snapshot.generation)
+            return { [reduction] in reduction.deliver($0) }
+        })
     }
     func stop() async { await source.stop() }
 
@@ -162,9 +103,18 @@ actor ProductCapture: LifecycleCaptureControlling, RestartReadinessChecking {
     func resumeSession(preferences: Preferences) async -> Bool {
         guard (try? await verifyRestartReadiness()) != nil else { return false }
         guard queue.isOpen else { return false }
+        guard reduction.prepareForSchedulerReopen() else { return false }
         guard (try? await scheduler.reopen()) != nil else { return false }
         do {
-            try await source.start { [reduction] in reduction.deliver($0) }
+            try await source.start(requestPermission: false, prepareDelivery: { [reduction] snapshot in
+                _ = reduction.resume(inputs: snapshot.inputs, generation: snapshot.generation)
+                return { [reduction] in reduction.deliver($0) }
+            })
+            let generation = queue.snapshot.generation
+            guard reduction.hasSession(generation: generation) else {
+                await source.stop()
+                return false
+            }
             return true
         } catch {
             return false
@@ -175,6 +125,10 @@ actor ProductCapture: LifecycleCaptureControlling, RestartReadinessChecking {
     /// Delegates to the event source rather than to any cached flag or lifecycle phase.
     func hasLiveSession() async -> Bool {
         await source.hasLiveSession
+    }
+
+    func requestInputMonitoringPermission() async -> InputMonitoringStatus {
+        await source.requestPermissionIfNeeded()
     }
 
     /// Bundle id of the current foreground app, if reliably attributable.

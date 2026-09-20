@@ -42,10 +42,19 @@ public actor FlushScheduler: LifecycleFlushing {
     var waiterCount: Int { waiters.count }
     private var physicalID: UUID?
     private var lastResult: FlushCompletion?
+#if DEBUG
+    private var diagnostics: CaptureDiagnosticsRecorder?
+#endif
 
     public init(gate: KeyAvailabilityGate, writer: any FlushWriting, clock: any FlushClock) {
         self.gate = gate; self.writer = writer; self.clock = clock
     }
+
+#if DEBUG
+    public func setDiagnostics(_ recorder: CaptureDiagnosticsRecorder?) {
+        diagnostics = recorder
+    }
+#endif
 
     public func reopen() throws {
         discard()
@@ -108,6 +117,10 @@ public actor FlushScheduler: LifecycleFlushing {
         return lastResult
     }
 
+    public func hasPendingChanges() -> Bool {
+        schedule.revision != schedule.durableRevision
+    }
+
     private func start(force: Bool) {
         guard physicalID == nil,
               let generation = schedule.generation,
@@ -115,6 +128,9 @@ public actor FlushScheduler: LifecycleFlushing {
               let ticket = schedule.start(now: clock.now(), force: force) else { return }
         let objects = pending, writer = writer, gate = gate, id = UUID()
         physicalID = id
+#if DEBUG
+        diagnostics?.increment(.flushIssued)
+#endif
         let deadline = clock.now() + .seconds(5)
         writing = Task {
             let result: FlushCompletion
@@ -139,8 +155,11 @@ public actor FlushScheduler: LifecycleFlushing {
         guard schedule.active == ticket else { return }
         writing?.cancel()
         // Keep the physical writer slot occupied until it really returns.
-        _ = schedule.complete(ticket, result: .timedOut)
+        guard schedule.complete(ticket, result: .timedOut) else { return }
         lastResult = .timedOut
+#if DEBUG
+        diagnostics?.increment(.flushTimedOut)
+#endif
         finishWaiters(.timedOut)
     }
 
@@ -156,6 +175,18 @@ public actor FlushScheduler: LifecycleFlushing {
         }
         guard schedule.complete(ticket, result: result) else { return }
         lastResult = result
+#if DEBUG
+        switch result {
+        case .saved:
+            diagnostics?.increment(.flushDurable)
+        case .failed:
+            diagnostics?.increment(.flushFailed)
+        case .timedOut:
+            diagnostics?.increment(.flushTimedOut)
+        case .locked:
+            break
+        }
+#endif
         if result == .saved && schedule.durableRevision < schedule.revision {
             if !waiters.isEmpty { start(force: true) }
         } else {

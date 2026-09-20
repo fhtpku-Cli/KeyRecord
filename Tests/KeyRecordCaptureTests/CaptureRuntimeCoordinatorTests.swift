@@ -45,6 +45,30 @@ final class CaptureRuntimeCoordinatorTests: XCTestCase {
         var opens: Int { all.filter { $0.hasPrefix("open") }.count }
     }
 
+    private actor OpenBarrier {
+        private var arrived = false
+        private var arrivalWaiter: CheckedContinuation<Void, Never>?
+        private var releaseWaiter: CheckedContinuation<Void, Never>?
+
+        func suspendOpen() async -> Bool {
+            arrived = true
+            arrivalWaiter?.resume()
+            arrivalWaiter = nil
+            await withCheckedContinuation { releaseWaiter = $0 }
+            return true
+        }
+
+        func waitUntilArrived() async {
+            if arrived { return }
+            await withCheckedContinuation { arrivalWaiter = $0 }
+        }
+
+        func release() {
+            releaseWaiter?.resume()
+            releaseWaiter = nil
+        }
+    }
+
     private func makeCoordinator(checks: Checks, journal: Journal,
                                  openSucceeds: Bool = true) -> CaptureRuntimeCoordinator {
         CaptureRuntimeCoordinator(
@@ -207,6 +231,30 @@ final class CaptureRuntimeCoordinatorTests: XCTestCase {
         await coordinator.clearUserStop()
         let outcome = await coordinator.handle(.unlocked)
         XCTAssertEqual(outcome, .recovered, "an explicit user restart re-arms recovery")
+    }
+
+    func testUserStopWinsWhileRecoveryIsOpening() async throws {
+        let checks = Checks()
+        let journal = Journal()
+        let barrier = OpenBarrier()
+        let coordinator = CaptureRuntimeCoordinator(
+            checks: checks,
+            closeSession: { journal.append("close") },
+            openSession: { _ in
+                journal.append("open")
+                return await barrier.suspendOpen()
+            })
+
+        let recovery = Task { await coordinator.handle(.unlocked) }
+        await barrier.waitUntilArrived()
+        let stopped = await coordinator.handle(.userStopped)
+        await barrier.release()
+        let outcome = await recovery.value
+
+        XCTAssertEqual(stopped, .blocked(.userStopped))
+        XCTAssertEqual(outcome, .blocked(.userStopped))
+        XCTAssertEqual(journal.closes, 3,
+                       "the late open must be closed again after an explicit user stop")
     }
 
     func testEveryInvalidationReasonIsClassifiedExplicitly() {

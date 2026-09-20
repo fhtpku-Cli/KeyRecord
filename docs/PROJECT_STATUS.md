@@ -1,6 +1,16 @@
 # Current project status
 
-## 2026-09-21 repair status
+## 2026-09-21 bounded input and restart follow-up
+
+Owner-approved runs of the signed Debug product observed three deliberate TextEdit shortcuts added to the displayed aggregate and retained after a normal quit/restart. Two previously identical-looking rows were separate modifier-state groups (side unknown and left). The display now names left/right/both/unknown modifier states and unknown Fn explicitly, without changing grouping or stored counts. English and Chinese synthetic SwiftUI screens were checked in light/dark appearances at normal and narrow widths.
+
+An explicitly enabled DEBUG-only run summary survives per-session diagnostic resets and records numeric counters, successful model-publication totals and read failures on normal termination. It contains no input text, key codes, application identifiers or event timestamps. Model publication is not proof of screen rendering; the bounded owner screenshots provide that separate observation. A crash or forced kill may produce no summary.
+
+At `b46316bbb7c4c0dcc7573619010ae5eecc6eabcb`, final automated verification passed 476 package and 114 App tests with no failures/skips; both GitHub push and PR CI builds passed. The follow-up changes have their own focused regression, localization, native-rendering and build checks; do not treat the older full-suite count as measurement of a newer revision. Local follow-up evidence is under `.omo/repair-20260921/{diagnostic-followup,modifier-display}/` and is not bundled with releases.
+
+This establishes bounded physical-input, observed application attribution, displayed increments and restart persistence on this host. It does not qualify all foreground transitions, exclusions, lock/sleep recovery, signed Release, Intel performance or full G1/public release. No historical formal receipt or milestone gate is rewritten. The earlier repair narrative below records earlier checkpoints; its then-pending capture/CI observations are superseded only by the scoped results above.
+
+## 2026-09-21 repair status (earlier checkpoint)
 
 The 2026-09-21 local repair is implemented on `codex/phase1-repair-20260921` based on `6687c296dbf44abe34f78055e7f830dfbe30771a`. It fixes unknown lock-state fail-closed behavior, Release diagnostic isolation, application attribution/session recovery, unsaved-data protection, production-layer counters, keyboard accessibility and reproducible App testing. Phase 1 still requires bounded real-host validation; it is not reliable-daily-use, full G1 or public-release acceptance.
 

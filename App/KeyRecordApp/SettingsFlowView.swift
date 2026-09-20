@@ -46,7 +46,7 @@ private struct ExcludedApplicationsSection: View {
                     .fixedSize(horizontal: false, vertical: true)
                     .accessibilityIdentifier("settings.exclusions.empty")
             } else {
-                ForEach(flow.choices) { choice in
+                ForEach(Array(flow.choices.enumerated()), id: \.element.id) { index, choice in
                     Toggle(isOn: Binding(
                         get: { choice.isExcluded },
                         set: { enabled in
@@ -65,6 +65,7 @@ private struct ExcludedApplicationsSection: View {
                     }
                     .accessibilityLabel(Text(choice.isForeground
                         ? "\(choice.name), \(text("exclusions.foreground"))" : choice.name))
+                    .accessibilitySortPriority(Double(flow.choices.count - index + 4))
                     .accessibilityIdentifier("settings.exclusions.\(choice.bundleID)")
                 }
             }
@@ -89,6 +90,7 @@ private struct LoginItemSection: View {
                 Text(text("settings.login"))
             }
             .accessibilityLabel(Text(text("settings.login")))
+            .accessibilitySortPriority(4)
             .accessibilityIdentifier("settings.login")
             if let errorKey = flow.loginItemErrorKey {
                 Label(text(errorKey), systemImage: "exclamationmark.triangle")
@@ -118,6 +120,8 @@ private struct LanguageSection: View {
                 Text(text("locale.en")).tag("en")
                 Text(text("locale.zh-Hans")).tag("zh-Hans")
             }
+            .focusable()
+            .accessibilitySortPriority(3)
             .accessibilityIdentifier("settings.language")
         } header: {
             Text(text("settings.language"))
@@ -141,10 +145,12 @@ private struct DangerSection: View {
                         rowIdentifier: "settings.reset") {
                 flow.requestReset()
             }
+            .accessibilitySortPriority(2)
             SettingsRow(text: text, titleKey: "settings.delete",
                         rowIdentifier: "settings.delete", role: .destructive) {
                 flow.requestDeleteLocalData()
             }
+            .accessibilitySortPriority(1)
         } header: {
             Label(text("settings.danger"), systemImage: "exclamationmark.triangle")
         }

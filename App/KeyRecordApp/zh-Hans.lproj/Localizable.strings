@@ -77,3 +77,8 @@
 "preview.restart" = "重新开始预览";
 "preview.app.editor" = "示例编辑器";
 "preview.app.chat" = "示例聊天";
+"modifier.side.left" = "%@（左侧）";
+"modifier.side.right" = "%@（右侧）";
+"modifier.side.both" = "%@（双侧）";
+"modifier.side.unknown" = "%@（侧别未知）";
+"modifier.fn.unknown" = "Fn（状态未知）";

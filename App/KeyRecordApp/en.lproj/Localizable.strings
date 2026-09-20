@@ -77,3 +77,8 @@
 "preview.restart" = "Restart preview";
 "preview.app.editor" = "Example Editor";
 "preview.app.chat" = "Example Chat";
+"modifier.side.left" = "%@ (left)";
+"modifier.side.right" = "%@ (right)";
+"modifier.side.both" = "%@ (both sides)";
+"modifier.side.unknown" = "%@ (side unknown)";
+"modifier.fn.unknown" = "Fn (state unknown)";

@@ -129,10 +129,10 @@ Historical facts reported on the owner's machine with the earlier signed Debug c
 They describe that machine at that time, not current-main qualification. The exact scope
 and later bounded trials are recorded in [PROJECT_STATUS.md](PROJECT_STATUS.md).
 
-- Karabiner's DriverKit layer does **not** swallow physical key events: a 45-second run with
-  all four daemons active saw tap keyDown 168 / keyUp 168, queue accepted 336, normalized
-  336, aggregate delta 168, zero closed handoffs, zero tapDisabled. The earlier suspicion is
-  disproved; disabling Karabiner as a control adds nothing.
+- A 45-second run with all four Karabiner daemons active saw tap keyDown 168 / keyUp 168,
+  queue accepted 336, normalized 336, aggregate delta 168, zero closed handoffs and zero
+  tapDisabled. This refutes complete event swallowing before that harness during that run;
+  it does not identify a product failure's cause or exclude intermittent Karabiner interactions.
 - Bounded lock trials observed closed/recovery states and later manual Start recovery.
   This does not establish continuous zero capture during the locked interval; fresh-check
   and generation-fence behavior also has separate synthetic regression coverage.

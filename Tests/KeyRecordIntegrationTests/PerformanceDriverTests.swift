@@ -22,7 +22,7 @@ final class PerformanceDriverTests: XCTestCase {
         for _ in 0..<configuration.repeats {
             try await runWindow(seconds: configuration.warmup, typing: true, fixture: fixture, scheduler: scheduler)
             let start = try sampler.sample()
-            _ = try await runWindow(seconds: configuration.window, typing: true, fixture: fixture, scheduler: scheduler)
+            let typingRAM = try await runWindow(seconds: configuration.window, typing: true, fixture: fixture, scheduler: scheduler)
             let end = try sampler.sample()
             let flushed = await scheduler.completion()
             XCTAssertEqual(flushed, .saved)
@@ -30,11 +30,12 @@ final class PerformanceDriverTests: XCTestCase {
             let idleStart = try sampler.sample()
             let ram = try await runWindow(seconds: configuration.window, typing: false, fixture: fixture, scheduler: scheduler)
             let idleEnd = try sampler.sample()
+            let memory = try PerformanceSample.memory(typing: typingRAM, idle: ram)
             samples.append(PerformanceSample(
                 typingCPU: try PerformanceSample.percent(cpuSeconds: end.cpu - start.cpu, wallSeconds: end.wall - start.wall),
                 idleCPU: try PerformanceSample.percent(cpuSeconds: idleEnd.cpu - idleStart.cpu, wallSeconds: idleEnd.wall - idleStart.wall),
                 typingWall: end.wall - start.wall, idleWall: idleEnd.wall - idleStart.wall,
-                ramMean: ram.reduce(0, +) / Double(ram.count), ramPeak: try XCTUnwrap(ram.max())))
+                ramMean: memory.mean, ramPeak: memory.peak))
         }
         await scheduler.close()
         await scheduler.waitForIssuedWrite()

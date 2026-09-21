@@ -2,6 +2,24 @@ import Foundation
 import XCTest
 
 final class PerformanceReceiptTests: XCTestCase {
+    func testMemoryIncludesTypingPeakWhenIdleFootprintIsLower() throws {
+        // Given: only the typing window exceeds the memory budget.
+        let typing = [10_000_000.0, 120_000_000.0]
+        let idle = [10_000_000.0, 20_000_000.0]
+        // When
+        let memory = try PerformanceSample.memory(typing: typing, idle: idle)
+        // Then
+        XCTAssertEqual(memory.peak, 120_000_000)
+        XCTAssertEqual(memory.mean, 40_000_000)
+    }
+
+    func testMemoryRejectsMissingOrInvalidWindowSamples() {
+        XCTAssertThrowsError(try PerformanceSample.memory(typing: [], idle: [1]))
+        XCTAssertThrowsError(try PerformanceSample.memory(typing: [1], idle: []))
+        XCTAssertThrowsError(try PerformanceSample.memory(typing: [.nan], idle: [1]))
+        XCTAssertThrowsError(try PerformanceSample.memory(typing: [1], idle: [0]))
+    }
+
     func testRoundTripWhenCompressedReceiptIsValid() throws {
         // Given
         let receipt = PerformanceReceipt.fixture()

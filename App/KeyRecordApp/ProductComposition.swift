@@ -61,6 +61,7 @@ final class ProductComposition: NSObject, NSMenuDelegate {
     private(set) var captureSessionLive = false
     private var window: NSWindow?
     private var statusItem: NSMenuItem?
+    private weak var menuBarButton: NSStatusBarButton?
     private var pulse: Task<Void, Never>?
     private var observers: [any NSObjectProtocol] = []
     private var text: NativeText { NativeText(locale: flow.language) }
@@ -198,6 +199,10 @@ final class ProductComposition: NSObject, NSMenuDelegate {
             setLoginItem: { [weak self] enabled in await lifecycle.setLoginItem(enabled: enabled); self?.syncRuntime() },
             loadChoices: { [weak self] in await self?.loadExclusionChoices() ?? [] },
             openSettings: { [weak self] in self?.showWindow() })
+        flow.saveLayoutAction = { [weak self] layout in
+            try await lifecycle.setLayout(layout)
+            self?.syncRuntime()
+        }
     }
 
     private func registerLifecycleObservers(hooks: ProductMaintenanceHooks) {
@@ -360,6 +365,7 @@ final class ProductComposition: NSObject, NSMenuDelegate {
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         item.button?.image = NSImage(systemSymbolName: "keyboard", accessibilityDescription: "KeyRecord")
         item.button?.setAccessibilityIdentifier("menu.open")
+        menuBarButton = item.button
         let menu = NSMenu()
         menu.autoenablesItems = false
         menu.delegate = self
@@ -587,6 +593,10 @@ final class ProductComposition: NSObject, NSMenuDelegate {
                         throw error
                     }
                     self.flow.snapshot = snapshot
+                    if let preferences = self.lifecycle.state.preferences {
+                        self.flow.publishAnalysis(try self.reduction.analysis(preferences: preferences))
+                    }
+                    self.updateRecommendationBadge()
                     #if DEBUG
                     if let snapshot {
                         self.diagnostics.recordPublication(shortcutTotal: snapshot.shortcutTotal,
@@ -631,10 +641,20 @@ final class ProductComposition: NSObject, NSMenuDelegate {
             // backed by a live session.
             flow.snapshot = nil
             flow.update(phase: .blocked)
+        } else if flow.sensitiveContentVisible, let preferences = lifecycle.state.preferences {
+            do { flow.publishAnalysis(try reduction.analysis(preferences: preferences)) }
+            catch {
+                flow.publishAnalysis(nil)
+                flow.noticeKey = "flow.actionUnavailable"
+            }
         }
         statusItem?.title = Self.statusTitle(phase: lifecycle.phase,
                                             reason: lifecycle.state.blockedReason,
                                             gateOpen: gateOpen, captureSessionLive: sessionLive)
+        if flow.analysis?.topRecommendations.isEmpty == false {
+            statusItem?.title += " · " + text("phase2.newRecommendations")
+        }
+        updateRecommendationBadge()
         #if DEBUG
         let phase = lifecycle.phase
         let reason = lifecycle.state.blockedReason
@@ -676,6 +696,12 @@ final class ProductComposition: NSObject, NSMenuDelegate {
     private func handlePrivacyInvalidation() async {
         lifecycle.requireRecovery(reason: .sessionLocked)
         await closeProtectedState()
+    }
+
+    private func updateRecommendationBadge() {
+        let available = flow.analysis?.topRecommendations.isEmpty == false
+        menuBarButton?.title = available ? "•" : ""
+        menuBarButton?.setAccessibilityLabel(available ? text("phase2.newRecommendations") : text("app.name"))
     }
 
     private func closeProtectedState() async {
@@ -793,7 +819,9 @@ private struct ProductScreens: View {
     var body: some View {
         TabView {
             ConsentFlowView(flow: flow, text: text).tabItem { Text(text("flowpreview.tab.consent")) }
-            AggregateFlowView(snapshot: flow.snapshot, text: text).tabItem { Text(text("flowpreview.tab.aggregates")) }
+            AnalysisDashboardView(snapshot: flow.analysis, layout: flow.layout, text: text,
+                                  saveLayout: { await flow.saveLayout($0) })
+                .tabItem { Text(text("flowpreview.tab.aggregates")) }
             SettingsFlowView(flow: flow, text: text).tabItem { Text(text("flowpreview.tab.settings")) }
         }
         .frame(minWidth: NativeLayout.minimum.width, minHeight: NativeLayout.minimum.height)

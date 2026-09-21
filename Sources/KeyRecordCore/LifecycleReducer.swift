@@ -210,13 +210,14 @@ extension PrivacyGate: Equatable {
 extension Preferences {
     /// Lifecycle-scoped immutable updates; other preference fields are preserved byte-for-byte.
     public func updating(expectedCollecting: Bool? = nil, excludedBundleIDs: Set<String>? = nil,
-                         loginItemEnabled: Bool? = nil, locale: ProductLocale? = nil) -> Preferences {
+                         loginItemEnabled: Bool? = nil, locale: ProductLocale? = nil,
+                         layout: LayoutPreference? = nil) -> Preferences {
         Preferences(
             currentCycleID: currentCycleID,
             expectedCollecting: expectedCollecting ?? self.expectedCollecting,
             excludedBundleIDs: excludedBundleIDs ?? self.excludedBundleIDs,
             ignoredRecommendationKeys: ignoredRecommendationKeys,
-            layout: layout,
+            layout: layout ?? self.layout,
             loginItemEnabled: loginItemEnabled ?? self.loginItemEnabled,
             locale: locale ?? self.locale,
             keyboardPoolConfirmed: keyboardPoolConfirmed)

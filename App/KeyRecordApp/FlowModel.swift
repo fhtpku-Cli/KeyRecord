@@ -1,5 +1,6 @@
 import SwiftUI
 import KeyRecordCore
+import KeyRecordAnalysis
 
 @MainActor
 enum ProductStartup {
@@ -132,6 +133,9 @@ final class AppFlowObservable: ObservableObject {
     @Published var loginItemErrorKey: String?
     @Published var language = "en"
     @Published var noticeKey: String?
+    @Published private var rawAnalysis: AnalysisSnapshot?
+    @Published private(set) var layout = LayoutPreference()
+    var saveLayoutAction: (@MainActor (LayoutPreference) async throws -> Void)?
 
     private let flow: Phase1FlowModel
     var actions: FlowActions
@@ -148,7 +152,25 @@ final class AppFlowObservable: ObservableObject {
     /// Gating stays in Core: a locked/error context reads nil even with raw totals set.
     var snapshot: AggregateSnapshot? {
         get { flow.displayedAggregate }
-        set { flow.displayedAggregate = newValue }
+        set {
+            if newValue == nil { rawAnalysis = nil }
+            flow.displayedAggregate = newValue
+        }
+    }
+
+    var analysis: AnalysisSnapshot? { sensitiveContentVisible ? rawAnalysis : nil }
+
+    func publishAnalysis(_ snapshot: AnalysisSnapshot?) {
+        rawAnalysis = sensitiveContentVisible ? snapshot : nil
+    }
+
+    func saveLayout(_ preset: LayoutPreset) async {
+        guard sensitiveContentVisible, let saveLayoutAction else { return }
+        let selected = LayoutPreference(preset: preset, hasAsked: true)
+        do {
+            try await saveLayoutAction(selected)
+            layout = selected
+        } catch { noticeKey = "flow.actionUnavailable" }
     }
 
     var sensitiveContentVisible: Bool { flow.sensitiveContentVisible }
@@ -164,6 +186,8 @@ final class AppFlowObservable: ObservableObject {
     /// Composition-root mirror after an orchestrator transition: the reducer keeps
     /// deciding login rejection wording; the observable only exposes its localized key.
     func sync(from lifecycleState: LifecycleState) {
+        layout = lifecycleState.preferences?.layout ?? LayoutPreference()
+        if !SensitiveVisibility.isVisible(lifecycleState) { rawAnalysis = nil }
         state = PrimitiveState(phase: lifecycleState.phase)
         loginItemEnabled = lifecycleState.loginItem == .registered
         loginItemErrorKey = LoginItemPolicy.rejection(from: lifecycleState.notice) != nil
@@ -217,6 +241,7 @@ final class AppFlowObservable: ObservableObject {
     }
 
     private func mirror() {
+        if !sensitiveContentVisible { rawAnalysis = nil }
         dialog = flow.dialog
         objectWillChange.send()
     }

@@ -82,6 +82,17 @@ public final class LifecycleOrchestrator {
         dispatch(.conditionsChanged(conditions))
     }
 
+    public func setLayout(_ layout: LayoutPreference) async throws {
+        try await preferenceTransactions.acquire()
+        defer { preferenceTransactions.release() }
+        guard let preferences = state.preferences,
+              SensitiveVisibility.isVisible(state) else {
+            throw PreferencesRepositoryError.storageUnavailable
+        }
+        try await ports.preferences.save(preferences.updating(layout: layout))
+        state.preferences = state.preferences?.updating(layout: layout)
+    }
+
     public func dismissNotice() {
         dispatch(.dismissNotice)
     }
@@ -225,19 +236,4 @@ public final class LifecycleOrchestrator {
         await execute(dispatch(event))
     }
 
-    private static func storeError(_ error: PreferencesRepositoryError) -> LifecycleStoreError {
-        switch error {
-        case .corruptStoredPreferences: .corruptStoredPreferences
-        case .storageUnavailable: .protectedDataUnavailable
-        }
-    }
-
-    private static func blockedReason(_ error: LifecycleReadinessError) -> BlockedReason {
-        switch error {
-        case .keyUnavailable, .queryFailed: .keyUnavailable
-        case .sessionLocked: .sessionLocked
-        case .secureInputActive: .secureInputActive
-        case .foregroundUnreliable: .foregroundUnreliable
-        }
-    }
 }

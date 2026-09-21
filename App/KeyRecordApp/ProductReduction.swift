@@ -2,6 +2,7 @@ import Foundation
 import KeyRecordCore
 import KeyRecordCapture
 import KeyRecordStore
+import KeyRecordAnalysis
 
 private struct ProductReductionClock: LocalClock {
     var calendar: Calendar { Calendar.current }
@@ -110,6 +111,21 @@ final class ProductReduction: @unchecked Sendable {
 
     func hasSession(generation: CaptureGeneration) -> Bool {
         mutex.withLock { sourceGeneration == generation && normalizer.gate.isOpen }
+    }
+
+    func analysis(preferences: Preferences) throws -> AnalysisSnapshot? {
+        try mutex.withLock {
+            let generation = try gate.begin()
+            return try gate.use(generation) {
+                guard let aggregate else { return nil }
+                return try AnalysisEngine.analyze(AnalysisInput(
+                    cycleID: aggregate.cycleID, shortcuts: aggregate.shortcuts,
+                    bareKeys: aggregate.bareKeys, activeDays: aggregate.activeDays,
+                    layout: preferences.layout,
+                    ignoredRecommendationKeys: preferences.ignoredRecommendationKeys,
+                    keyboardPoolConfirmed: preferences.keyboardPoolConfirmed))
+            }
+        }
     }
 
     func hasUnflushedChanges() -> Bool {

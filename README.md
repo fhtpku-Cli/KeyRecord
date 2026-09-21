@@ -2,7 +2,7 @@
 
 KeyRecord is an in-development native macOS menu-bar app for local, aggregate keyboard-use statistics. It aims to count shortcuts by application and bare keys without storing typed text or event sequences. The codebase uses Swift 6, macOS 14+, and Apple system frameworks.
 
-**Current stage: Phase 1 integration repair and bounded DEBUG validation.** Passing package tests or compiling an App does not establish reliable daily use, full G1 acceptance, or release readiness. Release capture remains blocked pending host qualification. Owner-approved bounded signed Debug runs observed physical input, attribution to the tested application, displayed increments and retention after normal quit/restart. This qualifies only that observed scenario on one host; formal signed lifecycle, lock/keychain, UI/accessibility, ARM/Intel performance and network qualification remain separate. See [current status](docs/PROJECT_STATUS.md) for measured results and their limits.
+**Current stage: Phase 1 integration repair and bounded DEBUG validation.** The repair is merged into main. Owner-approved signed Debug runs observed physical input, application attribution, restart retention, manual recovery after lock/sleep, and shortcut exclusion for one tested application. These runs used the earlier signed validation candidate, not a freshly signed main or Release build. Passing tests and these bounded observations do not establish reliable daily use, full G1 acceptance, or release readiness. Release capture remains blocked pending qualification. See [current status](docs/PROJECT_STATUS.md) for measured results and their limits.
 
 ## Build and test
 

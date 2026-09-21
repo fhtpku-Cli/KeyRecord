@@ -9,7 +9,9 @@ Current status is in [PROJECT_STATUS.md](PROJECT_STATUS.md); behavioral requirem
 
 Capture is keyboard monitoring, so a host run is bounded by construction, not by convention:
 
-- Fixed duration, 30-60 seconds, with an unconditional self-stop.
+- Fixed duration, normally 30-60 seconds, with an unconditional self-stop. Owner-approved
+  multi-step lifecycle trials used a 170-second normal quit request and a 180-second
+  forced-stop limit. This runner uses uptime, so system sleep can extend wall-clock duration.
 - Record **layered counts and coarse state only**. Never input text, never raw key
   sequences, never per-event timestamps.
 - Never modify TCC, disable Karabiner, write to the real keychain, lock the screen or
@@ -64,6 +66,29 @@ and publication is not proof of rendering.
 **Identical titles need not mean identical groups.** Aggregation retains modifier sides and
 unknown states. The current display names these distinctions; older titles collapsed them.
 Compare all relevant rows and before/after totals, not one matching label.
+
+**The first modifier side after recovery can legitimately be unknown.** Queue reset forgets
+held sides. A family-active flagsChanged event alone cannot distinguish pressing one side
+from releasing that side while its opposite remains held. Observe a released state first,
+then a fresh press in the same foreground session when testing side reconstruction. Do not
+infer side identity from which physical key the tester intended to press or preserve old
+side state across a privacy/session boundary.
+
+**Unlock and wake do not automatically resume collection.** The current explicit recovery
+entry is the menu-bar KeyRecord **Start** action. The consent page has no retry button.
+After recovery, record the existing counts before entering another test shortcut. A hidden
+aggregate panel alone does not identify which privacy condition closed it.
+
+**A dark screen does not prove system sleep.** Compare the trial interval with system
+sleep/wake records. Leave sleep-prevention settings unchanged unless separately authorized.
+
+**End host trials through normal App termination.** Request AppKit termination for the
+identity-checked trial process, then verify its exit and summary receipt. SIGTERM can bypass
+the termination receipt. The forced-stop fallback is not evidence of successful saving.
+For exclusion tests, record the original switch state and restore it, or obtain the owner's
+desired final setting. Compare the tested application's groups, not global counts affected
+by screenshots or other applications. Never start another host trial merely to fill an
+evidence gap without renewed approval.
 
 **Boot-time samples go stale.** Fields captured once during startup (armed, lock state,
 whether the key gate was open) describe that instant. Rendered without that label, a lock

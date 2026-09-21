@@ -1,6 +1,6 @@
 # Phase 1 milestone: implemented code, independent BLOCKED gates
 
-> Historical snapshot retained as measured baseline evidence. The observations below are pinned to baseline `064164e47fe2dfb1957ea8fc601269ecb2c8812e` and its T24 attempt; the wording that scoped code implementation is complete predates the corrective round and is not final approval. Current state is the [execution checkpoint](EXECUTION_CHECKPOINT.md) at code checkpoint `22cb8e9`: final milestone BLOCKED/REJECTED, no valid frozen candidate, no F1-F4 approval. Baseline claims below are not rewritten.
+> Historical snapshot retained as measured baseline evidence. The observations below are pinned to baseline `064164e47fe2dfb1957ea8fc601269ecb2c8812e` and its T24 attempt; the wording that scoped code implementation is complete predates the corrective round and is not final approval. The later [execution checkpoint](EXECUTION_CHECKPOINT.md) at `22cb8e9` is also historical. Read [PROJECT_STATUS.md](PROJECT_STATUS.md) for current measured status and [PHASE1_ACCEPTANCE.md](PHASE1_ACCEPTANCE.md) for remaining acceptance work. Baseline claims below are not rewritten.
 
 ## Scope and identity
 

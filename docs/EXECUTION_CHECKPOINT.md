@@ -1,6 +1,6 @@
 # Execution checkpoint
 
-Current handoff for the repository-status-next-step milestone. This is documentation only: not approval, not a code change, not a candidate freeze and not a test rerun.
+Historical handoff for the repository-status-next-step milestone at `22cb8e9`. Its present-tense statements below apply only to that checkpoint, not later merged repairs. Current measured status is [PROJECT_STATUS.md](PROJECT_STATUS.md); remaining work is [PHASE1_ACCEPTANCE.md](PHASE1_ACCEPTANCE.md). This is documentation only: not approval, not a code change, not a candidate freeze and not a test rerun.
 
 ## Status at a glance
 

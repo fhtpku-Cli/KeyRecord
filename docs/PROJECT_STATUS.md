@@ -1,5 +1,18 @@
 # Current project status
 
+## Phase 1 acceptance work
+
+The [2026-09-22 offline closeout report](PHASE1_CLOSEOUT_20260922.md) records new isolated
+regressions, unsigned build/static checks and verification-tool repairs. These do not
+qualify the current signed product, real Keychain or G1 performance.
+
+Use [PHASE1_ACCEPTANCE.md](PHASE1_ACCEPTANCE.md) for the remaining requirement/evidence matrix,
+safe automated commands, performance protocol and minimum owner-assisted steps.
+[MILESTONE_STATUS.md](MILESTONE_STATUS.md) and [EXECUTION_CHECKPOINT.md](EXECUTION_CHECKPOINT.md)
+are historical snapshots, not the current list of runtime defects. The bounded observations
+below remain bound to their recorded candidate; Phase 1/G1 and live Release qualification
+remain incomplete.
+
 ## 2026-09-22 host follow-up and merged repair
 
 PR #3 was merged into `main` as `3f9f31aa0705b750f9c460fd0a37195b94b19ea9`; its tree matches the reviewed `e83e86193f7eecfff23b941c966988864e9d9207`. The final repair revision passed 479 package tests. Both PR/push CI and the subsequent main CI passed. The 42 App boundary/reduction tests and Debug/universal Release builds were measured at `6860c8024f333a01689252d0c9c7f7c347a9895f`; later pre-merge changes were documentation and a deterministic test-overlap correction, not production changes.

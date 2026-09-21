@@ -14,7 +14,7 @@ Scripts/verify-local.sh
 
 The script runs, in order:
 
-1. `swift test` for Core, Capture, Store and Integration.
+1. `swift test` for Core, Capture, Store and Integration, then the revised harness's offline CLI regressions (no tap or posted events).
 2. `swift build -c release` for SwiftPM targets.
 3. An unsigned universal (`arm64 x86_64`) Release App build in a fresh directory.
 4. A native-architecture Debug `build-for-testing`.
@@ -31,6 +31,9 @@ Scripts/verify-local.sh --build-only
 This still runs SwiftPM tests and both App builds, but deliberately skips App XCTest. The ordinary [macOS CI workflow](.github/workflows/macos.yml) uses this mode. The workflow explicitly selects `/Applications/Xcode_26.3.app/Contents/Developer`, listed in the [official macOS 15 runner inventory](https://github.com/actions/runner-images/blob/main/images/macos/macos-15-Readme.md); [Swift 6.2.4 ships in Xcode 26.3](https://forums.swift.org/t/announcing-swift-6-2-4/85050). The local review/repair host uses Xcode 27.0 (27A266a), Apple Swift 6.4; CI passed at `b46316bbb` with Xcode 26.3. Later checks are revision-specific: consult the PR checks for the current commit; older CI or local results do not establish current remote compatibility. A green CI run proves only those tests and unsigned compilation. It does not launch capture, exercise WindowServer/VoiceOver, validate Intel execution, prove signing/notarization, or authorize host operations.
 
 ## Scope and host validation
+
+The [Phase 1 acceptance matrix](docs/PHASE1_ACCEPTANCE.md) lists current evidence, remaining
+gaps, safe automated checks and the minimum owner-assisted follow-up.
 
 The portable implementation specification is [PHASE1_CONTRACT.md](docs/PHASE1_CONTRACT.md), with [PRD](docs/PRD.md) and [technical architecture](docs/TECHNICAL_ARCHITECTURE.md). No local `.omo` plan is needed to understand the behavioral contract or run ordinary verification. Historical evidence and its existing qualification procedures remain separate from these developer checks.
 

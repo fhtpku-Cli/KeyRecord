@@ -1,5 +1,23 @@
 # Current project status
 
+## 2026-09-22 host follow-up and merged repair
+
+PR #3 was merged into `main` as `3f9f31aa0705b750f9c460fd0a37195b94b19ea9`; its tree matches the reviewed `e83e86193f7eecfff23b941c966988864e9d9207`. The final repair revision passed 479 package tests. Both PR/push CI and the subsequent main CI passed. The 42 App boundary/reduction tests and Debug/universal Release builds were measured at `6860c8024f333a01689252d0c9c7f7c347a9895f`; later pre-merge changes were documentation and a deterministic test-overlap correction, not production changes.
+
+Subsequent owner-approved bounded runs of the existing signed Debug candidate observed:
+
+- Lock/unlock followed by explicit menu **Start** restored the aggregate display. One subsequent TextEdit shortcut increased its combined modifier groups by one.
+- A system power log confirmed an actual manual sleep and wake, despite existing sleep-prevention settings. After explicit **Start**, displayed prior counts remained and a subsequent TextEdit shortcut increased its combined groups by one.
+- During the requested TextEdit exclusion sequence, target counts were unchanged after the excluded inputs and increased by one after exclusion was disabled. The owner later confirmed TextEdit's exclusion switch was off, the requested final setting.
+
+These are single-host, bounded behavioral observations, not complete lifecycle/privacy qualification. Screenshots do not establish zero capture throughout a locked interval; numeric lifetime summaries do not identify individual inputs or prove every intermediate UI state. Exclusion screenshots do not independently show toggle state. Successful termination summaries report no write failures/timeouts, but one lock-recovery run had unequal issued/durable counts and is not proof that every issued flush completed. Later sleep/exclusion summaries had matching counts. A first incomplete lock trial ended by SIGTERM without a summary and is not a successful persistence test.
+
+The signed candidate came from the modifier-display Debug build, before the later movement of diagnostic-path lookup from `ProductComposition` into `AppDelegate`. It was not rebuilt from merged main for these runs. That known change concerns shutdown diagnostics, not modifier reconstruction; source comparison cannot turn the older binary into a qualification of current main or Release. Local provenance and raw evidence remain under `.omo/repair-20260921/{modifier-display,input-pr,lock-validation,sleep-validation,exclusion-validation}/`.
+
+Repeated first inputs reported an unknown modifier side even when the owner used left Command. The adapter supplies family flags and the queue reconstructs sides from observed transitions. A fresh or recovered queue has no observed released state: its first Command change can mean a press or a release while the opposite side remains held. Unknown is therefore a supported outcome, even if a flagsChanged event arrived. An observed release followed by another press permits side recovery. The existing host evidence does not identify the precise event history, so a lost-event or driver fault is not established, and no side is guessed to make the label look precise.
+
+Remaining work includes current-candidate host verification where needed, time-resolved privacy-boundary evidence, permission changes, fast user switching, signed Release and formal hardware/performance/network qualification. Release capture remains blocked. The historical sections below retain their original scope; the bounded observations above supersede only their corresponding pending host scenarios.
+
 ## 2026-09-21 bounded input and restart follow-up
 
 Owner-approved runs of the signed Debug product observed three deliberate TextEdit shortcuts added to the displayed aggregate and retained after a normal quit/restart. Two previously identical-looking rows were separate modifier-state groups (side unknown and left). The display now names left/right/both/unknown modifier states and unknown Fn explicitly, without changing grouping or stored counts. English and Chinese synthetic SwiftUI screens were checked in light/dark appearances at normal and narrow widths.

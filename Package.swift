@@ -5,12 +5,15 @@ let package = Package(
     name: "KeyRecord",
     platforms: [.macOS(.v14)],
     products: [
+        .library(name: "KeyRecordAnalysis", targets: ["KeyRecordAnalysis"]),
         .library(name: "KeyRecordCore", targets: ["KeyRecordCore"]),
         .library(name: "KeyRecordCapture", targets: ["KeyRecordCapture"]),
         .library(name: "KeyRecordStore", targets: ["KeyRecordStore"]),
     ],
     dependencies: [],
     targets: [
+        .target(name: "KeyRecordAnalysis", dependencies: ["KeyRecordCore"]),
+        .testTarget(name: "KeyRecordAnalysisTests", dependencies: ["KeyRecordAnalysis"]),
         .target(name: "KeyRecordCore"),
         .target(name: "KeyRecordCapture", dependencies: ["KeyRecordCore"]),
         .target(name: "KeyRecordStore", dependencies: ["KeyRecordCore"]),

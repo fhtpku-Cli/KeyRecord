@@ -16,15 +16,16 @@ final class ProductBoundaryTests: XCTestCase {
         XCTAssertEqual(manifest.swiftLanguageVersions, ["6"])
         XCTAssertEqual(manifest.platforms.map(\.version), ["14.0"])
         XCTAssertEqual(manifest.platforms.map(\.platformName), ["macos"])
-        XCTAssertEqual(Set(manifest.products.map(\.name)), ["KeyRecordCore", "KeyRecordCapture", "KeyRecordStore"])
+        XCTAssertEqual(Set(manifest.products.map(\.name)), ["KeyRecordCore", "KeyRecordCapture", "KeyRecordStore", "KeyRecordAnalysis"])
         XCTAssertTrue(manifest.products.allSatisfy { Set($0.type.keys) == ["library"] })
         let graph = Dictionary(uniqueKeysWithValues: manifest.targets.map { ($0.name, $0) })
-        XCTAssertEqual(Set(graph.keys), ["KeyRecordCore", "KeyRecordCapture", "KeyRecordStore", "KeyRecordTestSupport", "KeyRecordStoreCrashProbe", "KeyRecordCaptureHarness", "KeyRecordCoreTests", "KeyRecordCaptureTests", "KeyRecordStoreTests", "KeyRecordIntegrationTests"])
+        XCTAssertEqual(Set(graph.keys), ["KeyRecordCore", "KeyRecordCapture", "KeyRecordStore", "KeyRecordAnalysis", "KeyRecordAnalysisTests", "KeyRecordTestSupport", "KeyRecordStoreCrashProbe", "KeyRecordCaptureHarness", "KeyRecordCoreTests", "KeyRecordCaptureTests", "KeyRecordStoreTests", "KeyRecordIntegrationTests"])
         XCTAssertEqual(graph["KeyRecordCore"]?.dependencies.count, 0)
-        for name in ["KeyRecordCapture", "KeyRecordStore", "KeyRecordTestSupport"] {
+        for name in ["KeyRecordCapture", "KeyRecordStore", "KeyRecordTestSupport", "KeyRecordAnalysis"] {
             XCTAssertEqual(graph[name]?.dependencies.compactMap { $0.byName.first ?? nil }, ["KeyRecordCore"])
         }
         XCTAssertEqual(graph["KeyRecordCoreTests"]?.dependencies.compactMap { $0.byName.first ?? nil }, ["KeyRecordCore", "KeyRecordTestSupport"])
+        XCTAssertEqual(graph["KeyRecordAnalysisTests"]?.dependencies.compactMap { $0.byName.first ?? nil }, ["KeyRecordAnalysis"])
         // The crash probe is a test-only executable target: it may depend on the product
         // libraries, it is never published as a product, and no other target depends on it.
         XCTAssertEqual(graph["KeyRecordStoreCrashProbe"]?.type, "executable")
@@ -49,6 +50,7 @@ final class ProductBoundaryTests: XCTestCase {
         // Given: all product source files, recursively, not a fixed file list.
         let allowlists: [String: Set<String>] = [
             "KeyRecordCore": ["Foundation"],
+            "KeyRecordAnalysis": ["Foundation", "KeyRecordCore"],
             "KeyRecordCapture": ["Foundation", "KeyRecordCore", "AppKit", "CoreGraphics"],
             "KeyRecordStore": ["Foundation", "KeyRecordCore", "CryptoKit", "Security"],
         ]
@@ -64,6 +66,7 @@ final class ProductBoundaryTests: XCTestCase {
         for file in try SourceInspection.swiftFiles(in: SourceInspection.root.appendingPathComponent("Tests")) {
             let imports = try SourceInspection.imports(in: String(contentsOf: file, encoding: .utf8))
             var allowed: Set<String> = ["Foundation", "XCTest", "KeyRecordCore", "KeyRecordCapture", "KeyRecordStore", "KeyRecordTestSupport"]
+            if file.path.contains("Tests/KeyRecordAnalysisTests/") { allowed.insert("KeyRecordAnalysis") }
             let performanceRoot = SourceInspection.root.appendingPathComponent("Tests/KeyRecordIntegrationTests")
             if file == performanceRoot.appendingPathComponent("PerformanceReceipt.swift") { allowed.insert("CryptoKit") }
             if file == performanceRoot.appendingPathComponent("PerformanceSystemSampler.swift") { allowed.insert("Darwin") }

@@ -19,6 +19,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         #if DEBUG
+        if AnalysisPreview.configured {
+            AnalysisPreview.boot()
+            return
+        }
         if FlowTestComposition.environmentConfigured, let fixture = FlowTestComposition.make() {
             statusItem = FlowTestComposition.boot(fixture)
             return

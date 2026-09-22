@@ -131,10 +131,11 @@ enum ProductSnapshotPublication {
                         captureSessionLive: Bool,
                         readSnapshot: () throws -> AggregateSnapshot?,
                         readAnalysis: () throws -> AnalysisSnapshot?) throws -> AggregateSnapshot? {
+        flow.sync(from: state)
         let deadSession = state.phase == .collecting && !captureSessionLive
         guard SensitiveVisibility.isVisible(state), !deadSession else {
             flow.snapshot = nil
-            if deadSession { flow.update(phase: .blocked) }
+            if deadSession { flow.showCaptureBlocked() }
             return nil
         }
         let snapshot = try readSnapshot()
@@ -211,6 +212,12 @@ final class AppFlowObservable: ObservableObject {
         state = PrimitiveState(phase: phase)
         self.loginItemEnabled = loginItemEnabled
         self.loginItemErrorKey = loginItemErrorKey
+        mirror()
+    }
+
+    func showCaptureBlocked() {
+        snapshot = nil
+        state = .blocked
         mirror()
     }
 

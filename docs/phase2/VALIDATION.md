@@ -88,3 +88,13 @@ These are direct executions of the production publication function with real in-
 lifecycle/reduction/analysis objects. They do not instantiate the full App composition,
 run the one-second timer or OS capture, inspect the physical menu-bar badge, or qualify
 real Keychain/privacy/Release behavior. No owner data or system setting was changed.
+
+PR #7 follow-up: a dead refresh could reset the displayed login-item setting and
+leave the UI blocked after the recovery coordinator had already refreshed its
+cached liveness. Two regression tests reproduced five assertion failures.
+Publication now mirrors current lifecycle state on every refresh, and the shared
+blocked presentation operation clears content without changing login-item fields.
+The recovery test no longer manually synchronizes the flow before asserting a
+live refresh. All 24 selected synthetic tests passed, including nine publication
+cases. This remains publication-level runtime evidence, not a live timer or OS
+login-item registration test.

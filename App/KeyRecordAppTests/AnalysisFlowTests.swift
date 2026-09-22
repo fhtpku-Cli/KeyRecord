@@ -216,6 +216,28 @@ final class ProductSnapshotPublicationTests: XCTestCase {
         XCTAssertNoThrow(try reduction.gate.begin(), "dead source must not discard retained totals")
     }
 
+    func testDeadThenLiveRefreshPreservesRegisteredLoginItem() async throws {
+        let (harness, flow, reduction, preferences) = try await fixture()
+        await harness.orchestrator.setLoginItem(enabled: true)
+        flow.sync(from: harness.orchestrator.state)
+        XCTAssertTrue(flow.loginItemEnabled)
+        for live in [false, false, true] {
+            try ProductSnapshotPublication.refresh(flow: flow, state: harness.orchestrator.state,
+                captureSessionLive: live, readSnapshot: { try reduction.snapshot() },
+                readAnalysis: { try reduction.analysis(preferences: preferences) })
+            XCTAssertEqual(flow.state, live ? .collecting : .blocked)
+            XCTAssertTrue(flow.loginItemEnabled)
+            XCTAssertEqual(harness.orchestrator.state.loginItem, .registered)
+            if live {
+                XCTAssertNotNil(flow.snapshot)
+                XCTAssertNotNil(flow.analysis)
+            } else {
+                XCTAssertNil(flow.snapshot)
+                XCTAssertNil(flow.analysis)
+            }
+        }
+    }
+
     func testGateClosureBetweenReadsStillEscapesForProtectedShutdown() async throws {
         let (harness, flow, reduction, preferences) = try await fixture()
         XCTAssertThrowsError(try ProductSnapshotPublication.refresh(flow: flow,
@@ -231,10 +253,10 @@ final class ProductSnapshotPublicationTests: XCTestCase {
         let expected = try reduction.snapshot()
         flow.snapshot = nil
         flow.update(phase: .blocked)
-        flow.sync(from: harness.orchestrator.state)
         try ProductSnapshotPublication.refresh(flow: flow, state: harness.orchestrator.state,
             captureSessionLive: true, readSnapshot: { try reduction.snapshot() },
             readAnalysis: { try reduction.analysis(preferences: preferences) })
+        XCTAssertEqual(flow.state, .collecting)
         XCTAssertEqual(flow.snapshot, expected)
         XCTAssertFalse(try XCTUnwrap(flow.analysis).topRecommendations.isEmpty)
     }

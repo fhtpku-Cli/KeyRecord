@@ -640,8 +640,7 @@ final class ProductComposition: NSObject, NSMenuDelegate {
         if !gateOpen || (lifecycle.phase == .collecting && !sessionLive) {
             // Never present sensitive aggregates behind a "Collecting" label that is not
             // backed by a live session.
-            flow.snapshot = nil
-            flow.update(phase: .blocked)
+            flow.showCaptureBlocked()
         } else if flow.sensitiveContentVisible, let preferences = lifecycle.state.preferences {
             do {
                 try ProductSnapshotPublication.refreshAnalysis(flow: flow) {

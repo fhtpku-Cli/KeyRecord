@@ -24,7 +24,8 @@ enum AnalysisLabels {
         var parts: [String] = []
         for (name, side) in [("modifier.command", modifiers.command), ("modifier.option", modifiers.option),
                               ("modifier.control", modifiers.control), ("modifier.shift", modifiers.shift)] where side != .none {
-            parts.append(text(name))
+            parts.append(side == .activeSideUnknown
+                ? String(format: text("modifier.side.unknown"), text(name)) : text(name))
         }
         if modifiers.fn != .none { parts.append(text(modifiers.fn == .unknown ? "modifier.fn.unknown" : "modifier.fn")) }
         parts.append(key(chord.keyCode, text: text))
@@ -94,7 +95,13 @@ struct AnalysisStatisticGroup: Identifiable {
         var groups: [String: AnalysisStatisticGroup] = [:]
         for row in snapshot.shortcutStatistics {
             let m = row.chord.modifiers
-            let family = [m.command, m.option, m.control, m.shift].map { $0 == .none ? "0" : "1" }.joined()
+            let family = [m.command, m.option, m.control, m.shift].map { side in
+                switch side {
+                case .none: return "0"
+                case .left, .right, .both: return "1"
+                case .activeSideUnknown: return "?"
+                }
+            }.joined()
             let id = "\(row.chord.keyCode.value):\(family):\(m.fn.rawValue)"
             var group = groups[id] ?? AnalysisStatisticGroup(id: id, representative: row.chord, variants: [], total: 0, ordinary: 0, suspected: 0, weightedFrequency: 0)
             group.variants.append(row)

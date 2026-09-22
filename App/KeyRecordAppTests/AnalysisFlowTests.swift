@@ -119,3 +119,44 @@ extension AnalysisFlowTests {
         XCTAssertEqual(Set(group.variants.map(\.chord)), [first.identity.chord, chord])
     }
 }
+
+
+extension AnalysisFlowTests {
+    func testDefaultStatisticsKeepUnknownModifierSidesSeparate() throws {
+        let cycle = CycleID(rawValue: "side-display-fixture")
+        let day = LocalDay("2026-09-22")
+        let rows = try [ModifierSideState.none, .left, .right, .both, .activeSideUnknown].map { side in
+            let chord = Chord(keyCode: try KeyCode(0), modifiers: ModifierSet(command: side,
+                option: .none, control: .none, shift: .left, fn: .none))
+            return DailyShortcutAggregate(cycleID: cycle, day: day,
+                identity: ChordBucket(chord: chord, appBucket: .unknown),
+                classification: ChordRuleTable.v1.classify(chord),
+                sourceCounts: try SourceCounts(ordinary: Count(1), suspectedInjection: Count(0)))
+        }
+        let snapshot = try AnalysisEngine.analyze(AnalysisInput(cycleID: cycle,
+            shortcuts: rows, bareKeys: [], activeDays: [day]))
+        let groups = AnalysisStatisticGroup.make(snapshot)
+        XCTAssertEqual(groups.count, 3)
+        XCTAssertEqual(groups.map(\.total).sorted(), [1, 1, 3])
+        let unknown = try XCTUnwrap(groups.first { group in
+            group.variants.contains { $0.chord.modifiers.command == .activeSideUnknown }
+        })
+        XCTAssertEqual(unknown.variants.count, 1)
+        XCTAssertEqual(unknown.total, 1)
+    }
+
+    func testDefaultChordLabelsMarkUnknownModifierSidesInBothLocales() throws {
+        for locale in ["en", "zh-Hans"] {
+            let text = NativeText(locale: locale)
+            for family in 0..<4 {
+                var sides = [ModifierSideState](repeating: .none, count: 4)
+                sides[family] = .activeSideUnknown
+                let chord = Chord(keyCode: try KeyCode(0), modifiers: ModifierSet(command: sides[0],
+                    option: sides[1], control: sides[2], shift: sides[3], fn: .none))
+                let key = ["modifier.command", "modifier.option", "modifier.control", "modifier.shift"][family]
+                let marker = String(format: text("modifier.side.unknown"), text(key))
+                XCTAssertTrue(AnalysisLabels.chord(chord, text: text).contains(marker))
+            }
+        }
+    }
+}

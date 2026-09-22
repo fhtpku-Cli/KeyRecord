@@ -5,10 +5,10 @@ Scope: current-cycle daily aggregates → deterministic statistics → explanato
 Implementation sequence:
 1. Completed: pure analysis module and synthetic rule-boundary tests.
 2. Completed: protected snapshots, encrypted layout preferences and bilingual native dashboard implementation.
-3. Automated builds and synthetic tests completed; interactive/visual validation blocked by unavailable desktop and blank offscreen rendering. Independent review follows.
-4. Commit and publish a draft PR after applicable review; do not merge.
+3. Automated builds and synthetic tests completed. Owner-assisted screenshots and keyboard/VoiceOver smoke checks cover the bounded scenarios in [validation](VALIDATION.md); desktop automation and full visual/accessibility qualification remain unavailable.
+4. Draft PR #6 is open. Joint review with Phase1 found an unknown-modifier-side display defect; the repair preserves separate unknown-side groups and default labels, with failing-first regressions and fresh owner screenshots. Merge remains pending current-head review and explicit approval.
 
-Design: preserve exact chord sides and unknown attribution in the domain, show merged modifier families with expandable provenance. Ranking uses explicit active-day order, never elapsed wall time. The threshold uses raw cycle counts and distinct dates. All trigger choices are unverified logical previews; no mapping action is available. Missing physical evidence always means logical chord counts. Layout choice is a single existing preference, asked non-modally at the first qualifying dataset, with an explicit skip choice.
+Design: preserve exact chord sides and unknown attribution in the domain, merge confirmed left/right/both modifier sides for display, keep unknown sides separately labelled, and retain expandable exact provenance. Ranking uses explicit active-day order, never elapsed wall time. The threshold uses raw cycle counts and distinct dates. All trigger choices are unverified logical previews; no mapping action is available. Missing physical evidence always means logical chord counts. Layout choice is a single existing preference, asked non-modally at the first qualifying dataset, with an explicit skip choice.
 
 User authorization permits autonomous reversible decisions and synthetic-only validation while away. Graphical lock, real keyboard and permission tests require the user's return; no wake, unlock or sleep prevention is authorized.
 

@@ -70,20 +70,42 @@ private struct AnalysisPreviewRoot: View {
             return try AnalysisEngine.analyze(input)
         } catch { return nil }
     }
+    private var languagePicker: some View {
+        Picker("Language / 语言", selection: $locale) {
+            Text("English").tag("en")
+            Text("简体中文").tag("zh-Hans")
+        }
+        .fixedSize()
+        .accessibilityIdentifier("preview.language")
+    }
+
+    private var fixturePicker: some View {
+        Picker("Fixture / 场景", selection: $mode) {
+            Text("Populated / 有数据").tag("populated")
+            Text("Empty / 空").tag("empty")
+            Text("Hidden / 隐藏").tag("hidden")
+        }
+        .fixedSize()
+        .accessibilityIdentifier("preview.mode")
+    }
+
     var body: some View {
         VStack {
-            HStack {
+            VStack(alignment: .leading, spacing: NativeLayout.compact) {
                 Text("Synthetic data only / 仅合成数据").font(.headline)
-                Picker("Language / 语言", selection: $locale) {
-                    Text("English").tag("en")
-                    Text("简体中文").tag("zh-Hans")
-                }.accessibilityIdentifier("preview.language")
-                Picker("Fixture / 场景", selection: $mode) {
-                    Text("Populated / 有数据").tag("populated")
-                    Text("Empty / 空").tag("empty")
-                    Text("Hidden / 隐藏").tag("hidden")
-                }.accessibilityIdentifier("preview.mode")
-            }.padding(NativeLayout.group)
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: NativeLayout.group) {
+                        languagePicker
+                        fixturePicker
+                    }
+                    VStack(alignment: .leading, spacing: NativeLayout.compact) {
+                        languagePicker
+                        fixturePicker
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(NativeLayout.group)
             AnalysisDashboardView(snapshot: snapshot, layout: layout, text: NativeText(locale: locale),
                 saveLayout: { layout = LayoutPreference(preset: $0, hasAsked: true) })
         }

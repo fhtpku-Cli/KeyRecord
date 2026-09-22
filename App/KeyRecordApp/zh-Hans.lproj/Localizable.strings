@@ -103,11 +103,11 @@
 "phase2.top5" = "前 5 项推荐";
 "phase2.all" = "全部候选";
 "phase2.showAll" = "显示全部候选，含观察项与排除项";
-"phase2.threshold" = "正式推荐需原始计数至少 20 次，且跨 2 个本机自然日。14 个活跃日半衰期只影响排序。";
+"phase2.threshold" = "样本门槛为原始计数至少 20 次，且跨 2 个本机自然日。达标不代表一定有更简单的逻辑触发方案。14 个活跃日半衰期只影响排序。";
 "phase2.empty" = "本周期还没有快捷键候选。";
-"phase2.noEligible" = "暂未达到推荐门槛。可打开全部候选查看观察项。";
+"phase2.noEligible" = "暂无可显示的推荐。可打开全部候选查看各项状态。";
 "phase2.status.observation" = "观察候选 · 样本不足";
-"phase2.status.eligible" = "正式推荐 · 只读预览";
+"phase2.status.eligible" = "样本达标 · 只读预览";
 "phase2.status.statefulExcluded" = "持续 / 有状态快捷键 · 不参与推荐";
 "phase2.sample" = "原始计数 %lld 次 · 跨 %d 个本机自然日";
 "phase2.factors" = "评分与理由";

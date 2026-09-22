@@ -103,11 +103,11 @@
 "phase2.top5" = "Top 5 recommendations";
 "phase2.all" = "All candidates";
 "phase2.showAll" = "Show all candidates, including observations and exclusions";
-"phase2.threshold" = "Eligibility requires at least 20 raw uses across 2 local days. A 14-active-day half-life changes ranking only.";
+"phase2.threshold" = "The sample threshold is at least 20 raw uses across 2 local days. Meeting it does not guarantee a simpler logical trigger. A 14-active-day half-life changes ranking only.";
 "phase2.empty" = "No shortcut candidates in this cycle.";
-"phase2.noEligible" = "No eligible recommendations yet. Show all candidates to inspect observations.";
+"phase2.noEligible" = "No recommendations to show. Show all candidates to inspect their status.";
 "phase2.status.observation" = "Observation · more samples needed";
-"phase2.status.eligible" = "Eligible recommendation · read-only preview";
+"phase2.status.eligible" = "Sample threshold met · read-only preview";
 "phase2.status.statefulExcluded" = "Stateful shortcut · excluded from recommendations";
 "phase2.sample" = "%lld raw uses · %d local days";
 "phase2.factors" = "Score and reasons";

@@ -19,13 +19,13 @@ Run `swift test --disable-sandbox`, and build-for-testing the Xcode scheme; run 
 - Pick a layout and confirm the question disappears; choose skip and confirm the same. Production persistence is covered by isolated preference tests, not real-keychain observation.
 - Switch to hidden and confirm no statistics/candidates remain, then empty and confirm explicit empty messaging.
 
-## Current graphical limitation
+## Desktop automation limitation
 
-Computer-use inspection failed twice with `Sky Computer Use native pipe closed before response`. No screen contents or lock state were obtained. No wake, unlock, sleep prevention, TCC change, real input capture or external remap was attempted. Interactive UI and VoiceOver validation remain pending; a successful build or bitmap render does not clear this gap.
+Computer-use inspection failed with `Sky Computer Use native pipe closed before response`, and later exact-app-path retries returned `-10005 timeoutReached`. No assistant AX tree, screenshot or click was obtained. Owner-provided screenshots and explicit interaction feedback now supply the scoped manual evidence below. No wake, unlock, sleep prevention, TCC change, real input capture or external remap was attempted. A successful build or bitmap render does not establish interactive acceptance.
 
 Both attempted offscreen capture methods also failed visual inspection: NSView caching produced mostly black images; SwiftUI ImageRenderer produced a blank white dashboard. The render test now checks for content and reports SKIPPED when absent. Image file creation/size alone is not counted as a rendering pass. Images remain local under /tmp and are not presented as UI evidence.
 
-## Automated checks observed
+## Earlier automated checks observed (before UI follow-up)
 
 - Pure Swift targeted suite: 28 tests passed (12 analysis, 3 layout, 7 lifecycle boundaries, 6 product/module boundaries). Log: `/tmp/keyrecord-phase2-targeted-final.log`.
 - SwiftPM Release build passed: `/tmp/keyrecord-phase2-swift-release-final.log`.
@@ -34,3 +34,25 @@ Both attempted offscreen capture methods also failed visual inspection: NSView c
 - Full sandbox Swift run encountered process/cache/file-access failures and an old module allowlist expectation; the module expectation was corrected and targeted structural checks passed. Performance probe reported `translatedHost` under sandbox. This does not diagnose actual translation or qualify performance.
 - Automatic approval rejected an elevated full Swift suite because it includes capture/system-level tests. That action was not retried indirectly. Only explicitly isolated pure test classes were subsequently run with elevation.
 - Full hostless App suite was stopped during existing `PrimitiveStateTests.testFailureStressMatrix`, with desktop unavailable. Its old module-list assertion was updated for the new target; the aborted suite is not a pass.
+
+
+## Owner-assisted UI follow-up — 2026-09-22
+
+The owner approved synthetic-only preview runs. Screenshots and chronological observations are retained locally in the main checkout under `.omo/repair-20260922/phase2-ui-validation/` (`RUN.md`, screenshots01–12). They contain fixed synthetic fixtures, not real captured statistics.
+
+| Evidence | Observed result | Scope |
+| --- | --- | --- |
+| Screenshots01–02 | English populated view, Chinese factors and exact modifier details rendered | Before follow-up changes; sampled visible cards |
+| Screenshots03–04 | ANSI changed layout factor0.50→0.75 and score21.47→32.20;44 uses/2days unchanged; Global selection visible | Synthetic in-memory interaction, not real preference persistence |
+| Screenshots05–06 | 8-use observation, Cmd-Tab exclusion and unknown-application explanation | Before follow-up changes |
+| Screenshots07–09 | Explicit empty state, hidden details, populated restoration and narrow-card wrapping | Before follow-up changes; no AX non-disclosure claim |
+| Screenshots10–11 | Revised toolbar labels fully visible and no-trigger card says sample threshold met | Current follow-up build, supplied narrow viewport; vertical fallback not observed |
+| Screenshot12 | Dark no-trigger card and expanded factors visually readable; long paragraphs wrap | Current follow-up build, one Chinese viewport; no quantitative contrast measurement |
+| Owner keyboard report | Tab/Shift-Tab navigation and Space activation worked after enabling macOS Keyboard navigation | Before follow-up changes; initial apparent failure occurred with the system setting off |
+| Owner VoiceOver report | Candidate names/counts read and factors disclosure activated using the instructed shortcut | Current follow-up build; owner explicitly distinguished this from merely enabling VoiceOver |
+
+Follow-up implementation relabels eligibility as meeting the sample threshold, explains that this does not guarantee a simpler trigger, uses neutral empty-list copy, and adapts native preview pickers to available width. It does not change analysis scoring, collection, persistence or privacy logic.
+
+Current ARM Debug build-for-testing passed, and four explicitly selected non-graphical `AnalysisFlowTests` passed with zero failures: privacy clearing/fresh publication, temporary-fixture layout persistence and save failure, protected-generation reduction, and exact-side display counts. Both locale catalogs passed `plutil -lint`, and `git diff --check` passed. Logs: `followup-build.log`, `followup-tests.log` in the local evidence directory. The first build command mixed app x86_64 compilation with arm64 package dependencies and failed; the local-preview retry set `ARCHS=arm64` explicitly without changing release settings. No fresh universal Release qualification is claimed.
+
+Remaining qualification: the full locale × size × appearance matrix, large text, all keyboard controls and screen-reader order, hidden-state AX non-disclosure, and the preview's vertical fallback have not been verified. Earlier screenshot evidence must not be relabelled as fresh current-build evidence. The no-trigger factors row still describes zero saved keys as the first preview despite no generated trigger; this is a minor wording follow-up, not a positive savings claim. Basic owner-assisted checks do not constitute full accessibility, G2 or Release acceptance.

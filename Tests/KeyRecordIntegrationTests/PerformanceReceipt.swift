@@ -19,6 +19,14 @@ struct PerformanceSample: Codable, Equatable {
     let ramMean: Double
     var ramPeak: Double
 
+    static func memory(typing: [Double], idle: [Double]) throws -> (mean: Double, peak: Double) {
+        let samples = typing + idle
+        guard !typing.isEmpty, !idle.isEmpty,
+              samples.allSatisfy({ $0.isFinite && $0 > 0 }),
+              let peak = samples.max() else { throw PerformanceError.invalidSample }
+        return (samples.reduce(0, +) / Double(samples.count), peak)
+    }
+
     static func percent(cpuSeconds: Double, wallSeconds: Double) throws -> Double {
         guard cpuSeconds.isFinite, wallSeconds.isFinite, cpuSeconds >= 0, wallSeconds > 0 else {
             throw PerformanceError.invalidSample

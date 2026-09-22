@@ -31,6 +31,8 @@ attempt="$(mktemp -d "$repo_root/.build/verification/run.XXXXXX")"
 echo "Verification artifacts: $attempt"
 
 swift test 2>&1 | tee "$attempt/swift-test.log"
+bash Scripts/test-capture-harness-offline.sh "$(swift build --show-bin-path)/KeyRecordCaptureHarness" \
+  2>&1 | tee "$attempt/capture-harness.log"
 swift build -c release 2>&1 | tee "$attempt/swift-release.log"
 xcodebuild -project KeyRecord.xcodeproj -scheme KeyRecordApp -configuration Release \
   -destination 'generic/platform=macOS' -derivedDataPath "$attempt/release" \

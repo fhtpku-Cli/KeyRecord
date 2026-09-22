@@ -2,6 +2,7 @@
 
 Constraints and environment facts for running KeyRecord on a real Mac. These are not status
 claims and grant no acceptance: they exist so a host run measures what it claims to measure.
+The remaining executable and owner-assisted work is in [PHASE1_ACCEPTANCE.md](PHASE1_ACCEPTANCE.md).
 Current status is in [PROJECT_STATUS.md](PROJECT_STATUS.md); behavioral requirements are in
 [PHASE1_CONTRACT.md](PHASE1_CONTRACT.md).
 
@@ -103,8 +104,10 @@ that has since been released still reads `locked`.
 - `sample` showing no event-tap frame does not mean there is no tap; an idle tap does not
   appear on an active stack. `lsof` cannot see a CGEventTap at all — it is a mach port, not
   a file descriptor.
-- `xcodebuild` needs `ARCHS=arm64 ONLY_ACTIVE_ARCH=YES`; the x86_64 slice does not build
-  here because the SwiftPM modules are arm64-only.
+- Native Debug test compilation uses `ARCHS=<native architecture> ONLY_ACTIVE_ARCH=YES`.
+  For universal Release, use the fresh derived-data workflow in `Scripts/verify-local.sh`;
+  the earlier x86_64 failure described a build using arm64-only modules, not a permanent
+  inability to build a universal App. Compilation is not Intel runtime qualification.
 - macOS has no `timeout` command.
 - New App-layer sources must be registered by hand in `KeyRecord.xcodeproj/project.pbxproj`
   (PBXFileReference, PBXBuildFile, sources phase, group children); validate with
@@ -122,19 +125,23 @@ and a symbol scan (`nm -U`) confirming zero diagnostic symbols. An earlier revis
 
 ## Recorded host observations
 
-Facts established on the owner's machine. They describe that machine at that time.
+Historical facts reported on the owner's machine with the earlier signed Debug candidate.
+They describe that machine at that time, not current-main qualification. The exact scope
+and later bounded trials are recorded in [PROJECT_STATUS.md](PROJECT_STATUS.md).
 
-- Karabiner's DriverKit layer does **not** swallow physical key events: a 45-second run with
-  all four daemons active saw tap keyDown 168 / keyUp 168, queue accepted 336, normalized
-  336, aggregate delta 168, zero closed handoffs, zero tapDisabled. The earlier suspicion is
-  disproved; disabling Karabiner as a control adds nothing.
-- Lock and unlock behave per contract: locking closes the gate, revokes and stops capture and
-  enters a failed phase; unlocking rebuilds the session only after fresh checks pass.
+- A 45-second run with all four Karabiner daemons active saw tap keyDown 168 / keyUp 168,
+  queue accepted 336, normalized 336, aggregate delta 168, zero closed handoffs and zero
+  tapDisabled. This refutes complete event swallowing before that harness during that run;
+  it does not identify a product failure's cause or exclude intermittent Karabiner interactions.
+- Bounded lock trials observed closed/recovery states and later manual Start recovery.
+  This does not establish continuous zero capture during the locked interval; fresh-check
+  and generation-fence behavior also has separate synthetic regression coverage.
 - `CGPreflightListenEventAccess()` reports granted, unchanged across runs. TCC.db is
   SIP-protected and cannot be read.
 
-## Still unverified on a host
+## Remaining host qualification
 
-A→B foreground attribution, exclusion changes, Local Capture Off, sleep/wake, signed Release
-acceptance, real-keychain writes, and the ARM + Intel performance matrix. All remain
-**BLOCKED**, not passing.
+A→B foreground transitions, Local Capture Off, permission changes, user switching, continuous
+privacy-boundary evidence, signed Release acceptance, real-keychain writes and ARM + Intel
+performance still need qualification. Older bounded exclusion and sleep/wake observations
+exist; they do not qualify the full matrix or the current candidate. G1 remains **BLOCKED**.

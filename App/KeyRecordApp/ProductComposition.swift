@@ -583,19 +583,20 @@ final class ProductComposition: NSObject, NSMenuDelegate {
                         self.captureSessionLive = live
                         self.sync()
                     }
-                    let snapshot: AggregateSnapshot?
-                    do {
-                        snapshot = try self.reduction.snapshot()
-                    } catch {
-                        #if DEBUG
-                        self.diagnostics.recordSnapshotReadFailure()
-                        #endif
-                        throw error
-                    }
-                    self.flow.snapshot = snapshot
-                    if let preferences = self.lifecycle.state.preferences {
-                        self.flow.publishAnalysis(try self.reduction.analysis(preferences: preferences))
-                    }
+                    let snapshot = try ProductSnapshotPublication.refresh(
+                        flow: self.flow, state: self.lifecycle.state, captureSessionLive: live,
+                        readSnapshot: {
+                            do { return try self.reduction.snapshot() }
+                            catch {
+                                #if DEBUG
+                                self.diagnostics.recordSnapshotReadFailure()
+                                #endif
+                                throw error
+                            }
+                        }, readAnalysis: {
+                            guard let preferences = self.lifecycle.state.preferences else { return nil }
+                            return try self.reduction.analysis(preferences: preferences)
+                        })
                     self.updateRecommendationBadge()
                     #if DEBUG
                     if let snapshot {
@@ -642,7 +643,11 @@ final class ProductComposition: NSObject, NSMenuDelegate {
             flow.snapshot = nil
             flow.update(phase: .blocked)
         } else if flow.sensitiveContentVisible, let preferences = lifecycle.state.preferences {
-            do { flow.publishAnalysis(try reduction.analysis(preferences: preferences)) }
+            do {
+                try ProductSnapshotPublication.refreshAnalysis(flow: flow) {
+                    try reduction.analysis(preferences: preferences)
+                }
+            }
             catch {
                 flow.publishAnalysis(nil)
                 flow.noticeKey = "flow.actionUnavailable"

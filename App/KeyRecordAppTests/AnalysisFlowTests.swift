@@ -160,3 +160,143 @@ extension AnalysisFlowTests {
         }
     }
 }
+
+@MainActor
+final class ProductSnapshotPublicationTests: XCTestCase {
+    private func fixture() async throws -> (LifecycleHarness, AppFlowObservable, ProductReduction, Preferences) {
+        let harness = LifecycleHarness()
+        await harness.collectOpen()
+        let flow = AppFlowObservable(flow: Phase1FlowModel(lifecycle: harness.orchestrator))
+        flow.sync(from: harness.orchestrator.state)
+        let input = try AnalysisPreview.input()
+        let gate = KeyAvailabilityGate()
+        gate.update(.unlocked)
+        let reduction = ProductReduction(gate: gate)
+        reduction.open(try AggregationReducer(cycleID: input.cycleID, shortcuts: input.shortcuts,
+                                             bareKeys: input.bareKeys),
+                       inputs: GateInputs(keyAvailability: .available, sessionLock: .unlocked,
+                                          secureInput: .disabled,
+                                          foreground: .attributable(bundleID: "com.example.editor")),
+                       generation: CaptureGeneration(rawValue: 1))
+        return (harness, flow, reduction, Preferences(currentCycleID: input.cycleID))
+    }
+
+    func testAnalysisFailureDoesNotEscapeIntoPulseShutdown() async throws {
+        let (harness, flow, reduction, preferences) = try await fixture()
+        flow.publishAnalysis(try reduction.analysis(preferences: preferences))
+        XCTAssertNotNil(flow.analysis)
+        var shutdownRequested = false
+        do {
+            try ProductSnapshotPublication.refresh(flow: flow, state: harness.orchestrator.state,
+                captureSessionLive: true, readSnapshot: { try reduction.snapshot() },
+                readAnalysis: { throw AnalysisError.classificationMismatch })
+        } catch { shutdownRequested = true }
+        XCTAssertFalse(shutdownRequested)
+        XCTAssertNil(flow.analysis)
+        XCTAssertNotNil(flow.snapshot)
+        XCTAssertEqual(flow.noticeKey, "flow.actionUnavailable")
+        XCTAssertNoThrow(try reduction.gate.begin())
+    }
+
+    func testDeadSessionCannotRepublishAfterSyncHidesContent() async throws {
+        let (harness, flow, reduction, preferences) = try await fixture()
+        flow.publishAnalysis(try reduction.analysis(preferences: preferences))
+        flow.snapshot = nil
+        flow.update(phase: .blocked)
+        var reads = 0
+        for _ in 0..<2 {
+            try ProductSnapshotPublication.refresh(flow: flow, state: harness.orchestrator.state,
+                captureSessionLive: false, readSnapshot: { reads += 1; return try reduction.snapshot() },
+                readAnalysis: { reads += 1; return try reduction.analysis(preferences: preferences) })
+            XCTAssertNil(flow.snapshot)
+            XCTAssertNil(flow.analysis)
+            XCTAssertEqual(flow.state, .blocked)
+        }
+        XCTAssertEqual(reads, 0)
+        XCTAssertNoThrow(try reduction.gate.begin(), "dead source must not discard retained totals")
+    }
+
+    func testGateClosureBetweenReadsStillEscapesForProtectedShutdown() async throws {
+        let (harness, flow, reduction, preferences) = try await fixture()
+        XCTAssertThrowsError(try ProductSnapshotPublication.refresh(flow: flow,
+            state: harness.orchestrator.state, captureSessionLive: true,
+            readSnapshot: { try reduction.snapshot() }, readAnalysis: {
+                reduction.gate.update(.locked)
+                return try reduction.analysis(preferences: preferences)
+            })) { XCTAssertEqual($0 as? KeyringError, .locked) }
+    }
+
+    func testLiveRefreshAndRecoveryPublishRetainedCounts() async throws {
+        let (harness, flow, reduction, preferences) = try await fixture()
+        let expected = try reduction.snapshot()
+        flow.snapshot = nil
+        flow.update(phase: .blocked)
+        flow.sync(from: harness.orchestrator.state)
+        try ProductSnapshotPublication.refresh(flow: flow, state: harness.orchestrator.state,
+            captureSessionLive: true, readSnapshot: { try reduction.snapshot() },
+            readAnalysis: { try reduction.analysis(preferences: preferences) })
+        XCTAssertEqual(flow.snapshot, expected)
+        XCTAssertFalse(try XCTUnwrap(flow.analysis).topRecommendations.isEmpty)
+    }
+
+    func testRealAnalysisValidationFailurePreservesReadableAggregate() async throws {
+        let (harness, flow, reduction, preferences) = try await fixture()
+        let row = try XCTUnwrap(AnalysisPreview.input().shortcuts.first)
+        let invalid = DailyShortcutAggregate(cycleID: row.cycleID, day: row.day,
+            identity: row.identity, classification: ShortcutClassification(kind: .stateful, scope: .normal),
+            sourceCounts: row.sourceCounts)
+        reduction.open(try AggregationReducer(cycleID: row.cycleID, shortcuts: [invalid], bareKeys: []),
+            inputs: GateInputs(keyAvailability: .available, sessionLock: .unlocked,
+                secureInput: .disabled, foreground: .attributable(bundleID: "com.example.editor")),
+            generation: CaptureGeneration(rawValue: 2))
+        XCTAssertThrowsError(try reduction.analysis(preferences: preferences)) {
+            XCTAssertEqual($0 as? AnalysisError, .classificationMismatch)
+        }
+        try ProductSnapshotPublication.refresh(flow: flow, state: harness.orchestrator.state,
+            captureSessionLive: true, readSnapshot: { try reduction.snapshot() },
+            readAnalysis: { try reduction.analysis(preferences: preferences) })
+        XCTAssertEqual(flow.snapshot?.shortcutTotal, row.sourceCounts.total.value)
+        XCTAssertNil(flow.analysis)
+        XCTAssertEqual(flow.noticeKey, "flow.actionUnavailable")
+        XCTAssertNoThrow(try reduction.gate.begin())
+    }
+
+    func testPausedSessionCanStillDisplayRetainedStatistics() async throws {
+        let (harness, flow, reduction, preferences) = try await fixture()
+        await harness.orchestrator.pause()
+        flow.sync(from: harness.orchestrator.state)
+        XCTAssertEqual(harness.orchestrator.phase, .paused)
+        try ProductSnapshotPublication.refresh(flow: flow, state: harness.orchestrator.state,
+            captureSessionLive: false, readSnapshot: { try reduction.snapshot() },
+            readAnalysis: { try reduction.analysis(preferences: preferences) })
+        XCTAssertNotNil(flow.snapshot)
+        XCTAssertNotNil(flow.analysis)
+    }
+
+    func testPrivacyClosureSkipsAllPublicationReads() async throws {
+        let (harness, flow, reduction, preferences) = try await fixture()
+        flow.publishAnalysis(try reduction.analysis(preferences: preferences))
+        harness.orchestrator.observe(RuntimeConditions(keyAvailability: .available,
+            sessionLock: .locked, secureInput: .disabled,
+            foreground: .attributable(bundleID: "com.example.editor")))
+        var reads = 0
+        try ProductSnapshotPublication.refresh(flow: flow, state: harness.orchestrator.state,
+            captureSessionLive: true, readSnapshot: { reads += 1; return try reduction.snapshot() },
+            readAnalysis: { reads += 1; return try reduction.analysis(preferences: preferences) })
+        XCTAssertEqual(reads, 0)
+        XCTAssertNil(flow.snapshot)
+        XCTAssertNil(flow.analysis)
+    }
+
+    func testSnapshotReadErrorIsNotDowngradedToPreviewFailure() async throws {
+        let (harness, flow, _, _) = try await fixture()
+        var analysisRead = false
+        XCTAssertThrowsError(try ProductSnapshotPublication.refresh(flow: flow,
+            state: harness.orchestrator.state, captureSessionLive: true,
+            readSnapshot: { throw KeyringError.staleGeneration },
+            readAnalysis: { analysisRead = true; return nil })) {
+                XCTAssertEqual($0 as? KeyringError, .staleGeneration)
+            }
+        XCTAssertFalse(analysisRead)
+    }
+}

@@ -65,3 +65,26 @@ Joint PR5/PR6 review found that the default formatter omitted the unknown-side m
 Two new regressions failed before the fix: the fixture produced2 groups rather than3 and unknown totals were combined with known sides; all four modifier families lacked their default unknown labels in both locales. After the fix, six selected non-graphical AnalysisFlow tests passed. The isolated combined PR5/PR6 build with the same source repair also passed15 selected App analysis/reduction tests. These bounded synthetic runs do not qualify a live host.
 
 The owner explicitly approved launching the repaired combined Debug preview with only KEYRECORD_ANALYSIS_PREVIEW=1 in a clean environment. Fresh owner captures confirm the Chinese frequent-statistics Z row shows 命令（侧别未知） and20 uses, and the English candidate Z card shows Command (side unknown),20 raw uses across2 local days, separately marks Fn state unknown, and exposes no mapping action. These are two distinct visible regions, not the full bilingual surface matrix. The same-key known/unknown separation is proven by the regression fixture, not by a paired row in these screenshots. Evidence is retained locally under `.omo/repair-20260922/integration-review/` in the main checkout: `side-zh-statistics.png`, `side-en-candidate.png`, `side-red-tests.log`, `side-green-tests.log`, `integrated-fix-tests.log`. No assistant-driven AX interaction or fresh VoiceOver claim is made.
+
+## Cursor pulse-publication follow-up (2026-09-22)
+
+PR #6 review identified two composition defects: an analysis-only error escaped to the
+pulse's protected shutdown handler, and a dead collecting session could republish
+statistics after `sync()` had hidden them. Publication now checks lifecycle visibility
+and capture liveness before reading either snapshot; paused sessions still retain their
+statistics. Only `AnalysisError` is downgraded to an unavailable preview. Key-gate,
+stale-generation, snapshot-read and other errors still propagate to the existing pulse
+shutdown handler. The synchronous refresh uses the same analysis-error policy.
+
+The production publication step was extracted without fixing its behavior first. Four
+synthetic runtime tests then produced eight failed assertions in the two reported paths;
+healthy publication and key-closure propagation already passed. After the repair, eight
+publication tests plus six existing analysis-flow and nine reduction tests passed (23
+total). Coverage includes real analysis validation failure on a synthetic misclassified
+row, repeated dead-session ticks, healthy recovery, paused statistics, privacy closure,
+and gate/read errors. Debug App and test-target compilation passed.
+
+These are direct executions of the production publication function with real in-memory
+lifecycle/reduction/analysis objects. They do not instantiate the full App composition,
+run the one-second timer or OS capture, inspect the physical menu-bar badge, or qualify
+real Keychain/privacy/Release behavior. No owner data or system setting was changed.

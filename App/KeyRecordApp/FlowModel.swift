@@ -125,6 +125,38 @@ struct FlowActions {
 // MARK: - Screen observable
 
 @MainActor
+enum ProductSnapshotPublication {
+    @discardableResult
+    static func refresh(flow: AppFlowObservable, state: LifecycleState,
+                        captureSessionLive: Bool,
+                        readSnapshot: () throws -> AggregateSnapshot?,
+                        readAnalysis: () throws -> AnalysisSnapshot?) throws -> AggregateSnapshot? {
+        flow.sync(from: state)
+        let deadSession = state.phase == .collecting && !captureSessionLive
+        guard SensitiveVisibility.isVisible(state), !deadSession else {
+            flow.snapshot = nil
+            if deadSession { flow.showCaptureBlocked() }
+            return nil
+        }
+        let snapshot = try readSnapshot()
+        flow.snapshot = snapshot
+        if state.preferences != nil {
+            try refreshAnalysis(flow: flow, read: readAnalysis)
+        }
+        return snapshot
+    }
+
+    static func refreshAnalysis(flow: AppFlowObservable,
+                                read: () throws -> AnalysisSnapshot?) throws {
+        do { flow.publishAnalysis(try read()) }
+        catch is AnalysisError {
+            flow.publishAnalysis(nil)
+            flow.noticeKey = "flow.actionUnavailable"
+        }
+    }
+}
+
+@MainActor
 final class AppFlowObservable: ObservableObject {
     @Published private(set) var dialog: FlowDialog = .none
     @Published private(set) var state: PrimitiveState = .unstarted
@@ -180,6 +212,12 @@ final class AppFlowObservable: ObservableObject {
         state = PrimitiveState(phase: phase)
         self.loginItemEnabled = loginItemEnabled
         self.loginItemErrorKey = loginItemErrorKey
+        mirror()
+    }
+
+    func showCaptureBlocked() {
+        snapshot = nil
+        state = .blocked
         mirror()
     }
 

@@ -4,6 +4,8 @@ Current status: [PROJECT_STATUS.md](PROJECT_STATUS.md). Requirements: [PHASE1_CO
 
 ## Evidence and remaining work
 
+Current-main follow-up: PR5/6/7 are merged at `3b9345c30086e9e33c4510047e2692337f5b8643`. The subsequent paused-restoration repair completed its bounded owner-assisted rounds; see [the acceptance record and remaining scope](CURRENT_MAIN_ACCEPTANCE.md). The starting source and measurements below describe the earlier offline closeout, not fresh current-main qualification.
+
 Starting source: `31b65c523db3ec40c06f0877395da52b7c026935` (merged PR #3/#4). Earlier roadmap audit reports 480 package tests and main CI 35643672591 successful at that source. Those are historical measurements, not a fresh run in this worktree. New measurements are recorded in the closeout report linked from current status.
 
 | Requirement | Evidence / version | Gap | Safe autonomous work | Human / host prerequisite |

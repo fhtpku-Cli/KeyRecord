@@ -1,5 +1,19 @@
 # Current project status
 
+## Repaired candidate bounded acceptance — 2026-09-24
+
+The paused-restoration and flush-diagnostics repair (based on main `3b9345c`) was built and development-signed as a separate candidate. Two owner-assisted repair rounds passed: paused restart directly displayed retained statistics without capture or writes; Resume/input/Quit followed by paused restart retained exact Command-A groups 13 and 11. Both final launches exited 0; the collection run recorded 9 issued/returned/succeeded/durable writes, zero invalidations/failures/timeouts, and the paused restart recorded zero capture/write events. See [the detailed acceptance record](CURRENT_MAIN_ACCEPTANCE.md) for owner-report versus screenshot evidence and candidate paths.
+
+These observations qualify only the bounded repaired Debug candidate, not Release. The old 38/37 discrepancy remains historically unexplained. Full privacy, monitor performance, analysis/menu/accessibility qualification are still pending; the two bounded repair-specific manual rounds are complete. The owner separately authorized commit, review, push and merge on 2026-09-24. Further live launches require a separately coordinated approval.
+
+## Earlier main verification preparation — 2026-09-22
+
+Read-only GitHub verification confirms PR5, PR6 and PR7 merged. Remote main and the clean starting checkout both resolve to `3b9345c30086e9e33c4510047e2692337f5b8643`; its tree matches reviewed PR7 head `c242def7253bf8610896f6290b072a71a75d8b82`. Main CI [35721067804](https://github.com/fhtpku-Cli/KeyRecord/actions/runs/35721067804) completed successfully at the final preparation check. A fresh unsigned arm64 Debug/test build and 20 selected synthetic hostless tests also passed; see the candidate plan for logs and limits.
+
+On 2026-09-23, owner-approved use of the signed current-main Debug candidate observed Command-A totals 15→18, paused-input totals remaining 18, subsequent totals 21 with login-startup display still enabled, normal quit, and restart plus explicit resume retaining 21. Final exit was 0 with 4 issued/4 durable writes and no reported write/read failures or timeout. Paused restart alone showed privacy-hidden statistics: the existing paused startup skips readiness/capture and does not restore aggregates until Start/resume. An earlier run had 38 issued/37 durable writes; that discrepancy remains unresolved, and target-count retention does not prove every write completed.
+
+These are bounded target-count and owner-observed UI results, **not complete real-use acceptance**. Recommendation/analysis display, physical menu-bar status, actual dead-session recovery, continuous privacy and formal performance/Release qualification remain pending. PR7's 24 selected regressions and independent 20-test QA retain their synthetic publication scope. [Current-main acceptance record](CURRENT_MAIN_ACCEPTANCE.md) provides candidate/session details and limits. Historical sections below retain their original scope.
+
 ## Phase 1 acceptance work
 
 The [2026-09-22 offline closeout report](PHASE1_CLOSEOUT_20260922.md) records new isolated

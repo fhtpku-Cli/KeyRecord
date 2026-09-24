@@ -258,7 +258,8 @@ final class AppFlowObservable: ObservableObject {
 
     func showCaptureBlocked() {
         snapshot = nil
-        state = .blocked
+        // Paused intent still needs the explicit Resume action after privacy teardown.
+        if state != .paused { state = .blocked }
         mirror()
     }
 

@@ -3,7 +3,8 @@
 ## Candidate and result
 
 The repaired Debug candidate is based on `3b9345c30086e9e33c4510047e2692337f5b8643`,
-with the paused-restoration and flush-diagnostics source/test changes in this branch.
+with the paused-restoration and flush-diagnostics source/test changes through
+`2c1bd0870eb56a4adab3827ad9f98dd80d115e2f`.
 It was rebuilt, copied and development-signed separately for the owner-approved trials.
 Before closeout, its saved `source-changes.patch` was compared byte-for-byte with the
 repair worktree's complete source/test diff: they matched. These results apply to that
@@ -26,6 +27,22 @@ The two promised repair-specific manual rounds are complete. Both final launches
 normally, and no further application launch was performed. On 2026-09-24 the owner
 separately authorized commit, review, push and merge. That authorization does not start
 another live capture trial.
+
+## PR review follow-up
+
+Bugbot identified that a later paused privacy teardown cleared protected content but also
+changed the window action model to blocked, disabling Resume. A failing-first hostless
+regression reproduced the disabled action. The follow-up preserves paused intent in that
+presentation step, keeping explicit Resume available while content stays hidden. Resume
+still runs fresh readiness: a safe result starts capture and an unsafe result does not.
+There is no automatic protected reread or capture restart. Dead collecting sessions still
+present blocked. The status line may continue reporting the closed key gate until explicit
+recovery; this does not imply capture is active.
+
+This small presentation fix and its regression were added after the signed owner trials.
+Those trials remain evidence for the earlier candidate, not live-host qualification of
+this follow-up. Updated commit-bound tests/reviews and CI cover the follow-up separately.
+No new owner-assisted launch was performed.
 
 ## What changed
 

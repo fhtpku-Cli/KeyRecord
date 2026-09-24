@@ -47,10 +47,15 @@ No new owner-assisted launch was performed.
 Expanded screen checks exposed a stale synthetic paused fixture: its gate had safe inputs,
 but its runtime conditions remained unknown. The fixture now supplies the same explicit
 safe conditions; the production unknown-state rule and assertions are unchanged. With that
-correction, all eight non-localization screen tests pass. The ninth, localization audit,
-has four failed assertions on both the pre-repair main build (`3b9345c`) and the repaired
-candidate: Phase 2 layout-name allowlisting and catalog-key extraction need a separate
-maintenance fix. This is a reproduced pre-existing test failure, not a green full suite.
+correction, all eight non-localization screen tests passed. The ninth, localization audit,
+initially had four failed assertions on both pre-repair main (`3b9345c`) and the repaired
+candidate. The owner authorized a test-only maintenance fix: recognize AX call sites,
+include finite Phase 2 dynamic translation keys, and allow ANSI/ISO/Alice layout names
+across locales. Negative fixtures retain checks for real missing/empty translations and
+same-name display keys. After that fix, all 11 screen/audit cases and the related 44 cases
+passed (55 total, zero failures). The initial red and subsequent green logs are retained as
+`localization-red.log` and `localization-final.log` in the closeout evidence root. This is
+focused automated coverage, not a fresh live-host trial or a full App-suite qualification.
 
 ## What changed
 

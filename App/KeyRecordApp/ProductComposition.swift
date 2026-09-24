@@ -48,6 +48,7 @@ final class ProductComposition: NSObject, NSMenuDelegate {
     private var exclusionCandidates: any ExclusionCandidateSource = WorkspaceExclusionCandidates()
     private var runtimeCoordinator: CaptureRuntimeCoordinator?
     private let manualRecoveryFence = ManualRecoveryFence()
+    private var pausedPrivacyTask: Task<Void, Never>?
     #if DEBUG
     /// Batch 6: layered diagnostics. DEBUG-only; Release never constructs it.
     /// Exists because the 2026-09-18 live run ended with capture provably not starting and
@@ -184,6 +185,8 @@ final class ProductComposition: NSObject, NSMenuDelegate {
         let lifecycle = self.lifecycle
         hooks.stop = { [weak self] in
             self?.stopPulse()
+            self?.pausedPrivacyTask?.cancel()
+            self?.pausedPrivacyTask = nil
             self?.flow.snapshot = nil
             self?.flow.update(phase: .blocked)
         }
@@ -354,7 +357,12 @@ final class ProductComposition: NSObject, NSMenuDelegate {
             #endif
         }
         await attachRuntimeCoordinator()
-        await ProductStartup.restore(flow: flow, lifecycle: lifecycle, preferredLanguages: Locale.preferredLanguages)
+        await ProductStartup.restore(flow: flow, lifecycle: lifecycle, preferredLanguages: Locale.preferredLanguages,
+            pausedRestoration: ProductPausedRestoration(gate: gate, reduction: reduction,
+                conditions: { [capture] in try await capture.verifyRestartReadiness() },
+                load: { [store, gate] cycle in
+                    try await AggregatePersistence.restore(cycleID: cycle, store: store, gate: gate)
+                }))
         // KR-03: boot is a path INTO collecting when expectedCollecting was persisted, so
         // it must reconcile pulse ownership like any other entry. Previously only the
         // first-accept path started the pulse, so a restart collected into memory with no
@@ -535,7 +543,33 @@ final class ProductComposition: NSObject, NSMenuDelegate {
     /// converges here.
     private func syncRuntime() {
         sync()
+        reconcilePausedPrivacy()
         reconcilePulse()
+    }
+
+    private func reconcilePausedPrivacy() {
+        guard lifecycle.phase == .paused, flow.sensitiveContentVisible,
+              (try? gate.begin()) != nil else {
+            pausedPrivacyTask?.cancel()
+            pausedPrivacyTask = nil
+            return
+        }
+        guard pausedPrivacyTask == nil else { return }
+        pausedPrivacyTask = Task { [weak self] in
+            while !Task.isCancelled {
+                do { try await Task.sleep(for: .milliseconds(250)) } catch { return }
+                guard let self else { return }
+                let generation = try? self.gate.begin()
+                let conditions = try? await self.capture.verifyRestartReadiness()
+                guard !Task.isCancelled, self.lifecycle.phase == .paused else { return }
+                guard let generation, (try? self.gate.check(generation)) != nil, let conditions,
+                      SensitiveVisibility.isVisible(LifecycleState(phase: .paused, conditions: conditions)) else {
+                    await self.closeProtectedState()
+                    return
+                }
+                self.lifecycle.observe(conditions)
+            }
+        }
     }
 
     /// Re-reads liveness from the capture layer, then syncs. Used after any transition that
@@ -709,6 +743,8 @@ final class ProductComposition: NSObject, NSMenuDelegate {
     }
 
     private func closeProtectedState() async {
+        pausedPrivacyTask?.cancel()
+        pausedPrivacyTask = nil
         reduction.revokeProtectedState(queue: capture.queue, recoveryFence: manualRecoveryFence)
         flow.snapshot = nil
         lifecycle.observe(RuntimeConditions(keyAvailability: .unknown, sessionLock: .unknown,

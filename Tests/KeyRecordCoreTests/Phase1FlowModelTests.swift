@@ -149,7 +149,9 @@ final class Phase1FlowModelTests: XCTestCase {
         // without a sensitive closure; lock, secure input, blocks, errors, and unstarted
         // all hide sensitive content.
         XCTAssertTrue(SensitiveVisibility.isVisible(openGateCollectingState()))
-        XCTAssertTrue(SensitiveVisibility.isVisible(LifecycleState(phase: .paused)))
+        XCTAssertTrue(SensitiveVisibility.isVisible(LifecycleState(phase: .paused,
+            conditions: LifecycleHarnessConditions.open)))
+        XCTAssertFalse(SensitiveVisibility.isVisible(LifecycleState(phase: .paused)))
         XCTAssertFalse(SensitiveVisibility.isVisible(.initial))
         XCTAssertFalse(SensitiveVisibility.isVisible(
             LifecycleState.blockedForRetry(preferences: blockedPreferences, reason: .sessionLocked)))

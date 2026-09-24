@@ -38,6 +38,17 @@ final class ProductReduction: @unchecked Sendable {
         }
     }
 
+    func restoreReadOnly(_ aggregate: AggregationReducer, generation: CaptureGeneration) throws {
+        try mutex.withLock {
+            try gate.use(generation) {
+                self.aggregate = aggregate
+                normalizer.reset()
+                sourceGeneration = nil
+                changed = false
+            }
+        }
+    }
+
     @discardableResult
     func resume(inputs: GateInputs, generation: CaptureGeneration) -> Bool {
         mutex.withLock {

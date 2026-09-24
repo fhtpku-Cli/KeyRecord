@@ -1,15 +1,56 @@
 import SwiftUI
 import KeyRecordCore
 import KeyRecordAnalysis
+import KeyRecordStore
 
 @MainActor
 enum ProductStartup {
     static func restore(flow: AppFlowObservable, lifecycle: LifecycleOrchestrator,
-                        preferredLanguages: [String]) async {
+                        preferredLanguages: [String], pausedRestoration: ProductPausedRestoration? = nil) async {
         await lifecycle.reload()
         ProductLanguage.bind(flow: flow, lifecycle: lifecycle, preferredLanguages: preferredLanguages)
+        await pausedRestoration?.restore(flow: flow, lifecycle: lifecycle)
         flow.sync(from: lifecycle.state)
         if lifecycle.state.failure != nil { flow.noticeKey = "flow.actionUnavailable" }
+    }
+}
+
+@MainActor
+struct ProductPausedRestoration {
+    let gate: KeyAvailabilityGate
+    let reduction: ProductReduction
+    let conditions: () async throws -> RuntimeConditions
+    let load: (CycleID) async throws -> AggregationReducer
+
+    func restore(flow: AppFlowObservable, lifecycle: LifecycleOrchestrator) async {
+        guard lifecycle.phase == .paused, let preferences = lifecycle.state.preferences,
+              !preferences.expectedCollecting else { return }
+        do {
+            let generation = try gate.begin()
+            let before = try await conditions()
+            guard SensitiveVisibility.isVisible(LifecycleState(phase: .paused, conditions: before)) else {
+                throw KeyringError.locked
+            }
+            let aggregate = try await load(preferences.currentCycleID)
+            let after = try await conditions()
+            guard lifecycle.phase == .paused, lifecycle.state.preferences == preferences else { return }
+            guard SensitiveVisibility.isVisible(LifecycleState(phase: .paused, conditions: after)) else {
+                throw KeyringError.locked
+            }
+            try gate.check(generation)
+            try Task.checkCancellation()
+            try reduction.restoreReadOnly(aggregate, generation: generation)
+            lifecycle.observe(after)
+            _ = try ProductSnapshotPublication.refresh(flow: flow, state: lifecycle.state,
+                captureSessionLive: false, readSnapshot: { try reduction.snapshot() },
+                readAnalysis: { try reduction.analysis(preferences: preferences) })
+        } catch {
+            guard lifecycle.phase == .paused, lifecycle.state.preferences == preferences else { return }
+            reduction.clear()
+            lifecycle.observe(.unknown)
+            flow.snapshot = nil
+            flow.noticeKey = "flow.actionUnavailable"
+        }
     }
 }
 

@@ -48,6 +48,16 @@ public enum SensitiveVisibility {
     /// and before consent (unstarted/consent/transient/stopped phases).
     public static func isVisible(_ state: LifecycleState) -> Bool {
         guard state.phase == .collecting || state.phase == .paused else { return false }
+        // Pausing closes capture before the gate considers privacy inputs. That closure
+        // cannot stand in for fresh authorization to display retained aggregates.
+        if state.phase == .paused {
+            let inputs = GateInputs(collecting: true, keyAvailability: state.conditions.keyAvailability,
+                sessionLock: state.conditions.sessionLock, secureInput: state.conditions.secureInput,
+                foreground: state.conditions.foreground, exclusion: .included)
+            var privacy = PrivacyGate()
+            privacy.update(inputs)
+            guard privacy.isOpen else { return false }
+        }
         // A pending provider block (lock/secure input/unknown foreground) hides content.
         guard state.blockedReason == nil else { return false }
         // `.notCollecting` is the paused steady state; `.excluded` only suspends

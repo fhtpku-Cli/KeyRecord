@@ -120,7 +120,9 @@ enum MatrixContent {
                                    sessionLock: .unlocked, secureInput: .disabled,
                                    foreground: .attributable(bundleID: "com.example.editor"),
                                    exclusion: .included))
-            return LifecycleState(phase: .paused, gate: gate)
+            return LifecycleState(phase: .paused,
+                conditions: RuntimeConditions(keyAvailability: .available, sessionLock: .unlocked,
+                    secureInput: .disabled, foreground: .attributable(bundleID: "com.example.editor")), gate: gate)
         case .collecting:
             var gate = PrivacyGate()
             gate.update(GateInputs(collecting: true, keyAvailability: .available,

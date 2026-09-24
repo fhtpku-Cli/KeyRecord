@@ -44,6 +44,14 @@ Those trials remain evidence for the earlier candidate, not live-host qualificat
 this follow-up. Updated commit-bound tests/reviews and CI cover the follow-up separately.
 No new owner-assisted launch was performed.
 
+Expanded screen checks exposed a stale synthetic paused fixture: its gate had safe inputs,
+but its runtime conditions remained unknown. The fixture now supplies the same explicit
+safe conditions; the production unknown-state rule and assertions are unchanged. With that
+correction, all eight non-localization screen tests pass. The ninth, localization audit,
+has four failed assertions on both the pre-repair main build (`3b9345c`) and the repaired
+candidate: Phase 2 layout-name allowlisting and catalog-key extraction need a separate
+maintenance fix. This is a reproduced pre-existing test failure, not a green full suite.
+
 ## What changed
 
 Paused startup previously skipped readiness and capture, leaving no restored aggregate and

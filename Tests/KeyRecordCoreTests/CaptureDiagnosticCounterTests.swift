@@ -14,6 +14,27 @@ final class CaptureDiagnosticCounterTests: XCTestCase {
         XCTAssertEqual(recorder.runSummary.sessionCount, 2)
     }
 
+    func testFlushPhysicalAndInvalidationCountersRetainLifetimeTotalsAcrossSessionReset() {
+        let recorder = CaptureDiagnosticsRecorder()
+        let counters: [CaptureDiagnosticCounter] = [
+            .flushIssued, .flushWriteReturned, .flushWriteSucceeded, .flushInvalidated
+        ]
+        for counter in counters { recorder.increment(counter) }
+        recorder.beginSession(generation: 2)
+        XCTAssertEqual(recorder.snapshot.flushWriteReturned, 0)
+        XCTAssertEqual(recorder.snapshot.flushWriteSucceeded, 0)
+        XCTAssertEqual(recorder.snapshot.flushInvalidated, 0)
+        for counter in counters { recorder.increment(counter) }
+        XCTAssertEqual(recorder.snapshot.flushWriteReturned, 1)
+        XCTAssertEqual(recorder.snapshot.flushWriteSucceeded, 1)
+        XCTAssertEqual(recorder.snapshot.flushInvalidated, 1)
+        let run = recorder.runSummary
+        XCTAssertEqual(run.flushIssued, 2)
+        XCTAssertEqual(run.flushWriteReturned, 2)
+        XCTAssertEqual(run.flushWriteSucceeded, 2)
+        XCTAssertEqual(run.flushInvalidated, 2)
+    }
+
     func testRunSummaryTracksPublicationWithoutPretendingUnpublishedIsZero() {
         let recorder = CaptureDiagnosticsRecorder()
         XCTAssertNil(recorder.runSummary.lastPublishedShortcutTotal)
@@ -41,7 +62,8 @@ final class CaptureDiagnosticCounterTests: XCTestCase {
         XCTAssertEqual(Set(object.keys), Set([
             "tapCallbackKeyDown", "tapCallbackKeyUp", "tapCallbackFlagsChanged", "tapDisabledEvents",
             "handoffAccepted", "handoffClosed", "handoffOverflow", "normalizationOutput", "aggregateDelta",
-            "flushIssued", "flushDurable", "flushFailed", "flushTimedOut", "sessionCount",
+            "flushIssued", "flushDurable", "flushFailed", "flushTimedOut",
+            "flushWriteReturned", "flushWriteSucceeded", "flushInvalidated", "sessionCount",
             "snapshotPublicationCount", "snapshotReadFailureCount", "lastPublishedShortcutTotal",
             "lastPublishedBareKeyTotal", "countersInstrumented", "captureSessionLive", "sensitiveContentVisible"
         ]))
@@ -93,11 +115,15 @@ final class CaptureDiagnosticCounterTests: XCTestCase {
         XCTAssertEqual(snapshot.flushDurable, 1)
         XCTAssertEqual(snapshot.flushFailed, 1)
         XCTAssertEqual(snapshot.flushTimedOut, 1)
+        XCTAssertEqual(snapshot.flushWriteReturned, 1)
+        XCTAssertEqual(snapshot.flushWriteSucceeded, 1)
+        XCTAssertEqual(snapshot.flushInvalidated, 1)
         let run = recorder.runSummary
         XCTAssertEqual([run.tapCallbackKeyDown, run.tapCallbackKeyUp, run.tapCallbackFlagsChanged,
                         run.tapDisabledEvents, run.handoffAccepted, run.handoffClosed, run.handoffOverflow,
                         run.normalizationOutput, run.aggregateDelta, run.flushIssued, run.flushDurable,
-                        run.flushFailed, run.flushTimedOut], Array(repeating: 1, count: 13))
+                        run.flushFailed, run.flushTimedOut, run.flushWriteReturned,
+                        run.flushWriteSucceeded, run.flushInvalidated], Array(repeating: 1, count: 16))
     }
 
     func testCounterInstrumentationStateIsControlledByComposition() {

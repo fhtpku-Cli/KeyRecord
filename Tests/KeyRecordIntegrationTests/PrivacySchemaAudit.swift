@@ -54,7 +54,8 @@ enum PrivacySchemaAudit {
         "CaptureDiagnostics.swift": ["CaptureRunSummary": [
             "tapCallbackKeyDown", "tapCallbackKeyUp", "tapCallbackFlagsChanged", "tapDisabledEvents",
             "handoffAccepted", "handoffClosed", "handoffOverflow", "normalizationOutput", "aggregateDelta",
-            "flushIssued", "flushDurable", "flushFailed", "flushTimedOut", "sessionCount",
+            "flushIssued", "flushDurable", "flushFailed", "flushTimedOut",
+            "flushWriteReturned", "flushWriteSucceeded", "flushInvalidated", "sessionCount",
             "snapshotPublicationCount", "snapshotReadFailureCount", "lastPublishedShortcutTotal",
             "lastPublishedBareKeyTotal", "countersInstrumented", "captureSessionLive", "sensitiveContentVisible"]],
         "Counts.swift": ["Count": ["value"], "SourceCounts": ["ordinary", "suspectedInjection", "total"],

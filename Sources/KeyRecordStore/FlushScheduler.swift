@@ -44,6 +44,7 @@ public actor FlushScheduler: LifecycleFlushing {
     private var lastResult: FlushCompletion?
 #if DEBUG
     private var diagnostics: CaptureDiagnosticsRecorder?
+    private var diagnosticOutcomeRecorded = false
 #endif
 
     public init(gate: KeyAvailabilityGate, writer: any FlushWriting, clock: any FlushClock) {
@@ -67,6 +68,9 @@ public actor FlushScheduler: LifecycleFlushing {
     }
 
     private func discard() {
+#if DEBUG
+        if physicalID != nil { recordOutcome(.flushInvalidated) }
+#endif
         writing?.cancel()
         timeout?.cancel()
         timeout = nil
@@ -129,6 +133,7 @@ public actor FlushScheduler: LifecycleFlushing {
         let objects = pending, writer = writer, gate = gate, id = UUID()
         physicalID = id
 #if DEBUG
+        diagnosticOutcomeRecorded = false
         diagnostics?.increment(.flushIssued)
 #endif
         let deadline = clock.now() + .seconds(5)
@@ -138,6 +143,9 @@ public actor FlushScheduler: LifecycleFlushing {
                 try gate.check(ticket.generation)
                 try Task.checkCancellation()
                 try await writer.write(objects, generation: ticket.generation)
+#if DEBUG
+                diagnostics?.increment(.flushWriteSucceeded)
+#endif
                 try gate.check(ticket.generation)
                 result = .saved
             } catch {
@@ -158,33 +166,44 @@ public actor FlushScheduler: LifecycleFlushing {
         guard schedule.complete(ticket, result: .timedOut) else { return }
         lastResult = .timedOut
 #if DEBUG
-        diagnostics?.increment(.flushTimedOut)
+        recordOutcome(.flushTimedOut)
 #endif
         finishWaiters(.timedOut)
     }
 
     private func finished(_ ticket: FlushTicket, id: UUID, result: FlushCompletion) {
         guard physicalID == id else { return }
+#if DEBUG
+        diagnostics?.increment(.flushWriteReturned)
+#endif
         physicalID = nil
         writing = nil
         timeout?.cancel()
         timeout = nil
         guard (try? gate.check(ticket.generation)) != nil else {
+#if DEBUG
+            recordOutcome(.flushInvalidated)
+#endif
             if schedule.generation == ticket.generation { discard() }
             return
         }
-        guard schedule.complete(ticket, result: result) else { return }
+        guard schedule.complete(ticket, result: result) else {
+#if DEBUG
+            recordOutcome(.flushInvalidated)
+#endif
+            return
+        }
         lastResult = result
 #if DEBUG
         switch result {
         case .saved:
-            diagnostics?.increment(.flushDurable)
+            recordOutcome(.flushDurable)
         case .failed:
-            diagnostics?.increment(.flushFailed)
+            recordOutcome(.flushFailed)
         case .timedOut:
-            diagnostics?.increment(.flushTimedOut)
+            recordOutcome(.flushTimedOut)
         case .locked:
-            break
+            recordOutcome(.flushInvalidated)
         }
 #endif
         if result == .saved && schedule.durableRevision < schedule.revision {
@@ -193,6 +212,16 @@ public actor FlushScheduler: LifecycleFlushing {
             finishWaiters(result)
         }
     }
+
+#if DEBUG
+    /// Exactly one logical outcome per issued task, even when a physical return
+    /// arrives after timeout, suspend, or generation revocation.
+    private func recordOutcome(_ counter: CaptureDiagnosticCounter) {
+        guard !diagnosticOutcomeRecorded else { return }
+        diagnosticOutcomeRecorded = true
+        diagnostics?.increment(counter)
+    }
+#endif
 
     private func finishWaiters(_ result: FlushCompletion) {
         let current = waiters

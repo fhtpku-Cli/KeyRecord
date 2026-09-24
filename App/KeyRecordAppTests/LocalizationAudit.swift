@@ -1,5 +1,6 @@
 import Foundation
 import KeyRecordCore
+import KeyRecordAnalysis
 
 // MARK: - Task 22 bilingual catalog audit (pure functions; no UI)
 
@@ -21,10 +22,11 @@ enum LocalizationAudit {
         "preview.locked.toggle", "settings.form", "settings.exclusions.empty", "settings.exclusions.foreground",
     ]
     /// Values allowed to read identically in EN and zh-Hans: the brand name, the two
-    /// locale self-names, and macOS keyboard modifier names Apple leaves in English.
+    /// locale self-names, standard layout names, and macOS keyboard modifier names.
     static let identicalAllowlist: Set<String> = [
         "app.name", "locale.en", "locale.zh-Hans",
         "modifier.option", "modifier.control", "modifier.shift", "modifier.fn",
+        "phase2.layout.ansi", "phase2.layout.iso", "phase2.layout.alice",
     ]
 
     static func parseCatalog(_ text: String) -> [String: String] {
@@ -44,7 +46,11 @@ enum LocalizationAudit {
     }
 
     static func referencedKeys(in source: String) -> Set<String> {
-        var keys = literalKeys(in: source).subtracting(nonLocalizationLiterals)
+        // Remove AX-only occurrences, preserving the same literal if also used for display.
+        let displaySource = source.replacing(
+            /(?:\.|\b)(?:accessibilityIdentifier|setAccessibilityIdentifier)\s*\(\s*"[^"\\]*"\s*\)/,
+            with: "")
+        var keys = literalKeys(in: displaySource).subtracting(nonLocalizationLiterals)
         for match in source.matches(of: /(?:text|self)\("([^"\\]+)"/) {
             keys.insert(String(match.output.1))
         }
@@ -63,6 +69,13 @@ enum LocalizationAudit {
         keys.formUnion([reset.titleKey, reset.messageKey, reset.confirmKey, reset.cancelKey])
         let delete = DeleteProposal.deleteStandard()
         keys.formUnion([delete.titleKey, delete.messageKey, delete.confirmKey, delete.cancelKey])
+        let layouts: [LayoutPreset] = [.ansi, .iso, .alice, .split, .none]
+        keys.formUnion(layouts.map { "phase2.layout.\($0.rawValue)" })
+        let statuses: [CandidateStatus] = [.observation, .eligible, .statefulExcluded]
+        keys.formUnion(statuses.map { "phase2.status.\($0.rawValue)" })
+        let namedKeys = ["Return", "Tab", "Space", "Delete", "Escape", "Clear", "Enter", "Home",
+                         "Page Up", "Forward Delete", "End", "Page Down", "←", "→", "↓", "↑"]
+        keys.formUnion(namedKeys.map { "phase2.key.\($0)" })
         return keys
     }
 

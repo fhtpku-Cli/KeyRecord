@@ -31,6 +31,41 @@ extension ScreenMatrixTests {
         XCTAssertEqual(LocalizationAudit.referencedKeys(in: source), ["menu.open"])
     }
 
+    func testLocalizationAuditFiltersOnlyAccessibilityCallSites() {
+        let source = #"""
+        Text("Panel").accessibilityIdentifier("phase2.onlyIdentifier")
+        view.setAccessibilityIdentifier (
+            "phase2.nativeIdentifier"
+        )
+        Text(text(isReady ? "phase2.shared" : "phase2.other"))
+            .accessibilityIdentifier("phase2.shared")
+        """#
+        XCTAssertEqual(LocalizationAudit.referencedKeys(in: source), ["phase2.shared", "phase2.other"])
+    }
+
+    func testLocalizationAuditDetectsMissingDynamicTranslations() throws {
+        var catalog = LocalizationAudit.parseCatalog(try String(
+            contentsOf: LocalizationAudit.catalogURL("en"), encoding: .utf8))
+        let sources = try LocalizationAudit.appSources()
+        let referenced = sources.reduce(into: LocalizationAudit.dynamicKeys()) {
+            $0.formUnion(LocalizationAudit.referencedKeys(in: $1.text))
+        }
+        for key in ["phase2.key.Return", "phase2.layout.ansi", "phase2.status.eligible"] {
+            catalog.removeValue(forKey: key)
+        }
+        catalog["phase2.key.Space"] = " "
+        XCTAssertEqual(LocalizationAudit.audit(catalog: catalog, referenced: referenced), [
+            "missing catalog entry for referenced key: phase2.key.Return",
+            "missing catalog entry for referenced key: phase2.layout.ansi",
+            "missing catalog entry for referenced key: phase2.status.eligible",
+            "empty value: phase2.key.Space",
+        ])
+        XCTAssertEqual(LocalizationAudit.auditPair(
+            en: ["phase2.layout.ansi": "ANSI", "phase2.untranslated": "Same"],
+            zh: ["phase2.layout.ansi": "ANSI", "phase2.untranslated": "Same"]),
+            ["untranslated value identical across locales: phase2.untranslated"])
+    }
+
     func testHappySourceInspection() throws {
         for source in try LocalizationAudit.appSources() {
             XCTAssertEqual(SourceInspection.hardcodedColorViolations(source.text, file: source.name), [])

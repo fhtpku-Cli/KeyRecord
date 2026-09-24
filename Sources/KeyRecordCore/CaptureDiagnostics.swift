@@ -40,6 +40,13 @@ public struct CaptureDiagnostics: Equatable, Sendable {
     public var flushDurable = 0
     public var flushFailed = 0
     public var flushTimedOut = 0
+    /// Issued tasks that returned, including thrown/cancelled writes. Issued minus
+    /// returned in the cumulative run summary measures outstanding physical tasks.
+    public var flushWriteReturned = 0
+    /// Writer returned normally; this is not a current-generation durable acknowledgment.
+    public var flushWriteSucceeded = 0
+    /// Logical completion revoked without a saved, failed, or timed-out acknowledgment.
+    public var flushInvalidated = 0
 
     // Session identity and the last reason a session was torn down.
     public var sessionGeneration: UInt64 = 0
@@ -226,6 +233,9 @@ public enum CaptureDiagnosticCounter: Int, CaseIterable, Sendable {
     case flushDurable
     case flushFailed
     case flushTimedOut
+    case flushWriteReturned
+    case flushWriteSucceeded
+    case flushInvalidated
 }
 
 private final class CaptureDiagnosticCounterStorage: @unchecked Sendable {
@@ -266,6 +276,12 @@ public struct CaptureRunSummary: Encodable, Sendable {
     public var flushDurable: Int64 = 0
     public var flushFailed: Int64 = 0
     public var flushTimedOut: Int64 = 0
+    /// Issued tasks that have returned; may include an invalidated or timed-out write.
+    public var flushWriteReturned: Int64 = 0
+    /// Normal writer returns only; does not assert current-generation durability.
+    public var flushWriteSucceeded: Int64 = 0
+    /// Revoked logical outcomes, disjoint from durable, failed and timed out.
+    public var flushInvalidated: Int64 = 0
     public var sessionCount = 0
     public var snapshotPublicationCount = 0
     public var snapshotReadFailureCount = 0
@@ -310,6 +326,9 @@ public final class CaptureDiagnosticsRecorder: @unchecked Sendable {
         result.flushDurable += Int(atomicValues[CaptureDiagnosticCounter.flushDurable.rawValue] - state.1[CaptureDiagnosticCounter.flushDurable.rawValue])
         result.flushFailed += Int(atomicValues[CaptureDiagnosticCounter.flushFailed.rawValue] - state.1[CaptureDiagnosticCounter.flushFailed.rawValue])
         result.flushTimedOut += Int(atomicValues[CaptureDiagnosticCounter.flushTimedOut.rawValue] - state.1[CaptureDiagnosticCounter.flushTimedOut.rawValue])
+        result.flushWriteReturned += Int(atomicValues[CaptureDiagnosticCounter.flushWriteReturned.rawValue] - state.1[CaptureDiagnosticCounter.flushWriteReturned.rawValue])
+        result.flushWriteSucceeded += Int(atomicValues[CaptureDiagnosticCounter.flushWriteSucceeded.rawValue] - state.1[CaptureDiagnosticCounter.flushWriteSucceeded.rawValue])
+        result.flushInvalidated += Int(atomicValues[CaptureDiagnosticCounter.flushInvalidated.rawValue] - state.1[CaptureDiagnosticCounter.flushInvalidated.rawValue])
         return result
     }
 
@@ -339,6 +358,9 @@ public final class CaptureDiagnosticsRecorder: @unchecked Sendable {
         result.flushDurable = values[CaptureDiagnosticCounter.flushDurable.rawValue]
         result.flushFailed = values[CaptureDiagnosticCounter.flushFailed.rawValue]
         result.flushTimedOut = values[CaptureDiagnosticCounter.flushTimedOut.rawValue]
+        result.flushWriteReturned = values[CaptureDiagnosticCounter.flushWriteReturned.rawValue]
+        result.flushWriteSucceeded = values[CaptureDiagnosticCounter.flushWriteSucceeded.rawValue]
+        result.flushInvalidated = values[CaptureDiagnosticCounter.flushInvalidated.rawValue]
         return result
     }
 
@@ -393,6 +415,9 @@ public final class CaptureDiagnosticsRecorder: @unchecked Sendable {
             counters.flushDurable = 0
             counters.flushFailed = 0
             counters.flushTimedOut = 0
+            counters.flushWriteReturned = 0
+            counters.flushWriteSucceeded = 0
+            counters.flushInvalidated = 0
             counters.sessionGeneration = generation
             counterBaseline = baseline
         }

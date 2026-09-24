@@ -295,6 +295,50 @@ final class ProductSnapshotPublicationTests: XCTestCase {
         XCTAssertNotNil(flow.analysis)
     }
 
+    func testPausedPrivacyClosureKeepsResumeAvailableAndRechecksReadiness() async throws {
+        for safe in [true, false] {
+            // Given: a paused window with retained content, then a privacy-only teardown.
+            let (harness, flow, reduction, preferences) = try await fixture()
+            await harness.orchestrator.pause()
+            try ProductSnapshotPublication.refresh(flow: flow, state: harness.orchestrator.state,
+                captureSessionLive: false, readSnapshot: { try reduction.snapshot() },
+                readAnalysis: { try reduction.analysis(preferences: preferences) })
+            XCTAssertNotNil(flow.snapshot)
+            reduction.gate.update(.unknown)
+            reduction.clear()
+            harness.orchestrator.observe(.unknown)
+            flow.sync(from: harness.orchestrator.state)
+            flow.showCaptureBlocked()
+
+            // Then: privacy clears content, but persisted paused intent keeps an explicit action.
+            XCTAssertNil(flow.snapshot)
+            XCTAssertNil(flow.analysis)
+            XCTAssertFalse(flow.sensitiveContentVisible)
+            XCTAssertEqual(harness.orchestrator.state.preferences?.expectedCollecting, false)
+            XCTAssertTrue(flow.menuState.canResume, "privacy closure must not strand the paused window")
+            guard flow.menuState.canResume else { continue }
+            let checksBefore = await harness.readiness.checkCount
+            let startsBefore = await harness.capture.startCount
+            await harness.readiness.setResult(safe ? .success(LifecycleHarnessConditions.open)
+                                                  : .failure(.secureInputActive))
+            flow.actions.resume = {
+                await harness.orchestrator.resume()
+                flow.sync(from: harness.orchestrator.state)
+            }
+
+            // When: the owner explicitly uses the enabled Resume action.
+            await flow.resume()
+
+            // Then: fresh readiness permits safe recovery, never unsafe capture.
+            let checksAfter = await harness.readiness.checkCount
+            let startsAfter = await harness.capture.startCount
+            XCTAssertEqual(checksAfter, checksBefore + 1)
+            XCTAssertEqual(startsAfter, startsBefore + (safe ? 1 : 0))
+            XCTAssertEqual(flow.state, safe ? .collecting : .blocked)
+            if !safe { XCTAssertFalse(flow.sensitiveContentVisible) }
+        }
+    }
+
     func testPrivacyClosureSkipsAllPublicationReads() async throws {
         let (harness, flow, reduction, preferences) = try await fixture()
         flow.publishAnalysis(try reduction.analysis(preferences: preferences))

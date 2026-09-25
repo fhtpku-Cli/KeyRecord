@@ -14,11 +14,13 @@ import KeyRecordCore
 private actor MemoryKeychain: KeychainBackend {
     private var items: [KeychainItemID: Data] = [:]
     private var holdingDeletes = false
+    private var failNextDelete = false
     private var heldDeletes: [CheckedContinuation<Void, Never>] = []
     private(set) var deleteAttempts = 0
     var itemCount: Int { items.count }
     /// Parks every delete until released, to pause erase in the middle of maintenance.
     func holdDeletes() { holdingDeletes = true }
+    func failNextDeleteOnce() { failNextDelete = true }
     func releaseDeletes() {
         holdingDeletes = false
         heldDeletes.forEach { $0.resume() }
@@ -38,6 +40,7 @@ private actor MemoryKeychain: KeychainBackend {
     }
     func delete(_ id: KeychainItemID) async throws {
         deleteAttempts += 1
+        if failNextDelete { failNextDelete = false; throw KeyringError.metadataConflict }
         if holdingDeletes { await withCheckedContinuation { heldDeletes.append($0) } }
         items[id] = nil
     }
@@ -1096,6 +1099,176 @@ final class ProductRecoveryQuitTests: XCTestCase {
             return next.phase == .collecting && live && next.composition.flow.snapshot != nil
         }
         return next
+    }
+
+    func testUnfinishedResetUsesTheJournalOperationAcrossCancelAndRelaunch() async throws {
+        let product = try await collecting()
+        try await product.press(2)
+        try await product.waitDurable()
+        let originalCycle = try XCTUnwrap(product.composition.lifecycle.state.preferences?.currentCycleID)
+        await product.composition.capture.stop()
+        do {
+            _ = try await product.composition.store.resetCycle(
+                operationID: UUID(), day: ProductClock().day,
+                injection: CycleResetInjection(summaryWrite: DurabilityInjection(failPhase: .data, failAt: .afterWrite)))
+            XCTFail("injected summary write must fail after the journal is durable")
+        } catch {}
+        let journalCreated = await product.composition.store.hasUnfinishedCycleReset()
+        XCTAssertTrue(journalCreated)
+
+        try FileManager.default.setAttributes([.posixPermissions: 0o500], ofItemAtPath: product.storeRoot.path)
+        await product.reset()
+        XCTAssertEqual(product.phase, .blocked)
+        XCTAssertNotEqual(product.composition.flow.dialog, .none, "a failed confirm leaves the dialog reachable")
+        await product.composition.flow.choose(.cancel)
+        XCTAssertEqual(product.composition.flow.dialog, .none)
+        product.composition.flow.requestReset()
+        XCTAssertEqual(product.composition.flow.dialog, .none, "blocked no longer offers reset; Start is the recovery entry")
+        await product.composition.startOrRetry()
+        let liveWhileUnwritable = await product.live
+        XCTAssertFalse(liveWhileUnwritable)
+        XCTAssertNotEqual(product.phase, .collecting)
+        let journalWhileBlocked = await product.composition.store.hasUnfinishedCycleReset()
+        XCTAssertTrue(journalWhileBlocked)
+
+        try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: product.storeRoot.path)
+        await product.composition.startOrRetry()
+        let journalAfterStart = await product.composition.store.hasUnfinishedCycleReset()
+        XCTAssertFalse(journalAfterStart)
+        let recoveredCycle = try XCTUnwrap(product.composition.lifecycle.state.preferences?.currentCycleID)
+        XCTAssertNotEqual(recoveredCycle, originalCycle)
+        let summary = try await recoveredSummary(product, cycle: originalCycle)
+        XCTAssertEqual(summary.perBareKeyTotals.values.map(\.value).reduce(0, +), 2)
+        await product.composition.startOrRetry()
+        XCTAssertEqual(product.composition.lifecycle.state.preferences?.currentCycleID, recoveredCycle,
+                       "a second recovery must not open another cycle")
+        let summaryAgain = try await recoveredSummary(product, cycle: originalCycle)
+        XCTAssertEqual(summaryAgain, summary)
+
+        let reloaded = try await relaunchCollecting(product)
+        XCTAssertEqual(reloaded.composition.lifecycle.state.preferences?.currentCycleID, recoveredCycle)
+        XCTAssertEqual(reloaded.composition.flow.snapshot?.bareKeyTotal, 0)
+        let journalAfterRelaunch = await reloaded.composition.store.hasUnfinishedCycleReset()
+        XCTAssertFalse(journalAfterRelaunch)
+        try await reloaded.press(1)
+        try await reloaded.waitDurable()
+        let afterInput = try await relaunchCollecting(reloaded)
+        XCTAssertEqual(afterInput.composition.flow.snapshot?.bareKeyTotal, 1)
+        let summaryAfterInput = try await recoveredSummary(afterInput, cycle: originalCycle)
+        XCTAssertEqual(summaryAfterInput, summary)
+    }
+
+    func testRelaunchContinuesTheDurableResetBeforeCollecting() async throws {
+        let product = try await collecting()
+        try await product.press(2)
+        try await product.waitDurable()
+        let originalCycle = try XCTUnwrap(product.composition.lifecycle.state.preferences?.currentCycleID)
+        await product.composition.capture.stop()
+        do {
+            _ = try await product.composition.store.resetCycle(
+                operationID: UUID(), day: ProductClock().day,
+                injection: CycleResetInjection(summaryWrite: DurabilityInjection(failPhase: .data, failAt: .afterWrite)))
+        } catch {}
+        let pending = await product.composition.store.hasUnfinishedCycleReset()
+        XCTAssertTrue(pending)
+        let next = product.relaunch()
+        products.append(next)
+        try await next.boot()
+        let live = await next.live
+        let journal = await next.composition.store.hasUnfinishedCycleReset()
+        XCTAssertFalse(journal)
+        XCTAssertTrue(live)
+        XCTAssertEqual(next.phase, .collecting)
+        let recoveredCycle = try XCTUnwrap(next.composition.lifecycle.state.preferences?.currentCycleID)
+        XCTAssertNotEqual(recoveredCycle, originalCycle)
+        try await waitUntil("recovered cycle published") { next.composition.flow.snapshot != nil }
+        XCTAssertEqual(next.composition.flow.snapshot?.bareKeyTotal, 0)
+        let summary = try await recoveredSummary(next, cycle: originalCycle)
+        XCTAssertEqual(summary.perBareKeyTotals.values.map(\.value).reduce(0, +), 2)
+        let again = next.relaunch()
+        products.append(again)
+        try await again.boot()
+        XCTAssertEqual(again.composition.lifecycle.state.preferences?.currentCycleID, recoveredCycle)
+        try await waitUntil("second launch published") { again.composition.flow.snapshot != nil }
+        XCTAssertEqual(again.composition.flow.snapshot?.bareKeyTotal, 0)
+        let summaryAgain = try await recoveredSummary(again, cycle: originalCycle)
+        XCTAssertEqual(summaryAgain, summary)
+    }
+
+    func testUnreadableResetJournalDoesNotReportRecoverySuccess() async throws {
+        let product = try await collecting()
+        try await product.press(1)
+        try await product.waitDurable()
+        let originalCycle = try XCTUnwrap(product.composition.lifecycle.state.preferences?.currentCycleID)
+        await product.composition.capture.stop()
+        do {
+            _ = try await product.composition.store.resetCycle(
+                operationID: UUID(), day: ProductClock().day,
+                injection: CycleResetInjection(summaryWrite: DurabilityInjection(failPhase: .data, failAt: .afterWrite)))
+        } catch {}
+        try await corruptUnindexedStoreFiles(product)
+        let next = product.relaunch()
+        products.append(next)
+        try await next.boot()
+        let live = await next.live
+        XCTAssertFalse(live)
+        XCTAssertNotEqual(next.phase, .collecting)
+        let stillPending = await next.composition.store.hasUnfinishedCycleReset()
+        XCTAssertTrue(stillPending, "an unreadable journal must stay on disk")
+        if let cycle = next.composition.lifecycle.state.preferences?.currentCycleID {
+            XCTAssertEqual(cycle, originalCycle)
+        }
+    }
+
+    func testPartialEraseRetryClearsTheBlockAndAcceptsFreshConsent() async throws {
+        let product = try await collecting()
+        try await product.press(2)
+        try await product.waitDurable()
+        await product.keychain.failNextDeleteOnce()
+        await product.erase()
+        XCTAssertEqual(product.phase, .blocked)
+        let remaining = await product.keychain.itemCount
+        XCTAssertEqual(remaining, 1)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: product.storeRoot.path))
+        await product.composition.startOrRetry()
+        let liveWhilePartial = await product.live
+        XCTAssertFalse(liveWhilePartial)
+        XCTAssertNotEqual(product.phase, .collecting)
+
+        await product.erase()
+        XCTAssertEqual(product.phase, .unstarted)
+        let keys = await product.keychain.itemCount
+        XCTAssertEqual(keys, 0)
+        await product.composition.startOrRetry()
+        XCTAssertEqual(product.phase, .consent)
+        await product.composition.flow.accept()
+        try await waitUntil("fresh consent collects") {
+            let live = await product.live
+            return product.phase == .collecting && live
+        }
+        try await product.press(1)
+        try await product.waitDurable()
+        let reloaded = try await relaunchCollecting(product)
+        XCTAssertEqual(reloaded.composition.flow.snapshot?.bareKeyTotal, 1)
+    }
+
+    private func recoveredSummary(_ product: SyntheticProduct, cycle: CycleID) async throws -> CycleSummary {
+        let data = try await product.composition.store.read(CycleResetObjects.summary(cycle))
+        return try JSONDecoder().decode(CycleSummary.self, from: data)
+    }
+
+    private func corruptUnindexedStoreFiles(_ product: SyntheticProduct) async throws {
+        let indexed = Set(try await product.composition.store.entries().map(\.locator.fileName))
+        let names = try FileManager.default.contentsOfDirectory(atPath: product.storeRoot.path)
+        var corrupted = 0
+        for name in names where name.hasSuffix(".krenc") && name != ManifestDiscovery.fileName && !indexed.contains(name) {
+            let url = product.storeRoot.appendingPathComponent(name)
+            var data = try Data(contentsOf: url)
+            if data.isEmpty { data = Data([1]) } else { data[0] ^= 0xFF }
+            try data.write(to: url)
+            corrupted += 1
+        }
+        XCTAssertGreaterThan(corrupted, 0)
     }
 
     func testFailedResetLeavesAnExplicitStartPath() async throws {

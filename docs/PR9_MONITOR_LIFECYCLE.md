@@ -133,3 +133,32 @@ xcodebuild -project KeyRecord.xcodeproj -scheme KeyRecordApp -configuration Debu
 同一工作树还跑了 `swift test` 517 项 0 失败，`swift build -c release` 成功，通用 unsigned Release（arm64 + x86_64）成功。Release 边界和网络静态审计通过，二进制里没有 DEBUG 诊断名。这只是静态检查。
 
 尚未验证：真实统计库、真实钥匙串、实机锁屏或密码框。本轮修复不是 Phase 1 正式验收。旧提交的 CI 绿标和 Bugbot 因额度跳过都不算这次复审通过。
+
+## 独立复审 `8ae6280`：未完成重置与部分删除
+
+以该提交的 `REVIEW.md` 为准。原 33 项恢复测试通过，不能覆盖下面两项。
+
+### 已复现（修复前）
+
+1. **未完成重置不能跨重启。** 用真实 `ObjectStore.resetCycle` 在摘要写入后注入失败，日志已落盘。当前进程可以停在 blocked，但重新组装同一临时库后是 `collecting` 且 `live=true`，日志仍在。再次重置使用新的 operationID，与日志冲突，事务无法收敛。内存里的 `maintenanceRecovery` 随进程消失。失败后确认对话框可能还在，所以不能说同进程完全没有重试入口；取消对话框后 `requestReset` 不再弹出，重启则直接绕过。
+2. **部分删除成功后无法重新同意。** 假钥匙串第一次 delete 失败，文件已经删掉。第二次删除成功，生命周期回到 `unstarted`，但 `.unfinishedErase` 还在。Start 能进入 consent，Accept 被同一个采集前检查拒绝，`live=false`。
+
+失败前日志在 `.build/pr9-f1-red/xcodebuild.log`（不提交）。
+
+### 修复
+
+- 磁盘上的重置日志是事实来源。`pendingResetOperationID()` 读出原 operationID；读不出来就抛错，不删日志，也不另开一笔重置。
+- `load()` 在读取偏好之前继续这笔事务，所以启动自动恢复和后来的读取都不会在未完成日志上采集。
+- 显式 Start 同样先继续这笔事务，再重新加载。写失败或日志不可读时停在 blocked，Start 仍可再试。取消对话框后，blocked 阶段的恢复入口是 Start，不是已经不可用的重置确认。
+- 完整删除成功后才清除 `.unfinishedErase` 并恢复已排空的写入器。部分失败不清除。
+
+### 修复后
+
+`ProductRecoveryQuitTests` 37 项，0 失败。新增：
+
+- `testUnfinishedResetUsesTheJournalOperationAcrossCancelAndRelaunch`：不可写时取消对话框后 Start 仍不采集且日志还在；恢复写权限后 Start 用原事务收敛。旧周期摘要合计为 2，只保留一份。再次 Start 不产生新周期。重新加载后新周期总数为 0，再保存 1 次后重新加载为 1。
+- `testRelaunchContinuesTheDurableResetBeforeCollecting`：重启在采集前完成同一事务，第二次重启周期 ID 和摘要不变，新周期总数为 0。
+- `testUnreadableResetJournalDoesNotReportRecoverySuccess`：损坏日志后重启不进入 collecting，日志仍在。
+- `testPartialEraseRetryClearsTheBlockAndAcceptsFreshConsent`：第一次删除后仍禁止采集；第二次成功后可以同意、采集、保存 1 次，重新加载仍为 1。
+
+尚未用真实崩溃、真实钥匙串或实机验证。日志写到一半但文件无法认证的情况只验证了“不报成功”，没有验证手工修复那份损坏日志。这不是 Phase 1 正式验收。

@@ -136,6 +136,9 @@ actor ProductPersistence: LifecycleKeyProviding, PreferencesPersisting {
                 #endif
                 return nil
             }
+            // Startup and every later load share this path. Finish the journal's own
+            // operation before preferences are read, so a relaunch cannot collect over it.
+            _ = try await store.continueUnfinishedReset(day: ProductClock().day)
             let data = try await store.readProtected(CycleResetObjects.preferences, gate: gate)
             #if DEBUG
             Self.lastLoadFailure = nil
@@ -203,6 +206,7 @@ actor ProductDestruction: CycleResetting, LocalDataErasing {
     let beforeMaintenance: @MainActor @Sendable () -> Void
     let afterReset: @MainActor @Sendable () async -> Void
     let afterFailure: @MainActor @Sendable (MaintenanceFailureStage) async -> Void
+    let afterErase: @MainActor @Sendable () -> Void
     private var busy = false
     private var resetOperation: UUID?
     /// Set once `suspendAndDrain` has stopped accepting writes. Cleared only by a successful `resume`.
@@ -213,12 +217,13 @@ actor ProductDestruction: CycleResetting, LocalDataErasing {
          beforeMaintenance: @escaping @MainActor @Sendable () -> Void,
          afterReset: @escaping @MainActor @Sendable () async -> Void,
          afterFailure: @escaping @MainActor @Sendable (MaintenanceFailureStage) async -> Void,
+         afterErase: @escaping @MainActor @Sendable () -> Void,
          clear: @escaping @Sendable () -> Void) {
         self.store = store; self.gate = gate; self.flush = flush
         self.capture = capture; self.deletion = deletion; self.clear = clear
         self.scheduler = scheduler; self.writer = writer
         self.beforeMaintenance = beforeMaintenance; self.afterReset = afterReset
-        self.afterFailure = afterFailure
+        self.afterFailure = afterFailure; self.afterErase = afterErase
     }
     func performCycleReset() async throws {
         guard !busy else { throw LifecycleFlushError.failed }
@@ -232,9 +237,9 @@ actor ProductDestruction: CycleResetting, LocalDataErasing {
             if resetOperation == nil { try await flush.flushWhileUnlocked() }
             try await quiesce()
             quiesced = true
-            let operation = resetOperation ?? UUID()
-            resetOperation = operation
             resetAttempted = true
+            let operation = try await store.pendingResetOperationID() ?? resetOperation ?? UUID()
+            resetOperation = operation
             _ = try await store.resetCycle(operationID: operation, day: ProductClock().day)
             clear()
             resetOperation = nil
@@ -261,6 +266,8 @@ actor ProductDestruction: CycleResetting, LocalDataErasing {
             eraseMutating = true
             let report = try await deletion.deleteEverything()
             guard report.succeeded else { throw LifecycleStoreError.filesystemFailure }
+            try await resumeSuspendedWriter()
+            await afterErase()
         } catch {
             let stage: MaintenanceFailureStage = eraseMutating ? .unfinishedErase
                 : quiesced ? .writerSuspended

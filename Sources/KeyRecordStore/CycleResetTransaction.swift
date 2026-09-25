@@ -4,6 +4,33 @@ import KeyRecordCore
 extension ObjectStore {
     /// Contract 9 ordered idempotent transaction. The store lease serializes every reset
     /// against key rotation; a duplicated operation ID converges to the same new cycle.
+    /// The operation a durable journal already owns, or nil when no reset is pending.
+    /// Throws when a journal file exists but cannot be authenticated; callers must not
+    /// replace it with a new operation or report the reset finished.
+    public func pendingResetOperationID() async throws -> UUID? {
+        try await loadPendingResetJournals().last?.payload.operationID
+    }
+
+    /// Continues the journal's own operation when one is on disk. Returns false when there
+    /// is nothing to continue. A failure leaves the journal in place.
+    public func continueUnfinishedReset(day: LocalDay) async throws -> Bool {
+        guard bootstrapState() == .opened else { return false }
+        guard let operation = try await pendingResetOperationID() else { return false }
+        _ = try await resetCycle(operationID: operation, day: day)
+        return true
+    }
+
+    private func loadPendingResetJournals() async throws -> [LoadedResetJournal] {
+        _ = try opened()
+        let versions = try await keySource.namespaceKeyVersions()
+        let raw = Set(versions.map(\.rawValue))
+        var materials: [UInt32: Data] = [:]
+        for version in raw.sorted() {
+            materials[version] = try await material(version, versions: versions)
+        }
+        return try cycleJournals.load(knownVersions: raw, materials: materials)
+    }
+
     public func resetCycle(operationID: UUID, day: LocalDay,
                            injection provided: CycleResetInjection? = nil) async throws -> CycleID {
         _ = try opened()

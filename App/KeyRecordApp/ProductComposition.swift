@@ -9,6 +9,7 @@ final class ProductMaintenanceHooks {
     var stop: () -> Void = {}
     var start: () -> Void = {}
     var fail: (MaintenanceFailureStage) async -> Void = { _ in }
+    var erased: () -> Void = {}
 }
 
 #if DEBUG
@@ -205,7 +206,8 @@ final class ProductComposition: NSObject, NSMenuDelegate {
         let destruction = ProductDestruction(store: store, gate: gate, flush: flush, capture: capture,
             deletion: deletion, scheduler: scheduler, writer: writer, beforeMaintenance: { hooks.stop() },
             afterReset: { await lifecycle.reloadAfterCycleReset(); hooks.start() },
-            afterFailure: { stage in await hooks.fail(stage) }, clear: { reduction.clear() })
+            afterFailure: { stage in await hooks.fail(stage) },
+            afterErase: { hooks.erased() }, clear: { reduction.clear() })
         let flow = AppFlowObservable(flow: Phase1FlowModel(lifecycle: lifecycle,
             cycleReset: destruction, localDataEraser: destruction))
         #if DEBUG
@@ -286,6 +288,10 @@ final class ProductComposition: NSObject, NSMenuDelegate {
             self?.syncRuntime()
         }
         hooks.fail = { [weak self] stage in await self?.recoverAfterFailedMaintenance(stage) }
+        hooks.erased = { [weak self] in
+            self?.maintenanceRecovery = nil
+            self?.holdRuntimeTasks = false
+        }
         flow.actions = FlowActions(
             accept: { [weak self] in await self?.accept() },
             decline: { lifecycle.denyConsent() },
@@ -861,26 +867,34 @@ final class ProductComposition: NSObject, NSMenuDelegate {
     /// Explicit Start/Resume/Accept must not reopen the scheduler over unsaved counts or a
     /// suspended writer. Lock revocation still discards through `closeProtectedState`.
     private func commitDurableCountsBeforeRestart() async -> Bool {
+        if maintenanceRecovery == .unfinishedErase { return false }
         switch maintenanceRecovery {
-        case .unfinishedReset, .unfinishedErase:
-            return false
         case .writerBusy, .writerSuspended:
             do {
                 try await resumeSuspendedWriter()
-                maintenanceRecovery = nil
+                if maintenanceRecovery == .writerBusy || maintenanceRecovery == .writerSuspended {
+                    maintenanceRecovery = nil
+                }
             } catch {
                 maintenanceRecovery = .writerBusy
                 return false
             }
-        case .beforeQuiesce, nil:
+        case .unfinishedReset, .unfinishedErase, .beforeQuiesce, nil:
             break
         }
         do {
+            if try await store.continueUnfinishedReset(day: ProductClock().day) {
+                maintenanceRecovery = nil
+                await lifecycle.reloadAfterCycleReset()
+                holdRuntimeTasks = false
+                await syncRuntimeRefreshingLiveness()
+            }
             let schedulerPending = await scheduler.hasPendingChanges()
             if reduction.hasUnflushedChanges() || schedulerPending {
                 try await flush.flushWhileUnlocked()
             }
         } catch {
+            maintenanceRecovery = .unfinishedReset
             return false
         }
         return true

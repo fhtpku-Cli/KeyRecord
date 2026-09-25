@@ -180,7 +180,7 @@ bash Scripts/measure-process-resources.sh \
 
 ### 2026-09-26 Quit 修复实机验证与安全输入自检（用户批准）
 
-- 产品现在在采集阶段每 250 ms 读一次安全输入状态（只读布尔值）。变为 enabled 或 unknown 且会话存活时，立即撤销队列、隐藏统计，交给恢复协调器关闭会话；阶段保持 `collecting`。恢复为 disabled 时自动请求一次恢复，重新走完整检查。安全输入未结束时，重建失败不会转入需要手动 Start 的 `blocked`；是否结束以恢复失败时的新读数为准，不用缓存。锁屏仍然需要显式 Start。离线测试 21 项，连续 3 轮通过；轮询的 CPU 开销没有测量。
+- 产品现在在采集阶段按 250 ms 间隔轮询安全输入状态（只读布尔值）。250 ms 是轮询间隔，不是严格的最大响应时间；一次读取、协调器恢复或主线程繁忙都会把实际响应拉长。变为 enabled 或 unknown 且会话存活时，立即撤销队列、隐藏统计，交给恢复协调器关闭会话；阶段保持 `collecting`。恢复为 disabled 时自动请求一次恢复，重新走完整检查。安全输入未结束时，重建失败不会转入需要手动 Start 的 `blocked`；是否结束以恢复失败时的新读数为准，不用缓存。锁屏仍然需要显式 Start。轮询的 CPU 开销没有测量。
 - Quit 实机验证：证据 `.build/round5-evidence/`，`source-changes.patch` 的 SHA-256 为 `5944f310…0b79`。采集 → 锁屏（`screenLockedNotification`，进入 `blocked`）→ 解锁 → 不按 Start 直接菜单 Quit。结果 `quitDecision=terminate`，进程正常退出并写出摘要，日记写入无失败；真实 store 未改动。上一轮卡死的路径已经不再卡死。
 - 安全输入自检实机验证：证据 `.build/round6-evidence/`，候选版本与 Quit 验证相同。
   - 安全输入变为 enabled 后，下一次采样即由 `secureInputMonitor` 关闭会话，阶段保持 `collecting`。
@@ -188,5 +188,13 @@ bash Scripts/measure-process-resources.sh \
   - 关闭页面、安全输入恢复为 disabled 后，自动恢复会话，之后在 TextEdit 的按键计入，聚合为 3。
   - 页面打开期间安全输入短暂变为 disabled 一次，产品随即重建会话，再次 enabled 时又关闭，这段时间没有计数；共建立 7 次会话。
   - Quit 执行 1 次 flush，结果 `saved`，正常退出（`flushIssued`=`flushDurable`=7）；真实 store 未改动。
-  - 这是单机单次观察。轮询最长有 250 ms 延迟，安全输入短暂关闭的窗口内，产品会合法地恢复采集。
+  - 这是单机单次观察。轮询间隔是 250 ms，不保证严格最大响应时间；安全输入短暂关闭的窗口内，产品会合法地恢复采集。
 - 清理（用户批准）：删除了钥匙串 `com.keyrecord.trial.round2` 下的 `metadata` 和 `master-v1` 两项，以及隔离 store `.build/round2-trial`。之后又删除了上一轮留下的 `com.keyrecord.trial.round1`（`metadata`、`master-v1`）和 `.build/round1-trial`。生产命名空间和真实 store 未改动，证据目录保留。上一轮的构建不同，而且当时没有动作记录，那次失败的原因仍未确定。
+
+### 2026-09-26 PR #9 合并前：监视任务生命周期与存储维护
+
+详细记录见 `docs/PR9_MONITOR_LIFECYCLE.md`。本轮只做离线复现和修复，没有新的实机测试。
+
+- Bugbot 指出的陈旧 `secureInputMonitor` 句柄已用产品真实组装 + 合成宿主复现：`sessionChanged` 走 `closeProtectedState()`（只 `sync()`，不调和监视任务），任务自行退出后句柄仍非空，下一次采集不再监视。锁屏路径因为解锁会 `syncRuntime()`，原先就能清掉句柄。
+- 修复：`closeProtectedState` 和 `hooks.stop` 取消并清空句柄；任务用 generation 识别过期读数；自行退出时只清自己的句柄；维护期间 `holdRuntimeTasks` 阻止 `menuWillOpen` 把监视拉起来。
+- 存储维护：隐私关闭后、门控仍关着时，重置/删除被拒绝并提示 `flow.actionUnavailable`，数据和采集意图保留。Start/Resume 打开门控后，重置清零、删除清掉临时 store 和钥匙串替身。失败的重置不再停在无会话的 `collecting`，而是交给显式 Start。没有操作真实统计库。

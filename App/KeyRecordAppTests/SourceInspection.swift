@@ -140,7 +140,7 @@ final class T22AppearanceTests: XCTestCase {
             }
         }
         XCTAssertEqual(sheetFiles, ["SettingsFlowView.swift", "PrimitiveShowcase.swift"])
-        XCTAssertEqual(windowFiles, ["ProductComposition.swift", "FlowTestComposition.swift"])
+        XCTAssertEqual(windowFiles, ["AnalysisPreview.swift", "ProductComposition.swift", "FlowTestComposition.swift"])
         let probe = MotionProbe()
         ScreenEvidence.prepare()
         let view = NSHostingView(rootView: Text("Motion fixture")

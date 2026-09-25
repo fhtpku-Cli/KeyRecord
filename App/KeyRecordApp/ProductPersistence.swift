@@ -188,6 +188,7 @@ actor ProductDestruction: CycleResetting, LocalDataErasing {
     let writer: SerialObjectWriter
     let beforeMaintenance: @MainActor @Sendable () -> Void
     let afterReset: @MainActor @Sendable () async -> Void
+    let afterFailure: @MainActor @Sendable () async -> Void
     private var busy = false
     private var resetOperation: UUID?
     init(store: ObjectStore, gate: KeyAvailabilityGate, flush: any LifecycleFlushing,
@@ -195,39 +196,51 @@ actor ProductDestruction: CycleResetting, LocalDataErasing {
          scheduler: FlushScheduler, writer: SerialObjectWriter,
          beforeMaintenance: @escaping @MainActor @Sendable () -> Void,
          afterReset: @escaping @MainActor @Sendable () async -> Void,
+         afterFailure: @escaping @MainActor @Sendable () async -> Void,
          clear: @escaping @Sendable () -> Void) {
         self.store = store; self.gate = gate; self.flush = flush
         self.capture = capture; self.deletion = deletion; self.clear = clear
         self.scheduler = scheduler; self.writer = writer
         self.beforeMaintenance = beforeMaintenance; self.afterReset = afterReset
+        self.afterFailure = afterFailure
     }
     func performCycleReset() async throws {
         guard !busy else { throw LifecycleFlushError.failed }
         busy = true
         defer { busy = false }
         await beforeMaintenance()
-        await capture.stop()
-        if resetOperation == nil { try await flush.flushWhileUnlocked() }
-        try await quiesce()
-        let operation = resetOperation ?? UUID()
-        resetOperation = operation
-        _ = try await store.resetCycle(operationID: operation, day: ProductClock().day)
-        clear()
-        resetOperation = nil
-        try await writer.resume()
-        await afterReset()
+        do {
+            await capture.stop()
+            if resetOperation == nil { try await flush.flushWhileUnlocked() }
+            try await quiesce()
+            let operation = resetOperation ?? UUID()
+            resetOperation = operation
+            _ = try await store.resetCycle(operationID: operation, day: ProductClock().day)
+            clear()
+            resetOperation = nil
+            try await writer.resume()
+            await afterReset()
+        } catch {
+            await afterFailure()
+            throw error
+        }
     }
     func eraseAllLocalData() async throws {
         guard !busy else { throw LifecycleFlushError.failed }
         busy = true
         defer { busy = false }
         await beforeMaintenance()
-        await capture.stop()
-        try await quiesce()
-        clear()
-        await store.closeProtectedSession()
-        let report = try await deletion.deleteEverything()
-        guard report.succeeded else { throw LifecycleStoreError.filesystemFailure }
+        do {
+            await capture.stop()
+            try await quiesce()
+            clear()
+            await store.closeProtectedSession()
+            let report = try await deletion.deleteEverything()
+            guard report.succeeded else { throw LifecycleStoreError.filesystemFailure }
+        } catch {
+            await afterFailure()
+            throw error
+        }
     }
 
     private func quiesce() async throws {

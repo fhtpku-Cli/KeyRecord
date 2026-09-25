@@ -15,6 +15,7 @@ enum AnalysisPreview {
         let panel = NSWindow(contentRect: NSRect(origin: .zero, size: NativeLayout.aggregateMinimum),
             styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
         panel.title = "Synthetic analysis preview"
+        panel.animationBehavior = .none
         panel.isReleasedWhenClosed = false
         panel.contentView = NSHostingView(rootView: AnalysisPreviewRoot())
         panel.center()

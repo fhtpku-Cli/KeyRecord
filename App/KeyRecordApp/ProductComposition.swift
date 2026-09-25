@@ -8,6 +8,7 @@ import KeyRecordStore
 final class ProductMaintenanceHooks {
     var stop: () -> Void = {}
     var start: () -> Void = {}
+    var fail: () async -> Void = {}
 }
 
 #if DEBUG
@@ -78,6 +79,13 @@ final class ProductComposition: NSObject, NSMenuDelegate {
     private let manualRecoveryFence = ManualRecoveryFence()
     private var pausedPrivacyTask: Task<Void, Never>?
     private var secureInputMonitor: Task<Void, Never>?
+    /// Bumped whenever the poller is cancelled so an in-flight read cannot act for a later session.
+    private var secureInputMonitorGeneration = 0
+    /// `hooks.stop` holds runtime tasks while lifecycle may still say `collecting`.
+    private var holdRuntimeTasks = false
+    #if DEBUG
+    private(set) var secureInputMonitorStarts = 0
+    #endif
     /// Last Secure Input read by the collecting monitor; `.unknown` until the first read.
     private var lastSecureInput: SecureInputState = .unknown
     #if DEBUG
@@ -193,7 +201,8 @@ final class ProductComposition: NSObject, NSMenuDelegate {
         let hooks = ProductMaintenanceHooks()
         let destruction = ProductDestruction(store: store, gate: gate, flush: flush, capture: capture,
             deletion: deletion, scheduler: scheduler, writer: writer, beforeMaintenance: { hooks.stop() },
-            afterReset: { await lifecycle.reloadAfterCycleReset(); hooks.start() }, clear: { reduction.clear() })
+            afterReset: { await lifecycle.reloadAfterCycleReset(); hooks.start() },
+            afterFailure: { await hooks.fail() }, clear: { reduction.clear() })
         let flow = AppFlowObservable(flow: Phase1FlowModel(lifecycle: lifecycle,
             cycleReset: destruction, localDataEraser: destruction))
         #if DEBUG
@@ -255,7 +264,9 @@ final class ProductComposition: NSObject, NSMenuDelegate {
     private func installActions(hooks: ProductMaintenanceHooks) {
         let lifecycle = self.lifecycle
         hooks.stop = { [weak self] in
+            self?.holdRuntimeTasks = true
             self?.stopPulse()
+            self?.stopSecureInputMonitor()
             self?.pausedPrivacyTask?.cancel()
             self?.pausedPrivacyTask = nil
             #if DEBUG
@@ -265,7 +276,11 @@ final class ProductComposition: NSObject, NSMenuDelegate {
             self?.flow.snapshot = nil
             self?.flow.update(phase: .blocked)
         }
-        hooks.start = { [weak self] in self?.syncRuntime() }
+        hooks.start = { [weak self] in
+            self?.holdRuntimeTasks = false
+            self?.syncRuntime()
+        }
+        hooks.fail = { [weak self] in await self?.recoverAfterFailedMaintenance() }
         flow.actions = FlowActions(
             accept: { [weak self] in await self?.accept() },
             decline: { lifecycle.denyConsent() },
@@ -420,6 +435,7 @@ final class ProductComposition: NSObject, NSMenuDelegate {
 
     private func performManualCaptureEntry(trace: ManualEntryTrace,
                                            _ start: @MainActor () async -> Void) async {
+        holdRuntimeTasks = false
         let completed = await manualRecoveryFence.perform(
             prepare: { [weak self] attempt in
                 await self?.prepareExplicitCaptureStart(attempt, trace: trace) ?? false
@@ -752,22 +768,26 @@ final class ProductComposition: NSObject, NSMenuDelegate {
     /// Capture reads Secure Input only when a session starts and macOS posts no change
     /// notification, so a collecting lifecycle polls it. Turning on closes the session at
     /// once; turning off asks the coordinator to rebuild it under fresh checks.
+    /// The 250 ms sleep is the polling interval, not a guaranteed maximum response time.
     private func reconcileSecureInputMonitor() {
-        guard lifecycle.phase == .collecting else {
-            secureInputMonitor?.cancel()
-            secureInputMonitor = nil
-            lastSecureInput = .unknown
+        guard lifecycle.phase == .collecting, !holdRuntimeTasks else {
+            stopSecureInputMonitor()
             return
         }
         guard secureInputMonitor == nil else { return }
+        let generation = secureInputMonitorGeneration
+        #if DEBUG
+        secureInputMonitorStarts += 1
+        #endif
         secureInputMonitor = Task { [weak self] in
             while !Task.isCancelled {
-                guard let self else { return }
+                guard let self else { break }
                 let state = await self.capture.secureInputState()
-                guard !Task.isCancelled, self.lifecycle.phase == .collecting else { return }
+                guard !Task.isCancelled, self.monitorIsCurrent(generation) else { break }
                 let previous = self.lastSecureInput
                 self.lastSecureInput = state
                 let live = await self.capture.hasLiveSession()
+                guard self.monitorIsCurrent(generation) else { break }
                 if state != .disabled, live {
                     self.capture.queue.revoke()
                     self.captureSessionLive = false
@@ -776,15 +796,46 @@ final class ProductComposition: NSObject, NSMenuDelegate {
                     self.diagnostics.notePrivacyTrigger("secureInputMonitor")
                     #endif
                     await self.runtimeCoordinator?.handle(.invalidated(.secureInputChanged))
+                    guard self.monitorIsCurrent(generation) else { break }
                     await self.syncRuntimeRefreshingLiveness()
                 } else if state == .disabled, previous != .disabled, !live {
                     let outcome = await self.runtimeCoordinator?.handle(.invalidated(.secureInputChanged))
+                    guard self.monitorIsCurrent(generation) else { break }
                     if let outcome { await self.settleFailedRecovery(outcome) }
+                    guard self.monitorIsCurrent(generation) else { break }
                     await self.syncRuntimeRefreshingLiveness()
                 }
-                do { try await Task.sleep(for: .milliseconds(250)) } catch { return }
+                do { try await Task.sleep(for: .milliseconds(250)) } catch { break }
             }
+            self?.releaseSecureInputMonitorOwnership(generation)
         }
+    }
+
+    private func monitorIsCurrent(_ generation: Int) -> Bool {
+        !holdRuntimeTasks && secureInputMonitorGeneration == generation && lifecycle.phase == .collecting
+    }
+
+    private func stopSecureInputMonitor() {
+        secureInputMonitor?.cancel()
+        secureInputMonitor = nil
+        lastSecureInput = .unknown
+        secureInputMonitorGeneration &+= 1
+    }
+
+    /// A poller that exited on its own must drop the handle only if it is still the owner,
+    /// matching `releasePulseOwnership`.
+    private func releaseSecureInputMonitorOwnership(_ generation: Int) {
+        guard secureInputMonitorGeneration == generation else { return }
+        secureInputMonitor = nil
+    }
+
+    private func recoverAfterFailedMaintenance() async {
+        holdRuntimeTasks = false
+        captureSessionLive = await capture.hasLiveSession()
+        if lifecycle.phase == .collecting, !captureSessionLive {
+            await settleFailedRecovery(.blocked(.startFailed))
+        }
+        syncRuntime()
     }
 
     private func reconcilePausedPrivacy() {
@@ -1052,6 +1103,7 @@ final class ProductComposition: NSObject, NSMenuDelegate {
     }
 
     private func closeProtectedState() async {
+        stopSecureInputMonitor()
         pausedPrivacyTask?.cancel()
         pausedPrivacyTask = nil
         #if DEBUG

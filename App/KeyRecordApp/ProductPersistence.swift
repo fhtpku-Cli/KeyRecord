@@ -155,6 +155,8 @@ actor ProductPersistence: LifecycleKeyProviding, PreferencesPersisting {
 
     func save(_ preferences: Preferences) async throws {
         let generation = try gate.begin()
+        // Privacy closure closes the protected store session; reopen it as `load()` does.
+        _ = try await store.bootstrap()
         var objects = [FlushObject(identity: CycleResetObjects.preferences,
                                    payload: try JSONEncoder().encode(preferences))]
         let entries = try await store.entries()

@@ -3,6 +3,10 @@ import KeyRecordCore
 import KeyRecordCapture
 import KeyRecordStore
 
+#if DEBUG
+private struct DebugTrialRejection: Error {}
+#endif
+
 @main
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
@@ -30,9 +34,39 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         #endif
         Task {
             do {
-                let composition = try await ProductComposition.make()
+                let composition: ProductComposition
+                #if DEBUG
+                let environment = ProcessInfo.processInfo.environment
+                let trial = DebugTrialIsolation.select(
+                    store: environment["KEYRECORD_TRIAL_STORE"],
+                    namespace: environment["KEYRECORD_TRIAL_NAMESPACE"],
+                    realStoreRoot: try ProductComposition.productionStoreRoot())
+                switch trial {
+                case .production:
+                    composition = try await ProductComposition.make()
+                case .trial(let location):
+                    composition = try await ProductComposition.makeTrial(
+                        storeRoot: location.storeRoot, namespace: location.namespace)
+                case .rejected:
+                    throw DebugTrialRejection()
+                }
+                #else
+                composition = try await ProductComposition.make()
+                #endif
+                #if DEBUG
+                if let path = ProcessInfo.processInfo.environment["KEYRECORD_PRIVACY_INTERVAL_PATH"], !path.isEmpty {
+                    composition.enablePrivacyIntervalJournal(path: path)
+                }
+                #endif
                 product = composition
                 statusItem = await composition.boot()
+                #if DEBUG
+                // Opt-in, bounded system-state witness for a separately approved trial.
+                if let raw = ProcessInfo.processInfo.environment["KEYRECORD_SYSTEM_WITNESS_SECONDS"],
+                   let seconds = Int(raw) {
+                    composition.startSystemWitness(seconds: seconds)
+                }
+                #endif
             } catch {
                 // Composition failed before any UI exists. Previously the error was
                 // swallowed entirely: the menu bar said "blocked" with no cause anywhere,
@@ -60,10 +94,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-        guard let product, product.lifecycle.phase != .stopped,
-              product.lifecycle.phase != .unstarted, product.lifecycle.phase != .consent else { return .terminateNow }
-        Task { sender.reply(toApplicationShouldTerminate: await product.prepareQuit()) }
-        return .terminateLater
+        guard let product else { return .terminateNow }
+        return product.terminationReply { sender.reply(toApplicationShouldTerminate: $0) }
     }
 
     func applicationWillTerminate(_ notification: Notification) {

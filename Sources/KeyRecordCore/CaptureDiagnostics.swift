@@ -290,6 +290,88 @@ public struct CaptureRunSummary: Encodable, Sendable {
     public var countersInstrumented = false
     public var captureSessionLive = false
     public var sensitiveContentVisible = false
+    public var protectedSnapshotAttempts: Int64 = 0
+    public var protectedSnapshotRejected: Int64 = 0
+    public var protectedAnalysisAttempts: Int64 = 0
+    public var protectedAnalysisRejected: Int64 = 0
+    public var privacyJournalWriteFailed = false
+}
+
+/// One journal line. Sequence numbers are not timestamps.
+///
+/// Roles: `change` (coarse state changed), `begin`/`observe`/`end` (closed interval),
+/// `actionBegin`/`actionEnd` (one user action; the same `actionSeq` pairs them), and
+/// `witness` (explicitly enabled system-state sample, independent of product closure).
+///
+/// `lockReadStatus` / `secureInputReadStatus` describe a read performed for this line.
+/// `notChecked` means no read happened; it is never a cached value. `currentLockState`
+/// repeats a fresh lock read and is nil otherwise. Cached lifecycle conditions are
+/// reported separately as `cachedLockState` / `cachedSecureInputState`.
+/// Counter fields are copied one after another and are not an atomic snapshot.
+public struct CapturePrivacyIntervalMark: Encodable, Sendable {
+    public var seq: Int
+    public var role: String
+    public var phase: String
+    public var blockedReason: String?
+    public var privacyTrigger: String?
+    public var boundaryCause: String?
+    public var captureSessionLive: Bool
+    public var sensitiveContentVisible: Bool
+    public var expectedCollecting: Bool?
+    public var currentLockState: String?
+    public var lockReadStatus: String
+    public var secureInputReadStatus: String
+    /// Coarse inputs behind a fresh lock read (session field, console flag, notification).
+    public var lockComponents: String?
+    public var cachedLockState: String?
+    public var cachedSecureInputState: String?
+    public var action: String?
+    public var actionSeq: Int?
+    public var actionDetail: CapturePrivacyActionDetail?
+    public var countersAreAtomicSnapshot: Bool
+    public var aggregateDelta: Int64
+    public var handoffAccepted: Int64
+    public var handoffClosed: Int64
+    public var normalizationOutput: Int64
+    public var flushDurable: Int64
+    public var flushInvalidated: Int64
+    public var protectedSnapshotAttempts: Int64
+    public var protectedSnapshotRejected: Int64
+    public var protectedAnalysisAttempts: Int64
+    public var protectedAnalysisRejected: Int64
+    public var snapshotPublicationCount: Int
+    public var snapshotReadFailureCount: Int
+}
+
+/// What one Start/Resume/Accept/Quit actually decided, taken from the values the product
+/// used. Every field is a coarse enum description, a count or a flag; nil means the step
+/// was not reached. No bundle ID, key, text or timestamp can be represented.
+public struct CapturePrivacyActionDetail: Encodable, Sendable, Equatable {
+    public var invocation: String?
+    public var phaseBefore: String?
+    public var earlyReturn: String?
+    public var prepareOutcome: String?
+    public var prepareLockRead: String?
+    public var permissionStatus: String?
+    public var lifecycleCommandRun: Bool?
+    public var abortRun: Bool?
+    public var readinessCalls: Int?
+    public var readinessOutcome: String?
+    public var lifecycleFlushCalls: Int?
+    public var lifecycleFlushOutcome: String?
+    public var reductionUnsavedBefore: Bool?
+    public var schedulerUnsavedBefore: Bool?
+    public var reductionUnsavedAfter: Bool?
+    public var schedulerUnsavedAfter: Bool?
+    public var quitDecision: String?
+    public var noticeAfter: String?
+    public var phaseAfter: String?
+    public var blockedReasonAfter: String?
+    public var failureAfter: String?
+    public var sessionLiveAfter: Bool?
+    public var keyGateOpenAfter: Bool?
+
+    public init() {}
 }
 
 /// Thread-safe collector. DEBUG-only by construction: the product wires it in `#if DEBUG`
@@ -304,6 +386,14 @@ public final class CaptureDiagnosticsRecorder: @unchecked Sendable {
     private var counterBaseline: [Int64]
     private var counterInstrumentationConfigured = false
     private var run = CaptureRunSummary()
+    private var intervalPath: String?
+    private var intervalSeq = 0
+    private var lastIntervalKey: String?
+    private var privacyTrigger: String?
+    private var closedIntervalOpen = false
+    private var actionSeq = 0
+    private var journalWriteFailed = false
+    private let journalWriteLock = NSLock()
 
     public init() {
         counterBaseline = atomicCounters.snapshot()
@@ -342,6 +432,7 @@ public final class CaptureDiagnosticsRecorder: @unchecked Sendable {
             result.countersInstrumented = counters.countersInstrumented
             result.captureSessionLive = counters.captureSessionLive
             result.sensitiveContentVisible = counters.sensitiveContentVisible
+            result.privacyJournalWriteFailed = journalWriteFailed
             return result
         }
         let values = atomicCounters.snapshot()
@@ -377,6 +468,183 @@ public final class CaptureDiagnosticsRecorder: @unchecked Sendable {
         lock.withLock { run.snapshotReadFailureCount += 1 }
     }
 
+    public func recordProtectedSnapshot(rejected: Bool) {
+        lock.withLock {
+            run.protectedSnapshotAttempts += 1
+            if rejected { run.protectedSnapshotRejected += 1 }
+        }
+    }
+
+    public func recordProtectedAnalysis(rejected: Bool) {
+        lock.withLock {
+            run.protectedAnalysisAttempts += 1
+            if rejected { run.protectedAnalysisRejected += 1 }
+        }
+    }
+
+    public var privacyJournalEnabled: Bool { lock.withLock { intervalPath != nil } }
+    public var privacyJournalWriteFailed: Bool { lock.withLock { journalWriteFailed } }
+    public var hasOpenClosedInterval: Bool { lock.withLock { closedIntervalOpen } }
+
+    /// Opt-in DEBUG journal. Unset path writes nothing and does not change capture.
+    public func enablePrivacyIntervalJournal(path: String) {
+        lock.withLock { intervalPath = path }
+    }
+
+    /// Names the call site that closed privacy. This is not the lifecycle `blockedReason`.
+    public func notePrivacyTrigger(_ trigger: String) {
+        lock.withLock { privacyTrigger = trigger }
+    }
+
+    /// Appends one line only when the coarse privacy state changes.
+    public func notePrivacyInterval() {
+        guard lock.withLock({ intervalPath }) != nil else { return }
+        let state = snapshot
+        let key = [
+            String(describing: state.phase),
+            state.blockedReason.map { String(describing: $0) } ?? "",
+            state.captureSessionLive ? "1" : "0",
+            state.sensitiveContentVisible ? "1" : "0",
+            state.loadedExpectedCollecting.map { $0 ? "1" : "0" } ?? "",
+            lock.withLock { privacyTrigger } ?? ""
+        ].joined(separator: "|")
+        let shouldWrite = lock.withLock { () -> Bool in
+            guard intervalPath != nil, key != lastIntervalKey else { return false }
+            lastIntervalKey = key
+            return true
+        }
+        guard shouldWrite else { return }
+        append(role: "change")
+    }
+
+    /// First boundary of a closed interval, written after revocation has completed.
+    /// A repeat while already open does not add a line.
+    public func beginClosedInterval(cause: String) {
+        let open = lock.withLock { () -> Bool in
+            guard intervalPath != nil, !closedIntervalOpen else { return false }
+            closedIntervalOpen = true
+            return true
+        }
+        guard open else { return }
+        append(role: "begin", boundaryCause: cause)
+    }
+
+    /// During-close sample. Written even when the coarse state is unchanged.
+    public func observeClosedInterval(lockReadStatus: String = "notChecked", secureInputReadStatus: String = "notChecked",
+                                      lockComponents: String? = nil) {
+        guard lock.withLock({ intervalPath != nil && closedIntervalOpen }) else { return }
+        append(role: "observe", lockReadStatus: lockReadStatus, secureInputReadStatus: secureInputReadStatus,
+               lockComponents: lockComponents)
+    }
+
+    /// Ends the interval at the product step that re-authorizes input or protected display,
+    /// before that step can move any counter. Causes are fixed call-site names.
+    public func endClosedInterval(cause: String) {
+        let open = lock.withLock { () -> Bool in
+            guard intervalPath != nil, closedIntervalOpen else { return false }
+            closedIntervalOpen = false
+            return true
+        }
+        guard open else { return }
+        append(role: "end", boundaryCause: cause)
+    }
+
+    /// Written when an action is entered, before any check runs. An `actionBegin` without
+    /// a matching `actionEnd` means the action entered and did not finish.
+    @discardableResult
+    public func beginAction(_ name: String, detail: CapturePrivacyActionDetail = CapturePrivacyActionDetail()) -> Int {
+        let id = lock.withLock { () -> Int in
+            actionSeq += 1
+            return actionSeq
+        }
+        guard lock.withLock({ intervalPath }) != nil else { return id }
+        append(role: "actionBegin", action: name, actionSeq: id, actionDetail: detail)
+        return id
+    }
+
+    /// Written when the action returns, even when phase and counters did not change.
+    public func endAction(_ name: String, id: Int, detail: CapturePrivacyActionDetail) {
+        guard lock.withLock({ intervalPath }) != nil else { return }
+        append(role: "actionEnd", action: name, actionSeq: id, actionDetail: detail)
+    }
+
+    /// Explicitly enabled system-state sample. It runs whether or not the product closed,
+    /// so a missed closure is still visible. Cached values come from lifecycle conditions.
+    public func recordWitness(lockReadStatus: String, secureInputReadStatus: String, lockComponents: String? = nil,
+                              cachedLockState: String?, cachedSecureInputState: String?) {
+        guard lock.withLock({ intervalPath }) != nil else { return }
+        append(role: "witness", lockReadStatus: lockReadStatus, secureInputReadStatus: secureInputReadStatus,
+               lockComponents: lockComponents,
+               cachedLockState: cachedLockState, cachedSecureInputState: cachedSecureInputState)
+    }
+
+    private func append(role: String, boundaryCause: String? = nil,
+                        lockReadStatus: String = "notChecked", secureInputReadStatus: String = "notChecked",
+                        lockComponents: String? = nil,
+                        cachedLockState: String? = nil, cachedSecureInputState: String? = nil,
+                        action: String? = nil, actionSeq: Int? = nil,
+                        actionDetail: CapturePrivacyActionDetail? = nil) {
+        // Serialized so file order matches `seq` and each line's counters are no older
+        // than the previous line's.
+        journalWriteLock.lock()
+        defer { journalWriteLock.unlock() }
+        let state = snapshot
+        let summary = runSummary
+        let reserved = lock.withLock { () -> (path: String, seq: Int, trigger: String?)? in
+            guard let intervalPath else { return nil }
+            intervalSeq += 1
+            return (intervalPath, intervalSeq, privacyTrigger)
+        }
+        guard let reserved else { return }
+        let freshLock = lockReadStatus == "locked" || lockReadStatus == "unlocked" || lockReadStatus == "unknown"
+        let mark = CapturePrivacyIntervalMark(
+            seq: reserved.seq, role: role, phase: String(describing: state.phase),
+            blockedReason: state.blockedReason.map { String(describing: $0) },
+            privacyTrigger: reserved.trigger, boundaryCause: boundaryCause,
+            captureSessionLive: state.captureSessionLive,
+            sensitiveContentVisible: state.sensitiveContentVisible,
+            expectedCollecting: state.loadedExpectedCollecting,
+            currentLockState: freshLock ? lockReadStatus : nil,
+            lockReadStatus: lockReadStatus, secureInputReadStatus: secureInputReadStatus,
+            lockComponents: lockComponents, cachedLockState: cachedLockState, cachedSecureInputState: cachedSecureInputState,
+            action: action, actionSeq: actionSeq, actionDetail: actionDetail,
+            countersAreAtomicSnapshot: false,
+            aggregateDelta: summary.aggregateDelta, handoffAccepted: summary.handoffAccepted,
+            handoffClosed: summary.handoffClosed, normalizationOutput: summary.normalizationOutput,
+            flushDurable: summary.flushDurable, flushInvalidated: summary.flushInvalidated,
+            protectedSnapshotAttempts: summary.protectedSnapshotAttempts,
+            protectedSnapshotRejected: summary.protectedSnapshotRejected,
+            protectedAnalysisAttempts: summary.protectedAnalysisAttempts,
+            protectedAnalysisRejected: summary.protectedAnalysisRejected,
+            snapshotPublicationCount: summary.snapshotPublicationCount,
+            snapshotReadFailureCount: summary.snapshotReadFailureCount)
+        guard let line = try? JSONEncoder().encode(mark) else {
+            lock.withLock { journalWriteFailed = true }
+            return
+        }
+        var payload = line
+        payload.append(Data("\n".utf8))
+        if !appendLine(payload, to: URL(fileURLWithPath: reserved.path)) {
+            lock.withLock { journalWriteFailed = true }
+        }
+    }
+
+    private func appendLine(_ payload: Data, to url: URL) -> Bool {
+        if FileManager.default.fileExists(atPath: url.path) {
+            guard let handle = try? FileHandle(forWritingTo: url) else { return false }
+            defer { try? handle.close() }
+            do {
+                try handle.seekToEnd()
+                try handle.write(contentsOf: payload)
+                return true
+            } catch { return false }
+        }
+        do {
+            try payload.write(to: url, options: .withoutOverwriting)
+            return true
+        } catch { return false }
+    }
+
     public func writeRunSummary(to path: String?) throws {
         guard let path, !path.isEmpty else { return }
         let encoder = JSONEncoder()
@@ -398,7 +666,9 @@ public final class CaptureDiagnosticsRecorder: @unchecked Sendable {
     }
 
     /// Starts a new diagnostic session without discarding lifetime atomic totals.
+    /// Called before the new session can accept an event, so it also ends a closed interval.
     public func beginSession(generation: UInt64) {
+        endClosedInterval(cause: "captureSessionStarting")
         let baseline = atomicCounters.snapshot()
         lock.withLock {
             run.sessionCount += 1

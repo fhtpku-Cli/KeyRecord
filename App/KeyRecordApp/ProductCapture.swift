@@ -6,6 +6,9 @@ import KeyRecordStore
 actor ProductFlush: LifecycleFlushing {
     let reduction: ProductReduction
     let scheduler: FlushScheduler
+    #if DEBUG
+    private var lifecycleFlush = ProductLifecycleFlushObservation()
+    #endif
     init(reduction: ProductReduction, scheduler: FlushScheduler) {
         self.reduction = reduction; self.scheduler = scheduler
     }
@@ -15,8 +18,57 @@ actor ProductFlush: LifecycleFlushing {
         }
     }
     func pulse() async throws { try await stage(); await scheduler.tick() }
-    func flushWhileUnlocked() async throws { try await stage(); try await scheduler.flushWhileUnlocked() }
+    func flushWhileUnlocked() async throws {
+        #if DEBUG
+        lifecycleFlush.invocations += 1
+        do {
+            try await stage()
+            try await scheduler.flushWhileUnlocked()
+            lifecycleFlush.lastOutcome = "saved"
+        } catch {
+            lifecycleFlush.lastOutcome = ProductLifecycleFlushObservation.describe(error)
+            throw error
+        }
+        #else
+        try await stage(); try await scheduler.flushWhileUnlocked()
+        #endif
+    }
+    #if DEBUG
+    /// Counts only calls that the lifecycle actually executed, not requests to quit or pause.
+    func lifecycleFlushObservation() -> ProductLifecycleFlushObservation { lifecycleFlush }
+    #endif
 }
+
+#if DEBUG
+struct ProductLifecycleFlushObservation: Equatable, Sendable {
+    var invocations = 0
+    var lastOutcome = "notInvoked"
+
+    static func describe(_ error: any Error) -> String {
+        switch error {
+        case let flush as LifecycleFlushError: return "flushError.\(flush)"
+        case is KeyringError: return "keyGate"
+        default: return "otherError"
+        }
+    }
+}
+
+struct ProductReadinessObservation: Equatable, Sendable {
+    let sequence: Int
+    let outcome: String
+
+    /// Coarse states only. An attributable foreground is reported without its bundle ID.
+    static func describe(_ conditions: RuntimeConditions) -> String {
+        let foreground: String
+        switch conditions.foreground {
+        case .attributable: foreground = "attributable"
+        case .reliablyUnattributable: foreground = "reliablyUnattributable"
+        case .unknown: foreground = "unknown"
+        }
+        return "lock=\(conditions.sessionLock),secure=\(conditions.secureInput),foreground=\(foreground)"
+    }
+}
+#endif
 
 actor ProductCapture: LifecycleCaptureControlling, RestartReadinessChecking {
     let source: ListenOnlyEventSource
@@ -25,27 +77,66 @@ actor ProductCapture: LifecycleCaptureControlling, RestartReadinessChecking {
     let reduction: ProductReduction
     let persistence: ProductPersistence
     let scheduler: FlushScheduler
-    let foreground: SystemForegroundProvider
-    let secure: SystemSecureInputProvider
+    let foreground: any FrontmostAppProvider
+    let secure: any SecureInputProvider
     let qualification: any CaptureQualification
     private let sessionLock: any SessionLockProvider
+    #if DEBUG
+    private var readinessSequence = 0
+    private var lastReadiness = ProductReadinessObservation(sequence: 0, outcome: "notChecked")
+    #endif
     init(source: ListenOnlyEventSource, queue: CaptureQueue, reduction: ProductReduction,
-         persistence: ProductPersistence, scheduler: FlushScheduler, foreground: SystemForegroundProvider,
+         persistence: ProductPersistence, scheduler: FlushScheduler, foreground: any FrontmostAppProvider,
+         secureInput: any SecureInputProvider = SystemSecureInputProvider(),
          qualification: any CaptureQualification = UnqualifiedCapture(),
          sessionLock: any SessionLockProvider = UnqualifiedSessionLockProvider()) {
         self.source = source; self.queue = queue; self.reduction = reduction
         self.persistence = persistence; self.scheduler = scheduler; self.foreground = foreground
         self.qualification = qualification; self.sessionLock = sessionLock
-        secure = SystemSecureInputProvider()
+        secure = secureInput
         control = CaptureControl(queue: queue, providers: CaptureProviderSet(
             foreground: foreground, secureInput: secure, sessionLock: sessionLock))
     }
+#if DEBUG
+    /// Fresh provider reads for the diagnostic journal. Coarse states only; no bundle ID.
+    func diagnosticInputWitness() async -> (lock: String, secure: String, lockComponents: String?) {
+        let lock = String(describing: await sessionLock.sessionLockState())
+        let secureInput = String(describing: await secure.secureInputState())
+        let components = await (sessionLock as? any SessionLockDiagnosing)?.diagnosticLockComponents()
+        return (lock, secureInput, components)
+    }
+
+    /// The most recent result returned by `verifyRestartReadiness`, whichever caller made it.
+    func readinessObservation() -> ProductReadinessObservation { lastReadiness }
+
+    private func noteReadiness(_ outcome: String) {
+        readinessSequence += 1
+        lastReadiness = ProductReadinessObservation(sequence: readinessSequence, outcome: outcome)
+    }
+#endif
+
     func verifyRestartReadiness() async throws -> RuntimeConditions {
-        guard await qualification.liveCaptureQualified() else { throw LifecycleReadinessError.sessionLocked }
-        _ = try reduction.gate.begin()
-        return RuntimeConditions(keyAvailability: .available,
+        guard await qualification.liveCaptureQualified() else {
+            #if DEBUG
+            noteReadiness("unqualified")
+            #endif
+            throw LifecycleReadinessError.sessionLocked
+        }
+        do {
+            _ = try reduction.gate.begin()
+        } catch {
+            #if DEBUG
+            noteReadiness("keyGateClosed")
+            #endif
+            throw error
+        }
+        let conditions = RuntimeConditions(keyAvailability: .available,
             sessionLock: await sessionLock.sessionLockState(),
             secureInput: await secure.secureInputState(), foreground: await foreground.foregroundState())
+        #if DEBUG
+        noteReadiness(ProductReadinessObservation.describe(conditions))
+        #endif
+        return conditions
     }
     func start() async throws {
         _ = try await verifyRestartReadiness()
@@ -69,6 +160,8 @@ actor ProductCapture: LifecycleCaptureControlling, RestartReadinessChecking {
         })
     }
     func stop() async { await source.stop() }
+
+    func secureInputState() async -> SecureInputState { await secure.secureInputState() }
 
     /// Recompute the capture policy from the supplied preferences and a FRESH foreground
     /// read, without touching the in-memory aggregate.

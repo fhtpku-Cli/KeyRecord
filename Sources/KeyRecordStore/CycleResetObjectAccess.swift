@@ -7,6 +7,18 @@ enum ResetObjectHash {
 }
 
 extension ObjectStore {
+    /// True when a reset journal is still on disk, or when that fact cannot be read.
+    /// Callers must not start a new collecting session over an unfinished reset.
+    public func hasUnfinishedCycleReset() async -> Bool {
+        do {
+            let versions = try await keySource.namespaceKeyVersions()
+            let locators = try await pendingJournalLocators(known: versions)
+            return !locators.isEmpty
+        } catch {
+            return true
+        }
+    }
+
     func pendingJournalLocators(known versions: Set<KeyVersion>) async throws -> Set<ObjectLocator> {
         try await journalSource.pendingJournalLocators(knownVersions: versions) { [keySource] version in
             try await keySource.material(for: version)

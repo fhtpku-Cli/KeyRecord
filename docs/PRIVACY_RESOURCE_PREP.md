@@ -197,4 +197,4 @@ bash Scripts/measure-process-resources.sh \
 
 - Bugbot 指出的陈旧 `secureInputMonitor` 句柄已用产品真实组装 + 合成宿主复现：`sessionChanged` 走 `closeProtectedState()`（只 `sync()`，不调和监视任务），任务自行退出后句柄仍非空，下一次采集不再监视。锁屏路径因为解锁会 `syncRuntime()`，原先就能清掉句柄。
 - 修复：`closeProtectedState` 和 `hooks.stop` 取消并清空句柄；任务用 generation 识别过期读数；自行退出时只清自己的句柄；维护期间 `holdRuntimeTasks` 阻止 `menuWillOpen` 把监视拉起来。
-- 存储维护：隐私关闭后、门控仍关着时，重置/删除被拒绝并提示 `flow.actionUnavailable`，数据和采集意图保留。Start/Resume 打开门控后，重置清零、删除清掉临时 store 和钥匙串替身。失败的重置不再停在无会话的 `collecting`，而是交给显式 Start。没有操作真实统计库。
+- 存储维护：隐私关闭后、门控仍关着时，重置/删除被拒绝并提示 `flow.actionUnavailable`，数据和采集意图保留。Start/Resume 打开门控后，重置清零、删除清掉临时 store 和钥匙串替身。失败的重置不再停在无会话的 `collecting`。随后的独立评审在 `f6839feb` 上复现了两个 P1：Start 会丢掉未保存计数，以及 quiesce 之后 writer 没有恢复、采集无法落盘。这两项已另行修复，详见 `docs/PR9_MONITOR_LIFECYCLE.md`。没有操作真实统计库。

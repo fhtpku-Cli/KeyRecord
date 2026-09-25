@@ -24,7 +24,7 @@
 - `stopSecureInputMonitor()`：取消、置空、重置 `lastSecureInput`、递增 generation。
 - `closeProtectedState()` 和 `hooks.stop` 都调用它。`hooks.stop` 另外设置 `holdRuntimeTasks`，维护期间即使阶段仍是 collecting 也不再启动监视。
 - 任务在每次 `await` 之后核验 generation、`holdRuntimeTasks` 和 `phase == .collecting`。自行退出时只在 generation 仍匹配时清空句柄，对齐 pulse 的 `releasePulseOwnership`。
-- `hooks.start` 和显式 Start/Resume/Accept 清掉 hold。维护失败走 `afterFailure`：若仍停在无会话的 `collecting`，复用 `settleFailedRecovery` 转到 `blocked`，由显式 Start 重建。
+- `hooks.start` 和显式 Start/Resume/Accept 清掉 hold。维护失败不再复用 `settleFailedRecovery` 的忽略错误 flush；见下一节。
 
 250 ms 是轮询间隔，不是严格最大响应时间。读取、协调器恢复和主线程繁忙都会延长实际响应。
 
@@ -98,3 +98,38 @@ xcodebuild -project KeyRecord.xcodeproj -scheme KeyRecordApp -configuration Debu
 - 没有测量 250 ms 轮询的 CPU 或足迹。
 - 没有把本轮结果当作 Phase 1 正式验收。
 - 自动审批曾声称 Bugbot 被跳过；以评审线程为准，不以自动批准为已解决问题。
+
+## 独立评审复现的两个 P1（提交 f6839feb）
+
+以 `REVIEW.md` 的最终裁定为准。原 30 项恢复测试通过，不能覆盖下面两条。没有把“pulse 重启必然中断删除”或“过期协调器事务”当成已确认缺陷。
+
+### 已复现
+
+1. **失败重置后 Start 丢掉未保存计数。** 合成产品保存 2 次，再计 1 次未保存，把临时 store 设为不可写后重置失败。恢复写权限并 Start。修复前内存和重新加载都是 2，再计 1 次后重新加载是 3，第三次计数丢失。原因：`afterFailure` 忽略 flush 错误并进入 blocked；Start 的 `scheduler.reopen()` 丢弃 pending，再从磁盘装回旧总数。
+2. **失败重置后 Start 显示 collecting，但写不进去。** 2 次都已保存，没有 pending。不可写重置时，flush 成功，`quiesce` 暂停了 `SerialObjectWriter`，随后 `resetCycle` 失败。`writer.resume()` 只在成功路径。修复前显式 flush 抛出 `failed`，pending 仍在。
+3. **已确认、但不是第三个 P1：** 删除挂起时打开菜单，`activePulseCount` 从 0 变成 1。`holdRuntimeTasks` 没有约束 `reconcilePulse`。没有证据表明这中断了删除或损坏数据。
+
+失败前日志在工作树 `.build/pr9-p1-red/xcodebuild.log`（不提交）。
+
+### 修复
+
+按失败阶段处理，不在 `catch` 里无条件 `resume`：
+
+- flush 失败、尚未 quiesce：writer 仍在接受写入，pending 保留。Start 在 `scheduler.reopen()` 之前先把 pending 写成功；写失败就停在 blocked，并保持门控打开，避免下次无法再写。锁屏仍走 `closeProtectedState`，继续丢弃未保存增量。
+- drain 未完成：不 resume。Start 再试一次；writer 仍忙就继续 blocked，提示 `flow.actionUnavailable`。
+- drain 已完成且没有重置日志：Start 时才 `resume` 空闲 writer，然后才能采集。
+- 磁盘上已有未完成重置日志，或无法确认：不进入采集，留在可重试的 blocked。不把部分删除当成一次正常重置重放。
+- 已关闭受保护会话或删除已经开始：不进入采集。
+- `reconcilePulse` 在 `holdRuntimeTasks` 期间不再启动。菜单打开用主 actor yield 断言，不用长时间 sleep 推断安全。
+
+### 修复后
+
+`ProductRecoveryQuitTests` 33 项，0 失败。新增：
+
+- `testFailedResetKeepsUnsavedCountsAndReloadsTheSameTotal`：恢复后内存为 3；重新加载仍为 3；再计 1 次并保存后重新加载为 4。无丢失、无重复。
+- `testFailedResetAfterWriterSuspendCanSaveNewCounts`：恢复后新的 1 次能 flush，重新加载为 3。
+- `testMenuOpenDoesNotRestartPulseWhileEraseIsHeld`：挂起的删除期间菜单打开后 pulse 仍为 0；放开后删除完成并回到 `unstarted`。
+
+同一工作树还跑了 `swift test` 517 项 0 失败，`swift build -c release` 成功，通用 unsigned Release（arm64 + x86_64）成功。Release 边界和网络静态审计通过，二进制里没有 DEBUG 诊断名。这只是静态检查。
+
+尚未验证：真实统计库、真实钥匙串、实机锁屏或密码框。本轮修复不是 Phase 1 正式验收。旧提交的 CI 绿标和 Bugbot 因额度跳过都不算这次复审通过。

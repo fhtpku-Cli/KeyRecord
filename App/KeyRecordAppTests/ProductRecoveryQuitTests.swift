@@ -1016,6 +1016,88 @@ final class ProductRecoveryQuitTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: product.storeRoot.path))
     }
 
+    func testFailedResetKeepsUnsavedCountsAndReloadsTheSameTotal() async throws {
+        let product = try await collecting()
+        try await product.press(2)
+        try await product.waitDurable()
+        try await product.press(1)
+        XCTAssertEqual(try product.composition.reduction.snapshot()?.bareKeyTotal, 3)
+        try FileManager.default.setAttributes([.posixPermissions: 0o500], ofItemAtPath: product.storeRoot.path)
+        await product.reset()
+        let pending = await product.composition.scheduler.hasPendingChanges()
+        XCTAssertTrue(pending, "a failed flush must leave the unsaved count pending")
+        XCTAssertNotEqual(product.phase, .collecting)
+        try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: product.storeRoot.path)
+        await product.composition.startOrRetry()
+        XCTAssertEqual(product.phase, .collecting)
+        XCTAssertEqual(try product.composition.reduction.snapshot()?.bareKeyTotal, 3,
+                       "Start must not replace the unsaved count with the older durable total")
+        try await product.waitDurable()
+        let reloaded = try await relaunchCollecting(product)
+        XCTAssertEqual(reloaded.composition.flow.snapshot?.bareKeyTotal, 3)
+        try await reloaded.press(1)
+        try await reloaded.waitDurable()
+        let afterNewInput = try await relaunchCollecting(reloaded)
+        XCTAssertEqual(afterNewInput.composition.flow.snapshot?.bareKeyTotal, 4,
+                       "the recovered count is saved once, then a new count is added once")
+    }
+
+    func testFailedResetAfterWriterSuspendCanSaveNewCounts() async throws {
+        let product = try await collecting()
+        try await product.press(2)
+        try await product.waitDurable()
+        let pendingBefore = await product.composition.scheduler.hasPendingChanges()
+        XCTAssertFalse(pendingBefore)
+        try FileManager.default.setAttributes([.posixPermissions: 0o500], ofItemAtPath: product.storeRoot.path)
+        await product.reset()
+        XCTAssertEqual(product.composition.flow.noticeKey, "flow.actionUnavailable")
+        XCTAssertNotEqual(product.phase, .collecting)
+        try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: product.storeRoot.path)
+        await product.composition.startOrRetry()
+        XCTAssertEqual(product.phase, .collecting)
+        try await product.press(1)
+        do {
+            try await product.composition.flush.flushWhileUnlocked()
+        } catch {
+            XCTFail("collecting after a failed reset must be able to finish a write: \(error)")
+            return
+        }
+        let pending = await product.composition.scheduler.hasPendingChanges()
+        XCTAssertFalse(pending, "collecting after a failed reset must be able to finish a write")
+        let reloaded = try await relaunchCollecting(product)
+        XCTAssertEqual(reloaded.composition.flow.snapshot?.bareKeyTotal, 3)
+    }
+
+    func testMenuOpenDoesNotRestartPulseWhileEraseIsHeld() async throws {
+        let product = try await collecting()
+        try await product.press(1)
+        try await product.waitDurable()
+        await product.keychain.holdDeletes()
+        let erase = Task { await product.erase() }
+        try await waitUntil("erase reached keychain deletion") { await product.keychain.deleteAttempts > 0 }
+        XCTAssertEqual(product.composition.activePulseCount, 0)
+        product.composition.menuWillOpen(NSMenu())
+        for _ in 0..<8 { await Task.yield() }
+        XCTAssertEqual(product.composition.activePulseCount, 0,
+                       "opening the menu during maintenance must not start the pulse")
+        XCTAssertEqual(product.phase, .collecting)
+        await product.keychain.releaseDeletes()
+        await erase.value
+        XCTAssertEqual(product.phase, .unstarted)
+        XCTAssertEqual(product.composition.activePulseCount, 0)
+    }
+
+    private func relaunchCollecting(_ product: SyntheticProduct) async throws -> SyntheticProduct {
+        let next = product.relaunch()
+        products.append(next)
+        try await next.boot()
+        try await waitUntil("reloaded collecting") {
+            let live = await next.live
+            return next.phase == .collecting && live && next.composition.flow.snapshot != nil
+        }
+        return next
+    }
+
     func testFailedResetLeavesAnExplicitStartPath() async throws {
         let product = try await collecting()
         try await product.press(2)

@@ -8,7 +8,7 @@ import KeyRecordStore
 final class ProductMaintenanceHooks {
     var stop: () -> Void = {}
     var start: () -> Void = {}
-    var fail: () async -> Void = {}
+    var fail: (MaintenanceFailureStage) async -> Void = { _ in }
 }
 
 #if DEBUG
@@ -83,6 +83,9 @@ final class ProductComposition: NSObject, NSMenuDelegate {
     private var secureInputMonitorGeneration = 0
     /// `hooks.stop` holds runtime tasks while lifecycle may still say `collecting`.
     private var holdRuntimeTasks = false
+    /// Set when failed maintenance left the writer or store unable to accept a normal Start.
+    private var maintenanceRecovery: MaintenanceFailureStage?
+    private var resumeSuspendedWriter: () async throws -> Void = {}
     #if DEBUG
     private(set) var secureInputMonitorStarts = 0
     #endif
@@ -202,7 +205,7 @@ final class ProductComposition: NSObject, NSMenuDelegate {
         let destruction = ProductDestruction(store: store, gate: gate, flush: flush, capture: capture,
             deletion: deletion, scheduler: scheduler, writer: writer, beforeMaintenance: { hooks.stop() },
             afterReset: { await lifecycle.reloadAfterCycleReset(); hooks.start() },
-            afterFailure: { await hooks.fail() }, clear: { reduction.clear() })
+            afterFailure: { stage in await hooks.fail(stage) }, clear: { reduction.clear() })
         let flow = AppFlowObservable(flow: Phase1FlowModel(lifecycle: lifecycle,
             cycleReset: destruction, localDataEraser: destruction))
         #if DEBUG
@@ -220,6 +223,7 @@ final class ProductComposition: NSObject, NSMenuDelegate {
         let composition = ProductComposition(lifecycle: lifecycle, flow: flow, gate: gate, reduction: reduction,
                                   scheduler: scheduler, flush: flush, capture: capture, store: store, hooks: hooks)
         #endif
+        composition.resumeSuspendedWriter = { try await destruction.resumeWriterIfIdle() }
         #if DEBUG
         reduction.configureDiagnostics(composition.diagnostics)
         await scheduler.setDiagnostics(composition.diagnostics)
@@ -277,10 +281,11 @@ final class ProductComposition: NSObject, NSMenuDelegate {
             self?.flow.update(phase: .blocked)
         }
         hooks.start = { [weak self] in
+            self?.maintenanceRecovery = nil
             self?.holdRuntimeTasks = false
             self?.syncRuntime()
         }
-        hooks.fail = { [weak self] in await self?.recoverAfterFailedMaintenance() }
+        hooks.fail = { [weak self] stage in await self?.recoverAfterFailedMaintenance(stage) }
         flow.actions = FlowActions(
             accept: { [weak self] in await self?.accept() },
             decline: { lifecycle.denyConsent() },
@@ -440,7 +445,11 @@ final class ProductComposition: NSObject, NSMenuDelegate {
             prepare: { [weak self] attempt in
                 await self?.prepareExplicitCaptureStart(attempt, trace: trace) ?? false
             },
-            start: {
+            start: { [weak self] in
+                guard await self?.commitDurableCountsBeforeRestart() == true else {
+                    self?.flow.noticeKey = "flow.actionUnavailable"
+                    return
+                }
                 #if DEBUG
                 trace.detail.lifecycleCommandRun = true
                 #endif
@@ -452,7 +461,13 @@ final class ProductComposition: NSObject, NSMenuDelegate {
                 #endif
                 await self?.abortManualCaptureEntry()
             })
-        if completed, lifecycle.phase != .collecting { gate.update(.unknown) }
+        if completed, lifecycle.phase != .collecting {
+            let schedulerPending = await scheduler.hasPendingChanges()
+            let unsaved = reduction.hasUnflushedChanges() || schedulerPending
+            // Closing the gate would make a failed flush unreadable. Keep it open so the
+            // next Start can persist the pending counts instead of discarding them.
+            if !unsaved, maintenanceRecovery == nil { gate.update(.unknown) }
+        }
         await syncRuntimeRefreshingLiveness()
     }
 
@@ -829,13 +844,46 @@ final class ProductComposition: NSObject, NSMenuDelegate {
         secureInputMonitor = nil
     }
 
-    private func recoverAfterFailedMaintenance() async {
+    private func recoverAfterFailedMaintenance(_ stage: MaintenanceFailureStage) async {
+        maintenanceRecovery = stage == .beforeQuiesce ? nil : stage
         holdRuntimeTasks = false
         captureSessionLive = await capture.hasLiveSession()
         if lifecycle.phase == .collecting, !captureSessionLive {
-            await settleFailedRecovery(.blocked(.startFailed))
+            // Do not flush here. A failed save is not a reason to drop pending counts, and
+            // Start persists them before the scheduler reopen that would discard them.
+            lifecycle.requireRecovery(reason: .keyUnavailable)
+            await syncRuntimeRefreshingLiveness()
+        } else {
+            syncRuntime()
         }
-        syncRuntime()
+    }
+
+    /// Explicit Start/Resume/Accept must not reopen the scheduler over unsaved counts or a
+    /// suspended writer. Lock revocation still discards through `closeProtectedState`.
+    private func commitDurableCountsBeforeRestart() async -> Bool {
+        switch maintenanceRecovery {
+        case .unfinishedReset, .unfinishedErase:
+            return false
+        case .writerBusy, .writerSuspended:
+            do {
+                try await resumeSuspendedWriter()
+                maintenanceRecovery = nil
+            } catch {
+                maintenanceRecovery = .writerBusy
+                return false
+            }
+        case .beforeQuiesce, nil:
+            break
+        }
+        do {
+            let schedulerPending = await scheduler.hasPendingChanges()
+            if reduction.hasUnflushedChanges() || schedulerPending {
+                try await flush.flushWhileUnlocked()
+            }
+        } catch {
+            return false
+        }
+        return true
     }
 
     private func reconcilePausedPrivacy() {
@@ -877,7 +925,7 @@ final class ProductComposition: NSObject, NSMenuDelegate {
     /// the key gate is open; none exists otherwise. Repeated calls never create a second
     /// task, and every exit from collecting cancels the current one.
     private func reconcilePulse() {
-        let shouldRun = lifecycle.phase == .collecting && (try? gate.begin()) != nil
+        let shouldRun = lifecycle.phase == .collecting && !holdRuntimeTasks && (try? gate.begin()) != nil
         guard shouldRun else {
             stopPulse()
             return

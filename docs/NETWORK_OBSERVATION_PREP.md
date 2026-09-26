@@ -430,3 +430,19 @@ running at preparation time. These checks do not establish that the next App
 launch will collect input or that the observer's unknown diagnostic was blank.
 The next receipt must still meet every existing validity condition before any
 bounded product network statement can be made.
+
+Before the retest launch, source inspection found that first consent would
+otherwise attempt `SMAppService.mainApp.register()` after capture starts. The
+dedicated Debug trial now uses a backend that rejects registration and performs
+no system unregister action. Ordinary Debug and Release still use the product
+login backend. A focused App test failed before this selection was implemented
+and then passed 1/1; the existing lifecycle test establishes that rejected
+login registration leaves capture in Collecting. The new arm64 Debug trial was
+built and signed at the path below. Its isolation marker and `--check` passed;
+the actual host run is still pending.
+
+```sh
+ruby /Users/bytedance/.codex/worktrees/product-network-observation/KeyRecord/Scripts/product-network-observe.rb \
+  --app /private/tmp/keyrecord-network.7yjmhZ/RetestBuild3/Build/Products/Debug/KeyRecordApp.app \
+  --seconds 75
+```

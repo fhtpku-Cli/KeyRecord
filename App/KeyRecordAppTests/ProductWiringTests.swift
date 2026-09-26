@@ -9,6 +9,17 @@ import KeyRecordCapture
 @MainActor
 final class ProductWiringTests: XCTestCase {
 
+    func testDedicatedTrialLoginNeverRegistersWithSystemService() async throws {
+        let trial = ProductLogin.make(trialStoreRoot: URL(fileURLWithPath: "/unused-trial-store"))
+        do {
+            try await trial.register()
+            XCTFail("trial registration must be rejected")
+        } catch {
+            XCTAssertEqual(error as? LoginItemSystemRejection, .registrationDenied)
+        }
+        try await trial.unregister()
+    }
+
     // MARK: - KR-04: exclusion candidate merge
 
     func testMergeDeduplicatesByBundleIDAndSortsByDisplayName() {

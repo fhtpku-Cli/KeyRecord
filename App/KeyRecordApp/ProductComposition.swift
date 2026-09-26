@@ -153,7 +153,7 @@ final class ProductComposition: NSObject, NSMenuDelegate {
         return ProductHostBoundaries(
             storeRoot: try storeRoot ?? productionStoreRoot(),
             namespace: try KeychainNamespace(name ?? "com.keyrecord.app"),
-            backend: backend, login: ProductLogin.make(),
+            backend: backend, login: ProductLogin.make(trialStoreRoot: storeRoot),
             localCapture: localCapture,
             sessionLock: localCapture == nil ? UnqualifiedSessionLockProvider() : SystemSessionLockProvider(),
             eventSource: { queue, qualification, sessionLock in

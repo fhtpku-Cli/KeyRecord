@@ -1,8 +1,14 @@
+import Foundation
 import ServiceManagement
 import KeyRecordCore
 
 enum ProductLogin {
-    static func make() -> any LoginItemBackend { SMAppServiceLoginItemBackend() }
+    static func make(trialStoreRoot: URL? = nil) -> any LoginItemBackend {
+        #if DEBUG
+        if trialStoreRoot != nil { return BlockedTrialLoginItemBackend() }
+        #endif
+        return SMAppServiceLoginItemBackend()
+    }
 }
 
 /// Sole SMAppService seam (architecture §10.1 L4/FR-C4). Core decides WHEN via `LoginItemBackend`;
@@ -28,3 +34,10 @@ public actor SMAppServiceLoginItemBackend: LoginItemBackend {
         }
     }
 }
+
+#if DEBUG
+struct BlockedTrialLoginItemBackend: LoginItemBackend {
+    func register() async throws { throw LoginItemSystemRejection.registrationDenied }
+    func unregister() async throws {}
+}
+#endif

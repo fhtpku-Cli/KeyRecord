@@ -1,5 +1,18 @@
 # Current project status
 
+## Dedicated trial isolation and bounded restart follow-up — 2026-09-27
+
+PR #12 merged at `b57dbb796056e40d7967fea34879aedff39bbf4b`. This follow-up
+protects explicitly marked Debug trial bundles against missing isolation variables
+on system relaunch. The owner observed rejected startup without those variables;
+an explicit isolated relaunch collected and saved one new shortcut, with the
+published total advancing from 4 to 5, then exited normally.
+See [the procedure, evidence and limitations](PERMISSION_RECOVERY_TEST.md#dedicated-debug-trial-relaunch-protection--2026-09-27).
+Same-process real permission revoke/regrant behavior remains unverified. The synthetic
+45/45 suite below is historical PR #12 evidence, not a new result for this follow-up.
+No further host or performance round is scheduled; Phase 1/G1 and Release acceptance
+remain open. Older dated sections below describe their respective historical states.
+
 ## Permission recovery coverage and evidence closeout — 2026-09-27
 
 PR #11 merged at `94532b44ec3c021c569c5820fae340bfd888d5b7`, retaining the bounded
@@ -22,7 +35,7 @@ remain tied to their historical candidate, not current-main or Release acceptanc
 Next, inspect product-level permission revoke/restore coverage before proposing any
 bounded host operation. Do not restart the completed Secure Input round automatically.
 
-## Current main: PR #10 merged; bounded Secure Input regression complete
+## Historical PR #10 main: bounded Secure Input regression complete
 
 Main is `64590a0e9b57a55af9a23921983f2c16bb59c62e`, the PR #10 merge containing
 reviewed follow-up candidate `aee8649779f5d909fde86e989c1edadf5d31f457`.

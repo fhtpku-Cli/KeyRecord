@@ -40,7 +40,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 let trial = DebugTrialIsolation.select(
                     store: environment["KEYRECORD_TRIAL_STORE"],
                     namespace: environment["KEYRECORD_TRIAL_NAMESPACE"],
-                    realStoreRoot: try ProductComposition.productionStoreRoot())
+                    realStoreRoot: try ProductComposition.productionStoreRoot(),
+                    requiresTrial: Bundle.main.object(forInfoDictionaryKey: "KeyRecordRequiresTrialIsolation") as? Bool == true)
                 switch trial {
                 case .production:
                     composition = try await ProductComposition.make()

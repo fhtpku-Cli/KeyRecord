@@ -87,6 +87,7 @@ final class ProductComposition: NSObject, NSMenuDelegate {
     /// Set when failed maintenance left the writer or store unable to accept a normal Start.
     private var maintenanceRecovery: MaintenanceFailureStage?
     private var resumeSuspendedWriter: () async throws -> Void = {}
+    private var completeRecoveredReset: () async throws -> Bool = { false }
     #if DEBUG
     private(set) var secureInputMonitorStarts = 0
     #endif
@@ -226,6 +227,7 @@ final class ProductComposition: NSObject, NSMenuDelegate {
                                   scheduler: scheduler, flush: flush, capture: capture, store: store, hooks: hooks)
         #endif
         composition.resumeSuspendedWriter = { try await destruction.resumeWriterIfIdle() }
+        composition.completeRecoveredReset = { try await destruction.completeRecoveredReset() }
         #if DEBUG
         reduction.configureDiagnostics(composition.diagnostics)
         await scheduler.setDiagnostics(composition.diagnostics)
@@ -883,9 +885,8 @@ final class ProductComposition: NSObject, NSMenuDelegate {
             break
         }
         do {
-            if try await store.continueUnfinishedReset(day: ProductClock().day) {
+            if try await completeRecoveredReset() {
                 maintenanceRecovery = nil
-                await lifecycle.reloadAfterCycleReset()
                 holdRuntimeTasks = false
                 await syncRuntimeRefreshingLiveness()
             }
@@ -893,6 +894,9 @@ final class ProductComposition: NSObject, NSMenuDelegate {
             if reduction.hasUnflushedChanges() || schedulerPending {
                 try await flush.flushWhileUnlocked()
             }
+        } catch is LifecycleFlushError {
+            maintenanceRecovery = .writerBusy
+            return false
         } catch {
             maintenanceRecovery = .unfinishedReset
             return false
@@ -955,6 +959,13 @@ final class ProductComposition: NSObject, NSMenuDelegate {
 
     /// Visible to tests: how many pulse tasks are currently owned (0 or 1, never more).
     var activePulseCount: Int { pulse == nil ? 0 : 1 }
+
+    /// Stops the collecting pulse and Secure Input poller so a test can call `resetCycle`
+    /// directly. Those tasks take the store lease; overlapping them makes the call return `busy`.
+    func stopBackgroundMaintenanceForFixture() {
+        stopPulse()
+        stopSecureInputMonitor()
+    }
 
     private func makePulse() -> Task<Void, Never> {
         Task { [weak self] in

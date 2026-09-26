@@ -225,6 +225,19 @@ actor ProductDestruction: CycleResetting, LocalDataErasing {
         self.beforeMaintenance = beforeMaintenance; self.afterReset = afterReset
         self.afterFailure = afterFailure; self.afterErase = afterErase
     }
+    /// Finishes a journal the store already owns, then releases the product transaction and
+    /// the suspended writer. A later user reset must not reuse this operation.
+    func completeRecoveredReset() async throws -> Bool {
+        let continued = try await store.continueUnfinishedReset(day: ProductClock().day)
+        resetOperation = nil
+        try await resumeSuspendedWriter()
+        if continued {
+            clear()
+            await afterReset()
+        }
+        return continued
+    }
+
     func performCycleReset() async throws {
         guard !busy else { throw LifecycleFlushError.failed }
         busy = true

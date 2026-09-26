@@ -1091,6 +1091,9 @@ final class ProductRecoveryQuitTests: XCTestCase {
     }
 
     private func relaunchCollecting(_ product: SyntheticProduct) async throws -> SyntheticProduct {
+        // A second composition on the same store must not race the still-live writer.
+        product.composition.stopBackgroundMaintenanceForFixture()
+        await product.composition.capture.stop()
         let next = product.relaunch()
         products.append(next)
         try await next.boot()
@@ -1106,15 +1109,7 @@ final class ProductRecoveryQuitTests: XCTestCase {
         try await product.press(2)
         try await product.waitDurable()
         let originalCycle = try XCTUnwrap(product.composition.lifecycle.state.preferences?.currentCycleID)
-        await product.composition.capture.stop()
-        do {
-            _ = try await product.composition.store.resetCycle(
-                operationID: UUID(), day: ProductClock().day,
-                injection: CycleResetInjection(summaryWrite: DurabilityInjection(failPhase: .data, failAt: .afterWrite)))
-            XCTFail("injected summary write must fail after the journal is durable")
-        } catch {}
-        let journalCreated = await product.composition.store.hasUnfinishedCycleReset()
-        XCTAssertTrue(journalCreated)
+        try await requireInterruptedReset(product)
 
         try FileManager.default.setAttributes([.posixPermissions: 0o500], ofItemAtPath: product.storeRoot.path)
         await product.reset()
@@ -1163,14 +1158,7 @@ final class ProductRecoveryQuitTests: XCTestCase {
         try await product.press(2)
         try await product.waitDurable()
         let originalCycle = try XCTUnwrap(product.composition.lifecycle.state.preferences?.currentCycleID)
-        await product.composition.capture.stop()
-        do {
-            _ = try await product.composition.store.resetCycle(
-                operationID: UUID(), day: ProductClock().day,
-                injection: CycleResetInjection(summaryWrite: DurabilityInjection(failPhase: .data, failAt: .afterWrite)))
-        } catch {}
-        let pending = await product.composition.store.hasUnfinishedCycleReset()
-        XCTAssertTrue(pending)
+        try await requireInterruptedReset(product)
         let next = product.relaunch()
         products.append(next)
         try await next.boot()
@@ -1200,12 +1188,7 @@ final class ProductRecoveryQuitTests: XCTestCase {
         try await product.press(1)
         try await product.waitDurable()
         let originalCycle = try XCTUnwrap(product.composition.lifecycle.state.preferences?.currentCycleID)
-        await product.composition.capture.stop()
-        do {
-            _ = try await product.composition.store.resetCycle(
-                operationID: UUID(), day: ProductClock().day,
-                injection: CycleResetInjection(summaryWrite: DurabilityInjection(failPhase: .data, failAt: .afterWrite)))
-        } catch {}
+        try await requireInterruptedReset(product)
         try await corruptUnindexedStoreFiles(product)
         let next = product.relaunch()
         products.append(next)
@@ -1250,6 +1233,90 @@ final class ProductRecoveryQuitTests: XCTestCase {
         try await product.waitDurable()
         let reloaded = try await relaunchCollecting(product)
         XCTAssertEqual(reloaded.composition.flow.snapshot?.bareKeyTotal, 1)
+    }
+
+    private func requireInterruptedReset(_ product: SyntheticProduct) async throws {
+        // The collecting pulse takes the store lease across awaits. A direct resetCycle
+        // overlapping that write returns busy and does not create the journal.
+        product.composition.stopBackgroundMaintenanceForFixture()
+        await product.composition.capture.stop()
+        let deadline = ContinuousClock.now.advanced(by: .seconds(2))
+        while true {
+            do {
+                _ = try await product.composition.store.resetCycle(
+                    operationID: UUID(), day: ProductClock().day,
+                    injection: CycleResetInjection(summaryWrite: DurabilityInjection(failPhase: .data, failAt: .afterWrite)))
+                XCTFail("injected summary write must fail after the journal is durable")
+                return
+            } catch {
+                let text = String(describing: error)
+                if text.contains("injected-data-afterWrite") { break }
+                // One write may already be inside the lease. Wait for it to finish; any other error fails.
+                if text.contains("busy"), ContinuousClock.now < deadline {
+                    try await Task.sleep(for: .milliseconds(25))
+                    continue
+                }
+                XCTFail("fixture stopped before the summary write: \(text)")
+                throw error
+            }
+        }
+        let pending = await product.composition.store.hasUnfinishedCycleReset()
+        XCTAssertTrue(pending, "the injected failure must leave the reset journal")
+    }
+
+    func testSameSessionResetRecoveryPersistsNewInputBeforeRelaunch() async throws {
+        let product = try await collecting()
+        try await product.press(2)
+        try await product.waitDurable()
+        try await requireInterruptedReset(product)
+        try FileManager.default.setAttributes([.posixPermissions: 0o500], ofItemAtPath: product.storeRoot.path)
+        await product.reset()
+        await product.composition.flow.choose(.cancel)
+        try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: product.storeRoot.path)
+        await product.composition.startOrRetry()
+        XCTAssertEqual(product.phase, .collecting)
+        let live = await product.live
+        XCTAssertTrue(live)
+        try await product.press(1)
+        do {
+            try await product.composition.flush.flushWhileUnlocked()
+        } catch {
+            XCTFail("same-session recovery must persist the new count: \(error)")
+            return
+        }
+        let pending = await product.composition.scheduler.hasPendingChanges()
+        XCTAssertFalse(pending)
+        XCTAssertEqual(try product.composition.reduction.snapshot()?.bareKeyTotal, 1)
+        let reloaded = try await relaunchCollecting(product)
+        XCTAssertEqual(reloaded.composition.flow.snapshot?.bareKeyTotal, 1)
+    }
+
+    func testNewResetAfterRecoveryStartsADistinctCycle() async throws {
+        let product = try await collecting()
+        try await product.press(2)
+        try await product.waitDurable()
+        let originalCycle = try XCTUnwrap(product.composition.lifecycle.state.preferences?.currentCycleID)
+        try await requireInterruptedReset(product)
+        try FileManager.default.setAttributes([.posixPermissions: 0o500], ofItemAtPath: product.storeRoot.path)
+        await product.reset()
+        await product.composition.flow.choose(.cancel)
+        try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: product.storeRoot.path)
+        await product.composition.startOrRetry()
+        let recoveredCycle = try XCTUnwrap(product.composition.lifecycle.state.preferences?.currentCycleID)
+        XCTAssertNotEqual(recoveredCycle, originalCycle)
+        try await product.press(1)
+        try await product.waitDurable()
+        await product.reset()
+        try await waitUntil("new reset collects") {
+            let live = await product.live
+            return live && product.phase == .collecting
+                && product.composition.lifecycle.state.preferences?.currentCycleID != recoveredCycle
+        }
+        let newerCycle = try XCTUnwrap(product.composition.lifecycle.state.preferences?.currentCycleID)
+        XCTAssertNotEqual(newerCycle, recoveredCycle)
+        let summary = try await recoveredSummary(product, cycle: recoveredCycle)
+        XCTAssertEqual(summary.perBareKeyTotals.values.map(\.value).reduce(0, +), 1)
+        XCTAssertEqual(try product.composition.reduction.snapshot()?.bareKeyTotal, 0)
     }
 
     private func recoveredSummary(_ product: SyntheticProduct, cycle: CycleID) async throws -> CycleSummary {

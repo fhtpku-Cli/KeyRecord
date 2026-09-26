@@ -162,3 +162,24 @@ xcodebuild -project KeyRecord.xcodeproj -scheme KeyRecordApp -configuration Debu
 - `testPartialEraseRetryClearsTheBlockAndAcceptsFreshConsent`：第一次删除后仍禁止采集；第二次成功后可以同意、采集、保存 1 次，重新加载仍为 1。
 
 尚未用真实崩溃、真实钥匙串或实机验证。日志写到一半但文件无法认证的情况只验证了“不报成功”，没有验证手工修复那份损坏日志。这不是 Phase 1 正式验收。
+
+## 独立复审 `f58f7039`：同进程恢复的收尾
+
+以该提交的 `REVIEW.md` 为准。重启恢复和部分删除重试在本轮仍按原测试覆盖。安全评审里“恢复与锁屏撤销交错”没有运行复现，不把它当成已确认缺陷。
+
+### 已复现
+
+1. **同进程恢复后写不进去。** 失败重置、取消对话框、恢复写权限、Start 完成日志恢复后，不重启，再输入并保存。结果是 `collecting`、`live=true`，但 `flush=failed`、`pending=true`。Start 直接继续存储事务并重新加载生命周期，没有恢复 `ProductDestruction` 已暂停的 `SerialObjectWriter`。
+2. **下一次用户重置被当成旧事务。** 同上恢复之后再请求 Reset。周期不变，本应关闭的周期没有摘要。再 Reset 一次才换周期。Start 没有走产品重置的成功收尾，`resetOperation` 仍是已完成的编号；存储看到目标已经是当前周期就直接返回。
+
+修复前日志在 `.build/pr9-r1-red/xcodebuild.log`（不提交）。
+
+### 修复
+
+两条都由 `ProductDestruction.completeRecoveredReset()` 收尾：先按日志继续事务，成功后清掉产品持有的 operationID，再恢复已经排空的写入器，然后才重新加载并允许采集。写入器仍忙或恢复失败时停在 `writerBusy`，不进入采集。重复恢复不再生成新周期。用户随后的 Reset 使用新编号。
+
+### 整套与单独执行
+
+- 评审在 `f58f7039` 上的整套是 37 项里 3 项失败，单独重跑 3/3 通过。当时夹具用空 `catch` 吞掉错误后仍断言日志存在。
+- 本轮去掉空 `catch` 后，整套再次失败时错误是 `busy`：采集脉冲的受保护写入还占着存储租约，测试直接调用 `resetCycle` 进不去摘要写入，所以不会留下日志。这不是重置事务本身失败。夹具改为先停掉脉冲和安全输入监视，只在租约仍被那一次在途写入占用时等待它结束；其他错误立刻失败。
+- 停掉脉冲并在重新加载前停掉旧实例之后，完整套件仍是 39 项、3 项失败，都是计数对不上：`testRelaunchContinuesTheDurableResetBeforeCollecting` 的旧周期摘要合计为 0 而不是 2；`testUnfinishedResetUsesTheJournalOperationAcrossCancelAndRelaunch` 和 `testPartialEraseRetryClearsTheBlockAndAcceptsFreshConsent` 在再次加载后总数为 0 而不是 1。同一轮里两个新的同进程用例通过。单独跑中断重置和两个新用例时曾 3/3 通过。原因还没有完全确定，所以不把单独通过写成整套通过。日志在 `.build/pr9-r1-red/suite-final.log`。

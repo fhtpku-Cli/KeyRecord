@@ -1,5 +1,93 @@
 # Current project status
 
+## Post-merge follow-up under independent repair — 2026-09-26
+
+PR #9 remains merged at `ec5583d73a1fc936bea1786708ba0717d8b47fbd`. The follow-up
+`d89d5337` / `4c5d1665` adds automatic-persistence tests and changes Secure Input
+monitoring and diagnostic boundaries; it is a separate candidate, not unchanged main.
+The original agent reported approved, isolated Debug host observations for lock/Start,
+Secure Input stop/resume and blocked Quit, plus one paused and one collecting-idle
+resource window. See [the dated report](POSTMERGE_VERIFY_20260926.md) for exact source
+attribution limits, observations and resource numbers. These are not formal performance
+or Phase 1 acceptance. Directory modification times alone cannot establish no reads.
+
+Independent review of `4c5d1665` found a Release compile error, an initial unknown
+Secure Input poll that failed to close capture, a stale enabled read that could keep
+restored statistics hidden, and a diagnostic interval ending after input could resume.
+All three runtime boundaries have failing-first isolated regressions; the repair
+restores fail-closed unknown handling, publishes the closing state before asynchronous
+recovery, reconciles fresh disabled reads even for a live session, and ends the
+interval before the new session accepts events. Release no longer depends on a
+Debug-only latch. The repaired product commit `5072a1e2` passed 44/44 selected
+recovery tests, 518/518 package tests, fresh unsigned Debug and universal Release
+builds, and static Release/network audits. The latest validation is recorded in
+the dated report; historical
+host observations do not qualify this later repair.
+
+Next: finish independent candidate review and CI, then decide whether to merge.
+Any new real-host verification requires its own coordinated approval. Formal typing
+and idle performance repeats, Intel runtime, permission changes, fast user switching,
+measured network behavior and signed Release qualification remain incomplete. No
+release, Phase 1/G1 acceptance or automatic permission to run host trials is implied.
+
+## PR #9 merge checkpoint — 2026-09-26
+
+[PR #9](https://github.com/fhtpku-Cli/KeyRecord/pull/9) is merged into `main` as
+`ec5583d73a1fc936bea1786708ba0717d8b47fbd`, containing reviewed candidate
+`205d10c61ce69274dcead3a9de85dd2259cecf5c`. Local `main` is at this merge commit.
+The original measurement worktree and local evidence were retained. The dated
+sections below describe historical candidates, not fresh verification of this merge.
+
+The PR includes privacy monitoring, recovery/termination and reset/erase recovery
+repairs, plus opt-in diagnostic and resource-measurement preparation. The final
+candidate changed recovery-test synchronization: fixture preparation awaits actual
+save completion and joins previously issued background work, instead of inferring
+durability from two state reads separated by an `await`. Product recovery logic was
+unchanged by that final synchronization revision.
+
+Independent review of the final increment and relevant call paths found no blocking
+defect. On `205d10c6`, a fresh unsigned Debug arm64 hostless App test build passed
+two complete `ProductRecoveryQuitTests` runs: **40/40** in 41.897 seconds and
+**40/40** in 41.775 seconds. The reviewing coordinator separately executed the
+disk-before/disk-after synchronization regression: **1/1** passed. Existing count,
+cycle, privacy and injected-failure assertions were retained. Local review reports
+and raw logs are under `.omo/evidence/pr9-independent-review-205d10c6/`; these
+untracked artifacts are not guaranteed to be present in a fresh clone.
+
+Both pre-merge macOS CI builds passed on `205d10c6`. Security and approval checks
+reported success; Bugbot was quota-limited and did not provide a valid fresh review.
+CI omits App XCTest execution, so the independent App runs are separate evidence.
+The reviewing coordinator did not independently rerun the earlier 517-package-test
+claim or universal Release build. These results are candidate-specific and are not
+new executions on the merge commit or evidence of signed Release qualification.
+
+### Verification sequence planned at the merge checkpoint (historical)
+
+1. **Automatic persistence, isolated and offline:** exercise normal product pulse
+   wiring with synthetic input and a temporary encrypted store. Observe expected
+   durable counts before any explicit flush, Quit or teardown save; verify a later
+   input batch persists without loss or duplication. The existing explicit-save
+   recovery tests do not qualify automatic save cadence.
+2. **Prepare a separate current-main signed Debug candidate:** identify source and
+   build settings, verify trial store/Keychain isolation, and prepare bounded run
+   instructions and diagnostic paths without replacing or launching the daily app.
+3. **Separately approved host rounds:** lock/unlock with explicit Start; independently
+   witnessed Secure Input enable/disable with stop/automatic recovery; and Quit while
+   blocked. Record state transitions, interval counters, durable results and actual
+   termination. Endpoint screenshots alone do not prove continuous privacy closure.
+4. **Resource measurement after functional checks:** measure collecting and paused
+   behavior, including Secure Input monitoring overhead, under the existing
+   [protocol](PRIVACY_RESOURCE_PREP.md). Preserve interrupted/invalid results and
+   distinguish exploratory local measurements from formal ARM/Intel qualification.
+
+At this merge checkpoint no current-merge live trial or resource result was claimed.
+Later candidate observations and their limits are described above. Further live launches
+and host/privacy operations require approval for the particular round. Phase 1/G1,
+permission changes, fast user switching, measured network behavior, other hardware
+and signed Release qualification remain incomplete; see the
+[acceptance matrix](PHASE1_ACCEPTANCE.md). This is verification follow-up, not a new
+gate or authorization to weaken existing privacy or Release restrictions.
+
 ## Repaired candidate bounded acceptance — 2026-09-24
 
 The paused-restoration and flush-diagnostics repair (based on main `3b9345c`) was built and development-signed as a separate candidate. Two owner-assisted repair rounds passed: paused restart directly displayed retained statistics without capture or writes; Resume/input/Quit followed by paused restart retained exact Command-A groups 13 and 11. Both final launches exited 0; the collection run recorded 9 issued/returned/succeeded/durable writes, zero invalidations/failures/timeouts, and the paused restart recorded zero capture/write events. See [the detailed acceptance record](CURRENT_MAIN_ACCEPTANCE.md) for owner-report versus screenshot evidence and candidate paths.

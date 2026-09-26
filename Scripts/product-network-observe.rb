@@ -115,17 +115,23 @@ class ProductNetworkObservation
 
   def validate_app
     raise 'macOS required' unless RUBY_PLATFORM.include?('darwin')
+    raise 'controller must run as an unprivileged user' if Process.uid == 0 || Process.euid == 0 || Process.uid != Process.euid
     raise 'normal user HOME required' unless File.realpath(ENV.fetch('HOME')) == File.realpath(Etc.getpwuid(Process.uid).dir)
     @app = File.realpath(@app)
     info = File.join(@app, 'Contents/Info.plist')
     executable = File.join(@app, 'Contents/MacOS/KeyRecordApp')
-    raise 'missing signed trial bundle' unless File.file?(info) && File.executable?(executable)
+    debug_dylib = File.join(@app, 'Contents/MacOS/KeyRecordApp.debug.dylib')
+    raise 'missing signed Debug trial bundle' unless File.file?(info) && File.executable?(executable) && File.file?(debug_dylib)
     marker, status = Open3.capture2('/usr/libexec/PlistBuddy', '-c', 'Print :KeyRecordRequiresTrialIsolation', info)
     raise 'trial isolation marker missing' unless status.success? && marker.strip == 'true'
     bundle_id, status = Open3.capture2('/usr/libexec/PlistBuddy', '-c', 'Print :CFBundleIdentifier', info)
     raise 'trial bundle identifier invalid' unless status.success? && bundle_id.strip.start_with?('com.keyrecord.trial.')
     _output, status = Open3.capture2e('/usr/bin/codesign', '--verify', '--strict', @app)
     raise 'trial signature invalid' unless status.success?
+    linked, status = Open3.capture2('/usr/bin/otool', '-L', executable)
+    raise 'trial executable does not load Debug code' unless status.success? && linked.include?('@rpath/KeyRecordApp.debug.dylib')
+    symbols, status = Open3.capture2('/usr/bin/nm', '-g', debug_dylib)
+    raise 'trial Debug isolation code missing' unless status.success? && symbols.include?('DebugTrialIsolation') && symbols.include?('makeTrial')
     @executable = executable
     @receipt[:bundle_id] = bundle_id.strip
   end
@@ -164,7 +170,15 @@ class ProductNetworkObservation
         puts 'Trial launched. Leave it idle for 10 seconds, then use only agreed input in a normal text window and Quit from its menu.'
       end
       if idle_until && now >= idle_until
-        @receipt[:idle_completed] = true
+        waited = Process.waitpid2(@product_pid, Process::WNOHANG)
+        if waited
+          @product_reaped = true
+          @receipt[:product_exited] = true
+          @receipt[:product_exit] = waited.last.exitstatus
+          @receipt[:early_product_exit] = true
+          break
+        end
+        @receipt[:idle_timer_elapsed] = true
         puts 'Idle interval complete. Perform the agreed short input and Quit now; no chat reply is needed.'
         idle_until = nil
       end
@@ -199,7 +213,7 @@ class ProductNetworkObservation
   end
 
   def launch_product
-    environment = ENV.keys.grep(/\AKEYRECORD_/).to_h { |name| [name, nil] }.merge(
+    environment = ENV.keys.grep(/\A(?:KEYRECORD_|DYLD_|__XPC_DYLD_)/).to_h { |name| [name, nil] }.merge(
       'KEYRECORD_TRIAL_STORE' => @receipt[:trial_store],
       'KEYRECORD_TRIAL_NAMESPACE' => @receipt[:trial_namespace],
       'KEYRECORD_LOCAL_CAPTURE' => '1',
@@ -267,10 +281,12 @@ class ProductNetworkObservation
 
   def inspect_product_exit
     return unless @product_pid
-    waited = Process.waitpid2(@product_pid, Process::WNOHANG)
-    @receipt[:product_exited] = !waited.nil?
-    @receipt[:product_exit] = waited.last.exitstatus if waited
-    puts 'Trial remains open. Quit it normally from its menu; this observation is incomplete.' unless waited
+    unless @product_reaped
+      waited = Process.waitpid2(@product_pid, Process::WNOHANG)
+      @receipt[:product_exited] = !waited.nil?
+      @receipt[:product_exit] = waited.last.exitstatus if waited
+      puts 'Trial remains open. Quit it normally from its menu; this observation is incomplete.' unless waited
+    end
     summary_path = File.join(@directory, 'product-summary.json')
     return unless File.file?(summary_path)
     summary = JSON.parse(File.read(summary_path))
@@ -282,7 +298,8 @@ class ProductNetworkObservation
 
   def finish_receipt
     @receipt[:counts] = @counts.summary(@product_pid)
-    valid = !@receipt[:error_type] && @receipt[:observer_ready] && @receipt[:full_window] && @receipt[:idle_completed] &&
+    valid = !@receipt[:error_type] && @receipt[:observer_ready] && @receipt[:full_window] && @receipt[:idle_timer_elapsed] &&
+            !@receipt[:early_product_exit] &&
             @receipt[:observer_exit] == 0 &&
             @receipt[:kernel_drops] == 0 && @receipt[:captured_count] == @receipt.dig(:counts, :packets) &&
             @receipt[:control_sent] == 4 && @receipt[:control_received] == 4 &&

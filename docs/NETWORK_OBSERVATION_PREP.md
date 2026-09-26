@@ -300,9 +300,24 @@ has `KeyRecordRequiresTrialIsolation=true`. The host's normal trust settings
 passed strict code-signature verification. `--check` passed without product launch
 or capture. This is a prepared candidate, not a network result.
 
-`Scripts/product-network-observe.rb` is an owner-started, 75-second controller.
+A signed Release negative control from the same Git commit, with the same version
+`1`, a `com.keyrecord.trial.*` bundle ID and the same isolation marker, passed the
+initial `--check` preflight. It was never launched. Source inspection shows that
+Release compiles out the Debug trial selector and uses the production composition.
+Git commit, bundle version, bundle ID, signing, ordinary source tests and the
+marker therefore do not establish the isolation code selected in the **built**
+App. Before any host launch, the controller checks that the executable loads the
+Debug dylib containing `DebugTrialIsolation` and `makeTrial`. This narrow build
+structure check protects the real-data boundary; it is not a Phase 1 gate or a
+claim that future code changes are automatically safe.
+
+`Scripts/product-network-observe.rb` is an owner-started controller with a
+75-second deadline beginning when it spawns tcpdump, after local authentication.
+Authentication and bounded cleanup add time outside that observation deadline.
 Only the system `/usr/sbin/tcpdump` runs through `sudo`; Ruby and the product run
-as the normal console user. The exact capture is `pktap,all`, no BPF filter,
+as the normal console user. The controller rejects root execution and clears
+inherited dynamic-library injection variables before launching the App. The
+exact capture is `pktap,all`, no BPF filter,
 `-k PD`, 256-byte snapshots, maximum 50,000 records. The local tcpdump manual
 describes `pktap,all` as including loopback and tunnel interfaces. This has not
 been verified for this product run. The controller starts capture before the App,
@@ -326,10 +341,12 @@ including an OS relaunch without the variables.
 The output counts all observed packet lines by broad protocol family and counts
 product PID, unknown PID/direction, and other-process observations separately.
 The App is kept as an unreaped child until capture stops, preventing its PID from
-being reused inside the window. A positive loopback control, observer readiness,
-complete window, zero kernel drops, complete parse/statistics, normal product
-exit, ten-second idle and positive aggregate input are required for a bounded
-observation. A timeout, sleep, control failure, parse gap, missing summary,
+being reused inside the window. An exit before the ten-second idle timer elapses
+invalidates the run. The timer is an instruction to the owner, not independent
+proof that no input occurred in those ten seconds. A positive loopback control,
+observer readiness, complete window, zero kernel drops, complete parse/statistics,
+normal product exit, elapsed idle timer and positive aggregate input are required
+for a bounded observation. A timeout, sleep, control failure, parse gap, missing summary,
 capture error or product startup failure is invalid. There is no automatic
 product PASS: even zero attributed outbound observations cannot rule out
 unattributed packets, a delegated system request, or capture outside this host,

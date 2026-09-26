@@ -90,6 +90,7 @@ final class ProductComposition: NSObject, NSMenuDelegate {
     private var completeRecoveredReset: () async throws -> Bool = { false }
     #if DEBUG
     private(set) var secureInputMonitorStarts = 0
+    private var secureInputSawLiveSession = false
     #endif
     /// Last Secure Input read by the collecting monitor; `.unknown` until the first read.
     private var lastSecureInput: SecureInputState = .unknown
@@ -660,6 +661,7 @@ final class ProductComposition: NSObject, NSMenuDelegate {
                     self.captureSessionLive = live
                     #if DEBUG
                     self.diagnostics.record { $0.captureSessionLive = live }
+                    self.diagnostics.notePrivacyInterval()
                     #endif
                 }
                 return exclusion != .unknown && live
@@ -811,19 +813,58 @@ final class ProductComposition: NSObject, NSMenuDelegate {
                 self.lastSecureInput = state
                 let live = await self.capture.hasLiveSession()
                 guard self.monitorIsCurrent(generation) else { break }
-                if state != .disabled, live {
-                    self.capture.queue.revoke()
+                if live, state == .disabled { self.secureInputSawLiveSession = true }
+                let shouldHide = state == .enabled || (state == .unknown && self.secureInputSawLiveSession)
+                if shouldHide, live || self.flow.sensitiveContentVisible {
+                    if live {
+                        self.capture.queue.revoke()
+                        self.captureSessionLive = false
+                        self.syncRuntime()
+                        #if DEBUG
+                        self.diagnostics.notePrivacyTrigger("secureInputMonitor-\(state)")
+                        #endif
+                        // The coordinator's session restart ends any interval already open.
+                        // Hide the display and begin the Secure Input interval after that.
+                        await self.runtimeCoordinator?.handle(.invalidated(.secureInputChanged))
+                        guard self.monitorIsCurrent(generation) else { break }
+                    }
                     self.captureSessionLive = false
-                    self.syncRuntime()
+                    // Phase stays collecting. The provider read closes the privacy gate,
+                    // so statistics hide. Lock still uses closeProtectedState and Start.
+                    self.lifecycle.observe(self.lifecycle.state.conditions.with(secureInput: state))
                     #if DEBUG
-                    self.diagnostics.notePrivacyTrigger("secureInputMonitor")
+                    self.diagnostics.notePrivacyTrigger("secureInputMonitor-\(state)")
+                    self.diagnostics.record {
+                        $0.captureSessionLive = false
+                        $0.sensitiveContentVisible = false
+                        $0.phase = self.lifecycle.phase
+                    }
+                    if !self.diagnostics.hasOpenClosedInterval {
+                        self.diagnostics.beginClosedInterval(cause: "secureInputMonitor")
+                    }
                     #endif
-                    await self.runtimeCoordinator?.handle(.invalidated(.secureInputChanged))
+                    self.syncRuntime()
                     guard self.monitorIsCurrent(generation) else { break }
                     await self.syncRuntimeRefreshingLiveness()
                 } else if state == .disabled, previous != .disabled, !live {
                     let outcome = await self.runtimeCoordinator?.handle(.invalidated(.secureInputChanged))
                     guard self.monitorIsCurrent(generation) else { break }
+                    let resumed = await self.capture.hasLiveSession()
+                    if resumed {
+                        self.lifecycle.observe(self.lifecycle.state.conditions.with(secureInput: .disabled))
+                    }
+                    #if DEBUG
+                    self.diagnostics.record {
+                        $0.captureSessionLive = resumed
+                        $0.sensitiveContentVisible = self.flow.sensitiveContentVisible
+                        $0.phase = self.lifecycle.phase
+                    }
+                    self.diagnostics.notePrivacyInterval()
+                    if resumed, self.diagnostics.hasOpenClosedInterval {
+                        self.diagnostics.endClosedInterval(cause: "secureInputMonitor")
+                        self.diagnostics.notePrivacyTrigger("")
+                    }
+                    #endif
                     if let outcome { await self.settleFailedRecovery(outcome) }
                     guard self.monitorIsCurrent(generation) else { break }
                     await self.syncRuntimeRefreshingLiveness()
@@ -1039,11 +1080,23 @@ final class ProductComposition: NSObject, NSMenuDelegate {
         }
         let gateOpen = (try? gate.begin()) != nil
         let sessionLive = captureSessionLive
+        let visible = flow.sensitiveContentVisible
+        #if DEBUG
+        diagnostics.record {
+            $0.phase = lifecycle.phase
+            $0.blockedReason = lifecycle.state.blockedReason
+            $0.failure = lifecycle.state.failure
+            $0.sensitiveContentVisible = visible
+            $0.captureSessionLive = sessionLive
+            $0.loadedExpectedCollecting = lifecycle.state.preferences?.expectedCollecting
+        }
+        diagnostics.notePrivacyInterval()
+        #endif
         if !gateOpen || (lifecycle.phase == .collecting && !sessionLive) {
             // Never present sensitive aggregates behind a "Collecting" label that is not
             // backed by a live session.
             flow.showCaptureBlocked()
-        } else if flow.sensitiveContentVisible, let preferences = lifecycle.state.preferences {
+        } else if visible, let preferences = lifecycle.state.preferences {
             #if DEBUG
             diagnostics.endClosedInterval(cause: "protectedDisplayReauthorized")
             #endif
@@ -1065,20 +1118,6 @@ final class ProductComposition: NSObject, NSMenuDelegate {
         }
         updateRecommendationBadge()
         #if DEBUG
-        let phase = lifecycle.phase
-        let reason = lifecycle.state.blockedReason
-        let failure = lifecycle.state.failure
-        let visible = flow.sensitiveContentVisible
-        let expectedCollecting = lifecycle.state.preferences?.expectedCollecting
-        diagnostics.record {
-            $0.phase = phase
-            $0.blockedReason = reason
-            $0.failure = failure
-            $0.sensitiveContentVisible = visible
-            $0.captureSessionLive = sessionLive
-            $0.loadedExpectedCollecting = expectedCollecting
-        }
-        diagnostics.notePrivacyInterval()
         if !sessionLive && !visible {
             // Written after revocation, so events already past the gate are not new input.
             diagnostics.beginClosedInterval(cause: closingProtectedState

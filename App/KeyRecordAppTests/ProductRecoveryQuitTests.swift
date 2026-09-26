@@ -286,6 +286,37 @@ private final class SyntheticProduct {
         try await composition.flush.flushWhileUnlocked()
     }
 
+    /// Reads the encrypted store. This does not stage, tick, or flush.
+    func diskBareTotal() async throws -> Int64 {
+        let cycle = try XCTUnwrap(composition.lifecycle.state.preferences?.currentCycleID)
+        let aggregate = try await AggregatePersistence.restore(
+            cycleID: cycle, store: composition.store, gate: composition.gate)
+        return try AggregateSnapshot(shortcuts: aggregate.shortcuts, bareKeys: aggregate.bareKeys).bareKeyTotal
+    }
+
+    /// Polls the store until the pulse has written `expected`, or the bound expires.
+    /// A timeout fails with the last read; it does not flush or try again.
+    func waitForPulseWrite(_ expected: Int64, bound: Duration = .seconds(8)) async throws -> Int64 {
+        let deadline = ContinuousClock().now.advanced(by: bound)
+        var last = Int64.min
+        var lastError = "none"
+        while ContinuousClock().now < deadline {
+            do {
+                last = try await diskBareTotal()
+                lastError = "none"
+                if last == expected { return last }
+            } catch {
+                lastError = String(describing: error)
+            }
+            try await Task.sleep(for: .milliseconds(50))
+        }
+        let pending = await composition.scheduler.hasPendingChanges()
+        let unflushed = composition.reduction.hasUnflushedChanges()
+        XCTFail("pulse write bound expired: disk=\(last) expected=\(expected) pending=\(pending) "
+            + "unflushed=\(unflushed) pulse=\(composition.activePulseCount) lastError=\(lastError)")
+        return last
+    }
+
     /// Stop background tasks, then wait out a write they already issued, before another
     /// store client resets or reopens the same files.
     func finishIssuedWrites() async throws {
@@ -750,8 +781,23 @@ final class ProductRecoveryQuitTests: XCTestCase {
         }
         XCTAssertEqual(try product.tap?.press(), .closed)
         XCTAssertEqual(product.phase, .collecting, "Secure Input is not a user-visible block")
+        XCTAssertFalse(product.composition.flow.sensitiveContentVisible)
         XCTAssertNil(product.composition.flow.snapshot, "no statistics are published without a live session")
         XCTAssertNil(product.composition.flow.analysis)
+        let begin = try XCTUnwrap(product.marks().last {
+            $0["role"] as? String == "begin" && $0["phase"] as? String == "collecting"
+                && $0["captureSessionLive"] as? Bool == false
+                && $0["sensitiveContentVisible"] as? Bool == false
+        })
+        let beginSeq = try XCTUnwrap(begin["seq"] as? Int)
+        XCTAssertEqual(begin["captureSessionLive"] as? Bool, false)
+        XCTAssertEqual(begin["sensitiveContentVisible"] as? Bool, false)
+        XCTAssertEqual(begin["phase"] as? String, "collecting")
+        try await waitUntil("closed interval observed") {
+            ((try? product.marks()) ?? []).contains {
+                $0["role"] as? String == "observe" && ($0["seq"] as? Int ?? 0) > beginSeq
+            }
+        }
         try await Task.sleep(for: .milliseconds(600))
         let stillClosed = await product.live
         XCTAssertFalse(stillClosed, "no reopen while Secure Input stays on")
@@ -760,7 +806,13 @@ final class ProductRecoveryQuitTests: XCTestCase {
         try await waitUntil("resumed after Secure Input") {
             let live = await product.live
             return live && product.phase == .collecting
+                && product.composition.flow.sensitiveContentVisible
         }
+        let end = try XCTUnwrap(product.marks().last {
+            $0["role"] as? String == "end" && ($0["seq"] as? Int ?? 0) > beginSeq
+        })
+        XCTAssertEqual(end["captureSessionLive"] as? Bool, true)
+        XCTAssertEqual(product.phase, .collecting)
         try await product.press(1)
         try await waitUntil("retained and new counts published") {
             product.composition.flow.snapshot?.bareKeyTotal == 3
@@ -1381,6 +1433,34 @@ final class ProductRecoveryQuitTests: XCTestCase {
         XCTAssertEqual(product.composition.lifecycle.state.preferences?.expectedCollecting, true)
     }
 
+    func testBackgroundPulsePersistsCountsWithoutAnExplicitFlush() async throws {
+        let product = try await collecting()
+        XCTAssertEqual(product.composition.activePulseCount, 1)
+        try await product.press(2)
+        let first = try await product.waitForPulseWrite(2)
+        XCTAssertEqual(first, 2)
+        try await product.press(1)
+        let total = try await product.waitForPulseWrite(3)
+        XCTAssertEqual(total, 3)
+        XCTAssertEqual(product.composition.activePulseCount, 1)
+    }
+
+    func testDiskReadDoesNotSaveWhenThePulseIsStopped() async throws {
+        let product = try await collecting()
+        await product.composition.stopBackgroundMaintenanceForFixture()
+        XCTAssertEqual(product.composition.activePulseCount, 0)
+        try await product.press(2)
+        let deadline = ContinuousClock().now.advanced(by: .seconds(8))
+        var last = Int64.min
+        while ContinuousClock().now < deadline {
+            last = try await product.diskBareTotal()
+            if last != 0 { break }
+            try await Task.sleep(for: .milliseconds(50))
+        }
+        XCTAssertEqual(last, 0, "stopping the pulse must leave the same disk read at zero")
+        XCTAssertEqual(product.composition.reduction.hasUnflushedChanges(), true)
+    }
+
     // MARK: - System-state witness
 
     func testWitnessReportsSecureInputWhileCollectingWithoutRelyingOnClosure() async throws {
@@ -1403,8 +1483,8 @@ final class ProductRecoveryQuitTests: XCTestCase {
         XCTAssertTrue(reads.contains("disabled"))
         XCTAssertTrue(reads.contains("enabled"))
         XCTAssertTrue(reads.contains("unknown"))
-        XCTAssertTrue(witness.allSatisfy { $0["cachedSecureInputState"] as? String == "disabled" },
-                      "cached lifecycle state is reported separately from the fresh read")
+        XCTAssertTrue(witness.contains { $0["cachedSecureInputState"] as? String == "enabled" },
+                      "the monitor publishes the provider read into the lifecycle")
         // The witness reads independently; the product's own monitor closes the session.
         XCTAssertTrue(witness.contains {
             $0["secureInputReadStatus"] as? String == "enabled" && $0["captureSessionLive"] as? Bool == false

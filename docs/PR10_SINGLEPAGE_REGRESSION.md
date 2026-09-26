@@ -10,7 +10,7 @@
 | 环节 | 证据 | 结论范围 |
 | --- | --- | --- |
 | 普通输入 | 本进程 aggregateDelta 从 0 到 3，关闭前 durable 写入累计为 5 | 三次输入计入，存在自动写入成功记录 |
-| 安全输入开启 | begin seq 34 → end seq 109；中间 38 条 enabled witness | 观察到采集停止、展示状态隐藏 |
+| 安全输入开启 | begin seq 34 → end seq 109；区间内 37 条 enabled witness（全轮 38 条，含 begin 前 seq 32） | 观察到采集停止、展示状态隐藏 |
 | 关闭区间 | handoffAccepted 12→12；normalizationOutput 6→6；aggregateDelta 3→3；受保护展示读取尝试与发布计数不变 | 记录覆盖的关闭区间没有新增计数；不宣称连续每个时刻或所有存储读取都被验证 |
 | 自动恢复 | 独立读数 disabled 后 session live、展示状态可见；没有 Start/Resume 动作 | 观察到自动恢复；随后两次输入使本进程增量 3→5 |
 | 保存与退出 | issued/returned/succeeded/durable 均为 8；失败/超时/失效均为 0；Quit seq 136/138 配对，saved、terminate、无未保存数据 | 菜单退出成功，摘要存在且精确 PID 已消失；未强杀 |

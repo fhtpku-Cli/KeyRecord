@@ -226,9 +226,18 @@ receiver packets, and all owned PIDs reaped. No packet was captured. The local
 manual confirms `-k PD` selects PID and direction metadata. Offline reducer
 tests, CLI syntax/help/invalid arguments, and the nettop positive control have
 been rerun. The one remaining diagnostic is a privileged bounded capture with
-the current line-shape counters. The owner can run exactly:
+the current line-shape counters.
+
+Because `sudo` executes a Ruby file from a writable worktree, first compare
+`rev-parse HEAD` with the reviewed commit ID in the handoff and confirm the
+following `status` command prints nothing. Run these checks immediately before
+the pilot, from the same trusted checkout; if the commit differs or either script
+is modified, stop and request a new review of those exact files. This is a
+security-boundary check for root execution, not a product acceptance gate.
 
 ```sh
+git -C /Users/bytedance/.codex/worktrees/secure-input-evidence/KeyRecord rev-parse HEAD
+git -C /Users/bytedance/.codex/worktrees/secure-input-evidence/KeyRecord status --short -- Scripts/fixtures/pktap-loopback-pilot.rb Scripts/fixtures/pktap-attribution.rb
 sudo /usr/bin/ruby /Users/bytedance/.codex/worktrees/secure-input-evidence/KeyRecord/Scripts/fixtures/pktap-loopback-pilot.rb --run
 ```
 

@@ -167,14 +167,43 @@ Issued and durable flushes are both 15. Published shortcut total is 7. Key-down
 callbacks are 7. The extra count before the hold (4 rather than 3) remained inside
 the frozen total and was not replayed.
 
-## Resource measurement
+## Round C blocked Quit — 2026-09-26 21:14
 
-Not run. Functional host checks have not passed on this merge.
+Candidate: the same rebuilt signed Debug bundle. Trial process 1679, store
+`.build/postmerge-live/round-c/`. No password field was opened. The real store
+directory time stayed 2026-09-24 15:33:47. This is not Phase 1 acceptance.
 
-After they pass, and only with a separate approval, sample the already-running trial
-process with `Scripts/measure-process-resources.sh`. Record process user+system CPU
-against `CLOCK_MONOTONIC`, `ri_phys_footprint` mean and sampled peak, raw samples,
-valid duration, and sampler overhead. Do not use RSS. Do not treat sleep, lock
-interruption, or a missing sample as a pass. A short window is exploratory. One ARM
-machine is not Intel and is not formal FR-S2. Collecting and paused are separate
-windows. The collecting window includes the 250 ms Secure Input poll.
+Collecting reached aggregate 3 and 5 durable flushes before the lock. The closed
+interval begins at seq 78 with `protectedStateClosed`, phase `blocked`,
+`blockedReason=sessionLocked`. It has 43 observe lines. Aggregate stayed 3, handoff
+stayed 12, normalization stayed 6, and durable flushes stayed 5. The fresh lock read
+went `locked`, then `unlocked`, while the phase stayed blocked and the session stayed
+not live. There is no end line: Quit happened while that interval was still open.
+
+Menu Quit at seq 166 has `invocation=menu`, `phaseBefore=blocked`,
+`quitDecision=terminate`. Nothing was unsaved before or after, and the lifecycle flush
+was `notInvoked`. `phaseAfter` stayed `blocked` because the blocked reducer does not
+handle quit. The process still exited: it is gone, and `summary.json` was written.
+Issued and durable flushes are both 5. Failures, timeouts and invalidations are 0.
+Published shortcut total is 3. Key-down callbacks are 3. This was not a cancelled quit
+and not a forced kill.
+
+## Resource measurement — 2026-09-26 21:46 and 22:17
+
+Same signed Debug bundle, trial process 3594, store
+`.build/postmerge-live/round-resource-paused/`. Diagnostics were enabled and are
+included in the numbers. Footprint is `ri_phys_footprint`, not RSS. Warmup samples
+are excluded from CPU and footprint. Neither window slept, locked, or lost samples.
+Aggregate stayed 0. Child CPU was 0. These are one ARM machine, candidate-length
+windows, `qualification=not-a-product-pass`. They are not formal FR-S2 and do not
+stand in for Intel.
+
+| Window | Effective seconds | Retained samples | Footprint samples | CPU, one logical core | Footprint mean | Sampled peak |
+| --- | --- | --- | --- | --- | --- | --- |
+| Paused | 599.808 | 659 | 598 | 0.0384% | 32791194 bytes | 32801824 bytes |
+| Collecting | 599.805 | 659 | 598 | 0.0482% | 33011473 bytes | 33063968 bytes |
+
+The collecting window is the one in which the 250 ms Secure Input poll runs. The
+difference is not a subtracted poll-cost claim. Raw archives:
+`paused-candidate.json` and `collecting-candidate.json` in the trial directory.
+Sampled peak is not a bound on values between samples.

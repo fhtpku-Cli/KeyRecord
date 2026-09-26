@@ -410,3 +410,23 @@ product attempt would need a fresh approval and an explicit first-run Start and
 consent step, followed by a visible Collecting/live-session check before the
 short TextEdit inputs. If a permission or restart prompt appears, stop that
 attempt and report it before any repeat.
+
+## Same-scope retest preparation (2026-09-27)
+
+The owner requested a new run after the invalid attempt. The controller now
+distinguishes complete whitespace-only tcpdump stderr lines from unrecognized
+diagnostics; the latter still invalidate the result. Its launch message now
+instructs the owner to choose **Start** in the trial App menu, accept first-run
+local aggregation consent, and confirm a visible **Collecting** state. After
+Collecting, leave the App idle for ten seconds, enter only the agreed short
+non-sensitive shortcuts in TextEdit, and Quit from the App menu within the
+75-second capture window. If it stays Blocked, or a permission/restart prompt
+appears, stop input, Quit normally and report the status. No raw packet or
+diagnostic text is retained. Each invocation creates a new private trial store
+and Keychain namespace; the preceding empty trial store is not reused.
+
+The non-launching signed Debug `--check` passed and no KeyRecordApp process was
+running at preparation time. These checks do not establish that the next App
+launch will collect input or that the observer's unknown diagnostic was blank.
+The next receipt must still meet every existing validity condition before any
+bounded product network statement can be made.

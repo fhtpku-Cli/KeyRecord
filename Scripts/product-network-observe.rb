@@ -77,7 +77,7 @@ class ProductNetworkObservation
     @counts = ProductPacketCounts.new(Process.pid)
     @receipt = {kind: 'bounded-debug-product-network-observation', product_pass: false,
                 outcome: 'invalid', source_scope: 'pktap,all; no capture filter; decoded headers only',
-                delegated_process_coverage: 'unverified'}
+                delegated_process_coverage: 'unverified', stderr_blank_lines: 0}
     @streams = []
     @buffers = {out: +'', err: +''}
     @stderr_other = 0
@@ -167,7 +167,7 @@ class ProductNetworkObservation
       if control_sent && !@product_pid && now - ready_at >= 1
         launch_product
         idle_until = monotonic + 10
-        puts 'Trial launched. Leave it idle for 10 seconds, then use only agreed input in a normal text window and Quit from its menu.'
+        puts 'Trial launched. In its menu choose Start, accept first-run local aggregation consent, and confirm Collecting. If it stays Blocked or prompts for permission/restart, Quit normally and report that state.'
       end
       if idle_until && now >= idle_until
         waited = Process.waitpid2(@product_pid, Process::WNOHANG)
@@ -179,7 +179,7 @@ class ProductNetworkObservation
           break
         end
         @receipt[:idle_timer_elapsed] = true
-        puts 'Idle interval complete. Perform the agreed short input and Quit now; no chat reply is needed.'
+        puts 'Ten seconds since launch. After Collecting is visible, leave it idle for another 10 seconds, then use only agreed short input in a normal text window and Quit from its menu.'
         idle_until = nil
       end
       break if now >= deadline || (!@ready && now - @observer_started >= 5) || @streams.empty?
@@ -243,6 +243,10 @@ class ProductNetworkObservation
   end
 
   def ingest_stderr(line)
+    if /\A[ \t\r]*\n\z/.match?(line)
+      @receipt[:stderr_blank_lines] += 1
+      return
+    end
     @ready = true if line.include?('listening on pktap')
     if (match = /\A(\d+) packets? captured\n\z/.match(line))
       @receipt[:captured_count] = match[1].to_i
@@ -274,7 +278,6 @@ class ProductNetworkObservation
       end
     end
     @receipt[:unterminated_output_bytes] = @buffers[:out].bytesize
-    @receipt[:stderr_other_lines] = @stderr_other
   ensure
     @streams.each { |io| io.close unless io.closed? }
   end
@@ -298,6 +301,7 @@ class ProductNetworkObservation
 
   def finish_receipt
     @receipt[:counts] = @counts.summary(@product_pid)
+    @receipt[:stderr_other_lines] = @stderr_other
     valid = !@receipt[:error_type] && @receipt[:observer_ready] && @receipt[:full_window] && @receipt[:idle_timer_elapsed] &&
             !@receipt[:early_product_exit] &&
             @receipt[:observer_exit] == 0 &&

@@ -288,3 +288,79 @@ verify each observed packet against an emitted datagram, prove zero packets
 missed outside this filter, or qualify a product observation. The static
 `outcome` string remains pessimistic and should not be read as a new automated
 PASS. No more owner capture is needed to close this tool-preparation round.
+
+## Product observation candidate prepared after PR #14 merge
+
+Source is `c367a0026c9df0c44d65290121b66d1c3577e774` plus the separate
+`codex/product-network-observation` controller change. The product source is
+unchanged. A separate arm64 Debug App was built with Apple Development signing at
+`/private/tmp/keyrecord-network.7yjmhZ/DerivedData/Build/Products/Debug/KeyRecordApp.app`.
+Its bundle ID is `com.keyrecord.trial.network20260927`, and its signed Info.plist
+has `KeyRecordRequiresTrialIsolation=true`. The host's normal trust settings
+passed strict code-signature verification. `--check` passed without product launch
+or capture. This is a prepared candidate, not a network result.
+
+`Scripts/product-network-observe.rb` is an owner-started, 75-second controller.
+Only the system `/usr/sbin/tcpdump` runs through `sudo`; Ruby and the product run
+as the normal console user. The exact capture is `pktap,all`, no BPF filter,
+`-k PD`, 256-byte snapshots, maximum 50,000 records. The local tcpdump manual
+describes `pktap,all` as including loopback and tunnel interfaces. This has not
+been verified for this product run. The controller starts capture before the App,
+sends and receives four fixed loopback UDP control datagrams, launches the
+isolation-marked App directly, leaves ten seconds idle, allows a few agreed
+shortcuts in a normal non-sensitive text window, and observes through normal
+menu Quit to the fixed deadline. It never blocks sleep. A still-running App is
+left for normal manual Quit and the observation is invalid.
+
+The capture necessarily sees packets from other host processes. Tcpdump and Ruby
+handle up to 256 bytes of each captured packet and decoded output **in memory**;
+no pcap, packet line, payload, address, hostname, process name or other-process
+PID is saved. The private `0700` result directory contains a `0600` aggregate
+receipt, a dedicated trial statistics store, and the product's numeric Debug
+summary. The trial namespace is newly random for each run; ordinary HOME is
+retained, `CFFIXED_USER_HOME` and inherited `KEYRECORD_*` preview variables are
+cleared. No real store is read or copied by the controller, and no Keychain item
+is removed. The App's existing trial selector rejects a missing isolation pair,
+including an OS relaunch without the variables.
+
+The output counts all observed packet lines by broad protocol family and counts
+product PID, unknown PID/direction, and other-process observations separately.
+The App is kept as an unreaped child until capture stops, preventing its PID from
+being reused inside the window. A positive loopback control, observer readiness,
+complete window, zero kernel drops, complete parse/statistics, normal product
+exit, ten-second idle and positive aggregate input are required for a bounded
+observation. A timeout, sleep, control failure, parse gap, missing summary,
+capture error or product startup failure is invalid. There is no automatic
+product PASS: even zero attributed outbound observations cannot rule out
+unattributed packets, a delegated system request, or capture outside this host,
+interface and time window. The script always reports `product_pass:false`.
+The Phase 1 network wrapper remains BLOCKED.
+
+The single owner-assisted command, **only after approval for this wider host
+packet scope**, is:
+
+```sh
+ruby /Users/bytedance/.codex/worktrees/product-network-observation/KeyRecord/Scripts/product-network-observe.rb \
+  --app /private/tmp/keyrecord-network.7yjmhZ/DerivedData/Build/Products/Debug/KeyRecordApp.app \
+  --seconds 75
+```
+
+Before starting, the owner should close any running KeyRecordApp and leave a
+normal unsaved TextEdit window available. The command checks that no KeyRecordApp
+is running, verifies the signed trial identity and isolation marker, then asks
+for administrator authentication in the owner's own Terminal. The password is
+never sent to the agent. The owner stays in the test flow: wait for the terminal's
+idle-complete message, enter a few agreed non-sensitive shortcuts in TextEdit,
+then choose **Quit KeyRecord** from the trial menu before the 75-second window
+ends. No chat reply is needed mid-run. If macOS prompts for test-App input
+permissions or requires restart, stop this run, Quit the trial normally, grant
+only that App's requested permission as approved, and rerun with a fresh trial
+store/namespace; do not grant broad new permissions, reset TCC/Keychain, or
+relaunch the test App without explicit isolation. If any unexpected system
+dialog appears, leave the product untouched and report the prompt after the
+window. Do not type into password or private-data fields.
+
+The controller does not install a helper, change `/dev/bpf` permissions, alter
+filters, intercept TLS, or touch the daily App. This Debug observation will not
+qualify Release, Intel, or Phase 1. The result and limits must be appended here
+after a real run; none exists at this checkpoint.

@@ -2,9 +2,12 @@
 
 ## Current summary — 2026-09-27
 
-Main includes PR #13 at `6257b03b40f618fd976c6cbcc77dc83d374c59bb`. The isolation
-repair and bounded permission-restart evidence below are merged. No further permission
-round is scheduled. The current work is [network observation preparation](NETWORK_OBSERVATION_PREP.md).
+Main includes PR #14 at `c367a0026c9df0c44d65290121b66d1c3577e774`.
+The isolation repair, bounded permission-restart evidence and synthetic network
+observer preparation are merged. A separate signed Debug product candidate and
+bounded all-interface observation controller are now [prepared](NETWORK_OBSERVATION_PREP.md#product-observation-candidate-prepared-after-pr-14-merge),
+pending the owner's approval for host packet observation and local administrator
+authentication. No product capture has run.
 The synthetic nettop control saw 1 MiB on its sender PID; its idle PID had no row,
 which cannot prove zero traffic. In the owner-supplied final 20.07-second PKTAP
 pilot, 16 captured records parsed with the expected PID, direction and port

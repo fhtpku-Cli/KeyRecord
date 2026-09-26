@@ -6,24 +6,31 @@ The existing `Scripts/phase1-network-qa.sh` remains BLOCKED. No KeyRecord launch
 external network request, privileged capture helper installation,
 TCC change, real-store or Keychain operation was performed for the initial nettop experiments. Subsequent capture results are recorded below.
 
-## Latest state and remaining decision
+## Latest state: bounded synthetic observer validated by owner report
 
-The second owner-run 20-second PKTAP pilot observed 16 packet records with the
-expected PID, direction and destination-port counts for two owned loopback flows.
-The receiver got all 12 sent datagrams, including four to the excluded decoy port.
-No kernel drops were reported. One additional output line was not retained and
-cannot be classified retrospectively. The newer metadata-only line-shape counters
-passed offline checks but have not been exercised in an administrator-run capture.
-The script intentionally has no product PASS path. The exact earlier results and
-subsequent offline change are preserved chronologically below.
+The owner supplied a third 20-second PKTAP pilot result after the metadata-only
+line-shape revision. It reports observer readiness and exit 0, 20.07 seconds,
+12 synthetic datagrams sent, receiver counts [4,4,4], 16 captured records and
+zero kernel drops. All 16 packet lines parsed: each selected flow had four
+outbound and four inbound observations, with zero unknown attribution or
+unexpected parsed flow. The 17th output line was a complete whitespace-only line;
+`packet_like`, `other`, and unterminated unparsed counts were all zero. These
+values meet the prewritten bounded synthetic-observer criteria below. This is
+owner-reported output; the agent did not operate privileged capture or retain
+raw tcpdump text, and no shell transcript of the pre-sudo checks was supplied.
+The earlier run's unidentified line remains unidentified, because its original
+text was not retained. The new whitespace-only line does not retrospectively explain it.
 
-The next useful observation is one final, bounded synthetic run with the revised
-reducer. It requires owner authentication because ordinary access to `/dev/bpf`
-is denied on this host. The run must stay on the two owned IPv4 loopback UDP
-ports, with the third owned port excluded; it neither launches KeyRecord nor
-observes the machine's external traffic. See the criteria and command at the end.
-A validated synthetic observer would still leave product process identity,
-all-interface scope, unknown attribution and Release qualification open.
+The script still reports `outcome: inconclusive-attribution-not-validated` and
+`product_pass: false` by design; it has no automatic PASS path. The assessment
+above is a manual, bounded conclusion for two owned IPv4 loopback UDP flows on
+this host and script revision. The aggregate counts do not prove one-to-one
+packet pairing or coverage of other protocols, interfaces, process descendants,
+or unattributed traffic. No KeyRecord network observation or zero-egress result
+exists. The existing product wrapper remains BLOCKED. A future product round
+needs a separately approved all-interface/process-scope controller; Phase 1,
+Release and Intel qualification remain open. No immediate repeat of the same
+synthetic pilot is warranted solely to revisit the historical missing line.
 
 ## Executed synthetic control
 
@@ -218,15 +225,15 @@ The owner-reported historical extra line remains unidentified: these diagnostics
 cannot be applied retroactively without its original text. The final bounded
 synthetic check below combines the remaining diagnostic needs in one run.
 
-## Final synthetic observer check
+## Final synthetic observer check: procedure and owner result
 
-The unprivileged controller path was run again during closeout: tcpdump exited
+Before the owner result, the unprivileged controller path was run again: tcpdump exited
 1 with permission denied before readiness, zero control packets sent, zero
 receiver packets, and all owned PIDs reaped. No packet was captured. The local
 manual confirms `-k PD` selects PID and direction metadata. Offline reducer
 tests, CLI syntax/help/invalid arguments, and the nettop positive control have
-been rerun. The one remaining diagnostic is a privileged bounded capture with
-the current line-shape counters.
+been rerun. At that point, the one remaining diagnostic was a privileged bounded
+capture with the line-shape counters; the owner-supplied result is recorded below.
 
 Because `sudo` executes a Ruby file from a writable worktree, first compare
 `rev-parse HEAD` with the reviewed commit ID in the handoff and confirm the
@@ -260,3 +267,24 @@ Any different result stays inconclusive; do not discard a category, invent a
 reason for the historical line, or infer individual packet pairing from totals.
 Even a matching result validates only these synthetic flows on this host and
 version. The existing product network wrapper remains BLOCKED.
+
+### Owner-supplied run after the line-shape revision (2026-09-27)
+
+The owner returned aggregate JSON with `product_pass:false` and the fixed
+`inconclusive-attribution-not-validated` outcome. It reported ready=true,
+exit=0, signal=null, permission_denied=false, capture_seconds=20.07,
+packets_sent=12, receiver counts=[4,4,4], captured_count=16,
+kernel_drop_count=0 and output_lines=17. The reducer reported
+parsed_packets=16, outbound=[4,4], inbound=[4,4], unknown_attribution=0,
+unexpected_flow=0, unparsed_lines=1, categories blank=1 / packet_like=0 /
+other=0, and unterminated_unparsed_lines=0. Thus the one additional line in
+**this** run was a complete whitespace-only line; no unparsed packet-like or other line
+was reported. The old run's unmatched line has no recoverable classification.
+No raw tcpdump output, pcap, password or pre-sudo shell transcript was supplied.
+
+This meets the previously written criteria for bounded synthetic-observer
+validation on the two selected IPv4 loopback flows. It does not independently
+verify each observed packet against an emitted datagram, prove zero packets
+missed outside this filter, or qualify a product observation. The static
+`outcome` string remains pessimistic and should not be read as a new automated
+PASS. No more owner capture is needed to close this tool-preparation round.

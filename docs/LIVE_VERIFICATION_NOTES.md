@@ -25,18 +25,21 @@ Capture is keyboard monitoring, so a host run is bounded by construction, not by
 
 ## Isolation
 
-`CFFIXED_USER_HOME` redirects `applicationSupportDirectory`. `HOME` alone does **not** —
-setting only `HOME` leaves the app writing to the real store.
+Current opt-in Debug trials use **both** `KEYRECORD_TRIAL_STORE` and
+`KEYRECORD_TRIAL_NAMESPACE`; see [the current protocol](PRIVACY_RESOURCE_PREP.md).
+The store path is explicit and the exact Keychain service/account namespace is test-only.
+Do not point at production statistics or reuse a production namespace.
 
-`CFFIXED_USER_HOME` **also isolates the keychain**: under an isolated home,
-`Library/Keychains/` does not exist and every `SecItemCopyMatching` returns
-`errSecItemNotFound`. Consequences:
+Do not override `HOME`/`CFFIXED_USER_HOME` for this traditional-file-Keychain path.
+In the PR #10 host round, a temporary home made default-Keychain lookup fail and
+Accept presented a missing-Keychain dialog. Normal user environment lookup succeeded.
+Cancel that dialog rather than resetting the default Keychain. The corrected trial
+retained explicit store/namespace isolation and completed the bounded run.
 
-- An isolated run cannot read the real master key, so the store bootstrap legitimately fails
-  with `envelopeKeyMissing`. That is fail-closed working correctly, **not** a product defect.
-- Tests that must exercise real keychain reads cannot use this isolation.
-- Tests that need to **write or delete** keychain items need a separate mechanism (a
-  dedicated keychain file or a distinct bundle id); this isolation is not sufficient.
+Historical home redirection isolated Application Support but was not a working
+provisioned Keychain setup. It does not guarantee every SecItem operation returns
+item-not-found. Namespace isolation is not a separate Keychain file; use only the
+approved test identity, and never infer permission to change user Keychain settings.
 
 Every directory in the isolated path must be `0700`. `preparePrivateRoot` rejects anything
 looser, and the app then falls back to its minimal error menu.

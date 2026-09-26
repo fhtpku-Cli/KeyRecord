@@ -1,12 +1,27 @@
 # 暂停资源与隐私关闭：给执行者的测试方案
 
-基线：`main` `637800b9c7bb5d66d0629507b63e0221a2cd69f0`。工作树 `/Users/bytedance/Documents/KeyRecord-measure-prep`，分支 `codex/privacy-measure-tools`。改动未提交。
+当前状态见 [PROJECT_STATUS.md](PROJECT_STATUS.md)。PR #9/#10 已合并；
+`64590a0e9b57a55af9a23921983f2c16bb59c62e` 的单页安全输入回归见
+[专门记录](PR10_SINGLEPAGE_REGRESSION.md)。下方旧结果各自绑定历史候选，不是当前性能验收。
 
-旧版调试工具已经做过一轮实机观察，见下文“已观察的旧结果”。那些数字不能说明新的区间记录已经在实机上跑过。本轮只补观测、离线验证和文档，没有启动新的 KeyRecord，也没有改恢复或退出逻辑。
+## 当前 Debug 试验隔离
+
+同时配置 `KEYRECORD_TRIAL_STORE`（私有临时目录）和 `KEYRECORD_TRIAL_NAMESPACE`
+（专用测试条目命名空间）；不完整、非法或与生产目录重叠必须拒绝启动，不回退真实数据。
+每轮摘要和日记使用新路径，正常退出后保留证据，下一轮不得覆盖。
+
+对于当前使用传统文件钥匙串的 `LocalKeychainBackend`，不要覆盖 `HOME` 或
+`CFFIXED_USER_HOME`。本轮实测临时 HOME 下默认钥匙串定位失败，点击同意出现
+“找不到用于储存 master-v1 的钥匙串”；正常用户环境的只读定位成功。
+应取消该系统对话框、正常退出，修正启动环境，不点击“还原为默认”，不重置用户钥匙串。
+
+专用 namespace 隔离 service/account 条目，不是独立钥匙串文件，也不授权删除已有条目。
+显式 trial store 隔离统计数据；只去掉 HOME 覆盖而不配置 trial store 是错误操作。
+试验库、密钥和用户截图不放进公共证据；保留无输入内容的计数摘录和可复现步骤。
 
 ## 可复用能力
 
-- 结束摘要：Debug 进程在正常退出时，若设置了 `KEYRECORD_DIAGNOSTIC_SUMMARY_PATH`，写入累计计数。它只有全程合计和最后一刻的 `captureSessionLive` / `sensitiveContentVisible`。
+- 结束摘要：Debug 进程在正常退出时，若设置了 `KEYRECORD_DIAGNOSTIC_SUMMARY_PATH`，写入累计计数。它包含全程合计及缓存状态；退出时通用 `captureSessionLive` 可能陈旧，需结合 Quit 的 `sessionLiveAfter`、摘要和进程退出核对。
 - 分层计数：tap、handoff、normalization、aggregate、flush 的 issued/durable/failed/timeout/returned/succeeded/invalidated。`flushInvalidated` 表示迟到写回被作废。
 - 发布计数：`snapshotPublicationCount` 是模型发布，不是屏幕像素。
 - 暂停隐私监视：暂停且统计仍可见时，约每 250ms 复查；条件不明或不可用则关闭受保护状态，不自动恢复采集。
@@ -28,7 +43,7 @@
 - `lockReadStatus` / `secureInputReadStatus`：`notChecked`、`unknown`、`locked`/`unlocked`、`enabled`/`disabled`。`notChecked` 不是安全。`unknown` 也不是安全。
 - 计数是逐项拷贝，不是原子快照。写入串行化，文件顺序与 `seq` 一致。写文件失败时 `privacyJournalWriteFailed` 为真（也写进结束摘要），评估结果是 `invalid`。缺 begin 或 observe 是 `inconclusive`，缺 end 是 `interval-not-ended`。关闭段里只增加了 `handoffAccepted`、其他输入计数不变时是 `inconclusive`（可能是边界前的在途事件）。`flushInvalidated` 记为边界前在途写回被作废，不算关闭期间的新输入。关闭期间成功的受保护读取、发布或 durable 确认都算异常。有限的 observe 不能证明每个时刻都关闭。
 
-产品在采集会话进行中不会重新检查安全输入：只有会话开始或恢复时读一次 provider，代码中没有任何地方上报 `secureInputChanged`。密码框期间按键是否停止，取决于系统是否不再把按键交给 tap。所以安全输入场景要用 `witness` 看到 `enabled`，不能用产品是否关闭来判断。
+当前 Debug 采集路径由 `secureInputMonitor` 约每 250 ms 复查安全输入；enabled/unknown 关闭采集和受保护展示，恢复需新鲜的安全条件与既有采集意图。250 ms 是轮询间隔，不是严格最大响应时间。仍需独立 `witness` 确认 enabled，不能只用产品是否关闭或密码框外观判断。
 
 `ProductReduction.snapshot/analysis` 在 Debug 增加尝试/拒绝计数。它们只覆盖这条展示读取路径，不能证明存储层每一次 `readProtected`。
 
@@ -99,7 +114,7 @@ bash Scripts/measure-process-resources.sh \
 
 问题与锁屏相同，但触发条件是安全输入，不是锁屏。
 
-操作：先看日记里的 `secureInputReadStatus`。只有它变成 `enabled` 之后，才把这一分钟算作安全输入关闭。不要把“出现了密码框”当成已经开启。不要输入真实密码，也不要记录窗口名称。保持 30–60 秒后关闭该框。不要和锁屏放在同一次运行。
+操作采用 [单页无聊天流程](PRIVACY_RESOURCE_USER_STEPS.md#单页安全输入回归采集中)。执行者持续核对日记里的 `secureInputReadStatus`。只有它变成 `enabled` 之后，才把这一分钟算作安全输入关闭。不要把“出现了密码框”当成已经开启。不要输入真实密码，也不要记录窗口名称。保持 30–60 秒后关闭该框。不要和锁屏放在同一次运行。
 
 预期：关闭段有 begin、至少一条 observe、以及 end，且 end 减 begin 的采集计数为 0。失败：关闭段计数增加。无法下结论：没有 `enabled` 读数、缺边界、写失败，或只有起止相同的总数。
 

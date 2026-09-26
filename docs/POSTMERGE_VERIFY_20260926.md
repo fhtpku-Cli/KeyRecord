@@ -1,5 +1,9 @@
 # Post-merge verification — 2026-09-26
 
+Later status: PR #10 merged at `64590a0e9b57a55af9a23921983f2c16bb59c62e`.
+The [separate main-build Secure Input report](PR10_SINGLEPAGE_REGRESSION.md) records
+the later owner-operated round; none of the historical measurements below are relabeled.
+
 This report contains historical offline preparation and later owner-approved host
 observations after merge `ec5583d73a1fc936bea1786708ba0717d8b47fbd`. It is not Phase 1
 acceptance or signed Release qualification. Product/test changes were subsequently

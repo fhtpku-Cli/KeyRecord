@@ -5,9 +5,10 @@
 Main includes PR #14 at `c367a0026c9df0c44d65290121b66d1c3577e774`.
 The isolation repair, bounded permission-restart evidence and synthetic network
 observer preparation are merged. A separate signed Debug product candidate and
-bounded all-interface observation controller are now [prepared](NETWORK_OBSERVATION_PREP.md#product-observation-candidate-prepared-after-pr-14-merge),
-pending the owner's approval for host packet observation and local administrator
-authentication. No product capture has run.
+bounded all-interface observation controller were [prepared](NETWORK_OBSERVATION_PREP.md#product-observation-candidate-prepared-after-pr-14-merge)
+and used in one owner-approved 75-second run. The [first product attempt](NETWORK_OBSERVATION_PREP.md#first-approved-product-attempt-invalid-observation-2026-09-27)
+is invalid: synthetic controls and packet collection ran, but the trial App
+recorded no input collection and the observer had one unclassified diagnostic.
 The synthetic nettop control saw 1 MiB on its sender PID; its idle PID had no row,
 which cannot prove zero traffic. In the owner-supplied final 20.07-second PKTAP
 pilot, 16 captured records parsed with the expected PID, direction and port
@@ -15,7 +16,7 @@ counts; kernel drops, unknown attribution and unexpected parsed flows were zero.
 The 17th output line in this new run was classified as a complete whitespace-only line.
 This meets the previously recorded bounded synthetic-observer criteria. The
 unidentified line in an older run remains historically unexplained. The script
-still emits `product_pass:false` and has no automatic PASS path. No KeyRecord
+still emits `product_pass:false` and has no automatic PASS path. No valid KeyRecord
 network observation or zero-egress result exists; the product wrapper remains
 BLOCKED. Phase 1/G1, Release, formal performance and native Intel qualification
 remain open. See the [network preparation record](NETWORK_OBSERVATION_PREP.md)

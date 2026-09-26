@@ -353,8 +353,7 @@ unattributed packets, a delegated system request, or capture outside this host,
 interface and time window. The script always reports `product_pass:false`.
 The Phase 1 network wrapper remains BLOCKED.
 
-The single owner-assisted command, **only after approval for this wider host
-packet scope**, is:
+The command used for the approved first attempt was:
 
 ```sh
 ruby /Users/bytedance/.codex/worktrees/product-network-observation/KeyRecord/Scripts/product-network-observe.rb \
@@ -370,14 +369,44 @@ never sent to the agent. The owner stays in the test flow: wait for the terminal
 idle-complete message, enter a few agreed non-sensitive shortcuts in TextEdit,
 then choose **Quit KeyRecord** from the trial menu before the 75-second window
 ends. No chat reply is needed mid-run. If macOS prompts for test-App input
-permissions or requires restart, stop this run, Quit the trial normally, grant
-only that App's requested permission as approved, and rerun with a fresh trial
-store/namespace; do not grant broad new permissions, reset TCC/Keychain, or
-relaunch the test App without explicit isolation. If any unexpected system
-dialog appears, leave the product untouched and report the prompt after the
-window. Do not type into password or private-data fields.
+permissions or requires restart, stop the run, Quit the trial normally and
+report the prompt. A repeat needs fresh approval and a fresh trial store and
+namespace. Do not grant broad new permissions, reset TCC/Keychain, or relaunch
+the test App without explicit isolation. If any unexpected system dialog
+appears, leave the product untouched and report the prompt after the window.
+Do not type into password or private-data fields.
 
 The controller does not install a helper, change `/dev/bpf` permissions, alter
 filters, intercept TLS, or touch the daily App. This Debug observation will not
-qualify Release, Intel, or Phase 1. The result and limits must be appended here
-after a real run; none exists at this checkpoint.
+qualify Release, Intel, or Phase 1. The first run and its limits are recorded below.
+
+## First approved product attempt: invalid observation (2026-09-27)
+
+The owner ran the approved 75-second command. The private aggregate receipt is
+`/private/tmp/keyrecord-network-20260927-82962-yz83r/receipt.json`; no raw packet
+capture or decoded packet lines were retained. The observer was ready for 74.99
+seconds, completed its window and exited 0. The four loopback controls were each
+observed in both directions, 22,797 packet records parsed, and tcpdump reported
+zero kernel drops. The trial App exited normally. The reducer recorded 533
+unattributed packet observations and 22,256 observations for other processes;
+these aggregate counts do not establish delegated-process coverage.
+
+The trial App's numeric summary recorded zero key callbacks, zero normalized
+output, zero aggregate delta and no live capture session at termination. Its
+trial store was not populated. The owner reported that the App showed **blocked**
+before the TextEdit input. This is consistent with the fresh trial remaining
+at its first-run consent/Start step; the handoff instructed input after the idle
+interval without instructing the owner to confirm **Collecting**. The exact
+reason shown in the menu and whether a permission prompt appeared were not
+reported. Tcpdump also emitted one stderr line
+outside the controller's recognized diagnostic categories. Its content was not
+retained and cannot be reclassified after the run.
+
+`outcome=invalid` and `product_pass=false` are correct. Zero packets attributed
+to the trial PID here do not support a product no-egress claim because the App
+did not demonstrate input collection and the observer diagnostic is unresolved.
+No Phase 1, Release or Intel gate changes follow from this attempt. A later
+product attempt would need a fresh approval and an explicit first-run Start and
+consent step, followed by a visible Collecting/live-session check before the
+short TextEdit inputs. If a permission or restart prompt appears, stop that
+attempt and report it before any repeat.

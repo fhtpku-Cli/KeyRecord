@@ -439,10 +439,32 @@ login backend. A focused App test failed before this selection was implemented
 and then passed 1/1; the existing lifecycle test establishes that rejected
 login registration leaves capture in Collecting. The new arm64 Debug trial was
 built and signed at the path below. Its isolation marker and `--check` passed;
-the actual host run is still pending.
+the host run and its result are recorded below.
 
 ```sh
 ruby /Users/bytedance/.codex/worktrees/product-network-observation/KeyRecord/Scripts/product-network-observe.rb \
   --app /private/tmp/keyrecord-network.7yjmhZ/RetestBuild3/Build/Products/Debug/KeyRecordApp.app \
   --seconds 75
 ```
+
+## Same-scope product retest: invalid observation (2026-09-27)
+
+The owner ran the 75-second command above. The private aggregate receipt is
+`/private/tmp/keyrecord-network-20260927-94144-9eo14u/receipt.json`. The
+observer was ready for 74.95 seconds, completed its full window and exited 0.
+It parsed 17,247 packet records with zero kernel drops and zero unparsed lines.
+All four loopback controls were observed in both directions. The trial App
+exited 0; its numeric summary showed an aggregate delta of 5 and 7 durable
+flushes. These numbers support that this trial recorded input activity, but do
+not identify keys. The owner separately confirmed that the App visibly reached
+**Collecting** and showed no unusual permission or restart prompt.
+
+The observer counted zero packets attributed to the trial PID in either
+direction, 690 unattributed observations and 16,549 observations for other
+processes. Delegated-process coverage is still unverified. One nonblank
+tcpdump stderr line did not match the controller's recognized diagnostics.
+The line was deliberately not retained, so its meaning cannot be determined
+afterward. The receipt therefore reports `outcome=invalid` and
+`product_pass=false`. The zero attributed outbound count is only an
+observation within this capture and cannot qualify the product network gate.
+No Phase 1, Release or Intel acceptance status changes follow from this run.

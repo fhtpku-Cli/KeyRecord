@@ -569,6 +569,53 @@ final class ProductRecoveryQuitTests: XCTestCase {
         XCTAssertEqual(product.terminateRequests, 1)
     }
 
+    func testLivePermissionRevocationRequiresExplicitStartAndPreservesDurableCounts() async throws {
+        let product = try await collecting()
+        try await product.press(2)
+        let initialDisk = try await product.waitForPulseWrite(2)
+        XCTAssertEqual(initialDisk, 2)
+        let oldTap = try XCTUnwrap(product.tap)
+        let oldGeneration = product.composition.capture.queue.generation
+
+        product.host.setPermission(.denied)
+        XCTAssertTrue(oldTap.report(.permissionRevoked))
+        try await waitUntil("permission revocation closes product") {
+            let live = await product.live
+            return product.phase == .blocked && !live && !product.keyGateOpen
+                && !product.composition.flow.sensitiveContentVisible
+        }
+        let closedCount = product.aggregateDelta
+        XCTAssertEqual(try oldTap.press(), .closed)
+        XCTAssertEqual(product.aggregateDelta, closedCount)
+
+        await product.composition.startOrRetry()
+        let deniedLive = await product.live
+        XCTAssertFalse(deniedLive)
+        XCTAssertNotEqual(product.phase, .collecting)
+        XCTAssertFalse(product.keyGateOpen)
+        XCTAssertEqual(try oldTap.press(), .closed)
+
+        product.host.setPermission(.granted)
+        try await Task.sleep(for: .milliseconds(600))
+        let grantedLive = await product.live
+        XCTAssertFalse(grantedLive, "restoring permission alone must not restart capture")
+        XCTAssertNotEqual(product.phase, .collecting)
+        XCTAssertFalse(product.composition.flow.sensitiveContentVisible)
+
+        await product.composition.startOrRetry()
+        let restartedLive = await product.live
+        XCTAssertTrue(restartedLive)
+        XCTAssertEqual(product.phase, .collecting)
+        XCTAssertNotEqual(product.composition.capture.queue.generation, oldGeneration)
+        let restoredDisk = try await product.diskBareTotal()
+        XCTAssertEqual(restoredDisk, 2)
+        try await product.press(1)
+        let finalDisk = try await product.waitForPulseWrite(3)
+        XCTAssertEqual(finalDisk, 3, "new input must persist once alongside the retained counts")
+        await product.composition.requestQuit()
+        XCTAssertEqual(product.terminateRequests, 1)
+    }
+
     func testPausedIntentSurvivesLockAndOnlyResumeReopens() async throws {
         let product = try await collecting()
         await product.composition.flow.pause()

@@ -1,5 +1,18 @@
 # Current project status
 
+## Permission recovery coverage and evidence closeout — 2026-09-27
+
+PR #11 merged at `94532b44ec3c021c569c5820fae340bfd888d5b7`, retaining the bounded
+Secure Input fixture/evidence without the separate performance controller.
+The [permission recovery regression](PERMISSION_RECOVERY_TEST.md) now covers the
+product response to an injected live permission revocation, denial of Start while
+permission is absent, no restart during a bounded grant-only observation, and explicit
+Start followed by automatic persistence of one new count alongside two durable counts.
+The new test passed alone and the complete synthetic recovery suite passed 45/45.
+No product behavior changed. Real macOS revocation notification delivery and regrant
+requirements remain unverified; Phase 1/G1 and Release acceptance remain open.
+No new host or performance round is scheduled by this update.
+
 ## Worktree closeout and evidence order — 2026-09-27
 
 This change retains the single-page Secure Input fixture and bounded Debug evidence.

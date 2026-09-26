@@ -1,5 +1,33 @@
 # Current project status
 
+## Worktree closeout and evidence order — 2026-09-27
+
+This change retains the single-page Secure Input fixture and bounded Debug evidence.
+A separate, unsubmitted synthetic performance controller is outside this change.
+No additional resource run is scheduled. Existing paused and collecting-idle results
+remain tied to their historical candidate, not current-main or Release acceptance.
+Next, inspect product-level permission revoke/restore coverage before proposing any
+bounded host operation. Do not restart the completed Secure Input round automatically.
+
+## Current main: PR #10 merged; bounded Secure Input regression complete
+
+Main is `64590a0e9b57a55af9a23921983f2c16bb59c62e`, the PR #10 merge containing
+reviewed follow-up candidate `aee8649779f5d909fde86e989c1edadf5d31f457`.
+An owner-operated, separate signed Debug arm64 build from this main completed the
+single-page Secure Input regression: baseline 3 counts, no count increase inside
+the witnessed closed interval, automatic capture/display recovery, 2 more counts,
+and normal menu Quit. Eight issued writes returned successfully and were durable;
+no failures/timeouts/invalidations were reported. No restart/decryption check was
+performed in this round. See [the result and evidence](PR10_SINGLEPAGE_REGRESSION.md).
+
+This closes the bounded post-repair Secure Input follow-up, not Phase 1/G1 or Release
+acceptance. Formal typing/idle performance on ARM and actual Intel coverage remain open;
+permission transitions, user switching, live network and Release qualification are also
+open. Follow the work order above before asking for another host round.
+The reusable [single-page procedure](PRIVACY_RESOURCE_USER_STEPS.md) requires no chat
+replies while the field is focused. Trial launch uses explicit store/Keychain item
+namespace isolation, not temporary HOME overrides.
+
 ## Post-merge follow-up under independent repair — 2026-09-26
 
 PR #9 remains merged at `ec5583d73a1fc936bea1786708ba0717d8b47fbd`. The follow-up

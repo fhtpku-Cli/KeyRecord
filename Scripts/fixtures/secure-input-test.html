@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; form-action 'none'; base-uri 'none'">
+<title>KeyRecord 单页回归测试</title>
+<style>
+:root {color-scheme: light dark; font-family: system-ui,sans-serif} body {max-width: 780px;margin:40px auto;padding:0 24px;line-height:1.65} button,input,textarea {font:inherit;padding:12px;margin:10px 0} button {cursor:pointer} textarea {display:block;width:90%;height:90px} #status {padding:18px;border:1px solid gray;border-radius:10px;font-size:20px} :focus-visible {outline:3px solid #1683e8;outline-offset:3px} [hidden] {display:none}
+</style>
+</head>
+<body><main>
+<h1>KeyRecord 单页回归测试</h1>
+<p>全程留在本页，按页面提示操作，不用回 Codex 回复。先确认测试版显示“正在采集”。只用固定测试内容，不输入真实密码。</p>
+<p>本页只引导操作，不读取按键内容、不联网、不保存输入。系统安全输入、计数和保存结果由执行者核对诊断记录；倒计时不代表验证通过。</p>
+<p id="status" role="status">准备：页面尚未创建密码框。确认正在采集后，点击下方按钮。</p>
+<button id="begin" type="button">已在采集，开始本页测试</button>
+<section id="ordinary" hidden><label for="plain">普通测试文本</label><textarea id="plain" readonly spellcheck="false">KeyRecord test</textarea></section>
+<button id="baseline" type="button" hidden>已按三次 ⌘A</button>
+<button id="secure" type="button" hidden>进入密码框步骤</button>
+<div id="field"></div>
+<button id="end" type="button" hidden>结束密码框步骤</button>
+<button id="done" type="button" hidden>恢复后已按两次 ⌘A</button>
+<button id="abort" type="button" hidden>中止本轮并移除密码框</button>
+<noscript>需要启用 JavaScript 才能开始；当前没有密码框。</noscript>
+</main>
+<script>
+const el = id => document.getElementById(id);
+let stage = 'ready', timer = null, deadline = 0;
+function show(id, visible) { el(id).hidden = !visible; }
+function say(text) { el('status').textContent = text; }
+function cancelTimer() { if (timer !== null) clearInterval(timer); timer = null; }
+function countdown(seconds, message, complete) {
+  cancelTimer(); deadline = Date.now() + seconds * 1000;
+  function tick() {
+    const remaining = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+    say(message + '（' + remaining + ' 秒）');
+    if (!remaining) { cancelTimer(); complete(); }
+  }
+  timer = setInterval(tick, 200); tick();
+}
+function abort(reason) {
+  if (stage === 'ready' || stage === 'finished' || stage === 'aborted') return;
+  stage = 'aborted'; cancelTimer(); el('field').replaceChildren();
+  for (const id of ['baseline','secure','end','done','abort','ordinary']) show(id, false);
+  say('本轮已中止：' + reason + '。请用 KeyRecord 菜单正常退出；不用回聊天。执行者会检查记录，本轮不能当作完整通过。');
+}
+el('begin').addEventListener('click', () => {
+  if (stage !== 'ready') return;
+  stage = 'baseline'; show('begin',false); show('ordinary',true); show('baseline',true); show('abort',true);
+  say('第 1 步：在下面普通文本区按 ⌘A 三次，每次完全松开、间隔一秒，然后用鼠标点击“已按三次”。');
+  el('plain').focus();
+});
+el('baseline').addEventListener('click', () => {
+  if (stage !== 'baseline') return;
+  stage = 'baseline-wait'; show('baseline',false);
+  countdown(5,'等待自动保存，请勿按键',() => {
+    stage = 'secure-ready'; show('ordinary',false); show('secure',true);
+    say('第 2 步：点击“进入密码框步骤”后才会创建密码框。随后保持本页前台，按提示输入。');
+  });
+});
+el('secure').addEventListener('click', () => {
+  if (stage !== 'secure-ready') return;
+  stage = 'secure-wait'; show('secure',false);
+  const label = document.createElement('label'); label.htmlFor='test-password'; label.textContent='仅输入测试字母 aaa：';
+  const input = document.createElement('input'); input.id='test-password'; input.type='password'; input.autocomplete='off'; input.spellcheck=false;
+  input.addEventListener('blur', () => {
+    if (stage === 'secure-wait' || stage === 'secure-hold') abort('密码框在保持阶段失焦');
+  });
+  el('field').replaceChildren(label,input); input.focus();
+  countdown(5,'保持密码框聚焦，先不要输入。系统是否启用保护由诊断记录核对',() => {
+    stage = 'secure-hold';
+    countdown(30,'现在输入 aaa 一次，然后保持聚焦，不切窗口、不回聊天',() => {
+      stage = 'secure-finish'; show('end',true);
+      say('保持阶段结束。用鼠标点击“结束密码框步骤”。不要点 KeyRecord 的开始或继续。');
+    });
+  });
+});
+el('end').addEventListener('click', () => {
+  if (stage !== 'secure-finish') return;
+  stage = 'resume-wait'; el('field').replaceChildren(); show('end',false); show('ordinary',true); el('plain').focus();
+  countdown(5,'等待自动恢复，请勿按键',() => {
+    stage = 'resumed'; show('done',true);
+    say('第 3 步：在普通文本区再按 ⌘A 两次，每次完全松开、间隔一秒，然后用鼠标点击“恢复后已按两次”。');
+  });
+});
+el('done').addEventListener('click', () => {
+  if (stage !== 'resumed') return;
+  stage = 'save-wait'; show('done',false);
+  countdown(5,'等待自动保存，请勿按键',() => {
+    stage = 'finished'; show('abort',false);
+    say('操作步骤完成，尚未判定通过。现在用鼠标打开 KeyRecord 菜单，点击退出。无需回 Codex 回复；执行者将核对退出和整轮记录。');
+  });
+});
+el('abort').addEventListener('click', () => abort('手动中止'));
+window.addEventListener('blur', () => abort('测试期间切换了窗口'));
+document.addEventListener('visibilitychange', () => { if (document.hidden) abort('测试页面离开前台'); });
+</script></body></html>

@@ -1,5 +1,23 @@
 # Current project status
 
+## Current summary — 2026-09-27
+
+Main includes PR #13 at `6257b03b40f618fd976c6cbcc77dc83d374c59bb`. The isolation
+repair and bounded permission-restart evidence below are merged. No further permission
+round is scheduled. The current work is [network observation preparation](NETWORK_OBSERVATION_PREP.md).
+The synthetic nettop control saw 1 MiB on its sender PID; its idle PID had no row,
+which cannot prove zero traffic. In the owner-supplied final 20.07-second PKTAP
+pilot, 16 captured records parsed with the expected PID, direction and port
+counts; kernel drops, unknown attribution and unexpected parsed flows were zero.
+The 17th output line in this new run was classified as a complete whitespace-only line.
+This meets the previously recorded bounded synthetic-observer criteria. The
+unidentified line in an older run remains historically unexplained. The script
+still emits `product_pass:false` and has no automatic PASS path. No KeyRecord
+network observation or zero-egress result exists; the product wrapper remains
+BLOCKED. Phase 1/G1, Release, formal performance and native Intel qualification
+remain open. See the [network preparation record](NETWORK_OBSERVATION_PREP.md)
+for the exact evidence boundary and remaining product scope.
+
 ## Dedicated trial isolation and bounded restart follow-up — 2026-09-27
 
 PR #12 merged at `b57dbb796056e40d7967fea34879aedff39bbf4b`. This follow-up

@@ -9,6 +9,22 @@ final class DebugTrialIsolationTests: XCTestCase {
         XCTAssertEqual(DebugTrialIsolation.select(store: "", namespace: "  ", realStoreRoot: real), .production)
     }
 
+    func testRequiredTrialWithoutEnvironmentRejectsSystemRelaunch() {
+        XCTAssertEqual(DebugTrialIsolation.select(
+            store: nil, namespace: nil, realStoreRoot: real, requiresTrial: true), .rejected)
+        XCTAssertEqual(DebugTrialIsolation.select(
+            store: "  ", namespace: "", realStoreRoot: real, requiresTrial: true), .rejected)
+    }
+
+    func testRequiredTrialWithExplicitIsolationCanStart() {
+        XCTAssertEqual(DebugTrialIsolation.select(
+            store: "/tmp/keyrecord-trial/store", namespace: "com.keyrecord.trial.round1",
+            realStoreRoot: real, requiresTrial: true),
+            .trial(DebugTrialIsolation.Location(
+                storeRoot: URL(fileURLWithPath: "/tmp/keyrecord-trial/store"),
+                namespace: "com.keyrecord.trial.round1")))
+    }
+
     func testPartialRealNamespaceAndOverlapAreRejected() {
         XCTAssertEqual(DebugTrialIsolation.select(store: "/tmp/trial/store", namespace: nil, realStoreRoot: real), .rejected)
         XCTAssertEqual(DebugTrialIsolation.select(store: nil, namespace: "com.keyrecord.trial.round1", realStoreRoot: real), .rejected)

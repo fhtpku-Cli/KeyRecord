@@ -1,7 +1,8 @@
 #if DEBUG
 import Foundation
 
-    /// Explicit Debug-only trial location. Empty inputs keep the production store and keychain.
+    /// Explicit Debug-only trial location. Ordinary Debug builds retain production defaults.
+    /// Dedicated trial bundles must reject missing configuration, including OS-triggered relaunches.
     /// A partial, illegal, or overlapping choice is rejected and must not fall back to production.
     /// Paths are symlink-resolved before comparison. An unchanged directory modification time
     /// does not prove the real store was never opened.
@@ -23,10 +24,12 @@ public enum DebugTrialIsolation {
 
     public static let productionNamespace = "com.keyrecord.app"
 
-    public static func select(store: String?, namespace: String?, realStoreRoot: URL) -> Selection {
+    public static func select(store: String?, namespace: String?, realStoreRoot: URL, requiresTrial: Bool = false) -> Selection {
         let storeValue = store?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         let namespaceValue = namespace?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        if storeValue.isEmpty && namespaceValue.isEmpty { return .production }
+        if storeValue.isEmpty && namespaceValue.isEmpty {
+            return requiresTrial ? .rejected : .production
+        }
         guard !storeValue.isEmpty, !namespaceValue.isEmpty else { return .rejected }
         guard namespaceValue != productionNamespace, validNamespace(namespaceValue) else { return .rejected }
         guard storeValue.hasPrefix("/") else { return .rejected }

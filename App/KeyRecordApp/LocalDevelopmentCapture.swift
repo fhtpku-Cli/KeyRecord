@@ -45,7 +45,12 @@ final class LocalDevelopmentCapture: CaptureQualification, @unchecked Sendable {
     func setArmed(_ armed: Bool) { mutex.withLock { self.armed = armed } }
 }
 
-final class SystemSessionLockProvider: SessionLockProvider, @unchecked Sendable {
+/// Providers that can explain their lock verdict to the diagnostic witness.
+protocol SessionLockDiagnosing: Sendable {
+    func diagnosticLockComponents() async -> String
+}
+
+final class SystemSessionLockProvider: SessionLockProvider, SessionLockDiagnosing, @unchecked Sendable {
     typealias SessionDictionaryQuery = () -> NSDictionary?
     typealias ConsoleLockQuery = () -> CFTypeRef?
     typealias NotificationRegistrar = (@escaping (SessionLockState) -> Void) -> Void
@@ -133,6 +138,16 @@ final class SystemSessionLockProvider: SessionLockProvider, @unchecked Sendable 
 
     private static func liveSessionDictionary() -> NSDictionary? {
         CGSessionCopyCurrentDictionary() as NSDictionary?
+    }
+
+    /// Coarse inputs behind `sessionLockState()`, for the explicitly enabled witness only.
+    /// This is a separate read; it never feeds a capture or display decision.
+    func diagnosticLockComponents() async -> String {
+        let dictionary = sessionDictionaryQuery()
+        let session = Self.state(from: dictionary)
+        let console = Self.booleanState(consoleLockQuery())
+        let notification = mutex.withLock { notificationState }.map { String(describing: $0) } ?? "none"
+        return "session=\(session),console=\(console),eligible=\(eligible(dictionary)),notification=\(notification)"
     }
 
     private static func liveConsoleLock() -> CFTypeRef? {

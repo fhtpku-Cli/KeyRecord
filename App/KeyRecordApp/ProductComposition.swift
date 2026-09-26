@@ -8,6 +8,8 @@ import KeyRecordStore
 final class ProductMaintenanceHooks {
     var stop: () -> Void = {}
     var start: () -> Void = {}
+    var fail: (MaintenanceFailureStage) async -> Void = { _ in }
+    var erased: () -> Void = {}
 }
 
 #if DEBUG
@@ -29,6 +31,34 @@ struct DistributedLockNotifications: LockNotificationCentering {
 }
 #endif
 
+/// What one manual capture entry decided. Carries nothing in Release.
+@MainActor
+final class ManualEntryTrace {
+    #if DEBUG
+    var detail = CapturePrivacyActionDetail()
+    #endif
+}
+
+/// Host-facing inputs of the composition. Production fills every field from the system;
+/// the wiring in `ProductComposition.assemble` is shared by every caller.
+@MainActor
+struct ProductHostBoundaries {
+    let storeRoot: URL
+    let namespace: KeychainNamespace
+    let backend: any KeychainBackend
+    let login: any LoginItemBackend
+    #if DEBUG
+    var localCapture: LocalDevelopmentCapture?
+    var sessionLock: any SessionLockProvider = UnqualifiedSessionLockProvider()
+    var foreground: any FrontmostAppProvider = SystemForegroundProvider()
+    var secureInput: any SecureInputProvider = SystemSecureInputProvider()
+    var eventSource: @MainActor (CaptureQueue, any CaptureQualification, any SessionLockProvider) async
+        -> ListenOnlyEventSource
+    var lockNotifications: any LockNotificationCentering = DistributedLockNotifications()
+    var terminate: @MainActor () -> Void = { NSApp.terminate(nil) }
+    #endif
+}
+
 @MainActor
 final class ProductComposition: NSObject, NSMenuDelegate {
     let lifecycle: LifecycleOrchestrator
@@ -49,17 +79,36 @@ final class ProductComposition: NSObject, NSMenuDelegate {
     private var runtimeCoordinator: CaptureRuntimeCoordinator?
     private let manualRecoveryFence = ManualRecoveryFence()
     private var pausedPrivacyTask: Task<Void, Never>?
+    private var secureInputMonitor: Task<Void, Never>?
+    /// Bumped whenever the poller is cancelled so an in-flight read cannot act for a later session.
+    private var secureInputMonitorGeneration = 0
+    /// `hooks.stop` holds runtime tasks while lifecycle may still say `collecting`.
+    private var holdRuntimeTasks = false
+    /// Set when failed maintenance left the writer or store unable to accept a normal Start.
+    private var maintenanceRecovery: MaintenanceFailureStage?
+    private var resumeSuspendedWriter: () async throws -> Void = {}
+    private var completeRecoveredReset: () async throws -> Bool = { false }
+    #if DEBUG
+    private(set) var secureInputMonitorStarts = 0
+    #endif
+    /// Last Secure Input read by the collecting monitor; `.unknown` until the first read.
+    private var lastSecureInput: SecureInputState = .unknown
     #if DEBUG
     /// Batch 6: layered diagnostics. DEBUG-only; Release never constructs it.
     /// Exists because the 2026-09-18 live run ended with capture provably not starting and
     /// zero observable signal to say which layer stopped.
     let diagnostics = CaptureDiagnosticsRecorder()
     private var diagnosticSummaryWritten = false
+    private var closedIntervalTask: Task<Void, Never>?
+    private var systemWitnessTask: Task<Void, Never>?
+    private var closingProtectedState = false
+    var terminateApplication: @MainActor () -> Void = { NSApp.terminate(nil) }
     #endif
     /// Whether a capture session is currently established. Set only by the paths that
     /// actually start or stop the event source, so the UI cannot infer liveness from
     /// phase or gate state alone (KR-08).
     private(set) var captureSessionLive = false
+    private var quitApprovedForTermination = false
     private var window: NSWindow?
     private var statusItem: NSMenuItem?
     private weak var menuBarButton: NSStatusBarButton?
@@ -67,25 +116,61 @@ final class ProductComposition: NSObject, NSMenuDelegate {
     private var observers: [any NSObjectProtocol] = []
     private var text: NativeText { NativeText(locale: flow.language) }
 
-    static func make() async throws -> ProductComposition {
-        let root = try FileManager.default.url(for: .applicationSupportDirectory, in: .userDomainMask,
+    static func productionStoreRoot() throws -> URL {
+        try FileManager.default.url(for: .applicationSupportDirectory, in: .userDomainMask,
             appropriateFor: nil, create: false).appendingPathComponent("com.keyrecord.app/store", isDirectory: true)
+    }
+
+    static func make() async throws -> ProductComposition {
+        #if DEBUG
+        try await assemble(try systemBoundaries(storeRoot: nil, namespace: nil))
+        #else
+        try await assemble(ProductHostBoundaries(storeRoot: try productionStoreRoot(),
+            namespace: try KeychainNamespace("com.keyrecord.app"), backend: BlockedLiveKeychain(),
+            login: ProductLogin.make()))
+        #endif
+    }
+
+    #if DEBUG
+    static func makeTrial(storeRoot: URL, namespace: String) async throws -> ProductComposition {
+        try await assemble(try systemBoundaries(storeRoot: storeRoot, namespace: namespace))
+    }
+
+    /// Hostless tests supply every host boundary; the wiring below is the production wiring.
+    static func makeSynthetic(_ boundaries: ProductHostBoundaries) async throws -> ProductComposition {
+        try await assemble(boundaries)
+    }
+
+    private static func systemBoundaries(storeRoot: URL?, namespace name: String?) throws -> ProductHostBoundaries {
+        // T7 has no qualified system-lock witness. Never replace this boundary with
+        // an environment switch, cached unlocked assumption, or fake-success backend.
+        // DEBUG self-use: armed by the persistent Developer menu toggle (UserDefaults)
+        // or the KEYRECORD_LOCAL_CAPTURE=1 automation env. Non-armed Debug and all
+        // Release builds stay Blocked.
+        let localCapture: LocalDevelopmentCapture? = LocalDevelopmentCaptureArmament.isArmed
+            ? LocalDevelopmentCapture() : nil
+        let backend: any KeychainBackend = localCapture != nil ? LocalKeychainBackend() : BlockedLiveKeychain()
+        return ProductHostBoundaries(
+            storeRoot: try storeRoot ?? productionStoreRoot(),
+            namespace: try KeychainNamespace(name ?? "com.keyrecord.app"),
+            backend: backend, login: ProductLogin.make(),
+            localCapture: localCapture,
+            sessionLock: localCapture == nil ? UnqualifiedSessionLockProvider() : SystemSessionLockProvider(),
+            eventSource: { queue, qualification, sessionLock in
+                await ListenOnlyEventSource.system(queue: queue, qualification: qualification,
+                                                   sessionLock: sessionLock)
+            })
+    }
+    #endif
+
+    private static func assemble(_ host: ProductHostBoundaries) async throws -> ProductComposition {
+        let root = host.storeRoot
+        let namespace = host.namespace
         let fs = AtomicFileSystem()
         try fs.preparePrivateRoot(at: root.deletingLastPathComponent())
         try fs.preparePrivateRoot(at: root)
         let gate = KeyAvailabilityGate()
-        let namespace = try KeychainNamespace("com.keyrecord.app")
-        // T7 has no qualified system-lock witness. Never replace this boundary with
-        // an environment switch, cached unlocked assumption, or fake-success backend.
-        #if DEBUG
-        // DEBUG self-use: armed by the persistent Developer menu toggle (UserDefaults)
-        // or the KEYRECORD_LOCAL_CAPTURE=1 automation env. Non-armed Debug and all
-        // Release builds stay Blocked.
-        let backend: any KeychainBackend = LocalDevelopmentCaptureArmament.isArmed
-            ? LocalKeychainBackend() : BlockedLiveKeychain()
-        #else
-        let backend: any KeychainBackend = BlockedLiveKeychain()
-        #endif
+        let backend = host.backend
         let source = ProductKeySource(backend: backend, namespace: namespace, gate: gate)
         let store = ObjectStore(root: root, keySource: source)
         let consent = ProductConsent()
@@ -100,23 +185,20 @@ final class ProductComposition: NSObject, NSMenuDelegate {
         let scheduler = FlushScheduler(gate: gate, writer: writer, clock: clock)
         let queue = CaptureQueue()
         #if DEBUG
-        let localCapture: LocalDevelopmentCapture? = LocalDevelopmentCaptureArmament.isArmed
-            ? LocalDevelopmentCapture() : nil
+        let localCapture = host.localCapture
         let qualification: any CaptureQualification = localCapture ?? UnqualifiedCapture()
-        let sessionLock: any SessionLockProvider = localCapture == nil
-            ? UnqualifiedSessionLockProvider() : SystemSessionLockProvider()
-        let eventSource = await ListenOnlyEventSource.system(queue: queue, qualification: qualification,
-                                                             sessionLock: sessionLock)
+        let sessionLock = host.sessionLock
+        let eventSource = await host.eventSource(queue, qualification, sessionLock)
         let capture = ProductCapture(source: eventSource, queue: queue, reduction: reduction,
-            persistence: persistence, scheduler: scheduler, foreground: SystemForegroundProvider(),
-            qualification: qualification, sessionLock: sessionLock)
+            persistence: persistence, scheduler: scheduler, foreground: host.foreground,
+            secureInput: host.secureInput, qualification: qualification, sessionLock: sessionLock)
         #else
         let eventSource = await ListenOnlyEventSource.system(queue: queue, qualification: UnqualifiedCapture())
         let capture = ProductCapture(source: eventSource, queue: queue, reduction: reduction,
             persistence: persistence, scheduler: scheduler, foreground: SystemForegroundProvider())
         #endif
         let flush = ProductFlush(reduction: reduction, scheduler: scheduler)
-        let login = ProductLogin.make()
+        let login = host.login
         let deletion = LocalDeletionCoordinator(ownedRoot: root.path, fileSystem: FileSystemDeletionAdapter(),
             keychain: KeychainDeletionAdapter(keyring: keyring), loginItems: ProductDeletionLogin(login: login))
         let lifecycle = LifecycleOrchestrator(ports: LifecyclePorts(preferences: persistence, keys: persistence,
@@ -124,7 +206,9 @@ final class ProductComposition: NSObject, NSMenuDelegate {
         let hooks = ProductMaintenanceHooks()
         let destruction = ProductDestruction(store: store, gate: gate, flush: flush, capture: capture,
             deletion: deletion, scheduler: scheduler, writer: writer, beforeMaintenance: { hooks.stop() },
-            afterReset: { await lifecycle.reloadAfterCycleReset(); hooks.start() }, clear: { reduction.clear() })
+            afterReset: { await lifecycle.reloadAfterCycleReset(); hooks.start() },
+            afterFailure: { stage in await hooks.fail(stage) },
+            afterErase: { hooks.erased() }, clear: { reduction.clear() })
         let flow = AppFlowObservable(flow: Phase1FlowModel(lifecycle: lifecycle,
             cycleReset: destruction, localDataEraser: destruction))
         #if DEBUG
@@ -135,11 +219,15 @@ final class ProductComposition: NSObject, NSMenuDelegate {
         let composition = ProductComposition(lifecycle: lifecycle, flow: flow, gate: gate, reduction: reduction,
                                   scheduler: scheduler, flush: flush, capture: capture, store: store, hooks: hooks,
                                   localCapture: localCapture,
-                                  localSessionLock: localCapture == nil ? nil : sessionLock)
+                                  localSessionLock: localCapture == nil ? nil : sessionLock,
+                                  notifications: host.lockNotifications)
+        composition.terminateApplication = host.terminate
         #else
         let composition = ProductComposition(lifecycle: lifecycle, flow: flow, gate: gate, reduction: reduction,
                                   scheduler: scheduler, flush: flush, capture: capture, store: store, hooks: hooks)
         #endif
+        composition.resumeSuspendedWriter = { try await destruction.resumeWriterIfIdle() }
+        composition.completeRecoveredReset = { try await destruction.completeRecoveredReset() }
         #if DEBUG
         reduction.configureDiagnostics(composition.diagnostics)
         await scheduler.setDiagnostics(composition.diagnostics)
@@ -184,13 +272,28 @@ final class ProductComposition: NSObject, NSMenuDelegate {
     private func installActions(hooks: ProductMaintenanceHooks) {
         let lifecycle = self.lifecycle
         hooks.stop = { [weak self] in
+            self?.holdRuntimeTasks = true
             self?.stopPulse()
+            self?.stopSecureInputMonitor()
             self?.pausedPrivacyTask?.cancel()
             self?.pausedPrivacyTask = nil
+            #if DEBUG
+            self?.closedIntervalTask?.cancel()
+            self?.closedIntervalTask = nil
+            #endif
             self?.flow.snapshot = nil
             self?.flow.update(phase: .blocked)
         }
-        hooks.start = { [weak self] in self?.syncRuntime() }
+        hooks.start = { [weak self] in
+            self?.maintenanceRecovery = nil
+            self?.holdRuntimeTasks = false
+            self?.syncRuntime()
+        }
+        hooks.fail = { [weak self] stage in await self?.recoverAfterFailedMaintenance(stage) }
+        hooks.erased = { [weak self] in
+            self?.maintenanceRecovery = nil
+            self?.holdRuntimeTasks = false
+        }
         flow.actions = FlowActions(
             accept: { [weak self] in await self?.accept() },
             decline: { lifecycle.denyConsent() },
@@ -217,9 +320,16 @@ final class ProductComposition: NSObject, NSMenuDelegate {
         for notification in [NSWorkspace.willSleepNotification, NSWorkspace.sessionDidResignActiveNotification] {
             observers.append(NSWorkspace.shared.notificationCenter.addObserver(
                 forName: notification, object: nil, queue: nil
-            ) { [weak self, reduction, queue, manualRecoveryFence] _ in
+            ) { [weak self, reduction, queue, manualRecoveryFence] notification in
                 reduction.revokeProtectedState(queue: queue, recoveryFence: manualRecoveryFence)
+                #if DEBUG
+                let trigger = notification.name == NSWorkspace.willSleepNotification
+                    ? "workspaceWillSleep" : "sessionResigned"
+                #endif
                 Task { @MainActor in
+                    #if DEBUG
+                    self?.diagnostics.notePrivacyTrigger(trigger)
+                    #endif
                     await self?.handlePrivacyInvalidation()
                 }
             })
@@ -248,6 +358,7 @@ final class ProductComposition: NSObject, NSMenuDelegate {
     /// Lock/sleep contract: revoke immediately, clear queued events and sensitive
     /// snapshots, close the scheduler and key gate, then stop the source.
     func handleSessionLocked() async {
+        diagnostics.notePrivacyTrigger("screenLockedNotification")
         manualRecoveryFence.invalidate()
         gate.update(.locked)
         capture.queue.revoke()
@@ -268,36 +379,65 @@ final class ProductComposition: NSObject, NSMenuDelegate {
         syncRuntime()
     }
 
-    private func startOrRetry() async {
+    func startOrRetry() async {
+        let trace = ManualEntryTrace()
+        #if DEBUG
+        let action = await beginTracedAction("start", trace: trace)
+        #endif
         guard lifecycle.phase == .blocked || lifecycle.phase == .failed else {
             lifecycle.requestConsent()
+            #if DEBUG
+            trace.detail.earlyReturn = "not-blocked-or-failed"
+            await endTracedAction(action, trace: trace)
+            #endif
             return
         }
         if lifecycle.phase == .blocked,
            lifecycle.state.preferences?.expectedCollecting != true {
             syncRuntime()
+            #if DEBUG
+            trace.detail.earlyReturn = "not-expecting-collecting"
+            await endTracedAction(action, trace: trace)
+            #endif
             return
         }
-        await performManualCaptureEntry { [lifecycle] in await lifecycle.retry() }
+        await performManualCaptureEntry(trace: trace) { [lifecycle] in await lifecycle.retry() }
+        #if DEBUG
+        await endTracedAction(action, trace: trace)
+        #endif
     }
 
-    private func prepareExplicitCaptureStart(_ attempt: ManualRecoveryAttempt) async -> Bool {
+    private func prepareExplicitCaptureStart(_ attempt: ManualRecoveryAttempt, trace: ManualEntryTrace) async -> Bool {
         #if DEBUG
         guard let sessionLock = localSessionLock else {
+            trace.detail.prepareOutcome = "sessionLockProviderMissing"
+            diagnostics.notePrivacyTrigger("sessionLockProviderMissing")
             await handlePrivacyInvalidation()
             return false
         }
         let lockState = await sessionLock.sessionLockState()
-        guard manualRecoveryFence.isCurrent(attempt) else { return false }
+        trace.detail.prepareLockRead = String(describing: lockState)
+        guard manualRecoveryFence.isCurrent(attempt) else {
+            trace.detail.prepareOutcome = "fenceStaleAfterLockRead"
+            return false
+        }
         guard lockState == .unlocked else {
+            trace.detail.prepareOutcome = "lockNotUnlocked"
+            diagnostics.notePrivacyTrigger("sessionLockReadNotUnlocked")
             await handlePrivacyInvalidation()
             return false
         }
         gate.update(.unlocked)
-        _ = await capture.requestInputMonitoringPermission()
-        guard manualRecoveryFence.isCurrent(attempt) else { return false }
+        let permission = await capture.requestInputMonitoringPermission()
+        trace.detail.permissionStatus = String(describing: permission)
+        guard manualRecoveryFence.isCurrent(attempt) else {
+            trace.detail.prepareOutcome = "fenceStaleAfterPermission"
+            return false
+        }
         await runtimeCoordinator?.clearUserStop()
-        return manualRecoveryFence.isCurrent(attempt)
+        let current = manualRecoveryFence.isCurrent(attempt)
+        trace.detail.prepareOutcome = current ? "ready" : "fenceStaleAfterClearUserStop"
+        return current
         #else
         gate.update(.unknown)
         lifecycle.requireRecovery(reason: .keyUnavailable)
@@ -306,14 +446,36 @@ final class ProductComposition: NSObject, NSMenuDelegate {
         #endif
     }
 
-    private func performManualCaptureEntry(_ start: @MainActor () async -> Void) async {
+    private func performManualCaptureEntry(trace: ManualEntryTrace,
+                                           _ start: @MainActor () async -> Void) async {
+        holdRuntimeTasks = false
         let completed = await manualRecoveryFence.perform(
             prepare: { [weak self] attempt in
-                await self?.prepareExplicitCaptureStart(attempt) ?? false
+                await self?.prepareExplicitCaptureStart(attempt, trace: trace) ?? false
             },
-            start: start,
-            abort: { [weak self] in await self?.abortManualCaptureEntry() })
-        if completed, lifecycle.phase != .collecting { gate.update(.unknown) }
+            start: { [weak self] in
+                guard await self?.commitDurableCountsBeforeRestart() == true else {
+                    self?.flow.noticeKey = "flow.actionUnavailable"
+                    return
+                }
+                #if DEBUG
+                trace.detail.lifecycleCommandRun = true
+                #endif
+                await start()
+            },
+            abort: { [weak self] in
+                #if DEBUG
+                trace.detail.abortRun = true
+                #endif
+                await self?.abortManualCaptureEntry()
+            })
+        if completed, lifecycle.phase != .collecting {
+            let schedulerPending = await scheduler.hasPendingChanges()
+            let unsaved = reduction.hasUnflushedChanges() || schedulerPending
+            // Closing the gate would make a failed flush unreadable. Keep it open so the
+            // next Start can persist the pending counts instead of discarding them.
+            if !unsaved, maintenanceRecovery == nil { gate.update(.unknown) }
+        }
         await syncRuntimeRefreshingLiveness()
     }
 
@@ -324,6 +486,12 @@ final class ProductComposition: NSObject, NSMenuDelegate {
     }
 
     func boot() async -> NSStatusItem {
+        await restoreRuntime()
+        return installStatusItem()
+    }
+
+    /// Everything `boot` does before the status item exists.
+    func restoreRuntime() async {
         #if DEBUG
         // Prime the gate from the real session-lock state BEFORE restore() reloads
         // preferences (which calls gate.begin()); a locked/unknown Mac stays closed.
@@ -370,6 +538,9 @@ final class ProductComposition: NSObject, NSMenuDelegate {
         // KR-08: establish real liveness before the first paint, so the menu bar can never
         // show a stale "Collecting" inherited from the restored preference alone.
         await syncRuntimeRefreshingLiveness()
+    }
+
+    private func installStatusItem() -> NSStatusItem {
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         item.button?.image = NSImage(systemSymbolName: "keyboard", accessibilityDescription: "KeyRecord")
         item.button?.setAccessibilityIdentifier("menu.open")
@@ -404,12 +575,56 @@ final class ProductComposition: NSObject, NSMenuDelegate {
         // `.verifyRestartReadiness` effect performs it and writes the returned
         // RuntimeConditions into state. Pre-checking here and discarding the result was
         // exactly what left conditions at `.unknown` while the phase said collecting.
-        await performManualCaptureEntry { [lifecycle] in await lifecycle.acceptConsent() }
+        let trace = ManualEntryTrace()
+        #if DEBUG
+        let action = await beginTracedAction("accept", trace: trace)
+        #endif
+        await performManualCaptureEntry(trace: trace) { [lifecycle] in await lifecycle.acceptConsent() }
+        #if DEBUG
+        await endTracedAction(action, trace: trace)
+        #endif
     }
 
-    private func resume() async {
-        await performManualCaptureEntry { [lifecycle] in await lifecycle.resume() }
+    func resume() async {
+        let trace = ManualEntryTrace()
+        #if DEBUG
+        let action = await beginTracedAction("resume", trace: trace)
+        #endif
+        await performManualCaptureEntry(trace: trace) { [lifecycle] in await lifecycle.resume() }
+        #if DEBUG
+        await endTracedAction(action, trace: trace)
+        #endif
     }
+
+    #if DEBUG
+    private struct TracedAction {
+        let name: String
+        let id: Int
+        let readinessSequence: Int
+    }
+
+    private func beginTracedAction(_ name: String, trace: ManualEntryTrace) async -> TracedAction {
+        trace.detail.phaseBefore = String(describing: lifecycle.phase)
+        let id = diagnostics.beginAction(name, detail: trace.detail)
+        return TracedAction(name: name, id: id,
+                            readinessSequence: await capture.readinessObservation().sequence)
+    }
+
+    /// The readiness result is whatever `verifyRestartReadiness` returned during the action;
+    /// `readinessCalls` > 1 means another caller (for example recovery) may have interleaved.
+    private func endTracedAction(_ action: TracedAction, trace: ManualEntryTrace) async {
+        let readiness = await capture.readinessObservation()
+        let calls = readiness.sequence - action.readinessSequence
+        trace.detail.readinessCalls = calls
+        trace.detail.readinessOutcome = calls > 0 ? readiness.outcome : nil
+        trace.detail.phaseAfter = String(describing: lifecycle.phase)
+        trace.detail.blockedReasonAfter = lifecycle.state.blockedReason.map { String(describing: $0) }
+        trace.detail.failureAfter = lifecycle.state.failure.map { String(describing: $0) }
+        trace.detail.sessionLiveAfter = await capture.hasLiveSession()
+        trace.detail.keyGateOpenAfter = (try? gate.begin()) != nil
+        diagnostics.endAction(action.name, id: action.id, detail: trace.detail)
+    }
+    #endif
 
     /// KR-02: build and attach the single serial recovery coordinator, and route every
     /// typed invalidation from the live event source into it.
@@ -457,13 +672,38 @@ final class ProductComposition: NSObject, NSMenuDelegate {
             if !reason.allowsAutomaticRecovery {
                 reduction.revokeProtectedState(queue: queue, recoveryFence: recoveryFence)
                 Task { @MainActor in
+                    #if DEBUG
+                    self?.diagnostics.notePrivacyTrigger("captureInvalidationNoAutoRecovery")
+                    #endif
                     await self?.handlePrivacyInvalidation()
                     await coordinator.handle(.invalidated(reason))
                 }
             } else {
-                Task { await coordinator.handle(.invalidated(reason)) }
+                Task { @MainActor in
+                    let outcome = await coordinator.handle(.invalidated(reason))
+                    await self?.settleFailedRecovery(outcome)
+                }
             }
         }
+    }
+
+    /// A failed automatic rebuild leaves no session and no trigger that would retry it, so
+    /// the lifecycle must stop claiming collecting and hand recovery to an explicit Start.
+    /// Retained counts are flushed first; Start reloads the aggregate from disk.
+    private func settleFailedRecovery(_ outcome: CaptureRuntimeOutcome) async {
+        // While Secure Input is not known to be off, the rebuild is expected to fail and the
+        // Secure Input monitor retries once it clears.
+        guard outcome == .blocked(.startFailed), lifecycle.phase == .collecting,
+              !(await capture.hasLiveSession()) else { return }
+        let secureInput = await capture.secureInputState()
+        guard secureInput == .disabled else {
+            lastSecureInput = secureInput
+            return
+        }
+        try? await flush.flushWhileUnlocked()
+        guard lifecycle.phase == .collecting, !(await capture.hasLiveSession()) else { return }
+        lifecycle.requireRecovery(reason: .keyUnavailable)
+        await syncRuntimeRefreshingLiveness()
     }
 
     private func currentPreferences() async -> Preferences? {
@@ -530,7 +770,7 @@ final class ProductComposition: NSObject, NSMenuDelegate {
         if let runtimeCoordinator {
             // Same serial entry point as every invalidation (KR-02), so an exclusion change
             // cannot race a concurrent foreground/tap recovery.
-            await runtimeCoordinator.handle(.exclusionsChanged)
+            await settleFailedRecovery(await runtimeCoordinator.handle(.exclusionsChanged))
         } else if let preferences = lifecycle.state.preferences {
             await capture.reapplyPolicy(preferences: preferences)
         }
@@ -544,7 +784,124 @@ final class ProductComposition: NSObject, NSMenuDelegate {
     private func syncRuntime() {
         sync()
         reconcilePausedPrivacy()
+        reconcileSecureInputMonitor()
         reconcilePulse()
+    }
+
+    /// Capture reads Secure Input only when a session starts and macOS posts no change
+    /// notification, so a collecting lifecycle polls it. Turning on closes the session at
+    /// once; turning off asks the coordinator to rebuild it under fresh checks.
+    /// The 250 ms sleep is the polling interval, not a guaranteed maximum response time.
+    private func reconcileSecureInputMonitor() {
+        guard lifecycle.phase == .collecting, !holdRuntimeTasks else {
+            stopSecureInputMonitor()
+            return
+        }
+        guard secureInputMonitor == nil else { return }
+        let generation = secureInputMonitorGeneration
+        #if DEBUG
+        secureInputMonitorStarts += 1
+        #endif
+        secureInputMonitor = Task { [weak self] in
+            while !Task.isCancelled {
+                guard let self else { break }
+                let state = await self.capture.secureInputState()
+                guard !Task.isCancelled, self.monitorIsCurrent(generation) else { break }
+                let previous = self.lastSecureInput
+                self.lastSecureInput = state
+                let live = await self.capture.hasLiveSession()
+                guard self.monitorIsCurrent(generation) else { break }
+                if state != .disabled, live {
+                    self.capture.queue.revoke()
+                    self.captureSessionLive = false
+                    self.syncRuntime()
+                    #if DEBUG
+                    self.diagnostics.notePrivacyTrigger("secureInputMonitor")
+                    #endif
+                    await self.runtimeCoordinator?.handle(.invalidated(.secureInputChanged))
+                    guard self.monitorIsCurrent(generation) else { break }
+                    await self.syncRuntimeRefreshingLiveness()
+                } else if state == .disabled, previous != .disabled, !live {
+                    let outcome = await self.runtimeCoordinator?.handle(.invalidated(.secureInputChanged))
+                    guard self.monitorIsCurrent(generation) else { break }
+                    if let outcome { await self.settleFailedRecovery(outcome) }
+                    guard self.monitorIsCurrent(generation) else { break }
+                    await self.syncRuntimeRefreshingLiveness()
+                }
+                do { try await Task.sleep(for: .milliseconds(250)) } catch { break }
+            }
+            self?.releaseSecureInputMonitorOwnership(generation)
+        }
+    }
+
+    private func monitorIsCurrent(_ generation: Int) -> Bool {
+        !holdRuntimeTasks && secureInputMonitorGeneration == generation && lifecycle.phase == .collecting
+    }
+
+    private func stopSecureInputMonitor() {
+        secureInputMonitor?.cancel()
+        secureInputMonitor = nil
+        lastSecureInput = .unknown
+        secureInputMonitorGeneration &+= 1
+    }
+
+    /// A poller that exited on its own must drop the handle only if it is still the owner,
+    /// matching `releasePulseOwnership`.
+    private func releaseSecureInputMonitorOwnership(_ generation: Int) {
+        guard secureInputMonitorGeneration == generation else { return }
+        secureInputMonitor = nil
+    }
+
+    private func recoverAfterFailedMaintenance(_ stage: MaintenanceFailureStage) async {
+        maintenanceRecovery = stage == .beforeQuiesce ? nil : stage
+        holdRuntimeTasks = false
+        captureSessionLive = await capture.hasLiveSession()
+        if lifecycle.phase == .collecting, !captureSessionLive {
+            // Do not flush here. A failed save is not a reason to drop pending counts, and
+            // Start persists them before the scheduler reopen that would discard them.
+            lifecycle.requireRecovery(reason: .keyUnavailable)
+            await syncRuntimeRefreshingLiveness()
+        } else {
+            syncRuntime()
+        }
+    }
+
+    /// Explicit Start/Resume/Accept must not reopen the scheduler over unsaved counts or a
+    /// suspended writer. Lock revocation still discards through `closeProtectedState`.
+    private func commitDurableCountsBeforeRestart() async -> Bool {
+        if maintenanceRecovery == .unfinishedErase { return false }
+        switch maintenanceRecovery {
+        case .writerBusy, .writerSuspended:
+            do {
+                try await resumeSuspendedWriter()
+                if maintenanceRecovery == .writerBusy || maintenanceRecovery == .writerSuspended {
+                    maintenanceRecovery = nil
+                }
+            } catch {
+                maintenanceRecovery = .writerBusy
+                return false
+            }
+        case .unfinishedReset, .unfinishedErase, .beforeQuiesce, nil:
+            break
+        }
+        do {
+            if try await completeRecoveredReset() {
+                maintenanceRecovery = nil
+                holdRuntimeTasks = false
+                await syncRuntimeRefreshingLiveness()
+            }
+            let schedulerPending = await scheduler.hasPendingChanges()
+            if reduction.hasUnflushedChanges() || schedulerPending {
+                try await flush.flushWhileUnlocked()
+            }
+        } catch is LifecycleFlushError {
+            maintenanceRecovery = .writerBusy
+            return false
+        } catch {
+            maintenanceRecovery = .unfinishedReset
+            return false
+        }
+        return true
     }
 
     private func reconcilePausedPrivacy() {
@@ -586,7 +943,7 @@ final class ProductComposition: NSObject, NSMenuDelegate {
     /// the key gate is open; none exists otherwise. Repeated calls never create a second
     /// task, and every exit from collecting cancels the current one.
     private func reconcilePulse() {
-        let shouldRun = lifecycle.phase == .collecting && (try? gate.begin()) != nil
+        let shouldRun = lifecycle.phase == .collecting && !holdRuntimeTasks && (try? gate.begin()) != nil
         guard shouldRun else {
             stopPulse()
             return
@@ -602,6 +959,17 @@ final class ProductComposition: NSObject, NSMenuDelegate {
 
     /// Visible to tests: how many pulse tasks are currently owned (0 or 1, never more).
     var activePulseCount: Int { pulse == nil ? 0 : 1 }
+
+    /// Stops the collecting pulse and Secure Input poller and waits until those tasks
+    /// leave their current turn. Cancelling alone does not finish a write they already started.
+    func stopBackgroundMaintenanceForFixture() async {
+        let pulseTask = pulse
+        let monitor = secureInputMonitor
+        stopPulse()
+        stopSecureInputMonitor()
+        await pulseTask?.value
+        await monitor?.value
+    }
 
     private func makePulse() -> Task<Void, Never> {
         Task { [weak self] in
@@ -676,6 +1044,9 @@ final class ProductComposition: NSObject, NSMenuDelegate {
             // backed by a live session.
             flow.showCaptureBlocked()
         } else if flow.sensitiveContentVisible, let preferences = lifecycle.state.preferences {
+            #if DEBUG
+            diagnostics.endClosedInterval(cause: "protectedDisplayReauthorized")
+            #endif
             do {
                 try ProductSnapshotPublication.refreshAnalysis(flow: flow) {
                     try reduction.analysis(preferences: preferences)
@@ -707,10 +1078,76 @@ final class ProductComposition: NSObject, NSMenuDelegate {
             $0.captureSessionLive = sessionLive
             $0.loadedExpectedCollecting = expectedCollecting
         }
+        diagnostics.notePrivacyInterval()
+        if !sessionLive && !visible {
+            // Written after revocation, so events already past the gate are not new input.
+            diagnostics.beginClosedInterval(cause: closingProtectedState
+                                            ? "protectedStateClosed" : "closedStateObserved")
+        } else {
+            // Normal ends happen earlier, at session start or protected re-display. Reaching
+            // here with the interval open means the reopening step had no recorded boundary.
+            diagnostics.endClosedInterval(cause: sessionLive
+                                          ? "sessionObservedLiveWithoutBoundary" : "visibleWithoutReadBoundary")
+        }
+        reconcileClosedIntervalJournal()
         #endif
     }
 
     #if DEBUG
+    func enablePrivacyIntervalJournal(path: String) {
+        diagnostics.enablePrivacyIntervalJournal(path: path)
+    }
+
+    /// Samples counters while a closed interval stays open. It does not read protected data.
+    private func reconcileClosedIntervalJournal() {
+        guard diagnostics.privacyJournalEnabled, diagnostics.hasOpenClosedInterval else {
+            closedIntervalTask?.cancel()
+            closedIntervalTask = nil
+            return
+        }
+        guard closedIntervalTask == nil else { return }
+        closedIntervalTask = Task { [weak self] in
+            while !Task.isCancelled {
+                do { try await Task.sleep(for: .seconds(1)) } catch { return }
+                guard let self, !Task.isCancelled, self.diagnostics.hasOpenClosedInterval else { return }
+                let witness = await self.capture.diagnosticInputWitness()
+                self.diagnostics.observeClosedInterval(lockReadStatus: witness.lock,
+                                                       secureInputReadStatus: witness.secure,
+                                                       lockComponents: witness.lockComponents)
+            }
+        }
+    }
+
+    static let systemWitnessLimitSeconds = 300
+
+    /// Explicitly enabled, bounded sampling of the lock and Secure Input providers. It runs
+    /// in every phase, including collecting, so it does not depend on the product closing.
+    /// It reads only coarse provider states; never protected data or event content.
+    @discardableResult
+    func startSystemWitness(seconds: Int, interval: Duration = .seconds(1)) -> Bool {
+        guard diagnostics.privacyJournalEnabled, seconds > 0,
+              seconds <= Self.systemWitnessLimitSeconds, systemWitnessTask == nil else { return false }
+        let deadline = ContinuousClock.now.advanced(by: .seconds(seconds))
+        systemWitnessTask = Task { [weak self] in
+            while !Task.isCancelled, ContinuousClock.now < deadline {
+                guard let self else { return }
+                let read = await self.capture.diagnosticInputWitness()
+                let cached = self.lifecycle.state.conditions
+                self.diagnostics.recordWitness(lockReadStatus: read.lock, secureInputReadStatus: read.secure,
+                    lockComponents: read.lockComponents,
+                    cachedLockState: String(describing: cached.sessionLock),
+                    cachedSecureInputState: String(describing: cached.secureInput))
+                do { try await Task.sleep(for: interval) } catch { return }
+            }
+        }
+        return true
+    }
+
+    /// One bounded window per launch: a stopped or finished witness is not restarted.
+    func stopSystemWitness() {
+        systemWitnessTask?.cancel()
+    }
+
     func writeDiagnosticSummaryOnTermination(to path: String?) {
         guard !diagnosticSummaryWritten else { return }
         diagnosticSummaryWritten = true
@@ -743,8 +1180,13 @@ final class ProductComposition: NSObject, NSMenuDelegate {
     }
 
     private func closeProtectedState() async {
+        stopSecureInputMonitor()
         pausedPrivacyTask?.cancel()
         pausedPrivacyTask = nil
+        #if DEBUG
+        closedIntervalTask?.cancel()
+        closedIntervalTask = nil
+        #endif
         reduction.revokeProtectedState(queue: capture.queue, recoveryFence: manualRecoveryFence)
         flow.snapshot = nil
         lifecycle.observe(RuntimeConditions(keyAvailability: .unknown, sessionLock: .unknown,
@@ -753,14 +1195,40 @@ final class ProductComposition: NSObject, NSMenuDelegate {
         // scheduler and source close, so no pulse body can write across the fence.
         stopPulse()
         captureSessionLive = false
+        #if DEBUG
+        closingProtectedState = true
+        #endif
         sync()
+        #if DEBUG
+        closingProtectedState = false
+        #endif
         await scheduler.close(.unknown)
         await capture.stop()
         await store.closeProtectedSession()
     }
 
     func requestQuit() async {
-        if await prepareQuit() { NSApp.terminate(nil) }
+        guard await prepareQuit(invocation: "menu") else { return }
+        // `terminate` asks the delegate synchronously inside this main-actor job. A
+        // `.terminateLater` reply task could not start until this job ends, which it never
+        // does, so the delegate reuses the decision just made.
+        quitApprovedForTermination = true
+        defer { quitApprovedForTermination = false }
+        #if DEBUG
+        terminateApplication()
+        #else
+        NSApp.terminate(nil)
+        #endif
+    }
+
+    /// AppKit termination entry. Any phase that may still hold unsaved work answers
+    /// `.terminateLater` and replies with a fresh `prepareQuit`.
+    func terminationReply(_ reply: @escaping @MainActor (Bool) -> Void) -> NSApplication.TerminateReply {
+        if quitApprovedForTermination { return .terminateNow }
+        guard lifecycle.phase != .stopped, lifecycle.phase != .unstarted,
+              lifecycle.phase != .consent else { return .terminateNow }
+        Task { reply(await prepareQuit(invocation: "applicationShouldTerminate")) }
+        return .terminateLater
     }
 
     /// Answers `.terminateLater`. Returning false makes AppKit CANCEL termination, so this
@@ -774,24 +1242,78 @@ final class ProductComposition: NSObject, NSMenuDelegate {
     ///
     /// A dead source may still leave retained aggregate or staged changes after recovery
     /// fails. Quit may bypass a failed flush only when both stores report no unsaved work.
-    func prepareQuit() async -> Bool {
+    func prepareQuit(invocation: String = "menu") async -> Bool {
+        #if DEBUG
+        var detail = CapturePrivacyActionDetail()
+        detail.invocation = invocation
+        detail.phaseBefore = String(describing: lifecycle.phase)
+        let action = diagnostics.beginAction("quit", detail: detail)
+        let flushBefore = await flush.lifecycleFlushObservation()
+        #endif
         if lifecycle.phase == .unstarted || lifecycle.phase == .consent {
+            #if DEBUG
+            detail.earlyReturn = "not-started"
+            detail.quitDecision = "terminate"
+            await endQuitAction(action, detail: detail, flushBefore: flushBefore)
+            #endif
             return true
         }
         let reductionDirtyBefore = reduction.hasUnflushedChanges()
         let schedulerDirtyBefore = await scheduler.hasPendingChanges()
+        #if DEBUG
+        detail.reductionUnsavedBefore = reductionDirtyBefore
+        detail.schedulerUnsavedBefore = schedulerDirtyBefore
+        #endif
         await lifecycle.quit()
         syncRuntime()
-        if lifecycle.phase == .stopped { return true }
+        if lifecycle.phase == .stopped {
+            #if DEBUG
+            detail.quitDecision = "terminate"
+            await endQuitAction(action, detail: detail, flushBefore: flushBefore)
+            #endif
+            return true
+        }
         let reductionDirtyAfter = reduction.hasUnflushedChanges()
         let schedulerDirtyAfter = await scheduler.hasPendingChanges()
+        #if DEBUG
+        detail.reductionUnsavedAfter = reductionDirtyAfter
+        detail.schedulerUnsavedAfter = schedulerDirtyAfter
+        #endif
         if !reductionDirtyBefore && !schedulerDirtyBefore
-            && !reductionDirtyAfter && !schedulerDirtyAfter { return true }
+            && !reductionDirtyAfter && !schedulerDirtyAfter {
+            #if DEBUG
+            detail.quitDecision = "terminate"
+            await endQuitAction(action, detail: detail, flushBefore: flushBefore)
+            #endif
+            return true
+        }
         // Refused: contract 8 forbids claiming the data was saved. Surface why, so the
         // menu bar does not simply appear to ignore Quit.
         flow.noticeKey = "flow.actionUnavailable"
+        #if DEBUG
+        detail.quitDecision = "cancel"
+        await endQuitAction(action, detail: detail, flushBefore: flushBefore)
+        #endif
         return false
     }
+
+    #if DEBUG
+    private func endQuitAction(_ id: Int, detail: CapturePrivacyActionDetail,
+                               flushBefore: ProductLifecycleFlushObservation) async {
+        var detail = detail
+        let flushAfter = await flush.lifecycleFlushObservation()
+        let calls = flushAfter.invocations - flushBefore.invocations
+        detail.lifecycleFlushCalls = calls
+        detail.lifecycleFlushOutcome = calls > 0 ? flushAfter.lastOutcome : "notInvoked"
+        detail.noticeAfter = lifecycle.state.notice.map { String(describing: $0) }
+        detail.phaseAfter = String(describing: lifecycle.phase)
+        detail.blockedReasonAfter = lifecycle.state.blockedReason.map { String(describing: $0) }
+        detail.failureAfter = lifecycle.state.failure.map { String(describing: $0) }
+        detail.sessionLiveAfter = await capture.hasLiveSession()
+        detail.keyGateOpenAfter = (try? gate.begin()) != nil
+        diagnostics.endAction("quit", id: id, detail: detail)
+    }
+    #endif
 
     @objc private func start() { Task { await startOrRetry(); showWindow() } }
     @objc private func pauseCollection() { Task { await flow.pause() } }

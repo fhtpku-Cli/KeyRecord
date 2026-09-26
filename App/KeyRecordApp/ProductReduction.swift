@@ -110,13 +110,24 @@ final class ProductReduction: @unchecked Sendable {
     }
 
     func snapshot() throws -> AggregateSnapshot? {
-        try mutex.withLock {
-            let generation = try gate.begin()
-            return try gate.use(generation) {
-                guard let aggregate else { return nil }
-                return try AggregateSnapshot(shortcuts: aggregate.shortcuts,
-                                             bareKeys: aggregate.bareKeys)
+        do {
+            let value = try mutex.withLock {
+                let generation = try gate.begin()
+                return try gate.use(generation) {
+                    guard let aggregate else { return nil as AggregateSnapshot? }
+                    return try AggregateSnapshot(shortcuts: aggregate.shortcuts,
+                                                 bareKeys: aggregate.bareKeys)
+                }
             }
+            #if DEBUG
+            diagnostics?.recordProtectedSnapshot(rejected: false)
+            #endif
+            return value
+        } catch {
+            #if DEBUG
+            diagnostics?.recordProtectedSnapshot(rejected: true)
+            #endif
+            throw error
         }
     }
 
@@ -125,17 +136,28 @@ final class ProductReduction: @unchecked Sendable {
     }
 
     func analysis(preferences: Preferences) throws -> AnalysisSnapshot? {
-        try mutex.withLock {
-            let generation = try gate.begin()
-            return try gate.use(generation) {
-                guard let aggregate else { return nil }
-                return try AnalysisEngine.analyze(AnalysisInput(
-                    cycleID: aggregate.cycleID, shortcuts: aggregate.shortcuts,
-                    bareKeys: aggregate.bareKeys, activeDays: aggregate.activeDays,
-                    layout: preferences.layout,
-                    ignoredRecommendationKeys: preferences.ignoredRecommendationKeys,
-                    keyboardPoolConfirmed: preferences.keyboardPoolConfirmed))
+        do {
+            let value = try mutex.withLock {
+                let generation = try gate.begin()
+                return try gate.use(generation) {
+                    guard let aggregate else { return nil as AnalysisSnapshot? }
+                    return try AnalysisEngine.analyze(AnalysisInput(
+                        cycleID: aggregate.cycleID, shortcuts: aggregate.shortcuts,
+                        bareKeys: aggregate.bareKeys, activeDays: aggregate.activeDays,
+                        layout: preferences.layout,
+                        ignoredRecommendationKeys: preferences.ignoredRecommendationKeys,
+                        keyboardPoolConfirmed: preferences.keyboardPoolConfirmed))
+                }
             }
+            #if DEBUG
+            diagnostics?.recordProtectedAnalysis(rejected: false)
+            #endif
+            return value
+        } catch {
+            #if DEBUG
+            diagnostics?.recordProtectedAnalysis(rejected: true)
+            #endif
+            throw error
         }
     }
 

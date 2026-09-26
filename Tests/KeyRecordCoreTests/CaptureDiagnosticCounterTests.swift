@@ -65,7 +65,9 @@ final class CaptureDiagnosticCounterTests: XCTestCase {
             "flushIssued", "flushDurable", "flushFailed", "flushTimedOut",
             "flushWriteReturned", "flushWriteSucceeded", "flushInvalidated", "sessionCount",
             "snapshotPublicationCount", "snapshotReadFailureCount", "lastPublishedShortcutTotal",
-            "lastPublishedBareKeyTotal", "countersInstrumented", "captureSessionLive", "sensitiveContentVisible"
+            "lastPublishedBareKeyTotal", "countersInstrumented", "captureSessionLive", "sensitiveContentVisible",
+            "protectedSnapshotAttempts", "protectedSnapshotRejected",
+            "protectedAnalysisAttempts", "protectedAnalysisRejected", "privacyJournalWriteFailed"
         ]))
         for (key, value) in object {
             XCTAssertTrue(value is NSNumber, "Unexpected payload shape: \(key)")
@@ -141,5 +143,37 @@ final class CaptureDiagnosticCounterTests: XCTestCase {
         XCTAssertEqual(recorder.snapshot.tapCallbackKeyDown, 0)
         recorder.increment(.tapCallbackKeyDown)
         XCTAssertEqual(recorder.snapshot.tapCallbackKeyDown, 1)
+    }
+
+    func testPrivacyIntervalJournalRecordsStateChangesOnlyWhenEnabled() throws {
+        let recorder = CaptureDiagnosticsRecorder()
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let path = root.appendingPathComponent("intervals.jsonl").path
+        recorder.notePrivacyInterval()
+        XCTAssertFalse(FileManager.default.fileExists(atPath: path))
+        recorder.enablePrivacyIntervalJournal(path: path)
+        recorder.record {
+            $0.phase = .collecting
+            $0.captureSessionLive = true
+            $0.sensitiveContentVisible = true
+            $0.loadedExpectedCollecting = true
+        }
+        recorder.notePrivacyInterval()
+        recorder.notePrivacyInterval()
+        recorder.record {
+            $0.phase = .blocked
+            $0.captureSessionLive = false
+            $0.sensitiveContentVisible = false
+            $0.loadedExpectedCollecting = true
+        }
+        recorder.increment(.aggregateDelta)
+        recorder.notePrivacyInterval()
+        let lines = try String(contentsOfFile: path, encoding: .utf8).split(separator: "\n")
+        XCTAssertEqual(lines.count, 2)
+        XCTAssertTrue(lines[0].contains("\"captureSessionLive\":true"))
+        XCTAssertTrue(lines[1].contains("\"aggregateDelta\":1"))
+        XCTAssertFalse(String(lines[1]).contains("timestamp"))
     }
 }

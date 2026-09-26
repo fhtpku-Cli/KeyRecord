@@ -90,7 +90,6 @@ final class ProductComposition: NSObject, NSMenuDelegate {
     private var completeRecoveredReset: () async throws -> Bool = { false }
     #if DEBUG
     private(set) var secureInputMonitorStarts = 0
-    private var secureInputSawLiveSession = false
     #endif
     /// Last Secure Input read by the collecting monitor; `.unknown` until the first read.
     private var lastSecureInput: SecureInputState = .unknown
@@ -813,61 +812,37 @@ final class ProductComposition: NSObject, NSMenuDelegate {
                 self.lastSecureInput = state
                 let live = await self.capture.hasLiveSession()
                 guard self.monitorIsCurrent(generation) else { break }
-                if live, state == .disabled { self.secureInputSawLiveSession = true }
-                let shouldHide = state == .enabled || (state == .unknown && self.secureInputSawLiveSession)
-                if shouldHide, live || self.flow.sensitiveContentVisible {
-                    if live {
-                        self.capture.queue.revoke()
-                        self.captureSessionLive = false
-                        self.syncRuntime()
-                        #if DEBUG
-                        self.diagnostics.notePrivacyTrigger("secureInputMonitor-\(state)")
-                        #endif
-                        // The coordinator's session restart ends any interval already open.
-                        // Hide the display and begin the Secure Input interval after that.
-                        await self.runtimeCoordinator?.handle(.invalidated(.secureInputChanged))
-                        guard self.monitorIsCurrent(generation) else { break }
-                    }
+                if state != .disabled, live || self.flow.sensitiveContentVisible {
+                    if live { self.capture.queue.revoke() }
                     self.captureSessionLive = false
-                    // Phase stays collecting. The provider read closes the privacy gate,
-                    // so statistics hide. Lock still uses closeProtectedState and Start.
                     self.lifecycle.observe(self.lifecycle.state.conditions.with(secureInput: state))
                     #if DEBUG
                     self.diagnostics.notePrivacyTrigger("secureInputMonitor-\(state)")
-                    self.diagnostics.record {
-                        $0.captureSessionLive = false
-                        $0.sensitiveContentVisible = false
-                        $0.phase = self.lifecycle.phase
-                    }
-                    if !self.diagnostics.hasOpenClosedInterval {
-                        self.diagnostics.beginClosedInterval(cause: "secureInputMonitor")
-                    }
                     #endif
                     self.syncRuntime()
+                    if live {
+                        await self.runtimeCoordinator?.handle(.invalidated(.secureInputChanged))
+                        guard self.monitorIsCurrent(generation) else { break }
+                    }
+                    let refreshedLive = await self.capture.hasLiveSession()
                     guard self.monitorIsCurrent(generation) else { break }
-                    await self.syncRuntimeRefreshingLiveness()
-                } else if state == .disabled, previous != .disabled, !live {
-                    let outcome = await self.runtimeCoordinator?.handle(.invalidated(.secureInputChanged))
-                    guard self.monitorIsCurrent(generation) else { break }
+                    self.captureSessionLive = refreshedLive
+                    self.syncRuntime()
+                } else if state == .disabled,
+                          (previous != .disabled && !live) || self.lifecycle.state.conditions.secureInput != .disabled {
+                    if !live {
+                        let outcome = await self.runtimeCoordinator?.handle(.invalidated(.secureInputChanged))
+                        guard self.monitorIsCurrent(generation) else { break }
+                        if let outcome { await self.settleFailedRecovery(outcome) }
+                        guard self.monitorIsCurrent(generation) else { break }
+                    }
                     let resumed = await self.capture.hasLiveSession()
+                    guard self.monitorIsCurrent(generation) else { break }
                     if resumed {
                         self.lifecycle.observe(self.lifecycle.state.conditions.with(secureInput: .disabled))
                     }
-                    #if DEBUG
-                    self.diagnostics.record {
-                        $0.captureSessionLive = resumed
-                        $0.sensitiveContentVisible = self.flow.sensitiveContentVisible
-                        $0.phase = self.lifecycle.phase
-                    }
-                    self.diagnostics.notePrivacyInterval()
-                    if resumed, self.diagnostics.hasOpenClosedInterval {
-                        self.diagnostics.endClosedInterval(cause: "secureInputMonitor")
-                        self.diagnostics.notePrivacyTrigger("")
-                    }
-                    #endif
-                    if let outcome { await self.settleFailedRecovery(outcome) }
-                    guard self.monitorIsCurrent(generation) else { break }
-                    await self.syncRuntimeRefreshingLiveness()
+                    self.captureSessionLive = resumed
+                    self.syncRuntime()
                 }
                 do { try await Task.sleep(for: .milliseconds(250)) } catch { break }
             }

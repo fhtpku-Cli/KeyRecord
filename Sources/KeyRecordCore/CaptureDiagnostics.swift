@@ -668,10 +668,7 @@ public final class CaptureDiagnosticsRecorder: @unchecked Sendable {
     /// Starts a new diagnostic session without discarding lifetime atomic totals.
     /// Called before the new session can accept an event, so it also ends a closed interval.
     public func beginSession(generation: UInt64) {
-        // A Secure Input closure must stay open across the coordinator's session restart.
-        // That restart is not the user becoming allowed to collect again.
-        let secureInputClosure = lock.withLock { privacyTrigger?.hasPrefix("secureInputMonitor") == true }
-        if !secureInputClosure { endClosedInterval(cause: "captureSessionStarting") }
+        endClosedInterval(cause: "captureSessionStarting")
         let baseline = atomicCounters.snapshot()
         lock.withLock {
             run.sessionCount += 1

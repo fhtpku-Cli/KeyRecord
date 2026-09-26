@@ -3,6 +3,25 @@ import KeyRecordCore
 
 final class CaptureDiagnosticCounterTests: XCTestCase {
 
+    func testSecureInputIntervalEndsBeforeNewSessionCounters() throws {
+        let path = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: path) }
+        let recorder = CaptureDiagnosticsRecorder()
+        recorder.enablePrivacyIntervalJournal(path: path.path)
+        recorder.notePrivacyTrigger("secureInputMonitor-enabled")
+        recorder.beginClosedInterval(cause: "secureInputMonitor")
+        recorder.beginSession(generation: 2)
+        XCTAssertFalse(recorder.hasOpenClosedInterval)
+        recorder.increment(.handoffAccepted)
+        let marks = try String(contentsOf: path, encoding: .utf8).split(separator: "\n").map {
+            try XCTUnwrap(JSONSerialization.jsonObject(with: Data($0.utf8)) as? [String: Any])
+        }
+        let end = try XCTUnwrap(marks.last { $0["role"] as? String == "end" })
+        XCTAssertEqual(end["handoffAccepted"] as? Int, 0)
+        XCTAssertEqual(end["boundaryCause"] as? String, "captureSessionStarting")
+        XCTAssertEqual(recorder.runSummary.handoffAccepted, 1)
+    }
+
     func testRunSummaryRetainsCountersAcrossSessionReset() {
         let recorder = CaptureDiagnosticsRecorder()
         recorder.beginSession(generation: 1)

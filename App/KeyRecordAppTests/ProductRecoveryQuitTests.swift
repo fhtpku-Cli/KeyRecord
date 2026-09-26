@@ -70,6 +70,7 @@ private final class SyntheticHost: FrontmostAppProvider, SecureInputProvider, Se
     private var lock: SessionLockState = .unlocked
     private var scriptedLockReads: [SessionLockState] = []
     private var secure: SecureInputState = .disabled
+    private var secureAfterNextTapStart: SecureInputState?
     private var secureInputReadsToHold = 0
     private var heldSecureInputReads: [CheckedContinuation<SecureInputState, Never>] = []
     private var foreground: ForegroundState = .attributable(bundleID: "synthetic.editor")
@@ -81,6 +82,17 @@ private final class SyntheticHost: FrontmostAppProvider, SecureInputProvider, Se
     /// Consumed one per lock read before falling back to the steady state.
     func scriptLockReads(_ states: [SessionLockState]) { mutex.withLock { scriptedLockReads = states } }
     func setSecureInput(_ state: SecureInputState) { mutex.withLock { secure = state } }
+    func setSecureInputAfterNextTapStart(_ state: SecureInputState) {
+        mutex.withLock { secureAfterNextTapStart = state }
+    }
+    func tapDidStart() {
+        mutex.withLock {
+            if let state = secureAfterNextTapStart {
+                secure = state
+                secureAfterNextTapStart = nil
+            }
+        }
+    }
     /// Parks the next `count` Secure Input reads so a stale poller can finish after replacement
     /// without also blocking Start/Resume readiness reads.
     func holdNextSecureInputReads(_ count: Int) { mutex.withLock { secureInputReadsToHold = count } }
@@ -170,6 +182,7 @@ private final class SyntheticTap: CaptureTapBackend, @unchecked Sendable {
     func cachedProviders() -> CaptureProviderSnapshot { mutex.withLock { cached } }
     func start(handoff: @escaping @Sendable (ObservedKeyEvent) -> EventHandoffResult) async throws {
         mutex.withLock { self.handoff = handoff }
+        host.tapDidStart()
     }
     func stop() async {
         queue.revoke()
@@ -771,6 +784,46 @@ final class ProductRecoveryQuitTests: XCTestCase {
 
     // MARK: - Secure Input monitor
 
+    func testFirstUnknownSecureInputPollClosesAnAlreadyStartedSession() async throws {
+        let product = try SyntheticProduct.fresh()
+        products.append(product)
+        // Startup provider reads pass, then the first collecting poll sees unknown.
+        product.host.setSecureInputAfterNextTapStart(.unknown)
+        try await product.boot()
+        await product.composition.startOrRetry()
+        await product.composition.flow.accept()
+        try await waitUntil("first unknown poll closes capture and hides statistics") {
+            let live = await product.live
+            return !live && !product.composition.flow.sensitiveContentVisible
+        }
+        XCTAssertEqual(try product.tap?.press(), .closed)
+        XCTAssertEqual(product.aggregateDelta, 0)
+    }
+
+    func testStaleEnabledPollDoesNotLeaveRecoveredStatisticsHidden() async throws {
+        let product = try await collecting()
+        try await product.press(1)
+        let readiness = await product.readinessCalls
+        product.host.holdNextSecureInputReads(1)
+        defer { product.host.releaseSecureInputReads() }
+        try await waitUntil("monitor read parked") { product.host.parkedSecureInputReads == 1 }
+        // The old read was enabled, but every fresh recovery check now sees disabled.
+        product.host.completeNextSecureInputRead(.enabled)
+        try await waitUntil("fresh recovery completed") {
+            let reads = await product.readinessCalls
+            let live = await product.live
+            return reads > readiness && live
+        }
+        // Cover subsequent monitor turns: the stale hidden state must not persist.
+        try await Task.sleep(for: .milliseconds(600))
+        XCTAssertEqual(product.composition.lifecycle.state.conditions.secureInput, .disabled)
+        XCTAssertTrue(product.composition.flow.sensitiveContentVisible)
+        try await product.press(1)
+        try await waitUntil("recovered statistics include both inputs") {
+            product.composition.flow.snapshot?.bareKeyTotal == 2
+        }
+    }
+
     func testSecureInputClosesTheLiveSessionAndClearingItResumesAutomatically() async throws {
         let product = try await collecting()
         try await product.press(2)
@@ -811,7 +864,9 @@ final class ProductRecoveryQuitTests: XCTestCase {
         let end = try XCTUnwrap(product.marks().last {
             $0["role"] as? String == "end" && ($0["seq"] as? Int ?? 0) > beginSeq
         })
-        XCTAssertEqual(end["captureSessionLive"] as? Bool, true)
+        XCTAssertEqual(end["boundaryCause"] as? String, "captureSessionStarting")
+        XCTAssertEqual(end["handoffAccepted"] as? Int, begin["handoffAccepted"] as? Int)
+        XCTAssertEqual(end["aggregateDelta"] as? Int, begin["aggregateDelta"] as? Int)
         XCTAssertEqual(product.phase, .collecting)
         try await product.press(1)
         try await waitUntil("retained and new counts published") {

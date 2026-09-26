@@ -182,4 +182,36 @@ xcodebuild -project KeyRecord.xcodeproj -scheme KeyRecordApp -configuration Debu
 
 - 评审在 `f58f7039` 上的整套是 37 项里 3 项失败，单独重跑 3/3 通过。当时夹具用空 `catch` 吞掉错误后仍断言日志存在。
 - 本轮去掉空 `catch` 后，整套再次失败时错误是 `busy`：采集脉冲的受保护写入还占着存储租约，测试直接调用 `resetCycle` 进不去摘要写入，所以不会留下日志。这不是重置事务本身失败。夹具改为先停掉脉冲和安全输入监视，只在租约仍被那一次在途写入占用时等待它结束；其他错误立刻失败。
-- 停掉脉冲并在重新加载前停掉旧实例之后，完整套件仍是 39 项、3 项失败，都是计数对不上：`testRelaunchContinuesTheDurableResetBeforeCollecting` 的旧周期摘要合计为 0 而不是 2；`testUnfinishedResetUsesTheJournalOperationAcrossCancelAndRelaunch` 和 `testPartialEraseRetryClearsTheBlockAndAcceptsFreshConsent` 在再次加载后总数为 0 而不是 1。同一轮里两个新的同进程用例通过。单独跑中断重置和两个新用例时曾 3/3 通过。原因还没有完全确定，所以不把单独通过写成整套通过。日志在 `.build/pr9-r1-red/suite-final.log`。
+- 停掉脉冲并在重新加载前停掉旧实例之后，完整套件仍是 39 项、3 项失败，都是计数对不上。单独通过不能写成整套通过。日志在 `.build/pr9-r1-red/suite-final.log`。
+
+## 独立复审 `8822e169`：测试同步
+
+以该提交的 `REVIEW.md` 为准。R1/R2 的回归用例在原始套件里通过。没有新的已确认产品缺陷，本轮不改恢复逻辑。
+
+### 已确认
+
+`waitDurable()` 先读调度器 pending，await 之后再读 reducer 的未保存标记。脉冲可以在两次读取之间 `take` 并 `stage`。两个读数可以同时是 false，测试却提前认为已经落盘。随后直接 `resetCycle` 或第二个 composition 看到的是旧磁盘数据。
+
+对照实验（产品代码不变，只把等待改成 `flushWhileUnlocked()`）：39 项原测试加 1 项诊断全部通过。换回原始测试：39 项里 1 项失败。所以测试同步缺陷成立，但不能说历史上每一次计数失败都只有这一个原因。
+
+取消脉冲和停止采集也不会等已发起的写入结束。
+
+### 修改范围
+
+只改测试辅助和一处测试用的停止方法，产品恢复逻辑未改。
+
+- `waitDurable()` 改为等待 `flush.flushWhileUnlocked()`。这是准备持久数据的显式保存，不是用它冒充对自动脉冲的验收。
+- `finishIssuedWrites()` 先停脉冲和安全输入监视并等这两个任务离开当前轮次，再停采集、等已发起写入、然后 flush。直接重置和模拟重启都走它。
+- `injected-data-afterWrite` 的严格确认保留，没有空 `catch`，也没有对 `busy` 的重试。
+- `testSplitDurabilitySampleCanPassWhileTheCountIsStillPending`：分开的两次读数可以显示已保存，同时 pending 仍为真、磁盘为 0；新的完成边界之后磁盘为 1。
+
+### 本轮执行
+
+修复前证据是评审目录里的 `suite.log`（39 项、2 项失败）、`fixture-control-suite.log`（40/40）和 `pristine-repeat-suite.log`（39 项、1 项失败）。本工作树在修改前没有再跑一整套。
+
+修复后同一进程完整 `ProductRecoveryQuitTests`，两轮都保留：
+
+- 第 1 轮：40 项，0 失败，41.934 秒。日志 `.build/pr9-wait-durable/suite-1.log`。
+- 第 2 轮：40 项，0 失败，45.601 秒。日志 `.build/pr9-wait-durable/suite-2.log`。
+
+含原来的 39 项和 `testSplitDurabilitySampleCanPassWhileTheCountIsStillPending`。`swift test` 本轮没有重跑，因为没有改 SwiftPM 目标。通用 unsigned Release（arm64 + x86_64）已构建；Release 边界和网络静态审计通过。没有实机、真实钥匙串或真实统计库验证。这不是 Phase 1 正式验收。

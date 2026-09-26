@@ -960,11 +960,15 @@ final class ProductComposition: NSObject, NSMenuDelegate {
     /// Visible to tests: how many pulse tasks are currently owned (0 or 1, never more).
     var activePulseCount: Int { pulse == nil ? 0 : 1 }
 
-    /// Stops the collecting pulse and Secure Input poller so a test can call `resetCycle`
-    /// directly. Those tasks take the store lease; overlapping them makes the call return `busy`.
-    func stopBackgroundMaintenanceForFixture() {
+    /// Stops the collecting pulse and Secure Input poller and waits until those tasks
+    /// leave their current turn. Cancelling alone does not finish a write they already started.
+    func stopBackgroundMaintenanceForFixture() async {
+        let pulseTask = pulse
+        let monitor = secureInputMonitor
         stopPulse()
         stopSecureInputMonitor()
+        await pulseTask?.value
+        await monitor?.value
     }
 
     private func makePulse() -> Task<Void, Never> {

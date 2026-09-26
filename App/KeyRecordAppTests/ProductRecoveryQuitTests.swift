@@ -280,11 +280,19 @@ private final class SyntheticProduct {
         }
     }
 
+    /// Explicit save used to prepare durable fixtures. Two separate dirty/pending reads can
+    /// both be false while a pulse has just staged the count, so they are not a completion boundary.
     func waitDurable() async throws {
-        try await waitUntil("durable") {
-            let schedulerPending = await self.composition.scheduler.hasPendingChanges()
-            return !self.composition.reduction.hasUnflushedChanges() && !schedulerPending
-        }
+        try await composition.flush.flushWhileUnlocked()
+    }
+
+    /// Stop background tasks, then wait out a write they already issued, before another
+    /// store client resets or reopens the same files.
+    func finishIssuedWrites() async throws {
+        await composition.stopBackgroundMaintenanceForFixture()
+        await composition.capture.stop()
+        await composition.scheduler.waitForIssuedWrite()
+        try await composition.flush.flushWhileUnlocked()
     }
 
     func lockScreen() async throws {
@@ -1091,9 +1099,7 @@ final class ProductRecoveryQuitTests: XCTestCase {
     }
 
     private func relaunchCollecting(_ product: SyntheticProduct) async throws -> SyntheticProduct {
-        // A second composition on the same store must not race the still-live writer.
-        product.composition.stopBackgroundMaintenanceForFixture()
-        await product.composition.capture.stop()
+        try await product.finishIssuedWrites()
         let next = product.relaunch()
         products.append(next)
         try await next.boot()
@@ -1236,32 +1242,47 @@ final class ProductRecoveryQuitTests: XCTestCase {
     }
 
     private func requireInterruptedReset(_ product: SyntheticProduct) async throws {
-        // The collecting pulse takes the store lease across awaits. A direct resetCycle
-        // overlapping that write returns busy and does not create the journal.
-        product.composition.stopBackgroundMaintenanceForFixture()
-        await product.composition.capture.stop()
-        let deadline = ContinuousClock.now.advanced(by: .seconds(2))
-        while true {
-            do {
-                _ = try await product.composition.store.resetCycle(
-                    operationID: UUID(), day: ProductClock().day,
-                    injection: CycleResetInjection(summaryWrite: DurabilityInjection(failPhase: .data, failAt: .afterWrite)))
-                XCTFail("injected summary write must fail after the journal is durable")
-                return
-            } catch {
-                let text = String(describing: error)
-                if text.contains("injected-data-afterWrite") { break }
-                // One write may already be inside the lease. Wait for it to finish; any other error fails.
-                if text.contains("busy"), ContinuousClock.now < deadline {
-                    try await Task.sleep(for: .milliseconds(25))
-                    continue
-                }
+        try await product.finishIssuedWrites()
+        do {
+            _ = try await product.composition.store.resetCycle(
+                operationID: UUID(), day: ProductClock().day,
+                injection: CycleResetInjection(summaryWrite: DurabilityInjection(failPhase: .data, failAt: .afterWrite)))
+            XCTFail("injected summary write must fail after the journal is durable")
+        } catch {
+            let text = String(describing: error)
+            guard text.contains("injected-data-afterWrite") else {
                 XCTFail("fixture stopped before the summary write: \(text)")
                 throw error
             }
         }
         let pending = await product.composition.store.hasUnfinishedCycleReset()
         XCTAssertTrue(pending, "the injected failure must leave the reset journal")
+    }
+
+    func testSplitDurabilitySampleCanPassWhileTheCountIsStillPending() async throws {
+        let product = try await collecting()
+        await product.composition.stopBackgroundMaintenanceForFixture()
+        try await product.press(1)
+        let sampledPending = await product.composition.scheduler.hasPendingChanges()
+        XCTAssertFalse(sampledPending)
+        try await product.composition.flush.stage()
+        let sampledDirty = product.composition.reduction.hasUnflushedChanges()
+        let oldPredicate = !sampledDirty && !sampledPending
+        let actualPending = await product.composition.scheduler.hasPendingChanges()
+        let cycle = try XCTUnwrap(product.composition.lifecycle.state.preferences?.currentCycleID)
+        let before = try await AggregatePersistence.restore(cycleID: cycle,
+            store: product.composition.store, gate: product.composition.gate)
+        let beforeTotal = try AggregateSnapshot(shortcuts: before.shortcuts, bareKeys: before.bareKeys).bareKeyTotal
+        XCTAssertTrue(oldPredicate, "separate dirty and pending reads can both look saved")
+        XCTAssertTrue(actualPending)
+        XCTAssertEqual(beforeTotal, 0)
+        try await product.waitDurable()
+        let after = try await AggregatePersistence.restore(cycleID: cycle,
+            store: product.composition.store, gate: product.composition.gate)
+        let afterTotal = try AggregateSnapshot(shortcuts: after.shortcuts, bareKeys: after.bareKeys).bareKeyTotal
+        XCTAssertEqual(afterTotal, 1)
+        let pending = await product.composition.scheduler.hasPendingChanges()
+        XCTAssertFalse(pending)
     }
 
     func testSameSessionResetRecoveryPersistsNewInputBeforeRelaunch() async throws {

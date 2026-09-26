@@ -47,6 +47,12 @@ class ProductNetworkObserveTest < Minitest::Test
     capture_io { unknown.send(:finish_receipt) }
     assert_equal 1, unknown.receipt[:stderr_other_lines]
     assert_equal 'invalid', unknown.receipt[:outcome]
+
+    unterminated = valid_observation
+    unterminated.instance_variable_get(:@buffers)[:err] << 'tcpdump: incomplete diagnostic'
+    capture_io { unterminated.send(:finish_receipt) }
+    assert_equal 30, unterminated.receipt[:unterminated_stderr_bytes]
+    assert_equal 'invalid', unterminated.receipt[:outcome]
   end
 
   private

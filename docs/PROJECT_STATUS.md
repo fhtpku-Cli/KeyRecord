@@ -6,14 +6,18 @@ Main includes PR #14 at `c367a0026c9df0c44d65290121b66d1c3577e774`.
 The isolation repair, bounded permission-restart evidence and synthetic network
 observer preparation are merged. A separate signed Debug product candidate and
 bounded all-interface observation controller were [prepared](NETWORK_OBSERVATION_PREP.md#product-observation-candidate-prepared-after-pr-14-merge)
-and used in one owner-approved 75-second run. The [first product attempt](NETWORK_OBSERVATION_PREP.md#first-approved-product-attempt-invalid-observation-2026-09-27)
-is invalid: synthetic controls and packet collection ran, but the trial App
-recorded no input collection and the observer had one unclassified diagnostic.
+and used in two owner-approved 75-second runs. The [first product attempt](NETWORK_OBSERVATION_PREP.md#first-approved-product-attempt-invalid-observation-2026-09-27)
+was invalid: controls and packet collection ran, but the trial App recorded no
+input collection and the observer had one unclassified diagnostic. The
+[same-scope retest](NETWORK_OBSERVATION_PREP.md#same-scope-product-retest-invalid-observation-2026-09-27)
+reached visible Collecting and recorded an aggregate delta of 5; its 74.95-second
+observation was also invalid because one nonblank observer diagnostic remained
+unclassified. Neither run supports a product no-egress conclusion.
 The synthetic nettop control saw 1 MiB on its sender PID; its idle PID had no row,
 which cannot prove zero traffic. In the owner-supplied final 20.07-second PKTAP
 pilot, 16 captured records parsed with the expected PID, direction and port
 counts; kernel drops, unknown attribution and unexpected parsed flows were zero.
-The 17th output line in this new run was classified as a complete whitespace-only line.
+The 17th output line in that pilot was classified as a complete whitespace-only line.
 This meets the previously recorded bounded synthetic-observer criteria. The
 unidentified line in an older run remains historically unexplained. The script
 still emits `product_pass:false` and has no automatic PASS path. No valid KeyRecord

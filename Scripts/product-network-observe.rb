@@ -302,6 +302,7 @@ class ProductNetworkObservation
   def finish_receipt
     @receipt[:counts] = @counts.summary(@product_pid)
     @receipt[:stderr_other_lines] = @stderr_other
+    @receipt[:unterminated_stderr_bytes] = @buffers[:err].bytesize
     valid = !@receipt[:error_type] && @receipt[:observer_ready] && @receipt[:full_window] && @receipt[:idle_timer_elapsed] &&
             !@receipt[:early_product_exit] &&
             @receipt[:observer_exit] == 0 &&
@@ -311,6 +312,7 @@ class ProductNetworkObservation
             @receipt[:product_exited] && @receipt[:product_exit] == 0 &&
             @receipt[:product_aggregate_delta].to_i > 0 &&
             @receipt[:unterminated_output_bytes] == 0 && @receipt[:stderr_other_lines] == 0 &&
+            @receipt[:unterminated_stderr_bytes] == 0 &&
             @receipt.dig(:counts, :unparsed_lines) == 0 && !@receipt[:sleep_interrupted] &&
             @receipt[:outcome] != 'interrupted'
     if valid

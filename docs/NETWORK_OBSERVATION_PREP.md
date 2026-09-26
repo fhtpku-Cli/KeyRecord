@@ -440,6 +440,8 @@ and then passed 1/1; the existing lifecycle test establishes that rejected
 login registration leaves capture in Collecting. The new arm64 Debug trial was
 built and signed at the path below. Its isolation marker and `--check` passed;
 the host run and its result are recorded below.
+The focused test result is retained at
+`/private/tmp/keyrecord-network.7yjmhZ/RetestBuild3/Logs/Test/Test-KeyRecordApp-2026.09.27_05-56-00-+0800.xcresult`.
 
 ```sh
 ruby /Users/bytedance/.codex/worktrees/product-network-observation/KeyRecord/Scripts/product-network-observe.rb \
@@ -468,3 +470,15 @@ afterward. The receipt therefore reports `outcome=invalid` and
 `product_pass=false`. The zero attributed outbound count is only an
 observation within this capture and cannot qualify the product network gate.
 No Phase 1, Release or Intel acceptance status changes follow from this run.
+
+Final review of the controller found a separate fail-closed gap: a nonempty
+stderr fragment without a trailing newline was not part of the receipt's
+validity check. The controller now records only its byte count and invalidates
+such a run. A synthetic test covers this case. This correction does not alter
+either historical receipt; both were already invalid from complete nonblank
+unclassified diagnostics. The trial-login test now checks the actual
+`ProductComposition.systemBoundaries` selection, rather than calling the login
+factory alone.
+The focused wiring test passed 1/1 after this change; its result is at
+`/private/tmp/keyrecord-network.7yjmhZ/RetestBuild4/Logs/Test/Test-KeyRecordApp-2026.09.27_06-08-00-+0800.xcresult`.
+The controller's three focused tests passed with 16 assertions.

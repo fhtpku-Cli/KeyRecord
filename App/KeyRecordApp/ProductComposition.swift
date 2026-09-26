@@ -141,7 +141,7 @@ final class ProductComposition: NSObject, NSMenuDelegate {
         try await assemble(boundaries)
     }
 
-    private static func systemBoundaries(storeRoot: URL?, namespace name: String?) throws -> ProductHostBoundaries {
+    static func systemBoundaries(storeRoot: URL?, namespace name: String?) throws -> ProductHostBoundaries {
         // T7 has no qualified system-lock witness. Never replace this boundary with
         // an environment switch, cached unlocked assumption, or fake-success backend.
         // DEBUG self-use: armed by the persistent Developer menu toggle (UserDefaults)

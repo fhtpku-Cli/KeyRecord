@@ -37,7 +37,7 @@ preservation and absent mapping actions, not production backend support.
 | G0 / O6 | PASS / RESOLVED from bound historical proof | Not a new host run; `A/readiness.json` historical assessment |
 | SP6A | Lifecycle/keyring implementation and fake tests present | BLOCKED: keychainPolicy, sessionLock, restart, sleepWake live receipts |
 | G1 capture | T19 composition, bounded capture and generation fencing implemented | BLOCKED: endorsed live capture receipt and SP6A |
-| G1 privacy | T20 encrypted canary, serialization inventory, excluded foreground zero-delta and source/binary egress checks pass | BLOCKED: live `t20.network.zeroOutbound` and `t20.persistence.noEventLevelData` receipt; static symbol absence is not measured zero packets |
+| G1 privacy | T20 encrypted canary, serialization inventory, excluded foreground zero-delta and source/binary egress checks pass | BLOCKED: candidate-bound `t20.network.noClientCapability` and `t20.persistence.noEventLevelData` receipts remain absent. FR-P1 now uses source and exact Release-executable capability audits; no packet-capture result is required |
 | G1 encryptedPersistence | Authenticated storage, flush/recovery/reset/key lifecycle code implemented | BLOCKED: endorsed live persistence receipt and SP6A; no plaintext fallback |
 | Product performance ARM | T21 sibling work; ARM measurements must retain exact host/build identity | BLOCKED in this baseline publication: no adopted T21 receipt; no extrapolation from unit tests |
 | Product performance Intel | T21 sibling static checks only | BLOCKED pending approved Intel macOS 14+ host; independent of backup KDF timing |

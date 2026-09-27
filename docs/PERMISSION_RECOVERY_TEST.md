@@ -18,8 +18,9 @@ The owner launched the isolated Development-signed Debug trial bundle built
 from `e473a310` on native ARM. It reached Collecting after Start and consent.
 The owner then turned off Input Monitoring for that trial bundle in System
 Settings and reported that the App still displayed Collecting. The App was
-subsequently quit normally. Its private coarse interval journal has a
-Collecting transition followed by the Quit transition, with no intervening
+subsequently quit normally. The owner saw no quit/reopen or other system prompt,
+and the menu remained Collecting until Quit. Its private coarse interval journal
+records Collecting followed by Quit, with no intervening
 permission-revoked closure or Blocked transition. The run summary reports no
 tap-disabled callback and no journal write failure. Aggregate input counts
 exist for the run, but no per-revocation boundary was recorded, so they cannot
@@ -30,6 +31,14 @@ evidence does not distinguish a permission preflight that stayed granted from
 a monitor that stopped running or a stale UI state. Do not treat the synthetic
 polling test as proof of real macOS revocation delivery. The isolated artifacts
 remain private and are not copied into this repository.
+
+The next Debug candidate records an opt-in, coarse permission witness at the
+first live poll, about every four seconds thereafter, and immediately on a
+non-granted result. Each witness contains only a fixed granted/not-granted
+cause and the existing aggregate diagnostic fields. This diagnostic has passed
+offline serialization and product compilation tests; it has not been run with
+a real permission toggle. It cannot turn a stale macOS preflight result into
+a live revocation signal.
 
 Historical 2026-09-27 baseline: product source main
 `64590a0e9b57a55af9a23921983f2c16bb59c62e`.

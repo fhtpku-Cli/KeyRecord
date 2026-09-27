@@ -61,6 +61,8 @@ turned off for the trial bundle, the App still displayed Collecting. Its
 private coarse journal has no permission-revoked or Blocked transition before
 normal Quit. See [the scoped evidence](PERMISSION_RECOVERY_TEST.md#owner-assisted-real-permission-trial--2026-09-28).
 The synthetic polling result must not be promoted to live permission acceptance.
+An opt-in Debug witness now records whether the collecting monitor continues
+to sample Input Monitoring; its host behavior is not yet observed.
 
 ## Dedicated trial isolation and bounded restart follow-up — 2026-09-27
 

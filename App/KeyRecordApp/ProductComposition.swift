@@ -805,10 +805,19 @@ final class ProductComposition: NSObject, NSMenuDelegate {
         secureInputMonitorStarts += 1
         #endif
         secureInputMonitor = Task { [weak self] in
+            #if DEBUG
+            var completedPermissionPolls = 0
+            #endif
             while !Task.isCancelled {
                 guard let self else { break }
                 let permission = await self.capture.inputMonitoringStatus()
                 guard !Task.isCancelled, self.monitorIsCurrent(generation) else { break }
+                #if DEBUG
+                if completedPermissionPolls.isMultiple(of: 16) || permission != .granted {
+                    self.diagnostics.recordInputMonitoringPreflightWitness(granted: permission == .granted)
+                }
+                completedPermissionPolls += 1
+                #endif
                 if permission != .granted {
                     self.reduction.revokeProtectedState(queue: self.capture.queue,
                                                        recoveryFence: self.manualRecoveryFence)

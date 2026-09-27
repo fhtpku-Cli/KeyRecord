@@ -195,4 +195,22 @@ final class CaptureDiagnosticCounterTests: XCTestCase {
         XCTAssertTrue(lines[1].contains("\"aggregateDelta\":1"))
         XCTAssertFalse(String(lines[1]).contains("timestamp"))
     }
+
+    func testInputMonitoringWitnessIsOptInAndUsesFixedCoarseCauses() throws {
+        let recorder = CaptureDiagnosticsRecorder()
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let path = root.appendingPathComponent("intervals.jsonl").path
+        recorder.recordInputMonitoringPreflightWitness(granted: true)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: path))
+
+        recorder.enablePrivacyIntervalJournal(path: path)
+        recorder.recordInputMonitoringPreflightWitness(granted: true)
+        recorder.recordInputMonitoringPreflightWitness(granted: false)
+        let marks = try String(contentsOfFile: path, encoding: .utf8).split(separator: "\n")
+        XCTAssertEqual(marks.count, 2)
+        XCTAssertTrue(marks[0].contains("\"boundaryCause\":\"inputMonitoringPreflightGranted\""))
+        XCTAssertTrue(marks[1].contains("\"boundaryCause\":\"inputMonitoringPreflightNotGranted\""))
+    }
 }

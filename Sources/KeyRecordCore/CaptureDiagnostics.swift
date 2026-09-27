@@ -578,6 +578,12 @@ public final class CaptureDiagnosticsRecorder: @unchecked Sendable {
                cachedLockState: cachedLockState, cachedSecureInputState: cachedSecureInputState)
     }
 
+    public func recordInputMonitoringPreflightWitness(granted: Bool) {
+        guard lock.withLock({ intervalPath }) != nil else { return }
+        append(role: "witness", boundaryCause: granted
+               ? "inputMonitoringPreflightGranted" : "inputMonitoringPreflightNotGranted")
+    }
+
     private func append(role: String, boundaryCause: String? = nil,
                         lockReadStatus: String = "notChecked", secureInputReadStatus: String = "notChecked",
                         lockComponents: String? = nil,

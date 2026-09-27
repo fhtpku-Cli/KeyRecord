@@ -88,6 +88,13 @@ but has not been run or verified in Settings.
 The live acceptance remains open.
 See [the witness trial](PERMISSION_RECOVERY_TEST.md#owner-assisted-permission-witness-trial--2026-09-28).
 
+A later offline repair checks the actual Core Graphics tap state when deciding
+whether a session is live. In a synthetic product test, a disabled tap with no
+callback moves Collecting to Blocked and requires manual Start; 47 product
+recovery tests and 65 capture-layer tests passed. This improves fail-closed
+liveness but does not validate macOS permission revocation or the new bundle's
+Settings identity. See [the scoped result](PERMISSION_RECOVERY_TEST.md#disabled-tap-liveness-fallback--2026-09-28).
+
 At source commit `44e402d1edc7956f238cd1420875af5a17d0cbc4`, an unsigned
 universal Release App built with arm64 and x86_64 slices. The exact executable
 (`SHA-256 e2d51499ccc67f85f0223e6636aab5e26babfb6fc66b1476dabf4c45190c2a71`)

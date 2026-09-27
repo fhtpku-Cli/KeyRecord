@@ -832,8 +832,19 @@ final class ProductComposition: NSObject, NSMenuDelegate {
                 guard !Task.isCancelled, self.monitorIsCurrent(generation) else { break }
                 let previous = self.lastSecureInput
                 self.lastSecureInput = state
-                let live = await self.capture.hasLiveSession()
+                let health = await self.capture.sessionHealth()
                 guard self.monitorIsCurrent(generation) else { break }
+                if health == .tapUnavailable {
+                    self.reduction.revokeProtectedState(queue: self.capture.queue,
+                                                       recoveryFence: self.manualRecoveryFence)
+                    #if DEBUG
+                    self.diagnostics.notePrivacyTrigger("tapUnavailable")
+                    #endif
+                    await self.handlePrivacyInvalidation()
+                    await self.runtimeCoordinator?.handle(.invalidated(.tapUnavailable))
+                    break
+                }
+                let live = health == .active
                 if state != .disabled, live || self.flow.sensitiveContentVisible {
                     if live { self.capture.queue.revoke() }
                     self.captureSessionLive = false

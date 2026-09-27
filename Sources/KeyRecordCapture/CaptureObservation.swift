@@ -21,7 +21,7 @@ struct CaptureProviderSnapshot: Equatable, Sendable {
 /// dropping the reason on the floor.
 public enum CaptureInvalidation: Sendable, Equatable, CaseIterable {
     case foregroundChanged, secureInputChanged, sessionChanged
-    case permissionRevoked, sleep, tapDisabled
+    case permissionRevoked, sleep, tapDisabled, tapUnavailable
 
     /// Whether an automatic, fresh-checked recovery attempt is appropriate.
     /// Sleep and session change are privacy transitions: they must stay closed until the
@@ -29,7 +29,7 @@ public enum CaptureInvalidation: Sendable, Equatable, CaseIterable {
     public var allowsAutomaticRecovery: Bool {
         switch self {
         case .foregroundChanged, .tapDisabled, .secureInputChanged: return true
-        case .permissionRevoked, .sleep, .sessionChanged: return false
+        case .permissionRevoked, .sleep, .sessionChanged, .tapUnavailable: return false
         }
     }
 }

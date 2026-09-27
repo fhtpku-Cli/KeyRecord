@@ -55,6 +55,7 @@ final class CaptureTestBackend: CaptureTapBackend, FrontmostAppProvider, SecureI
     }
 
     func cachedProviders() -> CaptureProviderSnapshot { state.withLock { $0.providers } }
+    func isEnabled() -> Bool { true }
     func changeDuringRead(_ reason: CaptureInvalidation) { state.withLock { $0.duringRead = reason } }
     func driftDuringStart(_ reason: CaptureInvalidation) { state.withLock { $0.duringStart = reason } }
 
@@ -64,7 +65,7 @@ final class CaptureTestBackend: CaptureTapBackend, FrontmostAppProvider, SecureI
             case .foregroundChanged: state.foreground = .attributable(bundleID: "other.app")
             case .secureInputChanged: state.secure = .enabled
             case .sessionChanged: state.lock = .locked
-            case .permissionRevoked, .sleep, .tapDisabled:
+            case .permissionRevoked, .sleep, .tapDisabled, .tapUnavailable:
                 state.foreground = .unknown
                 state.secure = .unknown
                 state.lock = .unknown

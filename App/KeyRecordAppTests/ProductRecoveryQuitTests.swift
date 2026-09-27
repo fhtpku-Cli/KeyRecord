@@ -163,6 +163,7 @@ private final class SyntheticTap: CaptureTapBackend, @unchecked Sendable {
     private var invalidate: (@Sendable (CaptureInvalidation) -> Void)?
     private var handoff: (@Sendable (ObservedKeyEvent) -> EventHandoffResult)?
     private var cached = CaptureProviderSnapshot.unknown
+    private var enabled = false
 
     init(host: SyntheticHost, queue: CaptureQueue) { self.host = host; self.queue = queue }
 
@@ -180,14 +181,17 @@ private final class SyntheticTap: CaptureTapBackend, @unchecked Sendable {
         return current
     }
     func cachedProviders() -> CaptureProviderSnapshot { mutex.withLock { cached } }
+    func isEnabled() -> Bool { mutex.withLock { enabled && handoff != nil } }
     func start(handoff: @escaping @Sendable (ObservedKeyEvent) -> EventHandoffResult) async throws {
-        mutex.withLock { self.handoff = handoff }
+        mutex.withLock { self.handoff = handoff; enabled = true }
         host.tapDidStart()
     }
     func stop() async {
         queue.revoke()
-        mutex.withLock { handoff = nil; invalidate = nil; cached = .unknown }
+        mutex.withLock { handoff = nil; invalidate = nil; cached = .unknown; enabled = false }
     }
+
+    func disableWithoutCallback() { mutex.withLock { enabled = false } }
 
     /// Delivers an invalidation the way the workspace fence does; false once the fence is gone.
     @discardableResult
@@ -200,7 +204,7 @@ private final class SyntheticTap: CaptureTapBackend, @unchecked Sendable {
     /// One bare key press, delivered the way the tap callback delivers it.
     @discardableResult
     func press(_ key: Int = 0) throws -> EventHandoffResult {
-        guard let handoff = mutex.withLock({ handoff }) else { return .closed }
+        guard let handoff = mutex.withLock({ enabled ? handoff : nil }) else { return .closed }
         let code = try KeyCode(key)
         // What `decodeCaptureEvent` produces for a key with no modifier flag set.
         let modifiers = ModifierSet(command: .none, option: .none, control: .none, shift: .none, fn: .none)
@@ -975,6 +979,25 @@ final class ProductRecoveryQuitTests: XCTestCase {
         let live = await product.live
         XCTAssertFalse(live, "unknown is never treated as disabled")
         XCTAssertEqual(try product.tap?.press(), .closed)
+    }
+
+    func testDisabledTapWithoutCallbackStopsCollectingUntilExplicitStart() async throws {
+        let product = try await collecting()
+        try await product.press(1)
+        product.tap?.disableWithoutCallback()
+        try await waitUntil("disabled tap blocks collecting") {
+            let live = await product.live
+            return product.phase == .blocked && !live
+        }
+        XCTAssertEqual(try product.tap?.press(), .closed)
+        XCTAssertFalse(product.composition.flow.sensitiveContentVisible)
+
+        await product.composition.startOrRetry()
+        try await waitUntil("explicit Start restores a live session") {
+            let live = await product.live
+            return product.phase == .collecting && live
+        }
+        try await product.press(1)
     }
 
     func testLockDuringSecureInputStillNeedsExplicitStart() async throws {

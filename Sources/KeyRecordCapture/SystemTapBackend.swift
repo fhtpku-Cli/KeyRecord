@@ -114,6 +114,11 @@ final class SystemTapBackend: CaptureTapBackend {
 
     nonisolated func cachedProviders() -> CaptureProviderSnapshot { cached.withLock { $0 } }
 
+    func isEnabled() -> Bool {
+        guard let tap else { return false }
+        return CFMachPortIsValid(tap) && CGEvent.tapIsEnabled(tap: tap)
+    }
+
     func start(handoff: @escaping @Sendable (ObservedKeyEvent) -> EventHandoffResult) throws {
         guard tap == nil else { throw CaptureStartError.alreadyStarted }
         guard workspaceFence != nil, let invalidate,

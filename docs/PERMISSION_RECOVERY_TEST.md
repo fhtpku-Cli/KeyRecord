@@ -72,6 +72,23 @@ without launching it. Shell syntax checking also passed. The changed launch
 path has **not** been run. Its TCC attribution and Settings appearance therefore
 remain unverified; no new permission trial has occurred.
 
+### Disabled-tap liveness fallback — 2026-09-28
+
+The product previously treated an installed dispatch signal as proof that a
+capture session was live. The current candidate also checks whether its
+Core Graphics tap is valid and enabled. If the tap is unavailable while the
+product is collecting, the existing monitor closes protected state and leaves
+the App Blocked until an explicit Start. A synthetic product test disables its
+tap without delivering a callback, verifies Blocked and a closed input path,
+then verifies that manual Start restores collection. The full 47-case product
+recovery suite and 65 capture-layer tests passed on native ARM; the Debug App
+built unsigned. An unsigned universal Release App also built and its executable
+passed the existing static network audit with zero matches. This covers a
+disabled tap that can be observed through
+`CGEvent.tapIsEnabled`; it does not establish that macOS disables the tap on
+same-process Input Monitoring revocation or that the absent witness entry now
+appears in Settings. The real permission acceptance remains open.
+
 Historical 2026-09-27 baseline: product source main
 `64590a0e9b57a55af9a23921983f2c16bb59c62e`.
 This follow-up adds only `testLivePermissionRevocationRequiresExplicitStartAndPreservesDurableCounts`

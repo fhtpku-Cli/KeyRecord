@@ -223,6 +223,10 @@ actor ProductCapture: LifecycleCaptureControlling, RestartReadinessChecking {
         await source.hasLiveSession
     }
 
+    func sessionHealth() async -> CaptureSessionHealth {
+        await source.sessionHealth()
+    }
+
     func requestInputMonitoringPermission() async -> InputMonitoringStatus {
         await source.requestPermissionIfNeeded()
     }

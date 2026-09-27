@@ -1,22 +1,29 @@
 # Current project status
 
-## Current summary — 2026-09-27
+## Current summary — 2026-09-28
 
-Main includes PR #13 at `6257b03b40f618fd976c6cbcc77dc83d374c59bb`. The isolation
-repair and bounded permission-restart evidence below are merged. No further permission
-round is scheduled. The current work is [network observation preparation](NETWORK_OBSERVATION_PREP.md).
-The synthetic nettop control saw 1 MiB on its sender PID; its idle PID had no row,
-which cannot prove zero traffic. In the owner-supplied final 20.07-second PKTAP
-pilot, 16 captured records parsed with the expected PID, direction and port
-counts; kernel drops, unknown attribution and unexpected parsed flows were zero.
-The 17th output line in this new run was classified as a complete whitespace-only line.
-This meets the previously recorded bounded synthetic-observer criteria. The
-unidentified line in an older run remains historically unexplained. The script
-still emits `product_pass:false` and has no automatic PASS path. No KeyRecord
-network observation or zero-egress result exists; the product wrapper remains
-BLOCKED. Phase 1/G1, Release, formal performance and native Intel qualification
-remain open. See the [network preparation record](NETWORK_OBSERVATION_PREP.md)
-for the exact evidence boundary and remaining product scope.
+Main includes PR #14 at `c367a0026c9df0c44d65290121b66d1c3577e774`.
+The owner ended packet-capture qualification for FR-P1. This milestone has no
+network client or update endpoint. The revised [FR-P1 requirement](PRD.md#66-功能需求隐私)
+uses the product-source scan and an audit of the exact Release executable being
+qualified, with negative fixtures for network, endpoint and shell references.
+A future update checker needs a separate request-scope review; statistics must
+stay local. No further host packet capture is needed for FR-P1.
+
+Five owner-approved product observations on the closed PR #15 branch were
+invalid. They provide no measured zero-egress result and remain in that PR's
+commit history. The earlier synthetic loopback pilots in the
+[observation record](NETWORK_OBSERVATION_PREP.md) only verified observer controls. These
+results do not block the revised code-and-build capability assessment. The
+historical `host network` lane remains inert and BLOCKED; it is no longer an
+FR-P1 prerequisite. Signed Release, other G1 conditions, formal performance
+and native Intel qualification remain open.
+
+This closeout branch passed six focused `PrivacyEgressTests` and
+`PrivacyBinaryAuditTests`, including negative fixtures. An unsigned universal
+Release App built offline; its executable passed `audit-product-network.sh`
+with zero matches. `EvidenceValidator` compiled. The eventual signed Release
+candidate still needs its own audit before FR-P1 release acceptance.
 
 ## Dedicated trial isolation and bounded restart follow-up — 2026-09-27
 

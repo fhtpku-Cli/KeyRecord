@@ -14,7 +14,8 @@ reached visible Collecting and recorded an aggregate delta of 5; its 74.95-secon
 observation was also invalid because one nonblank observer diagnostic remained
 unclassified. A [third run](NETWORK_OBSERVATION_PREP.md#offline-stderr-diagnosis-and-third-host-observation)
 recorded an aggregate delta of 6 and completed 74.99 seconds, but still had one
-unclassified tcpdump diagnostic. All three runs are invalid and do not support
+unclassified observer-stderr line. The controller combines `sudo` and tcpdump
+stderr, so its producer is unknown. All three runs are invalid and do not support
 a product no-egress conclusion.
 The synthetic nettop control saw 1 MiB on its sender PID; its idle PID had no row,
 which cannot prove zero traffic. In the owner-supplied final 20.07-second PKTAP

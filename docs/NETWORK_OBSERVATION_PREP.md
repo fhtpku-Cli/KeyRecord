@@ -398,7 +398,7 @@ before the TextEdit input. This is consistent with the fresh trial remaining
 at its first-run consent/Start step; the handoff instructed input after the idle
 interval without instructing the owner to confirm **Collecting**. The exact
 reason shown in the menu and whether a permission prompt appeared were not
-reported. Tcpdump also emitted one stderr line
+reported. The observer's combined stderr also contained one line
 outside the controller's recognized diagnostic categories. Its content was not
 retained and cannot be reclassified after the run.
 
@@ -464,7 +464,7 @@ not identify keys. The owner separately confirmed that the App visibly reached
 The observer counted zero packets attributed to the trial PID in either
 direction, 690 unattributed observations and 16,549 observations for other
 processes. Delegated-process coverage is still unverified. One nonblank
-tcpdump stderr line did not match the controller's recognized diagnostics.
+observer stderr line did not match the controller's recognized diagnostics.
 The line was deliberately not retained, so its meaning cannot be determined
 afterward. The receipt therefore reports `outcome=invalid` and
 `product_pass=false`. The zero attributed outbound count is only an
@@ -485,8 +485,10 @@ The controller's three focused tests passed with 16 assertions.
 
 ## Offline stderr diagnosis and third host observation
 
-Both product receipts retained only one unclassified stderr-line count, so the
-historical line cannot be reconstructed. The installed `/usr/sbin/tcpdump`
+Both earlier product receipts retained only one unclassified stderr-line count,
+so the historical lines cannot be reconstructed. The controller combines stderr
+from `sudo` and `/usr/sbin/tcpdump`, so the producer of an unclassified line is
+also unknown. The installed `/usr/sbin/tcpdump`
 reports version 4.99.1, Apple 161. Its binary contains templates for metadata
 filter drops, interface drops, compression statistics and warnings; Apple's
 [tcpdump source](https://github.com/apple-oss-distributions/tcpdump/blob/main/tcpdump/tcpdump.c)
@@ -517,7 +519,7 @@ direction, 516 unattributed observations and 23,566 observations for other
 processes. Delegated-process coverage remains unverified.
 
 All four newly recognized diagnostic categories were zero, but one complete
-nonblank tcpdump stderr line was still unclassified. Its text was deliberately
+nonblank observer stderr line was still unclassified. Its text was deliberately
 not retained, so the cause cannot be recovered from this run. The receipt
 correctly reports `outcome=invalid` and `product_pass=false`. No product
 zero-egress claim or Phase 1, Release or Intel qualification follows. Another

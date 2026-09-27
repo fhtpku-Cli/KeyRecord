@@ -6,7 +6,8 @@ Main includes PR #14 at `c367a0026c9df0c44d65290121b66d1c3577e774`.
 The isolation repair, bounded permission-restart evidence and synthetic network
 observer preparation are merged. A separate signed Debug product candidate and
 bounded all-interface observation controller were [prepared](NETWORK_OBSERVATION_PREP.md#product-observation-candidate-prepared-after-pr-14-merge)
-and used in four owner-approved 75-second runs. The [first product attempt](NETWORK_OBSERVATION_PREP.md#first-approved-product-attempt-invalid-observation-2026-09-27)
+and used in four owner-approved 75-second runs and one 90-second run. The
+[first product attempt](NETWORK_OBSERVATION_PREP.md#first-approved-product-attempt-invalid-observation-2026-09-27)
 was invalid: controls and packet collection ran, but the trial App recorded no
 input collection and the observer had one unclassified diagnostic. The
 [same-scope retest](NETWORK_OBSERVATION_PREP.md#same-scope-product-retest-invalid-observation-2026-09-27)
@@ -20,8 +21,11 @@ had a complete 74.93-second observer window, recognized diagnostics and zero
 kernel drops, and the owner saw Collecting and entered short non-sensitive input.
 Its receipt was invalid because the trial App had not exited when capture ended.
 The App exited later and wrote an aggregate delta of 5; whether menu Quit was
-initiated before or after the deadline is unknown. All four runs are invalid
-and do not support a product no-egress conclusion.
+initiated before or after the deadline is unknown. The [fifth run](NETWORK_OBSERVATION_PREP.md#fifth-owner-approved-product-attempt-packet-cap-reached-early-2026-09-28)
+reached the unchanged 50,000-packet cap in 23.71 seconds, long before its
+requested 90-second window ended. Its observer had zero drops or unknown
+diagnostics, but `full_window=false` and the App was still open when it stopped.
+All five runs are invalid and do not support a product no-egress conclusion.
 The synthetic nettop control saw 1 MiB on its sender PID; its idle PID had no row,
 which cannot prove zero traffic. In the owner-supplied final 20.07-second PKTAP
 pilot, 16 captured records parsed with the expected PID, direction and port
@@ -30,7 +34,7 @@ The 17th output line in that pilot was classified as a complete whitespace-only 
 This meets the previously recorded bounded synthetic-observer criteria. The
 unidentified lines in the first three product runs remain unexplained. The
 draft controller categorizes four known diagnostic families, all zero in the
-third and fourth receipts. The script still emits
+third, fourth and fifth receipts. The script still emits
 `product_pass:false` and has no automatic PASS path. No valid KeyRecord
 network observation or zero-egress result exists; the product wrapper remains
 BLOCKED. Phase 1/G1, Release, formal performance and native Intel qualification
@@ -40,7 +44,8 @@ for the exact evidence boundary and remaining product scope.
 After the third invalid run, offline-only observer diagnostics began retaining
 fixed counts for known status and unknown stderr prefix/read phase. They do
 not identify the historical line or establish its producer. The fourth receipt
-contained six recognized stderr lines and zero unknown lines.
+contained six recognized stderr lines and zero unknown lines; the fifth also
+had six recognized lines and zero unknown lines.
 A separately approved short loopback stderr diagnosis was inconclusive: the
 observer's actual listening line lacked the prefix required by the new parser,
 so no controls were sent. After the parser correction, a second approved short
@@ -52,8 +57,10 @@ records, with zero drops or unparsed lines. This verifies one explicit synthetic
 socket-delegation pattern, not general delegated coverage. The corrected
 product observer has one complete fourth-run packet window but still no valid
 product observation. The trial's menu-Quit prompt was clarified after that
-run; the changed wording has not had a host run. These synthetic results cannot
-qualify product egress.
+run. In the fifth run, the separate packet cap stopped capture early; the
+50,000-packet cap remains in place, and an unchanged repeat risks the same
+failure. A future host round requires a revised bounded protocol and fresh
+approval. These synthetic results cannot qualify product egress.
 
 ## Dedicated trial isolation and bounded restart follow-up — 2026-09-27
 

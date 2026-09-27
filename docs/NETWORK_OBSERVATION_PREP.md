@@ -817,4 +817,34 @@ After this attempt, the controller's terminal prompts were clarified: once
 the agreed short input is finished, Quit the trial App immediately from its
 menu, before the capture deadline. The observer then continues to its fixed
 deadline. This wording change was checked with Ruby syntax and the nine
-existing controller tests (64 assertions); it has not had a new host run.
+existing controller tests (64 assertions); its next host run is recorded below.
+
+## Fifth owner-approved product attempt: packet cap reached early (2026-09-28)
+
+The owner ran one separately approved 90-second observation with the same
+50,000-packet safety cap. The private aggregate receipt is
+`/private/tmp/keyrecord-network-20260928-71029-4yoz4y/receipt.json`.
+It reports `outcome=invalid`, `product_pass=false`, `capture_seconds=23.71`,
+`captured_count=50000`, `full_window=false`, and `product_exited=false` when the
+observer stopped. The controller invokes tcpdump with `-c 50000`; reaching
+exactly that count closed its output streams, so the requested 90-second window
+ended early. This was an expected cap, not a kernel drop or a classified
+tcpdump error. The observer exited 0, parsed all 50,000 packet records, saw
+all four loopback controls in each direction, and recorded zero kernel drops,
+unparsed lines, unknown stderr lines, warnings, and unterminated bytes.
+
+The owner confirmed visible **Collecting**, no input-monitoring, accessibility,
+or restart prompt, and a later normal menu Quit. A read-only process check
+found no remaining KeyRecordApp. The App's numeric summary appeared after
+the receipt and reported `aggregateDelta=5` and `flushDurable=9`; this cannot
+establish input activity inside the truncated 23.71-second capture window or
+repair the invalid receipt. The observer counted zero direct product-PID and
+zero outbound `eproc` observations, 525 unattributed packet observations, and
+49,467 other-process observations. The high packet rate was dominated by
+other-process observations, but the aggregate cannot identify their producers
+or show whether that rate persisted beyond the short window.
+
+An unchanged repeat has a known risk of hitting the same cap before the time
+window ends. The 50,000-packet limit remains in place; any future live round
+needs a separately reviewed bounded protocol and fresh owner approval. This
+receipt provides no product zero-egress, Phase 1, Release, or Intel evidence.

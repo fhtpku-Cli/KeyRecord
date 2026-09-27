@@ -23,6 +23,11 @@ Starting source: `31b65c523db3ec40c06f0877395da52b7c026935` (merged PR #3/#4). E
 
 The local historical evidence remains read-only in the primary checkout under `.omo/repair-20260921/` and `.omo/repair-20260922/{modifier-investigation,roadmap-review}/`. Earlier live trials used a signed Debug candidate before merged main's diagnostic-path change. They are not current-main or Release qualification. See current status for the precise partial lock trial and durable-counter limitations.
 
+The hosted Keychain scenario controller requires a separate product observation
+for lock-transition results. Without it, those steps return BLOCKED; the fake
+observer in offline tests establishes only that the controller handles supplied
+measurements. No live product observer is wired into the hosted probe yet.
+
 ## Executable lanes and their meaning
 
 - `Scripts/verify-local.sh --build-only`: package tests, offline harness CLI regressions, SwiftPM Release, universal unsigned App Release and native Debug test compilation. Does not launch capture or run App XCTest. A completed build is not Intel execution.

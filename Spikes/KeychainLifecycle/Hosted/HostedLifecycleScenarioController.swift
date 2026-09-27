@@ -22,14 +22,35 @@ public protocol HostedLockAuthority {
     func witness(challenge: LockChallenge, step: LifecycleStep) -> HostedLockWitness?
 }
 
+public struct HostedProductObservation: Sendable {
+    public let protectedReadDelta: Int
+    public let publishDelta: Int
+    public let aggregateDelta: Int
+    public let captureClosed: Bool?
+
+    public init(protectedReadDelta: Int, publishDelta: Int, aggregateDelta: Int, captureClosed: Bool?) {
+        self.protectedReadDelta = protectedReadDelta
+        self.publishDelta = publishDelta
+        self.aggregateDelta = aggregateDelta
+        self.captureClosed = captureClosed
+    }
+}
+
+public protocol HostedProductObserver {
+    func observe(step: LifecycleStep, transition: LockTransition) -> HostedProductObservation?
+}
+
 public final class HostedLifecycleScenarioController: LifecycleScenarioController {
     private let backend: any CandidateBackend
     private let configuration: HostedLifecycleConfiguration
     private let authority: any HostedLockAuthority
+    private let productObserver: (any HostedProductObserver)?
     private var qualification = SessionLockQualification(supported: true)
 
-    public init(backend: any CandidateBackend, authority: any HostedLockAuthority, configuration: HostedLifecycleConfiguration) {
+    public init(backend: any CandidateBackend, authority: any HostedLockAuthority,
+                configuration: HostedLifecycleConfiguration, productObserver: (any HostedProductObserver)? = nil) {
         self.backend = backend; self.authority = authority; self.configuration = configuration
+        self.productObserver = productObserver
     }
 
     public func supports(_ scenario: LifecycleScenario) -> Bool { configuration.supportedScenarios.contains(scenario) }
@@ -46,15 +67,25 @@ public final class HostedLifecycleScenarioController: LifecycleScenarioControlle
 
     private func crud() -> LifecycleStepObservation {
         guard authorized() else { return blocked(step: .unlockedCRUD) }
-        let observations: [CandidateObservation]
-        do { observations = try [.add, .read, .attributes].map { try backend.perform($0, namespace: configuration.namespace) } }
-        catch { return blocked(step: .unlockedCRUD) }
-        let keychain = LifecycleKeychainEvidence(rawStatus: observations.last?.status, calls: observations.count,
-                                                 accessibility: observations.compactMap(\.accessibility).last,
-                                                 synchronizable: observations.compactMap(\.synchronizable).last,
-                                                 valueMatched: observations.contains { $0.valueMatched == true },
+        var observations: [CandidateObservation] = []
+        for operation in [CandidateOperation.add, .read, .attributes] {
+            let next: CandidateObservation
+            do { next = try backend.perform(operation, namespace: configuration.namespace) }
+            catch { return blocked(step: .unlockedCRUD) }
+            observations.append(next)
+            if next.status != 0 {
+                let keychain = LifecycleKeychainEvidence(rawStatus: next.status, calls: observations.count,
+                                                         accessibility: nil, synchronizable: nil,
+                                                         valueMatched: nil, itemMissing: nil, cleanupComplete: nil)
+                return observation(.fail, keychain: keychain, policy: policy(witness: true, fenced: nil))
+            }
+        }
+        let keychain = LifecycleKeychainEvidence(rawStatus: observations[2].status, calls: observations.count,
+                                                 accessibility: observations[2].accessibility,
+                                                 synchronizable: observations[2].synchronizable,
+                                                 valueMatched: observations[1].valueMatched,
                                                  itemMissing: nil, cleanupComplete: nil)
-        return observation(.pass, keychain: keychain, policy: policy(witness: true, fenced: true))
+        return observation(.pass, keychain: keychain, policy: policy(witness: true, fenced: nil))
     }
 
     private func deleteMissing() -> LifecycleStepObservation {
@@ -66,7 +97,7 @@ public final class HostedLifecycleScenarioController: LifecycleScenarioControlle
               observations.last?.status == -25300 else { return failed(step: .deleteMissing) }
         let keychain = LifecycleKeychainEvidence(rawStatus: -25300, calls: observations.count, accessibility: nil,
                                                  synchronizable: nil, valueMatched: nil, itemMissing: true, cleanupComplete: nil)
-        return observation(.pass, keychain: keychain, policy: policy(witness: false, fenced: true))
+        return observation(.pass, keychain: keychain, policy: policy(witness: false, fenced: nil))
     }
 
     private func cleanup() -> LifecycleStepObservation {
@@ -77,10 +108,13 @@ public final class HostedLifecycleScenarioController: LifecycleScenarioControlle
         guard result.status == 0 || result.status == -25300 else { return failed(step: .cleanup) }
         let keychain = LifecycleKeychainEvidence(rawStatus: result.status, calls: 1, accessibility: nil,
                                                  synchronizable: nil, valueMatched: nil, itemMissing: nil, cleanupComplete: true)
-        return observation(.pass, keychain: keychain, policy: policy(witness: false, fenced: true))
+        return observation(.pass, keychain: keychain, policy: policy(witness: false, fenced: nil))
     }
 
     private func transition(_ step: LifecycleStep) -> LifecycleStepObservation {
+        guard let productObserver else {
+            return blocked(step: step, rejection: "productObservationMissing", active: qualification.challenge.generation)
+        }
         let unlocked = step != .lockBackground && step != .restartLocked
         guard let witness = authority.witness(challenge: qualification.challenge, step: step) else {
             return blocked(step: step, active: qualification.challenge.generation)
@@ -93,13 +127,19 @@ public final class HostedLifecycleScenarioController: LifecycleScenarioControlle
             return blocked(step: step, rejection: rejection.rawValue,
                            witness: witness.challenge.generation, active: activeBefore)
         case .success(let transition):
-            let closed = step == .lockBackground || step == .restartLocked || step == .sleepWake
+            guard let observed = productObserver.observe(step: step, transition: transition) else {
+                return blocked(step: step, rejection: "productObservationMissing",
+                               witness: witness.challenge.generation, active: transition.current.generation)
+            }
             let policy = LifecyclePolicyEvidence(
-                authoritativeWitness: true, protectedReadDelta: 0, publishDelta: 0, aggregateDelta: 0,
+                authoritativeWitness: true,
+                protectedReadDelta: observed.protectedReadDelta,
+                publishDelta: observed.publishDelta,
+                aggregateDelta: observed.aggregateDelta,
                 generationFenced: transition.previous.generation != transition.current.generation,
-                captureClosed: closed, witnessGeneration: witness.challenge.generation,
+                captureClosed: observed.captureClosed, witnessGeneration: witness.challenge.generation,
                 activeGeneration: transition.current.generation, priorGeneration: transition.previous.generation)
-            return observation(.pass, keychain: Self.zeroKeychain(rawStatus: 0), policy: policy)
+            return observation(.pass, keychain: Self.zeroKeychain(rawStatus: nil), policy: policy)
         }
     }
 
@@ -117,21 +157,21 @@ public final class HostedLifecycleScenarioController: LifecycleScenarioControlle
     private static func zeroKeychain(rawStatus: Int32?) -> LifecycleKeychainEvidence {
         .init(rawStatus: rawStatus, calls: 0, accessibility: nil, synchronizable: nil, valueMatched: nil, itemMissing: nil, cleanupComplete: nil)
     }
-    private func policy(witness: Bool, fenced: Bool, closed: Bool? = nil) -> LifecyclePolicyEvidence {
+    private func policy(witness: Bool, fenced: Bool?) -> LifecyclePolicyEvidence {
         .init(authoritativeWitness: witness, protectedReadDelta: 0, publishDelta: 0, aggregateDelta: 0,
-              generationFenced: fenced, captureClosed: closed)
+              generationFenced: fenced, captureClosed: nil)
     }
     private func blocked(step: LifecycleStep, rejection: String? = nil,
                          witness: UUID? = nil, active: UUID? = nil) -> LifecycleStepObservation {
         observation(.blocked, keychain: Self.zeroKeychain(rawStatus: nil),
                     policy: .init(authoritativeWitness: false, protectedReadDelta: 0, publishDelta: 0,
                                   aggregateDelta: 0, generationFenced: false,
-                                  captureClosed: step == .lockBackground || step == .restartLocked || step == .sleepWake,
+                                  captureClosed: nil,
                                   witnessGeneration: witness, activeGeneration: active,
                                   priorGeneration: nil, witnessRejection: rejection))
     }
     private func failed(step: LifecycleStep) -> LifecycleStepObservation {
         observation(.fail, keychain: Self.zeroKeychain(rawStatus: nil),
-                    policy: policy(witness: false, fenced: true, closed: step == .lockBackground || step == .sleepWake))
+                    policy: policy(witness: false, fenced: nil))
     }
 }

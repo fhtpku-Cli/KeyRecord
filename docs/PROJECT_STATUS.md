@@ -54,6 +54,13 @@ The standalone Keychain lifecycle probe built unsigned on native ARM and its
 80 SwiftPM logic tests passed on this candidate. The build and tests did not
 launch the probe, access the real Keychain, or operate the session lock.
 Hosted Keychain accessibility and lock/unlock behavior therefore remain open.
+At the later `codex/phase1-acceptance` head, 80 preflight tests and 17 hosted
+scenario tests passed offline. The hosted controller no longer turns an assumed
+zero product delta or capture-closed state into a passing lock result: without a
+product observation it returns BLOCKED. A failed Keychain add stops the CRUD sequence
+and records the failing status rather than allowing a later read to mask it.
+These changes improve evidence integrity; no real Keychain or lock transition
+was exercised.
 
 The first owner-assisted same-process permission trial on the isolated Debug
 candidate did **not** show the required closure: after Input Monitoring was

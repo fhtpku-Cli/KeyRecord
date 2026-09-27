@@ -83,6 +83,38 @@ final class KeychainLifecycleScenarioTests: XCTestCase {
         XCTAssertTrue(backend.operations.isEmpty)
     }
 
+    func testFailureHostedAddCannotBeHiddenByLaterRead() {
+        let backend = FailingAddBackend()
+        let controller = HostedLifecycleScenarioController(
+            backend: backend, authority: FakeHostedAuthority(ready: true),
+            configuration: .init(namespace: .init(attempt: "attempt", seed: UUID()),
+                                 supportedScenarios: [.unlockedCRUD]))
+        let report = LifecycleScenarioMachine.run(.unlockedCRUD, controller: controller)
+        XCTAssertEqual(report.status, .fail)
+        XCTAssertEqual(report.observations.first?.keychain.rawStatus, -25299)
+        XCTAssertEqual(backend.operations, [.add, .delete])
+    }
+
+    func testFailureHostedLockWithoutProductObservationCannotPass() {
+        let controller = HostedLifecycleScenarioController(
+            backend: RecordingBackend(), authority: FakeHostedAuthority(ready: true),
+            configuration: .init(namespace: .init(attempt: "attempt", seed: UUID()),
+                                 supportedScenarios: [.lockBackground]))
+        let observation = controller.execute(.lockBackground)
+        XCTAssertEqual(observation.status, .blocked)
+        XCTAssertEqual(observation.policy.witnessRejection, "productObservationMissing")
+        XCTAssertNil(observation.policy.captureClosed)
+        XCTAssertNil(observation.keychain.rawStatus)
+    }
+
+    func testFailureObservedProductDeltaRejectsHostedLock() {
+        let controller = hostedController(FakeHostedAuthority(ready: true), scenarios: [.lockBackground],
+                                          productObserver: FakeHostedProductObserver(aggregateDelta: 1))
+        let report = LifecycleScenarioMachine.run(.lockBackground, controller: controller)
+        XCTAssertEqual(report.status, .fail)
+        XCTAssertEqual(report.reason, "protectedPolicyDelta")
+    }
+
     func testFailureLockAdvancesGenerationAndRejectsReplay() {
         let authority = ReplayHostedAuthority()
         let controller = hostedController(authority, scenarios: [.unlockRevalidation])
@@ -150,7 +182,8 @@ final class KeychainLifecycleScenarioTests: XCTestCase {
         XCTAssertEqual(contradictory.policy.witnessRejection, "witnessStateMismatch")
         XCTAssertEqual(contradictory.policy.generationFenced, false)
         XCTAssertEqual(contradictory.policy.authoritativeWitness, false)
-        XCTAssertEqual(unlockedGeneration, true)
+        XCTAssertNil(unlockedGeneration)
+        XCTAssertNil(contradictory.policy.captureClosed)
 
         authority.contradictorySteps.removeAll()
         let legal = controller.execute(.lockBackground)
@@ -194,6 +227,15 @@ private final class RecordingBackend: CandidateBackend {
     }
 }
 
+private final class FailingAddBackend: CandidateBackend {
+    private(set) var operations: [CandidateOperation] = []
+    func perform(_ operation: CandidateOperation, namespace: ProbeNamespace) throws -> CandidateObservation {
+        operations.append(operation)
+        return .init(status: operation == .add ? -25299 : 0, accessibility: "aku",
+                     synchronizable: false, valueMatched: true)
+    }
+}
+
 private final class FakeHostedAuthority: HostedLockAuthority {
     private let ready: Bool
     private let witness: Bool
@@ -206,10 +248,22 @@ private final class FakeHostedAuthority: HostedLockAuthority {
     }
 }
 
-private func hostedController(_ authority: HostedLockAuthority, scenarios: Set<LifecycleScenario>) -> HostedLifecycleScenarioController {
+private func hostedController(_ authority: HostedLockAuthority, scenarios: Set<LifecycleScenario>,
+                              productObserver: HostedProductObserver = FakeHostedProductObserver()) -> HostedLifecycleScenarioController {
     HostedLifecycleScenarioController(
         backend: RecordingBackend(), authority: authority,
-        configuration: .init(namespace: .init(attempt: "attempt", seed: UUID()), supportedScenarios: scenarios))
+        configuration: .init(namespace: .init(attempt: "attempt", seed: UUID()), supportedScenarios: scenarios),
+        productObserver: productObserver)
+}
+
+private final class FakeHostedProductObserver: HostedProductObserver {
+    private let aggregateDelta: Int
+    init(aggregateDelta: Int = 0) { self.aggregateDelta = aggregateDelta }
+    func observe(step: LifecycleStep, transition: LockTransition) -> HostedProductObservation? {
+        let closed = step == .lockBackground || step == .restartLocked || step == .sleepWake
+        return .init(protectedReadDelta: 0, publishDelta: 0, aggregateDelta: aggregateDelta,
+                     captureClosed: closed)
+    }
 }
 
 private final class ContradictoryStateAuthority: HostedLockAuthority {

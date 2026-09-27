@@ -531,7 +531,7 @@ first needs a privacy-preserving way to identify its cause.
 The third receipt ruled out the four guessed tcpdump diagnostic families for
 that run, but it did not reveal the unclassified line. The controller also
 combines `sudo` and tcpdump stderr, so the line's producer cannot be inferred
-from the existing receipts. No fourth host run follows from this change.
+from the existing receipts. This offline change involved no fourth host run.
 
 The controller now counts recognized routine stderr status lines and, for
 unclassified lines, records only a fixed prefix class (`sudo:`, `tcpdump:`,
@@ -606,8 +606,27 @@ unrun strict-readiness revision. Both expressions now accept the complete
 expected listening status with or without `tcpdump:`, while still rejecting
 malformed lookalikes. A regression test using the observed status shape failed
 before the correction and passed afterward; the focused suite passed 7 tests
-and 55 assertions. Ruby syntax and noncapturing CLI checks also passed. The
-corrected `--run` paths remain unverified on the host. The unprefixed line is a
-plausible explanation for an unclassified line in the three earlier product
-receipts, but their raw stderr was deliberately not retained, so its historical
-identity is unproven and all three receipts remain invalid.
+and 55 assertions. Ruby syntax and noncapturing CLI checks also passed. At
+that point, the corrected `--run` paths remained unverified on the host. The
+unprefixed line is a plausible explanation for an unclassified line in the
+three earlier product receipts, but their raw stderr was deliberately not
+retained. Its historical identity is unproven, and all three receipts remain
+invalid.
+
+## Corrected short loopback diagnosis completed
+
+In the separately approved repeat, the owner reported aggregate output from
+the corrected `pktap,lo0` helper: `outcome=diagnostic-complete`,
+`product_pass=false`, `observer_ready=true`, four controls sent and received,
+8.04 seconds after readiness, observer exit 0, eight captured packets and zero
+kernel drops. It counted 565 decoded stdout bytes across nine lines and six
+observer stderr lines; packet and stderr text were not provided for this
+repeat. This verifies that the corrected short helper reached readiness,
+exercised its synthetic loopback controls and stopped normally on this host.
+The helper did not classify those six stderr lines, so completion does not
+establish that all observer diagnostics were routine.
+The helper does not parse product PID or delegated-process attribution. No
+KeyRecord App was launched, and this result does not validate the corrected
+75-second product observer, establish zero egress, or change any of the three
+invalid product receipts. A future product observation needs its own scope and
+owner approval.

@@ -38,8 +38,11 @@ not identify the historical line, establish its producer, or qualify product
 network behavior. No fourth product observation has been performed.
 A separately approved short loopback stderr diagnosis was inconclusive: the
 observer's actual listening line lacked the prefix required by the new parser,
-so no controls were sent. The parser is corrected and covered offline; the
-corrected host path is unverified. It cannot qualify product egress.
+so no controls were sent. After the parser correction, a second approved short
+loopback diagnosis completed on this host with four controls sent and received,
+8.04 seconds observed, exit 0, eight captured packets and zero kernel drops.
+The corrected 75-second product observer remains unverified. These loopback
+results cannot qualify product egress.
 
 ## Dedicated trial isolation and bounded restart follow-up — 2026-09-27
 

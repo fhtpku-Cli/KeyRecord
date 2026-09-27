@@ -675,3 +675,15 @@ would widen the scope of a future synthetic test; even a successful control
 would validate only that specific mechanism, not complete system-service
 attribution. A zero product `eproc` count therefore leaves delegated coverage
 unverified.
+
+The noncapturing `Scripts/fixtures/pktap-effective-metadata-offline.rb` check
+generates one fake Ethernet/IPv4/UDP packet in a temporary PCAPNG file with
+Apple process-information blocks for two fixed synthetic PIDs. It invokes the
+installed tcpdump with `-r -k PD`, then feeds the decoded line to the product
+reducer. The temporary file is removed on exit; neither sudo nor a live
+network interface is used. On this host it reported tcpdump exit 0, the
+expected distinct `proc`/`eproc` fields, one parsed outbound effective-PID
+observation, and zero unparsed lines. This establishes the installed printer
+and reducer's format compatibility for synthetic metadata. It cannot test
+whether the kernel labels any real delegated flow, whether a normal process
+may set `SO_DELEGATED`, or whether system services cover all traffic.

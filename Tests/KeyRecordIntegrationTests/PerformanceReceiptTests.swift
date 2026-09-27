@@ -1,5 +1,6 @@
 import Foundation
 import XCTest
+import KeyRecordMeasurement
 #if DEBUG
 import KeyRecordCapture
 #endif
@@ -8,6 +9,10 @@ final class PerformanceReceiptTests: XCTestCase {
     #if DEBUG
     func testProductReplayUsesTheMeasuredWorkload() {
         XCTAssertEqual(FixedReplayController.fixtureJSON, PerformanceReceipt.workload)
+        XCTAssertEqual(FixedReplayController.windowTicks, ReplayWorkload.windowTicks)
+        XCTAssertEqual((0..<FixedReplayController.windowTicks).reduce(0) {
+            $0 + FixedReplayController.expectedEvents(tick: $1)
+        }, ReplayWorkload.expectedTypingEvents)
     }
     #endif
 

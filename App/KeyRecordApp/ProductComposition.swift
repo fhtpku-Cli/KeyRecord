@@ -151,6 +151,17 @@ final class ProductComposition: NSObject, NSMenuDelegate {
         return try await assemble(host)
     }
 
+    func replayDurableKeyDownTotal() async throws -> Int64 {
+        guard lifecycle.phase == .collecting,
+              let cycleID = lifecycle.state.preferences?.currentCycleID else {
+            throw CaptureStartError.unavailable
+        }
+        try await flush.flushWhileUnlocked()
+        let restored = try await AggregatePersistence.restore(cycleID: cycleID, store: store, gate: gate)
+        let snapshot = try AggregateSnapshot(shortcuts: restored.shortcuts, bareKeys: restored.bareKeys)
+        return snapshot.shortcutTotal + snapshot.bareKeyTotal
+    }
+
     /// Hostless tests supply every host boundary; the wiring below is the production wiring.
     static func makeSynthetic(_ boundaries: ProductHostBoundaries) async throws -> ProductComposition {
         try await assemble(boundaries)

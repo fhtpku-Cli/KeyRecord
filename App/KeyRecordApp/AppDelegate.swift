@@ -1,4 +1,5 @@
 import AppKit
+import Darwin
 import KeyRecordCore
 import KeyRecordCapture
 import KeyRecordStore
@@ -12,7 +13,10 @@ private struct DebugReplayProgress: Encodable {
     let expectedTicks = FixedReplayController.windowTicks
     var ticks = 0
     var acceptedEvents: Int64 = 0
+    var durableKeyDownTotal: Int64?
     var elapsedSeconds = 0.0
+    var startedUptimeSeconds: Double?
+    var endedUptimeSeconds: Double?
 }
 #endif
 
@@ -167,7 +171,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         guard !Task.isCancelled else { return }
         replayStarted = clock.now
+        guard let startedUptime = replayUptime() else {
+            replayProgress?.outcome = "clockUnavailable"
+            writeReplayProgress()
+            return
+        }
+        replayProgress?.startedUptimeSeconds = startedUptime
         replayProgress?.outcome = "running"
+        guard writeReplayProgress() else { return }
         var nextTick = clock.now
         for tick in 0..<FixedReplayController.windowTicks {
             if Task.isCancelled { return }
@@ -198,21 +209,46 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             writeReplayProgress()
             return
         }
-        replayProgress?.outcome = "completed"
+        replayProgress?.outcome = "verifyingDurability"
+        writeReplayProgress()
+        do {
+            let durable = try await composition.replayDurableKeyDownTotal()
+            let accepted = replayProgress?.acceptedEvents ?? -1
+            replayProgress?.durableKeyDownTotal = durable
+            replayProgress?.outcome = durable == accepted / 2
+                ? "completed" : "durabilityMismatch"
+        } catch {
+            replayProgress?.outcome = "durabilityUnavailable"
+        }
         writeReplayProgress()
     }
 
-    private func writeReplayProgress() {
-        guard var progress = replayProgress, let replaySummaryURL else { return }
-        if let replayStarted {
-            let elapsed = replayStarted.duration(to: ContinuousClock().now).components
-            progress.elapsedSeconds = Double(elapsed.seconds) + Double(elapsed.attoseconds) / 1e18
+    @discardableResult
+    private func writeReplayProgress() -> Bool {
+        guard var progress = replayProgress, let replaySummaryURL else { return false }
+        if progress.endedUptimeSeconds == nil {
+            if let replayStarted {
+                let elapsed = replayStarted.duration(to: ContinuousClock().now).components
+                progress.elapsedSeconds = Double(elapsed.seconds) + Double(elapsed.attoseconds) / 1e18
+            }
+            if progress.outcome != "running" {
+                progress.endedUptimeSeconds = replayUptime()
+            }
         }
+        replayProgress = progress
         do {
             try JSONEncoder().encode(progress).write(to: replaySummaryURL, options: .atomic)
+            return true
         } catch {
             fputs("KeyRecord replay summary write failed\n", stderr)
+            return false
         }
+    }
+
+    private func replayUptime() -> Double? {
+        var value = timespec()
+        guard clock_gettime(CLOCK_UPTIME_RAW, &value) == 0 else { return nil }
+        return Double(value.tv_sec) + Double(value.tv_nsec) / 1e9
     }
     #endif
 }

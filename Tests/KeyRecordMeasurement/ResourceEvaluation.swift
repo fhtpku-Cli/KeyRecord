@@ -48,15 +48,18 @@ public struct ResourceWindowRequest: Equatable, Sendable {
     public var warmupSeconds: Double
     public var measureSeconds: Double
     public var intervalSeconds: Double
+    public var originUptimeSeconds: Double?
     public var samples: [ProcessResourceSample]
 
     public init(protocolKind: ResourceProtocolKind, phase: String, warmupSeconds: Double,
-                measureSeconds: Double, intervalSeconds: Double, samples: [ProcessResourceSample]) {
+                measureSeconds: Double, intervalSeconds: Double, originUptimeSeconds: Double? = nil,
+                samples: [ProcessResourceSample]) {
         self.protocolKind = protocolKind
         self.phase = phase
         self.warmupSeconds = warmupSeconds
         self.measureSeconds = measureSeconds
         self.intervalSeconds = intervalSeconds
+        self.originUptimeSeconds = originUptimeSeconds
         self.samples = samples
     }
 }
@@ -113,6 +116,12 @@ public enum ResourceEvaluator {
         guard let first = request.samples.first, !first.failed, !first.exited else {
             return finish("invalid", "sample-missing")
         }
+        let origin = request.originUptimeSeconds ?? first.uptimeSeconds
+        guard origin.isFinite, first.uptimeSeconds.isFinite, origin >= 0,
+              origin <= first.uptimeSeconds,
+              first.uptimeSeconds - origin <= request.intervalSeconds * 1.5 else {
+            return finish("invalid", "origin-misaligned")
+        }
         var childDelta: UInt64 = 0
         for index in request.samples.indices {
             let sample = request.samples[index]
@@ -137,7 +146,6 @@ public enum ResourceEvaluator {
                 }
             }
         }
-        let origin = first.uptimeSeconds
         let measureStart = origin + request.warmupSeconds
         let measureEnd = measureStart + request.measureSeconds
         let afterWarmup = request.samples.filter { $0.uptimeSeconds >= measureStart }
@@ -169,7 +177,8 @@ public enum ResourceEvaluator {
         evaluate(ResourceWindowRequest(
             protocolKind: archive.protocolKind, phase: archive.phase,
             warmupSeconds: archive.requestedWarmupSeconds, measureSeconds: archive.requestedMeasureSeconds,
-            intervalSeconds: archive.requestedIntervalSeconds, samples: archive.samples))
+            intervalSeconds: archive.requestedIntervalSeconds,
+            originUptimeSeconds: archive.originUptimeSeconds, samples: archive.samples))
     }
 }
 
@@ -179,6 +188,7 @@ public struct ResourceMeasurementArchive: Equatable, Sendable, Codable {
     public var requestedWarmupSeconds: Double
     public var requestedMeasureSeconds: Double
     public var requestedIntervalSeconds: Double
+    public var originUptimeSeconds: Double?
     public var effectiveMeasureSeconds: Double?
     public var retainedSampleCount: Int
     public var interruptReason: String?
@@ -200,6 +210,7 @@ public struct ResourceMeasurementArchive: Equatable, Sendable, Codable {
         requestedWarmupSeconds = request.warmupSeconds
         requestedMeasureSeconds = request.measureSeconds
         requestedIntervalSeconds = request.intervalSeconds
+        originUptimeSeconds = request.originUptimeSeconds
         samples = request.samples
         retainedSampleCount = request.samples.count
         interruptReason = result.reason
@@ -213,7 +224,7 @@ public struct ResourceMeasurementArchive: Equatable, Sendable, Codable {
         rssUsedAsFootprint = false
         self.result = result
         if result.outcome == "measured", let first = request.samples.first {
-            let start = first.uptimeSeconds + request.warmupSeconds
+            let start = (request.originUptimeSeconds ?? first.uptimeSeconds) + request.warmupSeconds
             let end = start + request.measureSeconds
             let afterWarmup = request.samples.filter { $0.uptimeSeconds >= start }
             let endpoint = afterWarmup.first { $0.uptimeSeconds >= end } ?? afterWarmup.last

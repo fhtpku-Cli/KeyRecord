@@ -61,11 +61,18 @@ The current PR candidate adds a Debug-only fixed replay source to the product
 composition. A hostless product test drives a fixture tick through reduction
 and encrypted persistence; a separate test checks that the replay fixture
 matches the compressed measurement receipt's workload. The app-side replay
-waits for Collecting, has a fixed 660-second maximum window, and writes only
-aggregate progress to the trial's private root. It has not been launched or
-measured on a host. The controller that would pair the product window with
-resource samples and verify durable work is still absent, so neither ARM nor
-Intel performance qualification is established.
+waits for Collecting and writes only aggregate progress to the trial's private
+root. It has not been launched or measured on a host, so neither ARM nor Intel
+performance qualification is established.
+
+A later offline candidate adds a monotonic start marker shared with the
+resource sampler and a two-second tail after the 60-second warmup and
+600-second measurement window. After the replay, the Debug product flushes and
+reads the isolated encrypted aggregate back before reporting completion. The
+one-window `KeyRecordPerformanceTrial` controller compiles and the sampler's
+marker self-check runs against its own short synthetic process. The controller
+has not launched a product App, and no six-window or ARM/Intel host performance
+result exists. The formal host performance lane remains inert.
 
 The standalone Keychain lifecycle probe built unsigned on native ARM and its
 80 SwiftPM logic tests passed on this candidate. The build and tests did not

@@ -53,7 +53,8 @@ enum PrivacySchemaAudit {
 
     static let recordFields: [String: [String: Set<String>]] = [
         "AppDelegate.swift": ["DebugReplayProgress": [
-            "mode", "outcome", "expectedTicks", "ticks", "acceptedEvents", "elapsedSeconds"]],
+            "mode", "outcome", "expectedTicks", "ticks", "acceptedEvents", "elapsedSeconds",
+            "durableKeyDownTotal", "startedUptimeSeconds", "endedUptimeSeconds"]],
         "CaptureDiagnostics.swift": ["CaptureRunSummary": [
             "tapCallbackKeyDown", "tapCallbackKeyUp", "tapCallbackFlagsChanged", "tapDisabledEvents",
             "handoffAccepted", "handoffClosed", "handoffOverflow", "normalizationOutput", "aggregateDelta",

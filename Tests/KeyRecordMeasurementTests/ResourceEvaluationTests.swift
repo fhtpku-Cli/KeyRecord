@@ -39,6 +39,27 @@ final class ResourceEvaluationTests: XCTestCase {
         XCTAssertEqual(ResourceEvaluator.evaluate(tooLate).reason, "sample-missing")
     }
 
+    func testExplicitReplayOriginAlignsWindowAndSurvivesRecompute() {
+        let times: [Double] = [0.208, 0.416, 0.624, 0.832, 1.040, 1.248, 1.456, 1.664, 1.872]
+        let samples = times.map { sample(t: $0, cpu: UInt64($0 * 100_000_000), bytes: 32_000_000) }
+        let request = ResourceWindowRequest(protocolKind: .exploratory, phase: "typing",
+            warmupSeconds: 0.4, measureSeconds: 1.2, intervalSeconds: 0.2,
+            originUptimeSeconds: 0.1, samples: samples)
+        let result = ResourceEvaluator.evaluate(request)
+        XCTAssertEqual(result.outcome, "measured")
+        let archive = ResourceMeasurementArchive(request: request, result: result, architecture: "arm64",
+            operatingSystem: "fixture", diagnosticsEnabled: false)
+        XCTAssertEqual(archive.originUptimeSeconds, 0.1)
+        XCTAssertEqual(archive.effectiveMeasureSeconds!, 1.372, accuracy: 0.0001)
+        XCTAssertEqual(ResourceEvaluator.recompute(archive), result)
+
+        var stale = request
+        stale.originUptimeSeconds = -1
+        XCTAssertEqual(ResourceEvaluator.evaluate(stale).reason, "origin-misaligned")
+        stale.originUptimeSeconds = 0.5
+        XCTAssertEqual(ResourceEvaluator.evaluate(stale).reason, "origin-misaligned")
+    }
+
     func testMissingSampleSleepExitReuseAndSessionDoNotPass() {
         var missing = series()
         missing[1].failed = true

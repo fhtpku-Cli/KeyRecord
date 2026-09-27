@@ -25,8 +25,9 @@ attribution, storage, consent, or Keychain composition.
   encoded. Store sources cannot accept that event type or normalization output.
   Manifest, keyring metadata and reset-journal Wire DTOs are registered. There are
   currently no formal product receipt DTOs. The Debug-only replay progress
-  summary is registered with fixed mode, state, duration and aggregate count
-  fields; it contains no captured events or text. Adding another serializable
+  summary is registered with fixed mode, state, monotonic window time and
+  aggregate count fields, including the encrypted-store readback total; it
+  contains no captured events or text. Adding another serializable
   type requires review.
   Encrypted preferences may retain configured exclusion IDs; they are user policy,
   not captured foreground-event metadata. Existing attributed shortcut semantics

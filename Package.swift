@@ -33,12 +33,17 @@ let package = Package(
                           dependencies: ["KeyRecordMeasurement"],
                           path: "Tests/KeyRecordResourceSampler",
                           linkerSettings: [.linkedFramework("SystemConfiguration")]),
+        .executableTarget(name: "KeyRecordPerformanceTrial",
+                          dependencies: ["KeyRecordMeasurement"],
+                          path: "Tests/KeyRecordPerformanceTrial",
+                          linkerSettings: [.linkedFramework("AppKit")]),
         .testTarget(name: "KeyRecordMeasurementTests", dependencies: ["KeyRecordMeasurement", "KeyRecordCore"]),
         .testTarget(name: "KeyRecordCoreTests", dependencies: ["KeyRecordCore", "KeyRecordTestSupport"]),
         .testTarget(name: "KeyRecordCaptureTests", dependencies: ["KeyRecordCapture", "KeyRecordTestSupport"]),
         .testTarget(name: "KeyRecordStoreTests", dependencies: ["KeyRecordStore", "KeyRecordTestSupport"]),
         .testTarget(name: "KeyRecordIntegrationTests", dependencies: [
-            "KeyRecordCore", "KeyRecordCapture", "KeyRecordStore", "KeyRecordTestSupport",
+            "KeyRecordCore", "KeyRecordCapture", "KeyRecordStore", "KeyRecordMeasurement",
+            "KeyRecordTestSupport",
         ]),
     ],
     swiftLanguageModes: [.v6]

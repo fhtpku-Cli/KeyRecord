@@ -56,8 +56,9 @@ The granted witnesses show only that the collecting monitor ran while the new
 bundle was collecting. This run is invalid as a live-revocation test: there was
 no observed Settings entry to revoke for that bundle. It provides no evidence
 about post-revocation polling, same-process closure, or the cause of the earlier
-trial's continued Collecting state. Before another owner-assisted test, the
-bundle identity and its appearance in Input Monitoring need to be verified.
+trial's continued Collecting state. The earlier `KeyRecord Permission Trial`
+entry must not be used as a substitute for the absent witness bundle. No further
+owner-assisted permission trial is scheduled from this result.
 
 A read-only, narrowly filtered `tccd` log review for this run attributed the
 new bundle's permission request to Terminal and recorded a failed LaunchServices

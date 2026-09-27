@@ -11,7 +11,7 @@ final class LocalKeychainQueriesTests: XCTestCase {
     func testIdentityQueryTargetsExactGenericPasswordItem() {
         // Given an exact service/account identity.
         let query = LocalKeychainQueries.identityQuery(service: service, account: "master-v7",
-                                                       dataProtection: true)
+                                                       dataProtection: false)
         // When / Then: it matches one exact generic-password item, never a prefix or wildcard.
         XCTAssertEqual(query[kSecClass as String] as? String, kSecClassGenericPassword as String)
         XCTAssertEqual(query[kSecAttrService as String] as? String, service)
@@ -37,7 +37,7 @@ final class LocalKeychainQueriesTests: XCTestCase {
     func testReadQueryReturnsDataForExactlyOneMatch() {
         // Given an identity.
         let identity = LocalKeychainQueries.identityQuery(service: service, account: "metadata",
-                                                          dataProtection: true)
+                                                          dataProtection: false)
         // When building a read query.
         let query = LocalKeychainQueries.queryForReadingData(identity: identity)
         // Then: data return is requested with a one-item limit, never match-all.
@@ -53,7 +53,7 @@ final class LocalKeychainQueriesTests: XCTestCase {
         let status = bytes.withUnsafeMutableBytes { SecRandomCopyBytes(kSecRandomDefault, 32, $0.baseAddress!) }
         XCTAssertEqual(status, errSecSuccess)
         let identity = LocalKeychainQueries.identityQuery(service: service, account: "master-v1",
-                                                          dataProtection: true)
+                                                          dataProtection: false)
         // When building add attributes.
         let attributes = LocalKeychainQueries.attributesForAdd(
             identity: identity, data: bytes,
@@ -65,7 +65,7 @@ final class LocalKeychainQueriesTests: XCTestCase {
         XCTAssertEqual(attributes[kSecAttrService as String] as? String, service)
         XCTAssertEqual(attributes[kSecAttrAccount as String] as? String, "master-v1")
         XCTAssertEqual(attributes[kSecAttrSynchronizable as String] as? Bool, false)
-        XCTAssertEqual(attributes[kSecUseDataProtectionKeychain as String] as? Bool, true)
+        XCTAssertNil(attributes[kSecUseDataProtectionKeychain as String])
     }
 
     func testUpdateAttributesContainOnlyDataAndAccessibility() {
@@ -86,7 +86,7 @@ final class LocalKeychainQueriesTests: XCTestCase {
     func testAllBuildersRemainExactItemAndMatchLimitOneShaped() {
         // Given every exported builder.
         let identity = LocalKeychainQueries.identityQuery(service: service, account: "metadata",
-                                                          dataProtection: true)
+                                                          dataProtection: false)
         let dictionaries = [
             identity,
             LocalKeychainQueries.queryForReadingData(identity: identity),

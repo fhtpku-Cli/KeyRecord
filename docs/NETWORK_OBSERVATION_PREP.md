@@ -754,3 +754,30 @@ Offline checks: Ruby syntax passed for both scripts; the controller's
 `--help` and invalid-argument paths behaved as expected; `git diff --check`
 passed. The fixed root sender and live capture path has one owner-reported
 successful aggregate result; product attribution remains unverified.
+
+## Current product preflight after delegated control (2026-09-28)
+
+Before proposing another product run, the existing controller passed its nine
+offline tests with 64 assertions. The original `DerivedData` App path in the
+first-run instructions above now fails strict host signature verification with
+`invalid Info.plist (plist or signature have been modified)`; its current
+`--check` result is `invalid`. The `RetestBuild4` App verifies on disk but lacks
+`KeyRecordRequiresTrialIsolation`, so its `--check` also fails. No product
+capture was started during these checks.
+
+The existing `RetestBuild3` Debug App verifies under host trust settings and
+passes the controller's `--check` without sudo, capture, or launch. The check
+reports `outcome=prepared`, bundle ID `com.keyrecord.trial.network20260927`,
+and `product_pass=false`. It checks the signed isolation marker and loaded
+Debug trial code. This is a prepared candidate only. A separately approved
+product round would use:
+
+```sh
+ruby /Users/bytedance/.codex/worktrees/product-network-observation/KeyRecord/Scripts/product-network-observe.rb \
+  --app /private/tmp/keyrecord-network.7yjmhZ/RetestBuild3/Build/Products/Debug/KeyRecordApp.app \
+  --seconds 75
+```
+
+The trial's own fresh namespace and store remain isolated from ordinary
+statistics. The control result does not alter the three invalid historical
+product receipts, establish zero egress, or change Phase 1 and Release gates.

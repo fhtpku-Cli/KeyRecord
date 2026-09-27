@@ -339,7 +339,9 @@ is removed. The App's existing trial selector rejects a missing isolation pair,
 including an OS relaunch without the variables.
 
 The output counts all observed packet lines by broad protocol family and counts
-product PID, unknown PID/direction, and other-process observations separately.
+product `proc` PID, product `eproc` PID on a different `proc` PID, unknown
+PID/direction, and other-process observations separately. The `eproc` count
+overlaps the other-process count and must not be added to the packet total.
 The App is kept as an unreaped child until capture stops, preventing its PID from
 being reused inside the window. An exit before the ten-second idle timer elapses
 invalidates the run. The timer is an instruction to the owner, not independent
@@ -630,3 +632,32 @@ KeyRecord App was launched, and this result does not validate the corrected
 75-second product observer, establish zero egress, or change any of the three
 invalid product receipts. A future product observation needs its own scope and
 owner approval.
+
+## Offline effective-process attribution review
+
+Apple's [tcpdump source](https://github.com/apple-oss-distributions/tcpdump/blob/main/tcpdump/tcpdump.c)
+prints `proc` and `eproc` separately when process metadata is requested. Apple's
+[PKTAP header](https://github.com/apple/darwin-xnu/blob/main/bsd/net/pktap.h)
+defines the effective PID and a process-delegated flag. The product observer's
+`-k PD` output can therefore expose a candidate relationship in which the
+packet's `proc` differs from the product's `eproc`. Previously the reducer
+accepted but ignored `eproc`, so such an observed outbound packet could have
+been reported as only another-process traffic.
+
+The reducer now counts that relationship separately by direction, using only
+aggregate counts in the receipt. An outbound `eproc` match gets the explicit
+`effective-product-outbound-metadata-observed` outcome if there is no direct
+product `proc` outbound observation. `product_pass` remains false. The
+`delegated_process_coverage` field remains `unverified`: an absent `eproc`
+match cannot prove that all delegated traffic was observable or attributable.
+The source scan in `PrivacyEgressTests.swift` covers product Swift files under
+`Sources` and `App/KeyRecordApp`; it found no explicit network or process API
+in those files, but cannot establish how system services attribute all traffic.
+
+Offline verification: `ruby Scripts/product-network-observe-test.rb` passed
+9 tests and 64 assertions; `ruby -w -c Scripts/product-network-observe.rb`
+reported `Syntax OK`; `git diff --check` passed. These are reducer checks, not
+a host packet capture or a product network result. The next product trial still
+requires a separately approved bounded run with visible Collecting state and
+valid observer and input aggregates. A positive `eproc` match would need
+follow-up attribution review; a zero match would leave delegated coverage open.

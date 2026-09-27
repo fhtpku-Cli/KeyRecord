@@ -34,6 +34,33 @@ class ProductNetworkObserveTest < Minitest::Test
     assert_equal 1, result[:unparsed_lines]
   end
 
+  def test_effective_product_pid_is_counted_separately_from_packet_process
+    counts = ProductPacketCounts.new(123)
+    counts.ingest("(proc 999, eproc 456, out) IP 192.0.2.1.10 > 192.0.2.2.20: Flags [S]\n")
+    counts.ingest("(proc 999, eproc 456, in) IP 192.0.2.2.20 > 192.0.2.1.10: Flags [S]\n")
+    counts.ingest("(proc 999, eproc 456) IP 192.0.2.2.20 > 192.0.2.1.10: Flags [S]\n")
+    counts.ingest("(proc 456, eproc 456, out) IP 192.0.2.1.10 > 192.0.2.2.20: Flags [S]\n")
+    result = counts.summary(456)
+
+    assert_equal({out: 1, in: 1, unknown_direction: 1}, result[:effective_product_from_other_proc])
+    assert_equal({out: 1, in: 0, unknown_direction: 0}, result[:product])
+    assert_equal 3, result[:other_process_observations]
+    refute_includes result.to_s, '999'
+    refute_includes result.to_s, '192.0.2'
+  end
+
+  def test_effective_product_outbound_changes_observation_label_without_passing_product
+    observation = valid_observation
+    observation.instance_variable_get(:@counts).ingest(
+      "(proc 999, eproc 456, out) IP 192.0.2.1.10 > 192.0.2.2.20: Flags [S]\n"
+    )
+    observation.receipt[:captured_count] = 9
+    capture_io { observation.send(:finish_receipt) }
+
+    assert_equal 'effective-product-outbound-metadata-observed', observation.receipt[:outcome]
+    assert_equal false, observation.receipt[:product_pass]
+  end
+
   def test_blank_observer_diagnostic_is_separate_from_unknown_diagnostic
     blank = valid_observation
     blank.send(:ingest_stderr, "\n")

@@ -15,6 +15,7 @@ class ProductPacketCounts
   def initialize(control_pid)
     @control_pid = control_pid
     @by_pid = Hash.new { |hash, pid| hash[pid] = {out: 0, in: 0, unknown_direction: 0} }
+    @by_effective_pid = Hash.new { |hash, pid| hash[pid] = {out: 0, in: 0, unknown_direction: 0} }
     @control = {out: 0, in: 0}
     @packets = @unattributed = @unparsed = @blank = @unknown_direction = 0
     @families = Hash.new(0)
@@ -44,13 +45,16 @@ class ProductPacketCounts
       return
     end
     pid = pids.first.delete_prefix('proc ').to_i
+    effective_pid = fields.grep(/\Aeproc /).first&.delete_prefix('eproc ')&.to_i
     if directions.length != 1
       @unknown_direction += 1
       @by_pid[pid][:unknown_direction] += 1
+      @by_effective_pid[effective_pid][:unknown_direction] += 1 if effective_pid&.positive? && effective_pid != pid
       return
     end
     direction = directions.first.to_sym
     @by_pid[pid][direction] += 1
+    @by_effective_pid[effective_pid][direction] += 1 if effective_pid&.positive? && effective_pid != pid
     if pid == @control_pid && @control_port &&
        body.include?("> 127.0.0.1.#{@control_port}: UDP")
       @control[direction] += 1
@@ -59,8 +63,10 @@ class ProductPacketCounts
 
   def summary(product_pid)
     product = @by_pid[product_pid] || {out: 0, in: 0, unknown_direction: 0}
+    effective_product = @by_effective_pid[product_pid] || {out: 0, in: 0, unknown_direction: 0}
     other = @by_pid.sum { |pid, counts| pid == product_pid || pid == @control_pid ? 0 : counts.values.sum }
     {packets: @packets, families: @families, product: product,
+     effective_product_from_other_proc: effective_product,
      control: @control, unattributed: @unattributed,
      unknown_direction: @unknown_direction, other_process_observations: other,
      unparsed_lines: @unparsed, blank_lines: @blank}
@@ -352,8 +358,13 @@ class ProductNetworkObservation
             @receipt.dig(:counts, :unparsed_lines) == 0 && !@receipt[:sleep_interrupted] &&
             @receipt[:outcome] != 'interrupted'
     if valid
-      @receipt[:outcome] = @receipt.dig(:counts, :product, :out) > 0 ?
-        'attributed-product-outbound-observed' : 'bounded-no-attributed-outbound-observed'
+      @receipt[:outcome] = if @receipt.dig(:counts, :product, :out) > 0
+                             'attributed-product-outbound-observed'
+                           elsif @receipt.dig(:counts, :effective_product_from_other_proc, :out) > 0
+                             'effective-product-outbound-metadata-observed'
+                           else
+                             'bounded-no-attributed-outbound-observed'
+                           end
     end
     if @directory
       File.write(@receipt[:private_receipt], JSON.pretty_generate(@receipt) + "\n", mode: 'w', perm: 0o600)
@@ -387,5 +398,5 @@ if $PROGRAM_NAME == __FILE__
   end
   observation = ProductNetworkObservation.new(**options)
   observation.run
-  exit(%w[prepared attributed-product-outbound-observed bounded-no-attributed-outbound-observed].include?(observation.receipt[:outcome]) ? 0 : 2)
+  exit(%w[prepared attributed-product-outbound-observed effective-product-outbound-metadata-observed bounded-no-attributed-outbound-observed].include?(observation.receipt[:outcome]) ? 0 : 2)
 end

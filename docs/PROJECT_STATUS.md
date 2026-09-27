@@ -10,10 +10,10 @@ qualified, with negative fixtures for network, endpoint and shell references.
 A future update checker needs a separate request-scope review; statistics must
 stay local. No further host packet capture is needed for FR-P1.
 
-Five owner-approved product observations on the PR #15 branch were
-invalid. They provide no measured zero-egress result and are retained as
-historical evidence in that PR's commits and [observation record](NETWORK_OBSERVATION_PREP.md).
-The earlier synthetic loopback pilots only verified observer controls. These
+Five owner-approved product observations on the closed PR #15 branch were
+invalid. They provide no measured zero-egress result and remain in that PR's
+commit history. The earlier synthetic loopback pilots in the
+[observation record](NETWORK_OBSERVATION_PREP.md) only verified observer controls. These
 results do not block the revised code-and-build capability assessment. The
 historical `host network` lane remains inert and BLOCKED; it is no longer an
 FR-P1 prerequisite. Signed Release, other G1 conditions, formal performance

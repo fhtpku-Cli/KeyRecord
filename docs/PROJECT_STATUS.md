@@ -50,6 +50,11 @@ resource-evaluation tests and two sampler self-check runs passed after this fix.
 This repairs the measurement tool, not the missing product workload or formal
 ARM/Intel measurements.
 
+The standalone Keychain lifecycle probe built unsigned on native ARM and its
+80 SwiftPM logic tests passed on this candidate. The build and tests did not
+launch the probe, access the real Keychain, or operate the session lock.
+Hosted Keychain accessibility and lock/unlock behavior therefore remain open.
+
 ## Dedicated trial isolation and bounded restart follow-up — 2026-09-27
 
 PR #12 merged at `b57dbb796056e40d7967fea34879aedff39bbf4b`. This follow-up

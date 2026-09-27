@@ -140,8 +140,13 @@ public enum ResourceEvaluator {
         let origin = first.uptimeSeconds
         let measureStart = origin + request.warmupSeconds
         let measureEnd = measureStart + request.measureSeconds
-        let measured = request.samples.filter { $0.uptimeSeconds >= measureStart && $0.uptimeSeconds <= measureEnd + request.intervalSeconds * 0.25 }
+        let afterWarmup = request.samples.filter { $0.uptimeSeconds >= measureStart }
+        let lastIndex = afterWarmup.firstIndex { $0.uptimeSeconds >= measureEnd } ?? afterWarmup.indices.last
+        let measured = lastIndex.map { Array(afterWarmup[...$0]) } ?? []
         guard measured.count >= 2, let start = measured.first, let end = measured.last else {
+            return finish("invalid", "sample-missing", child: childDelta)
+        }
+        if end.uptimeSeconds > measureEnd + request.intervalSeconds * 1.5 {
             return finish("invalid", "sample-missing", child: childDelta)
         }
         let covered = end.uptimeSeconds - measureStart

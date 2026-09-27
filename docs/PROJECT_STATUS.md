@@ -41,6 +41,15 @@ results establish offline behavior only. Actual macOS permission revocation and
 regrant, real Keychain access, lock timing, formal ARM/Intel resource measurement
 and signed Release qualification remain open.
 
+The resource sampler's own synthetic self-check initially returned
+`interrupted/duration-short`: its last sample landed 0.066 seconds beyond the
+nominal endpoint and was discarded. The measurement evaluator now includes the
+first sample at or after the endpoint when it is within 1.5 sampling intervals;
+missing, excessively late and genuinely short windows still fail. The ten
+resource-evaluation tests and two sampler self-check runs passed after this fix.
+This repairs the measurement tool, not the missing product workload or formal
+ARM/Intel measurements.
+
 ## Dedicated trial isolation and bounded restart follow-up — 2026-09-27
 
 PR #12 merged at `b57dbb796056e40d7967fea34879aedff39bbf4b`. This follow-up

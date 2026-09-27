@@ -17,6 +17,24 @@ final class ResourceEvaluationTests: XCTestCase {
         XCTAssertFalse(result.formula.contains("RSS"))
     }
 
+    func testFirstSampleAfterWindowEndCompletesMeasuredDuration() {
+        let times: [Double] = [0, 0.208, 0.416, 0.624, 0.832, 1.040, 1.248, 1.456, 1.664]
+        let samples = times.map { sample(t: $0, cpu: UInt64($0 * 100_000_000), bytes: 32_000_000) }
+        let request = ResourceWindowRequest(protocolKind: .exploratory, phase: "synthetic",
+            warmupSeconds: 0.4, measureSeconds: 1.2, intervalSeconds: 0.2, samples: samples)
+        XCTAssertEqual(ResourceEvaluator.evaluate(request).outcome, "measured")
+
+        var incomplete = request
+        incomplete.samples.removeLast()
+        let short = ResourceEvaluator.evaluate(incomplete)
+        XCTAssertEqual(short.outcome, "interrupted")
+        XCTAssertEqual(short.reason, "duration-short")
+
+        var tooLate = request
+        tooLate.samples[8] = sample(t: 1.95, cpu: 195_000_000, bytes: 32_000_000)
+        XCTAssertEqual(ResourceEvaluator.evaluate(tooLate).reason, "sample-missing")
+    }
+
     func testMissingSampleSleepExitReuseAndSessionDoNotPass() {
         var missing = series()
         missing[1].failed = true

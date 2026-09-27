@@ -1,27 +1,30 @@
 # Current project status
 
-## Current summary — 2026-09-27
+## Current summary — 2026-09-28
 
 Main includes PR #14 at `c367a0026c9df0c44d65290121b66d1c3577e774`.
 The isolation repair, bounded permission-restart evidence and synthetic network
 observer preparation are merged. A separate signed Debug product candidate and
 bounded all-interface observation controller were [prepared](NETWORK_OBSERVATION_PREP.md#product-observation-candidate-prepared-after-pr-14-merge)
-and used in two owner-approved 75-second runs. The [first product attempt](NETWORK_OBSERVATION_PREP.md#first-approved-product-attempt-invalid-observation-2026-09-27)
+and used in three owner-approved 75-second runs. The [first product attempt](NETWORK_OBSERVATION_PREP.md#first-approved-product-attempt-invalid-observation-2026-09-27)
 was invalid: controls and packet collection ran, but the trial App recorded no
 input collection and the observer had one unclassified diagnostic. The
 [same-scope retest](NETWORK_OBSERVATION_PREP.md#same-scope-product-retest-invalid-observation-2026-09-27)
 reached visible Collecting and recorded an aggregate delta of 5; its 74.95-second
 observation was also invalid because one nonblank observer diagnostic remained
-unclassified. Neither run supports a product no-egress conclusion.
+unclassified. A [third run](NETWORK_OBSERVATION_PREP.md#offline-stderr-diagnosis-and-third-host-observation)
+recorded an aggregate delta of 6 and completed 74.99 seconds, but still had one
+unclassified tcpdump diagnostic. All three runs are invalid and do not support
+a product no-egress conclusion.
 The synthetic nettop control saw 1 MiB on its sender PID; its idle PID had no row,
 which cannot prove zero traffic. In the owner-supplied final 20.07-second PKTAP
 pilot, 16 captured records parsed with the expected PID, direction and port
 counts; kernel drops, unknown attribution and unexpected parsed flows were zero.
 The 17th output line in that pilot was classified as a complete whitespace-only line.
 This meets the previously recorded bounded synthetic-observer criteria. The
-unidentified line in an older run remains historically unexplained. The draft
-controller now categorizes known diagnostic families for a future observation;
-it has not produced a third host receipt. The script still emits
+unidentified lines in the product runs remain unexplained. The draft
+controller categorizes four known diagnostic families, all zero in the third
+receipt. The script still emits
 `product_pass:false` and has no automatic PASS path. No valid KeyRecord
 network observation or zero-egress result exists; the product wrapper remains
 BLOCKED. Phase 1/G1, Release, formal performance and native Intel qualification

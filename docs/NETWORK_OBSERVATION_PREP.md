@@ -483,7 +483,7 @@ The focused wiring test passed 1/1 after this change; its result is at
 `/private/tmp/keyrecord-network.7yjmhZ/RetestBuild4/Logs/Test/Test-KeyRecordApp-2026.09.27_06-08-00-+0800.xcresult`.
 The controller's three focused tests passed with 16 assertions.
 
-## Offline stderr diagnosis prepared; third host run pending approval
+## Offline stderr diagnosis and third host observation
 
 Both product receipts retained only one unclassified stderr-line count, so the
 historical line cannot be reconstructed. The installed `/usr/sbin/tcpdump`
@@ -499,8 +499,27 @@ fixed category counts or the maximum reported drop count to the private
 aggregate receipt. It retains no diagnostic text. Any positive category,
 unclassified line or unterminated stderr fragment still invalidates the
 observation; the existing no-automatic-product-PASS rule remains. Synthetic
-stderr tests pass 4 tests and 36 assertions. This is an offline discriminator
-for a future run, not a reinterpretation of either historical receipt. No
+stderr tests pass 4 tests and 36 assertions. This was an offline discriminator
+for a later run, not a reinterpretation of either historical receipt. No
 tcpdump capture, product launch, permission change or Keychain operation was
-performed during this investigation. A third host observation needs a separate,
-specific owner approval before it begins.
+performed during that diagnostic preparation.
+
+The owner separately approved a third 75-second host observation on
+2026-09-28. The private aggregate receipt is
+`/private/tmp/keyrecord-network-20260928-21828-o4e8sj/receipt.json`.
+The observer was ready, completed 74.99 seconds and exited 0. It parsed 24,090
+packet records with zero kernel drops, zero unparsed lines and all four loopback
+controls in both directions. The trial App exited 0; its numeric summary showed
+an aggregate delta of 6 and 10 durable flushes. This supports that the trial
+recorded input activity but does not identify keys or establish a visible UI
+state. The observer counted zero packets attributed to the trial PID in either
+direction, 516 unattributed observations and 23,566 observations for other
+processes. Delegated-process coverage remains unverified.
+
+All four newly recognized diagnostic categories were zero, but one complete
+nonblank tcpdump stderr line was still unclassified. Its text was deliberately
+not retained, so the cause cannot be recovered from this run. The receipt
+correctly reports `outcome=invalid` and `product_pass=false`. No product
+zero-egress claim or Phase 1, Release or Intel qualification follows. Another
+live attempt would require its own scoped owner approval; the unknown diagnostic
+first needs a privacy-preserving way to identify its cause.

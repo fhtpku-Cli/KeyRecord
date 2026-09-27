@@ -548,3 +548,34 @@ argument paths were also exercised. This was offline only: no App launch,
 sudo, tcpdump, packet capture, or permission operation occurred. The new
 metadata can narrow a future investigation but cannot guarantee identification
 of arbitrary stderr text; any host diagnostic needs its own reviewed scope.
+
+## Proposed local-only stderr diagnosis (prepared, not run)
+
+`Scripts/fixtures/pktap-stderr-diagnose.rb` prepares one narrower observation
+of the `sudo` → tcpdump stderr path. Its safe `--check` does not authenticate or
+capture. A separately approved `--run` would be started by the owner in their
+Terminal. Ruby remains unprivileged; only system tcpdump is launched through
+`sudo`. The helper observes `pktap,lo0` for at most eight seconds after
+readiness, with a five-second readiness timeout, a BPF filter limited to
+IPv4 UDP from/to 127.0.0.1 and one reserved ephemeral receiver port, a
+256-byte snapshot length, and a 64-packet cap. It sends four fixed synthetic
+datagrams, starts no KeyRecord App, and does not touch the trial or daily store,
+Keychain, TCC, or login items. This is still a real host packet capture and
+needs specific owner approval before `--run`.
+
+Decoded packet stdout is counted and discarded in memory. Stderr is held only
+in memory, capped at 8192 bytes, and is not written to a file or included in
+the aggregate JSON printed to Terminal. After the observer has stopped and
+its process is reaped, an interactive owner may type `REVIEW` to display
+escaped stderr lines in their **local Terminal only**. Those lines may contain
+hostnames, paths or other sensitive details; Terminal scrollback may retain
+them. Pressing Return skips display. The owner should share only a reviewed,
+redacted description if useful, not the raw lines. The helper has no product
+PASS outcome, saves no pcap or packet text, and does not transmit the stderr.
+
+This probe tests the narrower loopback path and may not reproduce a message
+specific to `pktap,all` or the longer product run. If the line is absent or
+the owner skips local review, the historical cause remains unknown; there is
+no automatic repeat or promotion of the three invalid product receipts. The
+helper's syntax, `--help`, `--check`, and invalid-argument paths were exercised
+offline. Its `--run` path has not been executed or qualified on the host.

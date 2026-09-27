@@ -80,6 +80,9 @@ private struct TrialReport: Encodable {
     let executableSHA256: String
     let architecture: String?
     let macOS: String?
+    let machineModel: String
+    let chip: String
+    let machineRAM: UInt64
     let sampleOutcome: String?
     let sampleReason: String?
     let cpuPercentOfOneLogicalCore: Double?
@@ -168,6 +171,10 @@ private enum PerformanceTrialCLI {
     private static func run(_ options: TrialOptions, identity: TrialIdentity) async throws -> TrialReport {
         guard let mode = options.mode, let sampler = options.sampler else { throw TrialFailure("usage") }
         let nativeArch = try nativeArchitecture()
+        let machineModel = try sysctlString("hw.model")
+        let chip = try sysctlString("machdep.cpu.brand_string")
+        let machineRAM = ProcessInfo.processInfo.physicalMemory
+        guard machineRAM > 0 else { throw TrialFailure("machine-memory-unavailable") }
         let config = NSWorkspace.OpenConfiguration()
         config.activates = false
         config.addsToRecentItems = false
@@ -237,6 +244,7 @@ private enum PerformanceTrialCLI {
         return TrialReport(outcome: valid ? "measured" : "invalid", mode: mode,
             bundleID: identity.bundleID, executableSHA256: identity.executableSHA256,
             architecture: archive?.architecture, macOS: archive?.operatingSystem,
+            machineModel: machineModel, chip: chip, machineRAM: machineRAM,
             sampleOutcome: result?.outcome, sampleReason: result?.reason,
             cpuPercentOfOneLogicalCore: result?.cpuPercentOfOneLogicalCore,
             footprintMeanBytes: result?.footprintMeanBytes,
@@ -284,5 +292,19 @@ private enum PerformanceTrialCLI {
         }
         guard ["arm64", "x86_64"].contains(arch) else { throw TrialFailure("unsupported-host-architecture") }
         return arch
+    }
+
+    private static func sysctlString(_ name: String) throws -> String {
+        var size = 0
+        guard sysctlbyname(name, nil, &size, nil, 0) == 0, size > 1 else {
+            throw TrialFailure("host-identity-unavailable")
+        }
+        var bytes = [CChar](repeating: 0, count: size)
+        guard sysctlbyname(name, &bytes, &size, nil, 0) == 0 else {
+            throw TrialFailure("host-identity-unavailable")
+        }
+        let value = String(decoding: bytes.prefix(while: { $0 != 0 }).map { UInt8(bitPattern: $0) }, as: UTF8.self)
+        guard !value.isEmpty else { throw TrialFailure("host-identity-unavailable") }
+        return value
     }
 }

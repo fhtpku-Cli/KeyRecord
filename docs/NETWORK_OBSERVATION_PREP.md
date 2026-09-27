@@ -585,5 +585,29 @@ historical cause remains unknown; there is no automatic repeat or promotion of
 the three invalid product receipts. Offline checks at this commit were:
 `ruby -w -c Scripts/fixtures/pktap-stderr-diagnose.rb` → `Syntax OK` (exit 0),
 `--help` → usage (exit 0), `--check` → `outcome: prepared` and
-`product_pass: false` (exit 0), and `--invalid` → usage (exit 1). Its `--run`
-path has not been executed or qualified on the host.
+`product_pass: false` (exit 0), and `--invalid` → usage (exit 1). At that
+preparation point, its `--run` path had not been executed on the host.
+
+## Owner-approved loopback diagnosis: readiness line mismatch
+
+In the separately approved loopback run on 2026-09-28, the owner reviewed
+three local observer stderr lines and shared their routine status shapes. The
+listening status began with `listening on pktap,lo0` rather than
+`tcpdump: listening on pktap,lo0`. The aggregate output reported
+`outcome=inconclusive`, `product_pass=false`, `observer_ready=false`, zero
+controls sent or received, three stderr lines, zero packet-output bytes, and
+`error_type=RuntimeError`. It reported no captured count or kernel-drop count.
+The helper's strict readiness expression required the `tcpdump:` prefix, so
+it did not recognize the observed listening status and did not send controls.
+This run cannot classify product traffic or qualify any gate.
+
+The product observer had the same prefix assumption in its newer, previously
+unrun strict-readiness revision. Both expressions now accept the complete
+expected listening status with or without `tcpdump:`, while still rejecting
+malformed lookalikes. A regression test using the observed status shape failed
+before the correction and passed afterward; the focused suite passed 7 tests
+and 55 assertions. Ruby syntax and noncapturing CLI checks also passed. The
+corrected `--run` paths remain unverified on the host. The unprefixed line is a
+plausible explanation for an unclassified line in the three earlier product
+receipts, but their raw stderr was deliberately not retained, so its historical
+identity is unproven and all three receipts remain invalid.

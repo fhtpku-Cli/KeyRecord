@@ -35,9 +35,11 @@ for the exact evidence boundary and remaining product scope.
 After the third invalid run, offline-only observer diagnostics now retain
 fixed counts for known status and unknown stderr prefix/read phase. They do
 not identify the historical line, establish its producer, or qualify product
-network behavior. No fourth host capture has been performed.
-A short loopback-only stderr diagnostic is prepared for separate owner review;
-its real `--run` path has not been executed. It cannot qualify product egress.
+network behavior. No fourth product observation has been performed.
+A separately approved short loopback stderr diagnosis was inconclusive: the
+observer's actual listening line lacked the prefix required by the new parser,
+so no controls were sent. The parser is corrected and covered offline; the
+corrected host path is unverified. It cannot qualify product egress.
 
 ## Dedicated trial isolation and bounded restart follow-up — 2026-09-27
 

@@ -255,7 +255,7 @@ class ProductNetworkObservation
       @receipt[:stderr_blank_lines] += 1
       return
     end
-    if /\Atcpdump: listening on pktap,all, link-type [^\r\n]+, snapshot length 256 bytes\n\z/.match?(line)
+    if /\A(?:tcpdump: )?listening on pktap,all, link-type [^\r\n]+, snapshot length 256 bytes\n\z/.match?(line)
       @ready = true
       @receipt[:stderr_known_status_lines] += 1
     elsif (match = /\A(\d+) packets? captured\n\z/.match(line))

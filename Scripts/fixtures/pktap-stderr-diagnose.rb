@@ -95,7 +95,7 @@ begin
   ready_at = nil
   loop do
     drain.call(0.2)
-    if !ready_at && /(?:\A|\n)tcpdump: listening on pktap,lo0, link-type [^\r\n]+, snapshot length 256 bytes\n/.match?(stderr_text)
+    if !ready_at && /(?:\A|\n)(?:tcpdump: )?listening on pktap,lo0, link-type [^\r\n]+, snapshot length 256 bytes\n/.match?(stderr_text)
       ready_at = clock.call
       result[:observer_ready] = true
       4.times { sender.send('synthetic-control', 0, '127.0.0.1', port) }

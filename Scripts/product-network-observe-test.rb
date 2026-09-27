@@ -92,13 +92,16 @@ class ProductNetworkObserveTest < Minitest::Test
   end
 
   def test_malformed_listening_line_is_unknown_and_does_not_mark_observer_ready
-    observation = ProductNetworkObservation.new(app: '/unused', seconds: 75)
-    observation.send(:ingest_stderr, "tcpdump: listening on pktap,all with unexpected text\n")
-    capture_io { observation.send(:finish_receipt) }
+    ["tcpdump: listening on pktap,all with unexpected text\n",
+     "listening on pktap,all with unexpected text\n"].each do |line|
+      observation = ProductNetworkObservation.new(app: '/unused', seconds: 75)
+      observation.send(:ingest_stderr, line)
+      capture_io { observation.send(:finish_receipt) }
 
-    assert_equal false, observation.instance_variable_get(:@ready)
-    assert_equal 1, observation.receipt[:stderr_other_lines]
-    assert_equal 'invalid', observation.receipt[:outcome]
+      assert_equal false, observation.instance_variable_get(:@ready)
+      assert_equal 1, observation.receipt[:stderr_other_lines]
+      assert_equal 'invalid', observation.receipt[:outcome]
+    end
   end
 
   def test_known_apple_startup_and_footer_are_status_without_unknown_text
@@ -106,7 +109,7 @@ class ProductNetworkObserveTest < Minitest::Test
     [
       "tcpdump: verbose output suppressed, use -v[v]... for full protocol decode\n",
       "tcpdump: data link type PKTAP\n",
-      "tcpdump: listening on pktap,all, link-type PKTAP (Packet Tap), snapshot length 256 bytes\n",
+      "listening on pktap,all, link-type PKTAP (Apple DLT_PKTAP), snapshot length 256 bytes\n",
       "8 packets captured\n",
       "8 packets received by filter\n",
       "0 packets dropped by kernel\n"

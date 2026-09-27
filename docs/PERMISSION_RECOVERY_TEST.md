@@ -12,6 +12,25 @@ macOS reports a same-process revocation through `CGPreflightListenEventAccess`,
 a maximum closure time, or whether a real regrant needs a restart. No system
 permission was changed for this validation.
 
+### Owner-assisted real permission trial — 2026-09-28
+
+The owner launched the isolated Development-signed Debug trial bundle built
+from `e473a310` on native ARM. It reached Collecting after Start and consent.
+The owner then turned off Input Monitoring for that trial bundle in System
+Settings and reported that the App still displayed Collecting. The App was
+subsequently quit normally. Its private coarse interval journal has a
+Collecting transition followed by the Quit transition, with no intervening
+permission-revoked closure or Blocked transition. The run summary reports no
+tap-disabled callback and no journal write failure. Aggregate input counts
+exist for the run, but no per-revocation boundary was recorded, so they cannot
+attribute any count to the interval after the setting changed.
+
+This trial **does not pass** live permission-revocation acceptance. The current
+evidence does not distinguish a permission preflight that stayed granted from
+a monitor that stopped running or a stale UI state. Do not treat the synthetic
+polling test as proof of real macOS revocation delivery. The isolated artifacts
+remain private and are not copied into this repository.
+
 Historical 2026-09-27 baseline: product source main
 `64590a0e9b57a55af9a23921983f2c16bb59c62e`.
 This follow-up adds only `testLivePermissionRevocationRequiresExplicitStartAndPreservesDurableCounts`

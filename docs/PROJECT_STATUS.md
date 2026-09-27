@@ -55,6 +55,13 @@ The standalone Keychain lifecycle probe built unsigned on native ARM and its
 launch the probe, access the real Keychain, or operate the session lock.
 Hosted Keychain accessibility and lock/unlock behavior therefore remain open.
 
+The first owner-assisted same-process permission trial on the isolated Debug
+candidate did **not** show the required closure: after Input Monitoring was
+turned off for the trial bundle, the App still displayed Collecting. Its
+private coarse journal has no permission-revoked or Blocked transition before
+normal Quit. See [the scoped evidence](PERMISSION_RECOVERY_TEST.md#owner-assisted-real-permission-trial--2026-09-28).
+The synthetic polling result must not be promoted to live permission acceptance.
+
 ## Dedicated trial isolation and bounded restart follow-up — 2026-09-27
 
 PR #12 merged at `b57dbb796056e40d7967fea34879aedff39bbf4b`. This follow-up

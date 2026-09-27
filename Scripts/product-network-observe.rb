@@ -77,7 +77,9 @@ class ProductNetworkObservation
     @counts = ProductPacketCounts.new(Process.pid)
     @receipt = {kind: 'bounded-debug-product-network-observation', product_pass: false,
                 outcome: 'invalid', source_scope: 'pktap,all; no capture filter; decoded headers only',
-                delegated_process_coverage: 'unverified', stderr_blank_lines: 0}
+                delegated_process_coverage: 'unverified', stderr_blank_lines: 0,
+                stderr_diagnostics: {metadata_filter_drops: 0, interface_drops: 0,
+                                     compression_stats_lines: 0, warning_lines: 0}}
     @streams = []
     @buffers = {out: +'', err: +''}
     @stderr_other = 0
@@ -252,6 +254,16 @@ class ProductNetworkObservation
       @receipt[:captured_count] = match[1].to_i
     elsif (match = /\A(\d+) packets? dropped by kernel\n\z/.match(line))
       @receipt[:kernel_drops] = match[1].to_i
+    elsif (match = /\A(\d+) drops? by metadata filter\n\z/.match(line))
+      @receipt[:stderr_diagnostics][:metadata_filter_drops] =
+        [@receipt[:stderr_diagnostics][:metadata_filter_drops], match[1].to_i].max
+    elsif (match = /\A(\d+) packets? dropped by interface\n\z/.match(line))
+      @receipt[:stderr_diagnostics][:interface_drops] =
+        [@receipt[:stderr_diagnostics][:interface_drops], match[1].to_i].max
+    elsif /\Acomp_stats: [^\r\n]*\n\z/.match?(line)
+      @receipt[:stderr_diagnostics][:compression_stats_lines] += 1
+    elsif /\Atcpdump: WARNING: [^\r\n]*\n\z/.match?(line)
+      @receipt[:stderr_diagnostics][:warning_lines] += 1
     elsif /\A(?:tcpdump: verbose output suppressed|tcpdump: data link type |tcpdump: listening on |\d+ packets? received by filter)/.match?(line)
       nil
     else
@@ -313,6 +325,7 @@ class ProductNetworkObservation
             @receipt[:product_aggregate_delta].to_i > 0 &&
             @receipt[:unterminated_output_bytes] == 0 && @receipt[:stderr_other_lines] == 0 &&
             @receipt[:unterminated_stderr_bytes] == 0 &&
+            @receipt[:stderr_diagnostics].values.all?(&:zero?) &&
             @receipt.dig(:counts, :unparsed_lines) == 0 && !@receipt[:sleep_interrupted] &&
             @receipt[:outcome] != 'interrupted'
     if valid

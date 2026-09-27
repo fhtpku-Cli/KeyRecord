@@ -55,6 +55,24 @@ class ProductNetworkObserveTest < Minitest::Test
     assert_equal 'invalid', unterminated.receipt[:outcome]
   end
 
+  def test_apple_diagnostic_families_are_aggregated_and_never_qualify_the_observation
+    cases = [
+      ["3 drops by metadata filter\n", :metadata_filter_drops, 3],
+      ["2 packets dropped by interface\n", :interface_drops, 2],
+      ["comp_stats: synthetic detail\n", :compression_stats_lines, 1],
+      ["tcpdump: WARNING: synthetic warning\n", :warning_lines, 1]
+    ]
+    cases.each do |line, category, expected|
+      observation = valid_observation
+      observation.send(:ingest_stderr, line)
+      capture_io { observation.send(:finish_receipt) }
+      assert_equal expected, observation.receipt.fetch(:stderr_diagnostics).fetch(category)
+      assert_equal 0, observation.receipt[:stderr_other_lines]
+      assert_equal 'invalid', observation.receipt[:outcome]
+      refute_includes observation.receipt.to_s, line.strip
+    end
+  end
+
   private
 
   def valid_observation

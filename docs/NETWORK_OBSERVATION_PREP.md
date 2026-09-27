@@ -482,3 +482,25 @@ factory alone.
 The focused wiring test passed 1/1 after this change; its result is at
 `/private/tmp/keyrecord-network.7yjmhZ/RetestBuild4/Logs/Test/Test-KeyRecordApp-2026.09.27_06-08-00-+0800.xcresult`.
 The controller's three focused tests passed with 16 assertions.
+
+## Offline stderr diagnosis prepared; third host run pending approval
+
+Both product receipts retained only one unclassified stderr-line count, so the
+historical line cannot be reconstructed. The installed `/usr/sbin/tcpdump`
+reports version 4.99.1, Apple 161. Its binary contains templates for metadata
+filter drops, interface drops, compression statistics and warnings; Apple's
+[tcpdump source](https://github.com/apple-oss-distributions/tcpdump/blob/main/tcpdump/tcpdump.c)
+shows these can be separate stderr lines after the usual packet totals. None is
+proven to be the line emitted in either product run. Treating that line as
+harmless would risk overlooking packet loss or a capture warning.
+
+The controller now categorizes these four families in memory and writes only
+fixed category counts or the maximum reported drop count to the private
+aggregate receipt. It retains no diagnostic text. Any positive category,
+unclassified line or unterminated stderr fragment still invalidates the
+observation; the existing no-automatic-product-PASS rule remains. Synthetic
+stderr tests pass 4 tests and 36 assertions. This is an offline discriminator
+for a future run, not a reinterpretation of either historical receipt. No
+tcpdump capture, product launch, permission change or Keychain operation was
+performed during this investigation. A third host observation needs a separate,
+specific owner approval before it begins.

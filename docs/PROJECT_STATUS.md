@@ -19,8 +19,10 @@ pilot, 16 captured records parsed with the expected PID, direction and port
 counts; kernel drops, unknown attribution and unexpected parsed flows were zero.
 The 17th output line in that pilot was classified as a complete whitespace-only line.
 This meets the previously recorded bounded synthetic-observer criteria. The
-unidentified line in an older run remains historically unexplained. The script
-still emits `product_pass:false` and has no automatic PASS path. No valid KeyRecord
+unidentified line in an older run remains historically unexplained. The draft
+controller now categorizes known diagnostic families for a future observation;
+it has not produced a third host receipt. The script still emits
+`product_pass:false` and has no automatic PASS path. No valid KeyRecord
 network observation or zero-egress result exists; the product wrapper remains
 BLOCKED. Phase 1/G1, Release, formal performance and native Intel qualification
 remain open. See the [network preparation record](NETWORK_OBSERVATION_PREP.md)

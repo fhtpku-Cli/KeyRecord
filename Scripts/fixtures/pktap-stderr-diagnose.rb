@@ -7,8 +7,10 @@ USAGE = <<~TEXT
   Usage: ruby Scripts/fixtures/pktap-stderr-diagnose.rb --check|--run
   --check validates the local tool without sudo or capture.
   --run requires separate owner approval: 8 seconds of filtered pktap,lo0 capture.
-  Only tcpdump is elevated. Packet text is discarded; stderr stays in memory.
-  Afterward, typing REVIEW may show stderr only in the local terminal.
+  Only tcpdump is elevated. Packet text is discarded; observer stderr stays in memory.
+  sudo authentication prompts or diagnostics may appear directly in Terminal and
+  refresh its credential cache. REVIEW may show observer stderr afterward.
+  This probe may not reproduce or attribute the earlier unknown stderr line.
 TEXT
 
 unless [%w[--help], %w[--check], %w[--run]].include?(ARGV)
@@ -56,7 +58,8 @@ begin
   port = receiver.addr[1]
   filter = "ip and udp and src host 127.0.0.1 and dst host 127.0.0.1 and dst port #{port}"
 
-  puts 'Administrator authentication is needed only for the system tcpdump process.'
+  puts 'sudo authentication may print to Terminal and refresh its credential cache.'
+  puts 'Only the system tcpdump process is launched with elevated privileges.'
   raise 'authentication failed' unless system('/usr/bin/sudo', '-v')
   out_r, out_w = IO.pipe
   err_r, err_w = IO.pipe
@@ -74,6 +77,7 @@ begin
       chunk = io.read_nonblock(4096, exception: false)
       if chunk.nil?
         readers.delete(io)
+        io.close
       elsif chunk != :wait_readable
         if io == out_r
           stdout_bytes += chunk.bytesize

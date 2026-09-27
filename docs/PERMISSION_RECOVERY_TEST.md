@@ -41,20 +41,23 @@ macOS preflight result into a live revocation signal.
 
 ### Owner-assisted permission-witness trial — 2026-09-28
 
-The independent Debug bundle built from `44e402d1` reached Collecting. The owner
-reported that its menu remained Collecting after the permission-toggle step,
-then quit normally. The private journal contains 14 periodic
+The independent Debug bundle built from `44e402d1` reached Collecting and was
+quit normally. The owner's System Settings screenshot shows no entry for its
+distinct display name, `KeyRecord Permission Witness Trial`; the only matching
+trial entry is the earlier `KeyRecord Permission Trial`, whose Input Monitoring
+switch is off. The new bundle's permission was therefore not toggled in this
+run. Its private journal contains 14 periodic
 `inputMonitoringPreflightGranted` witnesses, zero not-granted witnesses, and
 only unstarted → collecting → stopped phase changes. No tap-disabled callback,
 aggregate input delta, or journal-write failure was recorded. The Quit action
 reported no live session afterward, and the process exited.
 
-The journal has no timestamp or explicit Settings-toggle marker, so it cannot
-assign any particular granted witness to the interval after the toggle. It does
-show that the collecting monitor ran during this trial and never observed a
-non-granted preflight result. This remains a failed live-revocation acceptance
-attempt. A fresh documented signal or a bounded witness around the toggle is
-needed before claiming the root cause or same-process closure.
+The granted witnesses show only that the collecting monitor ran while the new
+bundle was collecting. This run is invalid as a live-revocation test: there was
+no observed Settings entry to revoke for that bundle. It provides no evidence
+about post-revocation polling, same-process closure, or the cause of the earlier
+trial's continued Collecting state. Before another owner-assisted test, the
+bundle identity and its appearance in Input Monitoring need to be verified.
 
 Historical 2026-09-27 baseline: product source main
 `64590a0e9b57a55af9a23921983f2c16bb59c62e`.

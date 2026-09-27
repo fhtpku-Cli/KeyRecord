@@ -848,3 +848,16 @@ An unchanged repeat has a known risk of hitting the same cap before the time
 window ends. The 50,000-packet limit remains in place; any future live round
 needs a separately reviewed bounded protocol and fresh owner approval. This
 receipt provides no product zero-egress, Phase 1, Release, or Intel evidence.
+
+## Stop repeated host capture pending product decision
+
+No further system-wide capture is scheduled. The current PRD explicitly calls
+for packet-capture verification of FR-P1, while this milestone has no product
+network client and has separate source and built-binary network API audits
+for their recorded revisions. The five host attempts above did not produce a
+valid product receipt, and the observer cannot turn unattributed host packets
+into proof of zero product egress. Repeating or raising the packet cap is not
+an automatic next step. The FR-P1 acceptance wording remains unchanged until
+the product owner decides whether and how to revise that requirement;
+historical evidence is
+retained without claiming that static checks satisfy the present PRD gate.

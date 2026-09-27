@@ -62,6 +62,15 @@ run. In the fifth run, the separate packet cap stopped capture early; the
 failure. A future host round requires a revised bounded protocol and fresh
 approval. These synthetic results cannot qualify product egress.
 
+No further host capture is scheduled after owner feedback on the repeated
+attempts. The current [PRD FR-P1](PRD.md#66-功能需求隐私) still specifies
+packet-capture verification, while this milestone has no network client and
+the source/binary audits for their recorded revisions found no product network
+API. Those static checks are the available implementation evidence; they do
+not silently waive the PRD's separate acceptance wording. A change to that
+wording is a product decision, and no additional packet-cap increase or live
+run is planned.
+
 ## Dedicated trial isolation and bounded restart follow-up — 2026-09-27
 
 PR #12 merged at `b57dbb796056e40d7967fea34879aedff39bbf4b`. This follow-up

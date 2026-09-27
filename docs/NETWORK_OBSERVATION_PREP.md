@@ -781,3 +781,40 @@ ruby /Users/bytedance/.codex/worktrees/product-network-observation/KeyRecord/Scr
 The trial's own fresh namespace and store remain isolated from ordinary
 statistics. The control result does not alter the three invalid historical
 product receipts, establish zero egress, or change Phase 1 and Release gates.
+
+## Fourth owner-approved product attempt: incomplete exit (2026-09-28)
+
+The owner ran the separately approved 75-second command above. The private
+aggregate receipt is
+`/private/tmp/keyrecord-network-20260928-67508-1ywg1xo/receipt.json`.
+It reports `outcome=invalid` and `product_pass=false`. The observer was ready,
+completed 74.93 seconds, and exited 0. It parsed 25,533 packet records, matching
+tcpdump's captured count, with zero kernel drops, zero unparsed lines, and four
+loopback control observations in each direction. All six stderr lines were
+recognized; no warning, drop category, unknown line, or unterminated output
+was recorded. The owner confirmed that the trial App visibly reached
+**Collecting** after first-run consent and received a few non-sensitive
+shortcuts in a normal text window.
+
+The receipt records `product_exited=false` at the end of the capture window,
+and the controller instructed the owner to Quit normally. The owner later
+confirmed menu Quit; a read-only process check found no remaining KeyRecordApp.
+The App's post-exit numeric summary appeared after the receipt and reported
+`aggregateDelta=5` and `flushDurable=7`. It was not available to the controller
+when the receipt was finalized. These facts support that trial input activity
+was recorded, but they do not make the observation valid after its deadline.
+The owner was unsure whether menu Quit was initiated before or after the
+controller's final message; that timing was not established by the receipt.
+
+Within the invalid window, the observer counted zero direct product-PID
+outbound packets and zero outbound `eproc` matches, alongside 616 unattributed
+observations and 24,909 other-process observations. Zero attributed outbound
+counts do not establish product zero egress, especially with an incomplete
+product exit and unverified delegated-process coverage. The earlier three
+invalid receipts remain invalid; Phase 1, Release, and Intel gates remain open.
+
+After this attempt, the controller's terminal prompts were clarified: once
+the agreed short input is finished, Quit the trial App immediately from its
+menu, before the capture deadline. The observer then continues to its fixed
+deadline. This wording change was checked with Ruby syntax and the nine
+existing controller tests (64 assertions); it has not had a new host run.

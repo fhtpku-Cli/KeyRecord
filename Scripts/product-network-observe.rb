@@ -181,7 +181,7 @@ class ProductNetworkObservation
       if control_sent && !@product_pid && now - ready_at >= 1
         launch_product
         idle_until = monotonic + 10
-        puts 'Trial launched. In its menu choose Start, accept first-run local aggregation consent, and confirm Collecting. If it stays Blocked or prompts for permission/restart, Quit normally and report that state.'
+        puts 'Trial launched. In its menu choose Start, accept first-run local aggregation consent, and confirm Collecting. If it stays Blocked or prompts for permission/restart, Quit normally and report that state. After the short input, Quit from the menu before capture ends; do not wait for the final terminal message.'
       end
       if idle_until && now >= idle_until
         waited = Process.waitpid2(@product_pid, Process::WNOHANG)
@@ -193,7 +193,7 @@ class ProductNetworkObservation
           break
         end
         @receipt[:idle_timer_elapsed] = true
-        puts 'Ten seconds since launch. After Collecting is visible, leave it idle for another 10 seconds, then use only agreed short input in a normal text window and Quit from its menu.'
+        puts 'Ten seconds since launch. After Collecting is visible, leave it idle for another 10 seconds, then use only agreed short input in a normal text window and Quit immediately from its menu. The observer continues until its fixed deadline.'
         idle_until = nil
       end
       break if now >= deadline || (!@ready && now - @observer_started >= 5) || @streams.empty?

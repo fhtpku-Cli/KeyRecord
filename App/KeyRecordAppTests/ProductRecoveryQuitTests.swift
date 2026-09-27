@@ -464,14 +464,15 @@ final class ProductRecoveryQuitTests: XCTestCase {
         }
 
         XCTAssertEqual(controller.emit(tick: 0), 16)
-        try await waitUntil("replay events reached product reduction") { product.aggregateDelta == 8 }
-        let durableTotal = try await product.composition.replayDurableKeyDownTotal()
+        let durableTotal = try await product.composition.replayDurableKeyDownTotal(expectedAcceptedEvents: 16)
         XCTAssertEqual(durableTotal, 8)
         let cycle = try XCTUnwrap(product.composition.lifecycle.state.preferences?.currentCycleID)
         let aggregate = try await AggregatePersistence.restore(
             cycleID: cycle, store: product.composition.store, gate: product.composition.gate)
         let snapshot = try AggregateSnapshot(shortcuts: aggregate.shortcuts, bareKeys: aggregate.bareKeys)
         XCTAssertEqual(snapshot.shortcutTotal, 8)
+        XCTAssertEqual(FixedReplayController.expectedEvents(tick: FixedReplayController.activeTicks), 0)
+        XCTAssertEqual(controller.emit(tick: FixedReplayController.activeTicks), 0)
         await product.composition.flow.pause()
         XCTAssertEqual(controller.emit(tick: 1), 0)
     }

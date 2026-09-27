@@ -66,9 +66,10 @@ root. It has not been launched or measured on a host, so neither ARM nor Intel
 performance qualification is established.
 
 A later offline candidate adds a monotonic start marker shared with the
-resource sampler and a two-second tail after the 60-second warmup and
-600-second measurement window. After the replay, the Debug product flushes and
-reads the isolated encrypted aggregate back before reporting completion. The
+resource sampler and a two-second drain tail after the 60-second warmup and
+600-second measurement window. Before reading the isolated encrypted aggregate,
+the Debug product waits for its queue to drain and checks the reduced total
+against accepted replay events. It then flushes and reads the aggregate back. The
 one-window `KeyRecordPerformanceTrial` controller compiles and the sampler's
 marker self-check runs against its own short synthetic process. The controller
 has not launched a product App, and no six-window or ARM/Intel host performance

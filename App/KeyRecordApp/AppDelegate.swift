@@ -189,7 +189,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 writeReplayProgress()
                 return
             }
-            if mode == .typing {
+            if mode == .typing && tick < FixedReplayController.activeTicks {
                 let accepted = controller.emit(tick: tick)
                 guard accepted == FixedReplayController.expectedEvents(tick: tick) else {
                     replayProgress?.outcome = "handoffIncomplete"
@@ -212,7 +212,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         replayProgress?.outcome = "verifyingDurability"
         writeReplayProgress()
         do {
-            let durable = try await composition.replayDurableKeyDownTotal()
+            let durable = try await composition.replayDurableKeyDownTotal(
+                expectedAcceptedEvents: replayProgress?.acceptedEvents ?? -1)
             let accepted = replayProgress?.acceptedEvents ?? -1
             replayProgress?.durableKeyDownTotal = durable
             replayProgress?.outcome = durable == accepted / 2

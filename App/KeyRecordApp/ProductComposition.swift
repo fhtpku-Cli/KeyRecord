@@ -151,10 +151,22 @@ final class ProductComposition: NSObject, NSMenuDelegate {
         return try await assemble(host)
     }
 
-    func replayDurableKeyDownTotal() async throws -> Int64 {
+    func replayDurableKeyDownTotal(expectedAcceptedEvents: Int64) async throws -> Int64 {
         guard lifecycle.phase == .collecting,
-              let cycleID = lifecycle.state.preferences?.currentCycleID else {
+              let cycleID = lifecycle.state.preferences?.currentCycleID,
+              expectedAcceptedEvents >= 0, expectedAcceptedEvents.isMultiple(of: 2) else {
             throw CaptureStartError.unavailable
+        }
+        let clock = ContinuousClock()
+        let deadline = clock.now.advanced(by: .seconds(2))
+        while true {
+            let snapshot = try reduction.snapshot()
+            let total = (snapshot?.shortcutTotal ?? 0) + (snapshot?.bareKeyTotal ?? 0)
+            if capture.queue.pendingCount == 0 && total == expectedAcceptedEvents / 2 { break }
+            guard lifecycle.phase == .collecting, clock.now < deadline else {
+                throw CaptureStartError.unavailable
+            }
+            try await clock.sleep(for: .milliseconds(10))
         }
         try await flush.flushWhileUnlocked()
         let restored = try await AggregatePersistence.restore(cycleID: cycleID, store: store, gate: gate)

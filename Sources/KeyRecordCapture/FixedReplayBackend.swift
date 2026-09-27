@@ -11,9 +11,10 @@ public final class FixedReplayController: @unchecked Sendable {
 
     static let pattern = [[0, 1, 2, 3, 0, 1, 2, 3], [0], [1], [2], [3], [0], [1], [2], [3], [0]]
     public static let fixtureJSON = Data("[[0,1,2,3,0,1,2,3],[0],[1],[2],[3],[0],[1],[2],[3],[0]]".utf8)
+    public static let activeTicks = 6_600
     public static let windowTicks = 6_620
     public static func expectedEvents(tick: Int) -> Int {
-        guard tick >= 0 else { return 0 }
+        guard tick >= 0, tick < activeTicks else { return 0 }
         return pattern[tick % pattern.count].count * 2
     }
 
@@ -24,7 +25,7 @@ public final class FixedReplayController: @unchecked Sendable {
     public var acceptedEvents: Int64 { state.withLock { $0.acceptedEvents } }
 
     public func emit(tick: Int) -> Int {
-        guard tick >= 0 else { return 0 }
+        guard tick >= 0, tick < Self.activeTicks else { return 0 }
         let active = state.withLock { ($0.handoff, $0.generation) }
         guard let handoff = active.0, let generation = active.1 else { return 0 }
         let modifiers = ModifierSet(command: tick.isMultiple(of: 3) ? .left : .none,

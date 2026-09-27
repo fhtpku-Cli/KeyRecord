@@ -6,7 +6,18 @@ The existing `Scripts/phase1-network-qa.sh` remains BLOCKED. No KeyRecord launch
 external network request, privileged capture helper installation,
 TCC change, real-store or Keychain operation was performed for the initial nettop experiments. Subsequent capture results are recorded below.
 
-## Latest state: bounded synthetic observer validated by owner report
+## Latest state: synthetic delegated loopback observed by owner report
+
+After the receiver-cleanup fix, the owner reported a successful eight-second
+delegated loopback control. Four synthetic datagrams were sent and received;
+the observer counted four outbound records with the sender as `proc` and the
+target as `eproc`, plus four inbound receiver records. It reported eight
+captured packets, zero drops, and no unparsed packet or unknown stderr line.
+This establishes the prewritten control for one explicit `SO_DELEGATED` socket
+pattern on this host. It is not a KeyRecord product observation or a general
+delegated-process coverage guarantee. The aggregate counts are recorded below.
+
+## Earlier bounded synthetic observer result
 
 The owner supplied a third 20-second PKTAP pilot result after the metadata-only
 line-shape revision. It reports observer readiness and exit 0, 20.07 seconds,
@@ -688,7 +699,7 @@ and reducer's format compatibility for synthetic metadata. It cannot test
 whether the kernel labels any real delegated flow, whether a normal process
 may set `SO_DELEGATED`, or whether system services cover all traffic.
 
-## Delegated loopback control: first host run inconclusive
+## Delegated loopback control: host runs
 
 `Scripts/fixtures/pktap-delegated-loopback.rb --check` reports `prepared`
 without sudo, sockets, capture or product launch. Its separately approved
@@ -709,8 +720,21 @@ The owner ran the approved command once and supplied a terminal traceback:
 does not establish that the sender ran, any packets were captured, or any
 delegated metadata was observed. The controller now closes the receiver after
 `finish`, including if finalization raises. An offline test exercises that
-cleanup order with a fake socket and no sudo or network. This fix has not
-been rerun on the live host.
+cleanup order with a fake socket and no sudo or network.
+
+The owner then ran the fixed script once and supplied the aggregate JSON.
+It reported `outcome=synthetic-delegation-observed` and `product_pass=false`.
+The observer reached readiness, completed 8.05 seconds after readiness and
+exited 0; the sender exited 0. Four controls were sent and received. Among
+eight parsed packet lines, `delegated_out=4`, `receiver_in=4`, and
+`other_packet_lines=0`. The observer reported eight captured packets and zero
+kernel drops. It counted one complete blank line, six classified stderr lines,
+zero unparsed lines, zero unknown stderr lines, and zero unterminated packet
+bytes. The agent did not operate tcpdump or receive raw packet or stderr text.
+These aggregate values meet the prewritten synthetic criteria for this one
+explicit socket-delegation path. They do not validate the product observer,
+establish zero egress, qualify all delegated system traffic, or change the
+three invalid product receipts.
 
 The controller retains decoded packet lines and sudo/tcpdump diagnostics in
 bounded memory, then emits only counts and error types. It writes no raw
@@ -728,4 +752,5 @@ Offline checks: Ruby syntax passed for both scripts; the controller's
 `--check` reported `prepared` without capture; three tests passed with
 16 assertions, including the receiver cleanup regression; the sender's
 `--help` and invalid-argument paths behaved as expected; `git diff --check`
-passed. The root sender and live capture outcomes remain unverified.
+passed. The fixed root sender and live capture path has one owner-reported
+successful aggregate result; product attribution remains unverified.

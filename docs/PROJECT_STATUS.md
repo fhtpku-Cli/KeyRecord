@@ -62,7 +62,11 @@ private coarse journal has no permission-revoked or Blocked transition before
 normal Quit. See [the scoped evidence](PERMISSION_RECOVERY_TEST.md#owner-assisted-real-permission-trial--2026-09-28).
 The synthetic polling result must not be promoted to live permission acceptance.
 An opt-in Debug witness now records whether the collecting monitor continues
-to sample Input Monitoring; its host behavior is not yet observed.
+to sample Input Monitoring. Its owner-assisted run recorded 14 granted samples
+while Collecting, no non-granted sample or Blocked transition, and a normal
+Quit. Because it lacks a timestamped toggle boundary, this does not prove
+which samples followed the Settings change; the live acceptance remains open.
+See [the witness trial](PERMISSION_RECOVERY_TEST.md#owner-assisted-permission-witness-trial--2026-09-28).
 
 At source commit `44e402d1edc7956f238cd1420875af5a17d0cbc4`, an unsigned
 universal Release App built with arm64 and x86_64 slices. The exact executable

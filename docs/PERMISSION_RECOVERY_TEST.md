@@ -36,9 +36,25 @@ The next Debug candidate records an opt-in, coarse permission witness at the
 first live poll, about every four seconds thereafter, and immediately on a
 non-granted result. Each witness contains only a fixed granted/not-granted
 cause and the existing aggregate diagnostic fields. This diagnostic has passed
-offline serialization and product compilation tests; it has not been run with
-a real permission toggle. It cannot turn a stale macOS preflight result into
-a live revocation signal.
+offline serialization and product compilation tests. It cannot turn a stale
+macOS preflight result into a live revocation signal.
+
+### Owner-assisted permission-witness trial — 2026-09-28
+
+The independent Debug bundle built from `44e402d1` reached Collecting. The owner
+reported that its menu remained Collecting after the permission-toggle step,
+then quit normally. The private journal contains 14 periodic
+`inputMonitoringPreflightGranted` witnesses, zero not-granted witnesses, and
+only unstarted → collecting → stopped phase changes. No tap-disabled callback,
+aggregate input delta, or journal-write failure was recorded. The Quit action
+reported no live session afterward, and the process exited.
+
+The journal has no timestamp or explicit Settings-toggle marker, so it cannot
+assign any particular granted witness to the interval after the toggle. It does
+show that the collecting monitor ran during this trial and never observed a
+non-granted preflight result. This remains a failed live-revocation acceptance
+attempt. A fresh documented signal or a bounded witness around the toggle is
+needed before claiming the root cause or same-process closure.
 
 Historical 2026-09-27 baseline: product source main
 `64590a0e9b57a55af9a23921983f2c16bb59c62e`.

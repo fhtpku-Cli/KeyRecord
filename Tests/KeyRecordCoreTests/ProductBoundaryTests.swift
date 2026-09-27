@@ -19,14 +19,17 @@ final class ProductBoundaryTests: XCTestCase {
         XCTAssertEqual(Set(manifest.products.map(\.name)), ["KeyRecordCore", "KeyRecordCapture", "KeyRecordStore", "KeyRecordAnalysis"])
         XCTAssertTrue(manifest.products.allSatisfy { Set($0.type.keys) == ["library"] })
         let graph = Dictionary(uniqueKeysWithValues: manifest.targets.map { ($0.name, $0) })
-        XCTAssertEqual(Set(graph.keys), ["KeyRecordCore", "KeyRecordCapture", "KeyRecordStore", "KeyRecordAnalysis", "KeyRecordAnalysisTests", "KeyRecordTestSupport", "KeyRecordStoreCrashProbe", "KeyRecordCaptureHarness", "KeyRecordCoreTests", "KeyRecordCaptureTests", "KeyRecordStoreTests", "KeyRecordIntegrationTests", "KeyRecordMeasurement", "KeyRecordResourceSampler", "KeyRecordMeasurementTests"])
+        XCTAssertEqual(Set(graph.keys), ["KeyRecordCore", "KeyRecordCapture", "KeyRecordStore", "KeyRecordAnalysis", "KeyRecordAnalysisTests", "KeyRecordTestSupport", "KeyRecordStoreCrashProbe", "KeyRecordCaptureHarness", "KeyRecordCoreTests", "KeyRecordCaptureTests", "KeyRecordStoreTests", "KeyRecordIntegrationTests", "KeyRecordMeasurement", "KeyRecordResourceSampler", "KeyRecordPerformanceTrial", "KeyRecordMeasurementTests"])
         // Resource measurement is test-only tooling: never a product, independent of every
         // product library, and the sampler links nothing but the measurement arithmetic.
         XCTAssertEqual(graph["KeyRecordMeasurement"]?.dependencies.count, 0)
         XCTAssertEqual(graph["KeyRecordResourceSampler"]?.type, "executable")
         XCTAssertEqual(graph["KeyRecordResourceSampler"]?.dependencies.compactMap { $0.byName.first ?? nil },
                        ["KeyRecordMeasurement"])
-        for tool in ["KeyRecordMeasurement", "KeyRecordResourceSampler"] {
+        XCTAssertEqual(graph["KeyRecordPerformanceTrial"]?.type, "executable")
+        XCTAssertEqual(graph["KeyRecordPerformanceTrial"]?.dependencies.compactMap { $0.byName.first ?? nil },
+                       ["KeyRecordMeasurement"])
+        for tool in ["KeyRecordMeasurement", "KeyRecordResourceSampler", "KeyRecordPerformanceTrial"] {
             XCTAssertFalse(manifest.products.map(\.name).contains(tool))
             for product in ["KeyRecordCore", "KeyRecordCapture", "KeyRecordStore", "KeyRecordAnalysis"] {
                 XCTAssertFalse(graph[product]?.dependencies.compactMap { $0.byName.first ?? nil }
@@ -82,6 +85,9 @@ final class ProductBoundaryTests: XCTestCase {
             if file.path.contains("Tests/KeyRecordAnalysisTests/") { allowed.insert("KeyRecordAnalysis") }
             let performanceRoot = SourceInspection.root.appendingPathComponent("Tests/KeyRecordIntegrationTests")
             if file == performanceRoot.appendingPathComponent("PerformanceReceipt.swift") { allowed.insert("CryptoKit") }
+            if file.path.contains("Tests/KeyRecordIntegrationTests/PerformanceReceipt") {
+                allowed.insert("KeyRecordMeasurement")
+            }
             if file == performanceRoot.appendingPathComponent("PerformanceSystemSampler.swift") { allowed.insert("Darwin") }
             // The bounded live-capture harness is a test-only executable that must drive a
             // real CGEventTap, so it needs the same system frameworks KeyRecordCapture uses.
@@ -92,6 +98,9 @@ final class ProductBoundaryTests: XCTestCase {
             // The resource sampler reads another process's rusage and the console user.
             if file.path.contains("Tests/KeyRecordResourceSampler/") {
                 allowed.formUnion(["Darwin", "SystemConfiguration", "KeyRecordMeasurement"])
+            }
+            if file.path.contains("Tests/KeyRecordPerformanceTrial/") {
+                allowed.formUnion(["AppKit", "CryptoKit", "Darwin", "KeyRecordMeasurement"])
             }
             if file.path.contains("Tests/KeyRecordMeasurementTests/") { allowed.insert("KeyRecordMeasurement") }
             XCTAssertTrue(imports.isSubset(of: allowed), file.path)

@@ -212,12 +212,12 @@ public struct ResourceMeasurementArchive: Equatable, Sendable, Codable {
         formula = result.formula
         rssUsedAsFootprint = false
         self.result = result
-        if result.outcome == "measured", let first = request.samples.first,
-           let last = request.samples.last(where: {
-               $0.uptimeSeconds >= first.uptimeSeconds + request.warmupSeconds
-                   && $0.uptimeSeconds <= first.uptimeSeconds + request.warmupSeconds + request.measureSeconds + request.intervalSeconds * 0.25
-           }) {
-            effectiveMeasureSeconds = last.uptimeSeconds - (first.uptimeSeconds + request.warmupSeconds)
+        if result.outcome == "measured", let first = request.samples.first {
+            let start = first.uptimeSeconds + request.warmupSeconds
+            let end = start + request.measureSeconds
+            let afterWarmup = request.samples.filter { $0.uptimeSeconds >= start }
+            let endpoint = afterWarmup.first { $0.uptimeSeconds >= end } ?? afterWarmup.last
+            effectiveMeasureSeconds = endpoint.map { $0.uptimeSeconds - start }
         } else {
             effectiveMeasureSeconds = nil
         }

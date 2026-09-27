@@ -22,7 +22,11 @@ final class ResourceEvaluationTests: XCTestCase {
         let samples = times.map { sample(t: $0, cpu: UInt64($0 * 100_000_000), bytes: 32_000_000) }
         let request = ResourceWindowRequest(protocolKind: .exploratory, phase: "synthetic",
             warmupSeconds: 0.4, measureSeconds: 1.2, intervalSeconds: 0.2, samples: samples)
-        XCTAssertEqual(ResourceEvaluator.evaluate(request).outcome, "measured")
+        let result = ResourceEvaluator.evaluate(request)
+        XCTAssertEqual(result.outcome, "measured")
+        let archive = ResourceMeasurementArchive(request: request, result: result, architecture: "arm64",
+            operatingSystem: "fixture", diagnosticsEnabled: false)
+        XCTAssertEqual(archive.effectiveMeasureSeconds!, 1.264, accuracy: 0.0001)
 
         var incomplete = request
         incomplete.samples.removeLast()

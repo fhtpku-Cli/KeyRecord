@@ -49,6 +49,10 @@ missing, excessively late and genuinely short windows still fail. The ten
 resource-evaluation tests and two sampler self-check runs passed after this fix.
 This repairs the measurement tool, not the missing product workload or formal
 ARM/Intel measurements.
+The later archive follow-up uses that same accepted endpoint when reporting
+`effectiveMeasureSeconds`; previously, an accepted sample just beyond the
+window could still make the archive report a shorter duration. Ten focused
+resource tests and the sampler's synthetic self-check passed after this change.
 
 The standalone Keychain lifecycle probe built unsigned on native ARM and its
 80 SwiftPM logic tests passed on this candidate. The build and tests did not

@@ -659,13 +659,19 @@ Offline verification: `ruby Scripts/product-network-observe-test.rb` passed
 reported `Syntax OK`; `git diff --check` passed. These are reducer checks, not
 a host packet capture or a product network result. The next product trial still
 requires a separately approved bounded run with visible Collecting state and
-valid observer and input aggregates. Before interpreting a *zero* `eproc`
-count as coverage, a separate bounded two-process loopback control would need
-to make one process send on a socket delegated to the other and verify that
-tcpdump prints the sender as `proc` and the owner as `eproc`. Apple's
+valid observer and input aggregates.
+
+The proposed two-process loopback control has a privilege boundary. Apple's
 [socket header](https://github.com/apple/darwin-xnu/blob/main/bsd/sys/socket.h)
-defines `SO_DELEGATED`, but whether a normal signed test process may set it on
-this host is unverified. A denied option or absent `eproc` would leave the
-control inconclusive. A positive product `eproc` match would still need
-follow-up attribution review; a zero product match leaves delegated coverage
-open.
+defines `SO_DELEGATED`, and its
+[socket implementation](https://github.com/apple/darwin-xnu/blob/main/bsd/kern/uipc_socket.c)
+requires `PRIV_NET_PRIVILEGED_SOCKET_DELEGATE` to set a different effective
+PID. A normal-user sender cannot be assumed to create this control. The
+previous owner approval elevated only tcpdump, so it does not authorize an
+elevated sender. No delegation option, new privilege, or capture was tried in
+this review. The product source scan found no existing XPC/network sender to
+reuse as a natural delegated control. A separately reviewed privileged sender
+would widen the scope of a future synthetic test; even a successful control
+would validate only that specific mechanism, not complete system-service
+attribution. A zero product `eproc` count therefore leaves delegated coverage
+unverified.

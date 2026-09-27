@@ -687,3 +687,37 @@ observation, and zero unparsed lines. This establishes the installed printer
 and reducer's format compatibility for synthetic metadata. It cannot test
 whether the kernel labels any real delegated flow, whether a normal process
 may set `SO_DELEGATED`, or whether system services cover all traffic.
+
+## Delegated loopback control prepared, not run
+
+`Scripts/fixtures/pktap-delegated-loopback.rb --check` reports `prepared`
+without sudo, sockets, capture or product launch. Its separately approved
+`--run` path would authenticate the owner in Terminal, keep a normal-user
+target process alive, and elevate **two** fixed programs: system tcpdump and
+`Scripts/fixtures/pktap-delegated-sender.rb` under system Ruby. The sender
+would set `SO_DELEGATED` to that target PID and send four fixed 17-byte UDP
+datagrams to one ephemeral receiver bound to 127.0.0.1. The observer would
+capture only IPv4 UDP on `pktap,lo0` with both endpoints 127.0.0.1 and that
+destination port, for eight seconds after readiness, with 256-byte snapshots
+and a 64-packet cap. No KeyRecord App, trial store, Keychain, TCC or external
+endpoint participates. This is a new root sender plus a real host packet
+capture; the previous approval covered neither this command nor its extra
+privilege. `--run` has not been executed.
+
+The controller retains decoded packet lines and sudo/tcpdump diagnostics in
+bounded memory, then emits only counts and error types. It writes no raw
+capture, packet text, address, port or PID to the result. A successful
+synthetic outcome requires four matching `proc=sender`/`eproc=target`
+outbound observations, four receiver-side inbound observations, four received
+controls, a complete window, zero drops and no unparsed or unknown lines.
+Whitespace-only output lines are counted separately from packet records.
+It always reports `product_pass:false`; even a successful run would validate
+only this explicit socket-delegation path. Sudo authentication may print to
+Terminal and refresh the credential cache. A denial of `SO_DELEGATED` is
+reported as a blocked synthetic control, not as product evidence.
+
+Offline checks: Ruby syntax passed for both scripts; the controller's
+`--check` reported `prepared` without capture; two reducer tests passed with
+13 assertions; the sender's `--help` and invalid-argument paths behaved as
+expected; `git diff --check` passed. The root sender and live capture paths
+remain unverified until a separate scope approval and owner-run trial.

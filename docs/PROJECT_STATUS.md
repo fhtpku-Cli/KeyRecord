@@ -64,6 +64,14 @@ The synthetic polling result must not be promoted to live permission acceptance.
 An opt-in Debug witness now records whether the collecting monitor continues
 to sample Input Monitoring; its host behavior is not yet observed.
 
+At source commit `44e402d1edc7956f238cd1420875af5a17d0cbc4`, an unsigned
+universal Release App built with arm64 and x86_64 slices. The exact executable
+(`SHA-256 e2d51499ccc67f85f0223e6636aab5e26babfb6fc66b1476dabf4c45190c2a71`)
+passed `Scripts/audit-product-network.sh` with zero matches; six
+`PrivacyEgressTests` and `PrivacyBinaryAuditTests` passed, including the
+negative fixtures. Both macOS build CI jobs passed for this source commit.
+This is a static capability result for that unsigned executable.
+
 ## Dedicated trial isolation and bounded restart follow-up — 2026-09-27
 
 PR #12 merged at `b57dbb796056e40d7967fea34879aedff39bbf4b`. This follow-up

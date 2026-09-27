@@ -96,6 +96,26 @@ final class ResourceEvaluationTests: XCTestCase {
         XCTAssertEqual(ResourceEvaluator.evaluate(paused).reason, "paused-monitor-candidate-requires-60s-warmup-and-600s-measure")
     }
 
+    func testFormalWindowRequiresAnObservedEndpointAtOrAfterTenMinutes() {
+        let origin = 100.0
+        let times = stride(from: origin, through: 759.5, by: 0.5).map { $0 } + [759.8]
+        let samples = times.map { sample(t: $0, cpu: UInt64($0 * 1_000_000), bytes: 32_000_000) }
+        var request = ResourceWindowRequest(protocolKind: .formalFRS2, phase: "typing",
+            warmupSeconds: 60, measureSeconds: 600, intervalSeconds: 0.5,
+            originUptimeSeconds: origin, samples: samples)
+        let short = ResourceEvaluator.evaluate(request)
+        XCTAssertEqual(short.outcome, "interrupted")
+        XCTAssertEqual(short.reason, "duration-short")
+
+        request.samples.append(sample(t: 760.1, cpu: 760_100_000, bytes: 32_000_000))
+        let full = ResourceEvaluator.evaluate(request)
+        XCTAssertEqual(full.outcome, "measured")
+        let archive = ResourceMeasurementArchive(request: request, result: full,
+            architecture: "arm64", operatingSystem: "fixture", diagnosticsEnabled: false)
+        XCTAssertGreaterThanOrEqual(archive.effectiveMeasureSeconds ?? 0, 600)
+        XCTAssertEqual(ResourceEvaluator.recompute(archive), full)
+    }
+
     func testClosedIntervalDeltasAreSeparatedFromEndpointEquality() {
         let marks = [
             mark(seq: 1, live: true, visible: true, expected: true, aggregate: 10, attempts: 2),

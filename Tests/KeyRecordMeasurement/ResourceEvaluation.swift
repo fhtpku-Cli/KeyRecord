@@ -157,6 +157,9 @@ public enum ResourceEvaluator {
         if end.uptimeSeconds > measureEnd + request.intervalSeconds * 1.5 {
             return finish("invalid", "sample-missing", child: childDelta)
         }
+        if request.protocolKind == .formalFRS2 && end.uptimeSeconds < measureEnd {
+            return finish("interrupted", "duration-short", child: childDelta)
+        }
         let covered = end.uptimeSeconds - measureStart
         if covered + request.intervalSeconds * 0.5 < request.measureSeconds {
             return finish("interrupted", "duration-short", child: childDelta)

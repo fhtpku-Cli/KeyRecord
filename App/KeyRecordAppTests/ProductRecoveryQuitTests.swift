@@ -226,6 +226,7 @@ private final class SyntheticProduct {
     let root: URL
     let journal: URL
     private(set) var tap: SyntheticTap?
+    var replayController: FixedReplayController?
     /// Replaces the synthetic host as the product's lock provider when set before boot.
     var lockProvider: (any SessionLockProvider)?
     private(set) var terminateRequests = 0
@@ -254,11 +255,17 @@ private final class SyntheticProduct {
 
     func boot(journal enabled: Bool = true) async throws {
         let host = self.host
+        let replayController = self.replayController
         var boundaries = ProductHostBoundaries(
             storeRoot: storeRoot, namespace: try KeychainNamespace("com.keyrecord.synthetic"),
             backend: keychain, login: SilentLogin(),
             localCapture: LocalDevelopmentCapture(armed: true),
             eventSource: { [weak self] queue, qualification, _ in
+                if let replayController {
+                    return ListenOnlyEventSource.fixedReplay(queue: queue, qualification: qualification,
+                        providers: CaptureProviderSet(foreground: host, secureInput: host,
+                                                      sessionLock: host), controller: replayController)
+                }
                 let tap = SyntheticTap(host: host, queue: queue)
                 self?.tap = tap
                 return ListenOnlyEventSource(queue: queue, qualification: qualification, backend: tap,
@@ -442,6 +449,31 @@ final class ProductRecoveryQuitTests: XCTestCase {
     }
 
     // MARK: - Recovery
+
+    func testFixedReplayTraversesProductReductionAndEncryptedStore() async throws {
+        let product = try SyntheticProduct.fresh()
+        let controller = FixedReplayController()
+        product.replayController = controller
+        products.append(product)
+        try await product.boot()
+        await product.composition.startOrRetry()
+        await product.composition.flow.accept()
+        try await waitUntil("replay source collecting") {
+            let live = await product.live
+            return product.phase == .collecting && live
+        }
+
+        XCTAssertEqual(controller.emit(tick: 0), 16)
+        try await waitUntil("replay events reached product reduction") { product.aggregateDelta == 8 }
+        try await product.waitDurable()
+        let cycle = try XCTUnwrap(product.composition.lifecycle.state.preferences?.currentCycleID)
+        let aggregate = try await AggregatePersistence.restore(
+            cycleID: cycle, store: product.composition.store, gate: product.composition.gate)
+        let snapshot = try AggregateSnapshot(shortcuts: aggregate.shortcuts, bareKeys: aggregate.bareKeys)
+        XCTAssertEqual(snapshot.shortcutTotal, 8)
+        await product.composition.flow.pause()
+        XCTAssertEqual(controller.emit(tick: 1), 0)
+    }
 
     func testExplicitStartAfterLockAndUnlockReestablishesCollecting() async throws {
         let product = try await collecting()

@@ -136,6 +136,21 @@ final class ProductComposition: NSObject, NSMenuDelegate {
         try await assemble(try systemBoundaries(storeRoot: storeRoot, namespace: namespace))
     }
 
+    static func makeTrialReplay(storeRoot: URL, namespace: String,
+                                controller: FixedReplayController) async throws -> ProductComposition {
+        var host = try systemBoundaries(storeRoot: storeRoot, namespace: namespace)
+        guard host.localCapture != nil else { throw CaptureStartError.unqualified }
+        let foreground = FixedReplayForegroundProvider()
+        let secureInput = host.secureInput
+        host.foreground = foreground
+        host.eventSource = { queue, qualification, sessionLock in
+            ListenOnlyEventSource.fixedReplay(queue: queue, qualification: qualification,
+                providers: CaptureProviderSet(foreground: foreground, secureInput: secureInput,
+                                              sessionLock: sessionLock), controller: controller)
+        }
+        return try await assemble(host)
+    }
+
     /// Hostless tests supply every host boundary; the wiring below is the production wiring.
     static func makeSynthetic(_ boundaries: ProductHostBoundaries) async throws -> ProductComposition {
         try await assemble(boundaries)
@@ -1397,6 +1412,14 @@ final class ProductComposition: NSObject, NSMenuDelegate {
         NSApp.activate(ignoringOtherApps: true)
     }
 }
+
+#if DEBUG
+private struct FixedReplayForegroundProvider: FrontmostAppProvider {
+    func foregroundState() async -> ForegroundState {
+        .attributable(bundleID: "com.keyrecord.performance.fixture")
+    }
+}
+#endif
 
 #if DEBUG
 extension ProductComposition: LocalCaptureTransacting {

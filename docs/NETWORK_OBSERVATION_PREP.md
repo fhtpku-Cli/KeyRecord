@@ -659,5 +659,13 @@ Offline verification: `ruby Scripts/product-network-observe-test.rb` passed
 reported `Syntax OK`; `git diff --check` passed. These are reducer checks, not
 a host packet capture or a product network result. The next product trial still
 requires a separately approved bounded run with visible Collecting state and
-valid observer and input aggregates. A positive `eproc` match would need
-follow-up attribution review; a zero match would leave delegated coverage open.
+valid observer and input aggregates. Before interpreting a *zero* `eproc`
+count as coverage, a separate bounded two-process loopback control would need
+to make one process send on a socket delegated to the other and verify that
+tcpdump prints the sender as `proc` and the owner as `eproc`. Apple's
+[socket header](https://github.com/apple/darwin-xnu/blob/main/bsd/sys/socket.h)
+defines `SO_DELEGATED`, but whether a normal signed test process may set it on
+this host is unverified. A denied option or absent `eproc` would leave the
+control inconclusive. A positive product `eproc` match would still need
+follow-up attribution review; a zero product match leaves delegated coverage
+open.

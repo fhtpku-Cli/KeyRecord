@@ -177,6 +177,8 @@ public actor ListenOnlyEventSource: EventSource {
     /// can both look healthy while no event source exists.
     public var hasLiveSession: Bool { signal != nil }
 
+    public func inputMonitoringStatus() -> InputMonitoringStatus { permission.preflight() }
+
     public func requestPermissionIfNeeded() -> InputMonitoringStatus {
         let status = permission.preflight()
         guard status == .denied else { return status }

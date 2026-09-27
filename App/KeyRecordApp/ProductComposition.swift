@@ -790,8 +790,9 @@ final class ProductComposition: NSObject, NSMenuDelegate {
     }
 
     /// Capture reads Secure Input only when a session starts and macOS posts no change
-    /// notification, so a collecting lifecycle polls it. Turning on closes the session at
-    /// once; turning off asks the coordinator to rebuild it under fresh checks.
+    /// notification, so a collecting lifecycle polls it. The same poll checks Input
+    /// Monitoring authorization without prompting. Losing that grant closes the session
+    /// and requires an explicit Start even if authorization is later restored.
     /// The 250 ms sleep is the polling interval, not a guaranteed maximum response time.
     private func reconcileSecureInputMonitor() {
         guard lifecycle.phase == .collecting, !holdRuntimeTasks else {
@@ -806,6 +807,18 @@ final class ProductComposition: NSObject, NSMenuDelegate {
         secureInputMonitor = Task { [weak self] in
             while !Task.isCancelled {
                 guard let self else { break }
+                let permission = await self.capture.inputMonitoringStatus()
+                guard !Task.isCancelled, self.monitorIsCurrent(generation) else { break }
+                if permission != .granted {
+                    self.reduction.revokeProtectedState(queue: self.capture.queue,
+                                                       recoveryFence: self.manualRecoveryFence)
+                    #if DEBUG
+                    self.diagnostics.notePrivacyTrigger("inputMonitoringRevoked")
+                    #endif
+                    await self.handlePrivacyInvalidation()
+                    await self.runtimeCoordinator?.handle(.invalidated(.permissionRevoked))
+                    break
+                }
                 let state = await self.capture.secureInputState()
                 guard !Task.isCancelled, self.monitorIsCurrent(generation) else { break }
                 let previous = self.lastSecureInput

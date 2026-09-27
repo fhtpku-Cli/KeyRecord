@@ -1,6 +1,19 @@
 # Synthetic live-permission recovery coverage
 
-Product source: main `64590a0e9b57a55af9a23921983f2c16bb59c62e`.
+## Permission polling fallback — 2026-09-28 candidate
+
+`codex/phase1-acceptance` adds a read-only Input Monitoring preflight to the
+existing collecting-state monitor. A denied or unknown result closes the queue,
+source, key gate and sensitive UI; restoring the fake permission alone does not
+restart collection. A new product test verifies this path without emitting a tap
+invalidation callback. All 46 `ProductRecoveryQuitTests` and seven
+`CapturePermissionTests` passed on this candidate. It does not establish whether
+macOS reports a same-process revocation through `CGPreflightListenEventAccess`,
+a maximum closure time, or whether a real regrant needs a restart. No system
+permission was changed for this validation.
+
+Historical 2026-09-27 baseline: product source main
+`64590a0e9b57a55af9a23921983f2c16bb59c62e`.
 This follow-up adds only `testLivePermissionRevocationRequiresExplicitStartAndPreservesDurableCounts`
 to `App/KeyRecordAppTests/ProductRecoveryQuitTests.swift`; no product behavior changed.
 

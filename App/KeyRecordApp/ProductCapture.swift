@@ -163,6 +163,10 @@ actor ProductCapture: LifecycleCaptureControlling, RestartReadinessChecking {
 
     func secureInputState() async -> SecureInputState { await secure.secureInputState() }
 
+    func inputMonitoringStatus() async -> InputMonitoringStatus {
+        await source.inputMonitoringStatus()
+    }
+
     /// Recompute the capture policy from the supplied preferences and a FRESH foreground
     /// read, without touching the in-memory aggregate.
     ///

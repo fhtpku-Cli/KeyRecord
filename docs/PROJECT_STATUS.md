@@ -2,7 +2,7 @@
 
 ## Current summary — 2026-09-28
 
-Main includes PR #14 at `c367a0026c9df0c44d65290121b66d1c3577e774`.
+Main includes PR #16 at `f7dbe7434188edb706e877f168ff9940f7bea438`.
 The owner ended packet-capture qualification for FR-P1. This milestone has no
 network client or update endpoint. The revised [FR-P1 requirement](PRD.md#66-功能需求隐私)
 uses the product-source scan and an audit of the exact Release executable being
@@ -24,6 +24,22 @@ This closeout branch passed six focused `PrivacyEgressTests` and
 Release App built offline; its executable passed `audit-product-network.sh`
 with zero matches. `EvidenceValidator` compiled. The eventual signed Release
 candidate still needs its own audit before FR-P1 release acceptance.
+
+## Phase 1 permission polling candidate — 2026-09-28
+
+The `codex/phase1-acceptance` candidate checks Input Monitoring authorization in
+the existing collecting-state monitor. A failed read revokes the capture queue,
+closes protected state and leaves recovery to an explicit Start, including when
+macOS does not deliver a tap invalidation callback. The synthetic product test
+passes without sending such a callback. The 46 product recovery tests, seven
+Capture permission tests and six Keyring lock tests passed. The 22 Release
+isolation tests had zero failures and one skipped binary-dependent test;
+that test was separately run
+against this candidate's unsigned universal Release build and passed. That
+build's executable passed the static network audit with zero matches. These
+results establish offline behavior only. Actual macOS permission revocation and
+regrant, real Keychain access, lock timing, formal ARM/Intel resource measurement
+and signed Release qualification remain open.
 
 ## Dedicated trial isolation and bounded restart follow-up — 2026-09-27
 

@@ -616,6 +616,30 @@ final class ProductRecoveryQuitTests: XCTestCase {
         XCTAssertEqual(product.terminateRequests, 1)
     }
 
+    func testPermissionPollClosesWithoutTapInvalidationAndRegrantDoesNotRestart() async throws {
+        let product = try await collecting()
+        let oldTap = try XCTUnwrap(product.tap)
+
+        product.host.setPermission(.denied)
+        try await waitUntil("permission poll closes product") {
+            let live = await product.live
+            return product.phase == .blocked && !live && !product.keyGateOpen
+                && !product.composition.flow.sensitiveContentVisible
+        }
+        XCTAssertEqual(try oldTap.press(), .closed)
+
+        product.host.setPermission(.granted)
+        try await Task.sleep(for: .milliseconds(600))
+        let grantedLive = await product.live
+        XCTAssertFalse(grantedLive)
+        XCTAssertNotEqual(product.phase, .collecting)
+
+        await product.composition.startOrRetry()
+        let restartedLive = await product.live
+        XCTAssertTrue(restartedLive)
+        XCTAssertEqual(product.phase, .collecting)
+    }
+
     func testPausedIntentSurvivesLockAndOnlyResumeReopens() async throws {
         let product = try await collecting()
         await product.composition.flow.pause()

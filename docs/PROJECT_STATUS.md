@@ -67,6 +67,9 @@ while Collecting, no non-granted sample or Blocked transition, and a normal
 Quit. The owner's System Settings screenshot has no entry for this new bundle;
 the only trial entry is the earlier bundle, with its switch off. The new bundle
 was not revoked in this run, so these samples describe baseline polling only.
+A narrow system-log review attributes the new bundle's permission request to
+Terminal and shows a LaunchServices lookup failure at the time. A local launcher
+revision now uses LaunchServices, but has not been run or verified in Settings.
 The live acceptance remains open.
 See [the witness trial](PERMISSION_RECOVERY_TEST.md#owner-assisted-permission-witness-trial--2026-09-28).
 

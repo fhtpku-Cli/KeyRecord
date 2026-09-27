@@ -197,6 +197,13 @@ struct Options {
               let kind = ResourceProtocolKind(rawValue: try value("--protocol")) else {
             throw SamplerFailure("bad arguments")
         }
+        let sleepMicroseconds = interval * 1_000_000
+        guard pid > 0, warmup.isFinite, measure.isFinite, interval.isFinite,
+              warmup >= 0, measure > 0, interval >= 0.1,
+              sleepMicroseconds <= Double(UInt32.max),
+              (warmup + measure + interval).isFinite else {
+            throw SamplerFailure("bad-duration")
+        }
         self.init(pid: pid, path: try value("--expect-path"), protocolKind: kind,
                   phase: try value("--phase"), warmup: warmup, measure: measure,
                   interval: interval, output: try value("--output"),

@@ -53,6 +53,9 @@ The later archive follow-up uses that same accepted endpoint when reporting
 `effectiveMeasureSeconds`; previously, an accepted sample just beyond the
 window could still make the archive report a shorter duration. Ten focused
 resource tests and the sampler's synthetic self-check passed after this change.
+The sampler CLI now rejects non-finite, zero and sub-0.1-second intervals before
+sampling a process. Six malformed interval invocations exited promptly without
+writing measurement archives; the valid synthetic self-check still passed.
 
 The standalone Keychain lifecycle probe built unsigned on native ARM and its
 80 SwiftPM logic tests passed on this candidate. The build and tests did not

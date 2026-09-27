@@ -25,6 +25,7 @@ enum PrivacySchemaAudit {
 
     // File-qualified registration also covers private Wire DTOs and extensions adding conformance.
     static let serializableTypes: [String: Set<String>] = [
+        "AppDelegate.swift": ["DebugReplayProgress"],
         "CaptureDiagnostics.swift": ["CaptureRunSummary", "CapturePrivacyIntervalMark", "CapturePrivacyActionDetail"],
         "Counts.swift": ["Count", "SourceCounts", "ActiveDayOrdinal"],
         "CycleRecords.swift": ["CycleRecord", "CycleSummary"],
@@ -51,6 +52,8 @@ enum PrivacySchemaAudit {
     }
 
     static let recordFields: [String: [String: Set<String>]] = [
+        "AppDelegate.swift": ["DebugReplayProgress": [
+            "mode", "outcome", "expectedTicks", "ticks", "acceptedEvents", "elapsedSeconds"]],
         "CaptureDiagnostics.swift": ["CaptureRunSummary": [
             "tapCallbackKeyDown", "tapCallbackKeyUp", "tapCallbackFlagsChanged", "tapDisabledEvents",
             "handoffAccepted", "handoffClosed", "handoffOverflow", "normalizationOutput", "aggregateDelta",

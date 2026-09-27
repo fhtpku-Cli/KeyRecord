@@ -65,10 +65,12 @@ lookup for the new bundle identifier. The signed bundle's Info.plist contains
 the intended distinct display name and identifier, and LaunchServices now has
 a record for it. The private launcher had executed the bundle binary directly;
 it has been changed locally to use `open -a` with the same isolated environment.
-The launch command passed shell syntax checking and the bundle signature still
-verifies. The changed launcher has **not** been run. Its TCC attribution and
-Settings appearance therefore remain unverified; no new permission trial has
-occurred.
+The reusable `Scripts/launch-isolated-debug-trial.sh` now provides that launch
+path for a signed trial bundle. Its `--check` mode verified this bundle's
+signature, distinct identity, required-isolation marker and input arguments
+without launching it. Shell syntax checking also passed. The changed launch
+path has **not** been run. Its TCC attribution and Settings appearance therefore
+remain unverified; no new permission trial has occurred.
 
 Historical 2026-09-27 baseline: product source main
 `64590a0e9b57a55af9a23921983f2c16bb59c62e`.

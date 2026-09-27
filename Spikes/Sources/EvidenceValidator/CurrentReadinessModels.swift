@@ -27,7 +27,7 @@ enum ReadinessReceiptID: String, Codable, CaseIterable, Sendable {
         case .restart: ["t7.restart.unlocked", "t7.restart.startupLocked"]
         case .sleepWake: ["t7.sleep.captureClosed", "t7.wake.authoritativeUnlock"]
         case .capture: ["t7.capture.lockGating", "t23.signed.captureIntegration"]
-        case .privacy: ["t20.network.zeroOutbound", "t20.persistence.noEventLevelData"]
+        case .privacy: ["t20.network.noClientCapability", "t20.persistence.noEventLevelData"]
         case .encryptedPersistence: ["t23.signed.encryptedStore", "t23.signed.lifecycleRecovery"]
         }
     }

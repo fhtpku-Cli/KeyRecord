@@ -1,5 +1,10 @@
 # Network observation preparation — 2026-09-27
 
+**Historical record.** The owner changed FR-P1 acceptance on 2026-09-28 to
+source and Release-executable networking capability audits. The attempts below
+remain invalid observations and are not a reason to schedule more packet capture.
+See [FR-P1](PRD.md#66-功能需求隐私) and the [current status](PROJECT_STATUS.md).
+
 Base: PR #13 merge `6257b03b40f618fd976c6cbcc77dc83d374c59bb`.
 This is tool preparation, not a product network receipt or Phase 1 acceptance.
 The existing `Scripts/phase1-network-qa.sh` remains BLOCKED. No KeyRecord launch,

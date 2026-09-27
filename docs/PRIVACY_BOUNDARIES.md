@@ -49,26 +49,23 @@ The disjoint root-SPM lanes currently require 8 and 6 XCTest methods respectivel
 Failure fixtures cover leaked event fields, bare-key application metadata,
 unregistered receipt types, network/shell source, and a linked socket reference.
 
-## Host evidence remains BLOCKED
-
-```sh
-bash Scripts/phase1-qa.sh host network --manifest "$A/host.json" --attempt "$A"
-```
+## Historical host network lane
 
 `hostCases.network` is manifest-required with fixed argv and only the runner's
 `{manifest}` / `{attempt}` tokens. `phase1-network-qa.sh` currently exits 2 before
 reading a manifest or invoking a controller. Packet captures, filter installations,
 product launches, controller invocations and network operations are all zero.
-It remains BLOCKED even if a manifest path is supplied: an authorized controller
-must first be integrated. This wrapper is not a fake packet-capture implementation.
+It remains BLOCKED even if a manifest path is supplied. This wrapper is retained
+as a historical, non-operating lane and is not part of the revised FR-P1 acceptance.
 Spikes CLI tests reject malformed registries and prevent a child's forged PASS
 output from qualifying live evidence.
 
-Static symbol absence complements source inspection; it is **not** an OS-enforced
-network sandbox, a measurement of transitive system-framework behavior, or an
-observed zero-packet result. An authorized host controller must attribute packets
-to the product PID over consent/start/pause/restart. Absolute host-wide silence is
-not required. No capture, network call, or real event injection is performed here.
+FR-P1 now uses the source scan and audit of the exact Release executable being
+qualified. The executable audit must be repeated for that candidate; a Debug
+loader alone is insufficient. Both checks need their negative fixtures to pass.
+These checks establish absence of identified networking capability in the audited
+code and binary; they do not claim an OS-enforced sandbox or a measured zero-packet
+result. No host capture is required for this milestone's FR-P1 acceptance.
 
 ## Attempt-local G1 evaluation
 
@@ -83,9 +80,11 @@ swift run --package-path Spikes EvidenceValidator verify-current-readiness \
 ```
 
 Both commands legitimately exit 2 while G1 is BLOCKED. `capture`, `privacy`, and
-`encryptedPersistence` live receipts remain missing; fake tests and static audits
+`encryptedPersistence` qualification receipts remain missing; fake tests and static audits
 are not endorsed producers. `privacy` still requires both
-`t20.network.zeroOutbound` and `t20.persistence.noEventLevelData`. Task 7 authorized
+`t20.network.noClientCapability` and `t20.persistence.noEventLevelData`. The former
+must bind the source and exact Release-executable audit results to the candidate.
+Task 7 authorized
 host lifecycle evidence, producer endorsement, and architecture §12.4 ARM + Intel
 product performance remain independent requirements. FR-P6 full backup is neither
 implemented nor passed by these tests. T24 publishes the [milestone status](MILESTONE_STATUS.md)

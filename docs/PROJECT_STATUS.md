@@ -2,6 +2,21 @@
 
 ## Current summary — 2026-09-28
 
+**FR-P1 acceptance decision, 2026-09-28:** The owner ended packet-capture
+qualification for this requirement. The current version has no network client
+or update endpoint. FR-P1 now requires the existing product-source scan and an
+audit of the exact Release executable being qualified, with negative fixtures
+that detect network, endpoint and shell references. This is a code and build
+capability conclusion, not a measured zero-packet claim. A future update checker
+needs its own request-scope review and may not send statistics. No further host
+packet capture is needed for FR-P1. The five invalid trials below remain
+historical; their failures do not make this revised requirement fail. The
+other G1/Release qualifications remain open. An unsigned universal Release
+build from this branch completed offline; its executable passed
+`audit-product-network.sh` with zero matches. The six focused source/audit
+tests passed, including the negative fixtures. These results apply to that
+unsigned build; an eventual signed release candidate still needs its own audit.
+
 Main includes PR #14 at `c367a0026c9df0c44d65290121b66d1c3577e774`.
 The isolation repair, bounded permission-restart evidence and synthetic network
 observer preparation are merged. A separate signed Debug product candidate and
@@ -62,14 +77,9 @@ run. In the fifth run, the separate packet cap stopped capture early; the
 failure. A future host round requires a revised bounded protocol and fresh
 approval. These synthetic results cannot qualify product egress.
 
-No further host capture is scheduled after owner feedback on the repeated
-attempts. The current [PRD FR-P1](PRD.md#66-功能需求隐私) still specifies
-packet-capture verification, while this milestone has no network client and
-the source/binary audits for their recorded revisions found no product network
-API. Those static checks are the available implementation evidence; they do
-not silently waive the PRD's separate acceptance wording. A change to that
-wording is a product decision, and no additional packet-cap increase or live
-run is planned.
+The owner subsequently changed [PRD FR-P1](PRD.md#66-功能需求隐私) to the
+source-and-Release-executable audit described above. No additional packet-cap
+increase or live network run is planned.
 
 ## Dedicated trial isolation and bounded restart follow-up — 2026-09-27
 

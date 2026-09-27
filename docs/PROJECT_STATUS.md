@@ -71,9 +71,12 @@ resource sampler and a two-second drain tail after the 60-second warmup and
 the Debug product waits for its queue to drain and checks the reduced total
 against accepted replay events. It then flushes and reads the aggregate back. The
 one-window `KeyRecordPerformanceTrial` controller compiles and the sampler's
-marker self-check runs against its own short synthetic process. The controller
-has not launched a product App, and no six-window or ARM/Intel host performance
-result exists. The formal host performance lane remains inert.
+marker self-check runs against its own short synthetic process. Its offline
+six-window evaluator verifies same-host/same-candidate identity, recomputes
+the saved samples and applies the per-host budget. Its file-loading path passed
+an explicitly synthetic six-window self-check, but has no real reports to
+evaluate. The controller has not launched a product App, and no ARM/Intel host
+performance result exists. The formal host performance lane remains inert.
 
 The standalone Keychain lifecycle probe built unsigned on native ARM and its
 80 SwiftPM logic tests passed on this candidate. The build and tests did not

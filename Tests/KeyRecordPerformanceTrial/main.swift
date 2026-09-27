@@ -59,7 +59,7 @@ private struct TrialIdentity {
     let executableSHA256: String
 }
 
-private struct ReplaySummary: Decodable {
+private struct ReplaySummary: Codable {
     let mode: String
     let outcome: String
     let expectedTicks: Int
@@ -94,12 +94,53 @@ private struct TrialReport: Encodable {
     let normalExit: Bool
 }
 
+private struct StoredTrialReport: Decodable {
+    let kind: String
+    let productPass: Bool
+    let outcome: String
+    let mode: String
+    let bundleID: String
+    let executableSHA256: String
+    let architecture: String?
+    let macOS: String?
+    let machineModel: String
+    let chip: String
+    let machineRAM: UInt64
+    let sampleOutcome: String?
+    let cpuPercentOfOneLogicalCore: Double?
+    let footprintMeanBytes: Double?
+    let footprintSampledPeakBytes: UInt64?
+    let replayOutcome: String?
+    let acceptedEvents: Int64?
+    let durableKeyDownTotal: Int64?
+    let normalExit: Bool
+}
+
 @main
 @MainActor
 private enum PerformanceTrialCLI {
     static func main() async {
         do {
-            let options = try TrialOptions(Array(CommandLine.arguments.dropFirst()))
+            let arguments = Array(CommandLine.arguments.dropFirst())
+            if arguments == ["--self-check-evaluation"] {
+                try selfCheckEvaluation()
+                print("host-evaluation-self-check=pass synthetic=true productPass=false")
+                return
+            }
+            if arguments.first == "--evaluate" {
+                guard arguments.count == 3, arguments[1] == "--session",
+                      arguments[2].hasPrefix("/") else { throw TrialFailure("usage") }
+                let root = URL(fileURLWithPath: arguments[2]).standardizedFileURL
+                let result = try evaluateSession(at: root)
+                let encoder = JSONEncoder()
+                encoder.outputFormatting = [.sortedKeys]
+                let bytes = try encoder.encode(result)
+                try bytes.write(to: root.appendingPathComponent("host-report.json"), options: .atomic)
+                print(String(decoding: bytes, as: UTF8.self))
+                if !result.withinBudget { exit(1) }
+                return
+            }
+            let options = try TrialOptions(arguments)
             let identity = try inspect(options)
             if !options.run {
                 print("trial-check=ready displayName=\(identity.displayName) bundleID=\(identity.bundleID) launched=false")
@@ -201,7 +242,7 @@ private enum PerformanceTrialCLI {
         process.arguments = ["--pid", String(app.processIdentifier), "--expect-path", identity.executable.path,
             "--protocol", "formalFRS2", "--phase", mode, "--warmup-seconds", "60",
             "--measure-seconds", "600", "--interval-seconds", "0.5", "--output", output.path,
-            "--start-marker", marker.path]
+            "--start-marker", marker.path, "--diagnostics-enabled"]
         process.standardOutput = FileHandle.nullDevice
         process.standardError = FileHandle.nullDevice
         do { try process.run() } catch {
@@ -264,6 +305,144 @@ private enum PerformanceTrialCLI {
             try await Task.sleep(for: .milliseconds(200))
         }
         throw TrialFailure("replay-summary-missing")
+    }
+
+    private static func evaluateSession(at root: URL) throws -> PerformanceHostResult {
+        try checkPrivateDirectory(root)
+        var windows: [PerformanceWindowSummary] = []
+        for phase in ["typing", "idle"] {
+            for repeatIndex in 1...3 {
+                let directory = root.appendingPathComponent("\(phase)-\(repeatIndex)")
+                try checkPrivateDirectory(directory)
+                let report = try JSONDecoder().decode(StoredTrialReport.self,
+                    from: readPrivateFile(directory.appendingPathComponent("trial-report.json"), limit: 8_192))
+                let archive = try JSONDecoder().decode(ResourceMeasurementArchive.self,
+                    from: readPrivateFile(directory.appendingPathComponent("resource-\(phase).json"), limit: 16_000_000))
+                let replay = try JSONDecoder().decode(ReplaySummary.self,
+                    from: readPrivateFile(directory.appendingPathComponent("performance-replay.json"), limit: 4_096))
+                let expected = phase == "typing" ? Int64(ReplayWorkload.expectedTypingEvents) : 0
+                guard report.kind == "product-performance-trial", !report.productPass,
+                      report.outcome == "measured", report.mode == phase, report.normalExit,
+                      report.sampleOutcome == "measured", report.replayOutcome == "completed",
+                      report.bundleID.hasPrefix("com.keyrecord.trial.performance"),
+                      report.architecture == archive.architecture, report.macOS == archive.operatingSystem,
+                      report.cpuPercentOfOneLogicalCore == archive.result.cpuPercentOfOneLogicalCore,
+                      report.footprintMeanBytes == archive.result.footprintMeanBytes,
+                      report.footprintSampledPeakBytes == archive.result.footprintSampledPeakBytes,
+                      report.acceptedEvents == expected, report.durableKeyDownTotal == expected / 2,
+                      archive.protocolKind == .formalFRS2, archive.phase == phase,
+                      archive.requestedWarmupSeconds == 60, archive.requestedMeasureSeconds == 600,
+                      archive.requestedIntervalSeconds == 0.5,
+                      archive.effectiveMeasureSeconds ?? 0 >= 600,
+                      archive.diagnosticsEnabled, archive.diagnosticsIncludedInOverhead,
+                      archive.retainedSampleCount == archive.samples.count,
+                      archive.pid == archive.samples.first?.pid,
+                      archive.executablePath == archive.samples.first?.executablePath,
+                      archive.result.outcome == "measured", archive.result.productProcessOnly,
+                      archive.result == ResourceEvaluator.recompute(archive),
+                      replay.mode == phase, replay.outcome == "completed",
+                      replay.expectedTicks == ReplayWorkload.windowTicks,
+                      replay.ticks == ReplayWorkload.windowTicks,
+                      replay.acceptedEvents == expected, replay.durableKeyDownTotal == expected / 2,
+                      replay.elapsedSeconds >= Double(ReplayWorkload.windowTicks)
+                          * ReplayWorkload.tickIntervalSeconds - 0.5,
+                      let start = replay.startedUptimeSeconds,
+                      let end = replay.endedUptimeSeconds, end >= start + 661.5,
+                      let origin = archive.originUptimeSeconds, abs(origin - start) < 0.001,
+                      let cpu = report.cpuPercentOfOneLogicalCore,
+                      let mean = report.footprintMeanBytes,
+                      let peak = report.footprintSampledPeakBytes,
+                      let duration = archive.effectiveMeasureSeconds else {
+                    throw TrialFailure("session-window-invalid-\(phase)-\(repeatIndex)")
+                }
+                windows.append(PerformanceWindowSummary(phase: phase,
+                    architecture: archive.architecture, macOS: archive.operatingSystem,
+                    machineModel: report.machineModel, chip: report.chip,
+                    machineRAM: report.machineRAM, bundleID: report.bundleID,
+                    executableSHA256: report.executableSHA256,
+                    executablePath: archive.executablePath, cpuPercent: cpu,
+                    footprintMeanBytes: mean, footprintPeakBytes: peak,
+                    effectiveMeasureSeconds: duration, acceptedEvents: expected,
+                    durableKeyDownTotal: expected / 2))
+            }
+        }
+        return try PerformanceHostEvaluator.evaluate(windows)
+    }
+
+    private static func checkPrivateDirectory(_ url: URL) throws {
+        var status = stat()
+        guard url.path.withCString({ lstat($0, &status) }) == 0,
+              status.st_mode & mode_t(S_IFMT) == mode_t(S_IFDIR),
+              status.st_mode & 0o777 == 0o700, status.st_uid == getuid() else {
+            throw TrialFailure("session-directory-invalid")
+        }
+    }
+
+    private static func readPrivateFile(_ url: URL, limit: Int64) throws -> Data {
+        var status = stat()
+        guard url.path.withCString({ lstat($0, &status) }) == 0,
+              status.st_mode & mode_t(S_IFMT) == mode_t(S_IFREG),
+              status.st_uid == getuid(), status.st_size > 0, status.st_size <= limit else {
+            throw TrialFailure("session-file-invalid")
+        }
+        return try Data(contentsOf: url)
+    }
+
+    private static func selfCheckEvaluation() throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("keyrecord-host-evaluation-\(UUID().uuidString)")
+        guard mkdir(root.path, 0o700) == 0 else { throw TrialFailure("self-check-directory") }
+        defer { try? FileManager.default.removeItem(at: root) }
+        let executablePath = "/private/tmp/synthetic/KeyRecordApp.app/Contents/MacOS/KeyRecordApp"
+        let digest = String(repeating: "a", count: 64)
+        let expectedSeconds = Double(ReplayWorkload.windowTicks) * ReplayWorkload.tickIntervalSeconds
+        let encoder = JSONEncoder()
+        for phase in ["typing", "idle"] {
+            for repeatIndex in 1...3 {
+                let directory = root.appendingPathComponent("\(phase)-\(repeatIndex)")
+                guard mkdir(directory.path, 0o700) == 0 else { throw TrialFailure("self-check-directory") }
+                let cpuRate = phase == "typing" ? 0.005 : 0.0005
+                let samples = (0...1_321).map { index in
+                    let elapsed = Double(index) * 0.5
+                    return ProcessResourceSample(uptimeSeconds: 100 + elapsed,
+                        monotonicSeconds: 100 + elapsed,
+                        cpuNanoseconds: UInt64(elapsed * cpuRate * 1e9),
+                        childCPUNanoseconds: 0, footprintBytes: 50_000_000,
+                        pid: 12345, startAbstime: 42, executablePath: executablePath, consoleUID: 501)
+                }
+                let request = ResourceWindowRequest(protocolKind: .formalFRS2, phase: phase,
+                    warmupSeconds: 60, measureSeconds: 600, intervalSeconds: 0.5,
+                    originUptimeSeconds: 100, samples: samples)
+                let result = ResourceEvaluator.evaluate(request)
+                guard result.outcome == "measured" else { throw TrialFailure("self-check-sampling") }
+                let archive = ResourceMeasurementArchive(request: request, result: result,
+                    architecture: "arm64", operatingSystem: "synthetic", diagnosticsEnabled: true)
+                let expected = phase == "typing" ? Int64(ReplayWorkload.expectedTypingEvents) : 0
+                let report = TrialReport(outcome: "measured", mode: phase,
+                    bundleID: "com.keyrecord.trial.performance.synthetic", executableSHA256: digest,
+                    architecture: "arm64", macOS: "synthetic", machineModel: "SyntheticMac",
+                    chip: "SyntheticChip", machineRAM: 16_000_000_000,
+                    sampleOutcome: "measured", sampleReason: nil,
+                    cpuPercentOfOneLogicalCore: result.cpuPercentOfOneLogicalCore,
+                    footprintMeanBytes: result.footprintMeanBytes,
+                    footprintSampledPeakBytes: result.footprintSampledPeakBytes,
+                    replayOutcome: "completed", acceptedEvents: expected,
+                    durableKeyDownTotal: expected / 2, normalExit: true)
+                let replay = ReplaySummary(mode: phase, outcome: "completed",
+                    expectedTicks: ReplayWorkload.windowTicks, ticks: ReplayWorkload.windowTicks,
+                    acceptedEvents: expected, durableKeyDownTotal: expected / 2,
+                    elapsedSeconds: expectedSeconds, startedUptimeSeconds: 100,
+                    endedUptimeSeconds: 100 + expectedSeconds)
+                try encoder.encode(report).write(to: directory.appendingPathComponent("trial-report.json"), options: .atomic)
+                try encoder.encode(archive).write(to: directory.appendingPathComponent("resource-\(phase).json"), options: .atomic)
+                try encoder.encode(replay).write(to: directory.appendingPathComponent("performance-replay.json"), options: .atomic)
+            }
+        }
+        let result = try evaluateSession(at: root)
+        guard result.withinBudget, result.windowCount == 6,
+              result.typingMedianCPUPercent < 1, result.idleMedianCPUPercent < 0.1 else {
+            throw TrialFailure("self-check-evaluation")
+        }
     }
 
     private static func quitNormally(_ app: NSRunningApplication) async -> Bool {

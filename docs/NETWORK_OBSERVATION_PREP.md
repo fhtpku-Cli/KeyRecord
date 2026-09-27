@@ -525,3 +525,26 @@ correctly reports `outcome=invalid` and `product_pass=false`. No product
 zero-egress claim or Phase 1, Release or Intel qualification follows. Another
 live attempt would require its own scoped owner approval; the unknown diagnostic
 first needs a privacy-preserving way to identify its cause.
+
+## Offline stderr visibility follow-up after the third run
+
+The third receipt ruled out the four guessed tcpdump diagnostic families for
+that run, but it did not reveal the unclassified line. The controller also
+combines `sudo` and tcpdump stderr, so the line's producer cannot be inferred
+from the existing receipts. No fourth host run follows from this change.
+
+The controller now counts recognized routine stderr status lines and, for
+unclassified lines, records only a fixed prefix class (`sudo:`, `tcpdump:`,
+`pcap_stats:`, or other) and the phase in which the line was **read** (before
+ready, while collecting, or while draining at shutdown). These labels do not
+claim which process produced the line or when it was emitted. No diagnostic
+text, prefix substring, address, path, or hash is retained. An unknown line
+continues to make the receipt invalid, and `product_pass` remains false.
+The observer reaches ready only on a complete expected `pktap,all` listening
+line; a malformed lookalike stays unknown. Synthetic tests cover canonical
+startup/footer status, warnings, unknown prefixes and phases, text nonretention,
+and malformed readiness: 7 tests and 52 assertions pass. CLI help and invalid
+argument paths were also exercised. This was offline only: no App launch,
+sudo, tcpdump, packet capture, or permission operation occurred. The new
+metadata can narrow a future investigation but cannot guarantee identification
+of arbitrary stderr text; any host diagnostic needs its own reviewed scope.

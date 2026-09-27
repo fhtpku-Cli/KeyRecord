@@ -73,6 +73,52 @@ class ProductNetworkObserveTest < Minitest::Test
     end
   end
 
+  def test_unknown_stderr_records_only_read_phase_and_fixed_prefix
+    observation = valid_observation
+    observation.send(:ingest_stderr, "sudo: synthetic failure for secret.example\n")
+    observation.send(:ingest_stderr, "tcpdump: listening on pktap,all, link-type PKTAP (Packet Tap), snapshot length 256 bytes\n")
+    observation.send(:ingest_stderr, "tcpdump: synthetic diagnostic for 192.0.2.10\n")
+    observation.instance_variable_set(:@stopping_observer, true)
+    observation.send(:ingest_stderr, "pcap_stats: synthetic error\n")
+    capture_io { observation.send(:finish_receipt) }
+
+    assert_equal 1, observation.receipt[:stderr_known_status_lines]
+    assert_equal({startup: 1, capture: 1, shutdown_read: 1}, observation.receipt[:stderr_unknown_read_phase])
+    assert_equal({sudo_prefix: 1, tcpdump_prefix: 1, pcap_prefix: 1, other_prefix: 0}, observation.receipt[:stderr_unknown_prefix])
+    assert_equal 3, observation.receipt[:stderr_other_lines]
+    assert_equal 'invalid', observation.receipt[:outcome]
+    refute_includes observation.receipt.to_s, 'secret.example'
+    refute_includes observation.receipt.to_s, '192.0.2.10'
+  end
+
+  def test_malformed_listening_line_is_unknown_and_does_not_mark_observer_ready
+    observation = ProductNetworkObservation.new(app: '/unused', seconds: 75)
+    observation.send(:ingest_stderr, "tcpdump: listening on pktap,all with unexpected text\n")
+    capture_io { observation.send(:finish_receipt) }
+
+    assert_equal false, observation.instance_variable_get(:@ready)
+    assert_equal 1, observation.receipt[:stderr_other_lines]
+    assert_equal 'invalid', observation.receipt[:outcome]
+  end
+
+  def test_known_apple_startup_and_footer_are_status_without_unknown_text
+    observation = valid_observation
+    [
+      "tcpdump: verbose output suppressed, use -v[v]... for full protocol decode\n",
+      "tcpdump: data link type PKTAP\n",
+      "tcpdump: listening on pktap,all, link-type PKTAP (Packet Tap), snapshot length 256 bytes\n",
+      "8 packets captured\n",
+      "8 packets received by filter\n",
+      "0 packets dropped by kernel\n"
+    ].each { |line| observation.send(:ingest_stderr, line) }
+    capture_io { observation.send(:finish_receipt) }
+
+    assert_equal true, observation.instance_variable_get(:@ready)
+    assert_equal 6, observation.receipt[:stderr_known_status_lines]
+    assert_equal 0, observation.receipt[:stderr_other_lines]
+    assert_equal 'bounded-no-attributed-outbound-observed', observation.receipt[:outcome]
+  end
+
   private
 
   def valid_observation

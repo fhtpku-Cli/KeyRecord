@@ -78,11 +78,17 @@ class ProductNetworkObservation
     @receipt = {kind: 'bounded-debug-product-network-observation', product_pass: false,
                 outcome: 'invalid', source_scope: 'pktap,all; no capture filter; decoded headers only',
                 delegated_process_coverage: 'unverified', stderr_blank_lines: 0,
+                stderr_known_status_lines: 0,
+                stderr_unknown_read_phase: {startup: 0, capture: 0, shutdown_read: 0},
+                stderr_unknown_prefix: {sudo_prefix: 0, tcpdump_prefix: 0,
+                                        pcap_prefix: 0, other_prefix: 0},
                 stderr_diagnostics: {metadata_filter_drops: 0, interface_drops: 0,
                                      compression_stats_lines: 0, warning_lines: 0}}
     @streams = []
     @buffers = {out: +'', err: +''}
     @stderr_other = 0
+    @ready = false
+    @stopping_observer = false
   end
 
   def run
@@ -249,11 +255,15 @@ class ProductNetworkObservation
       @receipt[:stderr_blank_lines] += 1
       return
     end
-    @ready = true if line.include?('listening on pktap')
-    if (match = /\A(\d+) packets? captured\n\z/.match(line))
+    if /\Atcpdump: listening on pktap,all, link-type [^\r\n]+, snapshot length 256 bytes\n\z/.match?(line)
+      @ready = true
+      @receipt[:stderr_known_status_lines] += 1
+    elsif (match = /\A(\d+) packets? captured\n\z/.match(line))
       @receipt[:captured_count] = match[1].to_i
+      @receipt[:stderr_known_status_lines] += 1
     elsif (match = /\A(\d+) packets? dropped by kernel\n\z/.match(line))
       @receipt[:kernel_drops] = match[1].to_i
+      @receipt[:stderr_known_status_lines] += 1
     elsif (match = /\A(\d+) drops? by metadata filter\n\z/.match(line))
       @receipt[:stderr_diagnostics][:metadata_filter_drops] =
         [@receipt[:stderr_diagnostics][:metadata_filter_drops], match[1].to_i].max
@@ -264,15 +274,28 @@ class ProductNetworkObservation
       @receipt[:stderr_diagnostics][:compression_stats_lines] += 1
     elsif /\Atcpdump: WARNING: [^\r\n]*\n\z/.match?(line)
       @receipt[:stderr_diagnostics][:warning_lines] += 1
-    elsif /\A(?:tcpdump: verbose output suppressed|tcpdump: data link type |tcpdump: listening on |\d+ packets? received by filter)/.match?(line)
-      nil
+    elsif /\A(?:tcpdump: verbose output suppressed, use -v\[v\]\.\.\. for full protocol decode|tcpdump: data link type [^\r\n]+|\d+ packets? received by filter)\n\z/.match?(line)
+      @receipt[:stderr_known_status_lines] += 1
     else
       @stderr_other += 1
+      phase = @stopping_observer ? :shutdown_read : @ready ? :capture : :startup
+      prefix = if line.start_with?('sudo:')
+                 :sudo_prefix
+               elsif line.start_with?('tcpdump:')
+                 :tcpdump_prefix
+               elsif line.start_with?('pcap_stats:')
+                 :pcap_prefix
+               else
+                 :other_prefix
+               end
+      @receipt[:stderr_unknown_read_phase][phase] += 1
+      @receipt[:stderr_unknown_prefix][prefix] += 1
     end
   end
 
   def stop_observer
     return unless @observer_pid
+    @stopping_observer = true
     Process.kill('INT', -@observer_pid) rescue Errno::ESRCH
     begin
       Timeout.timeout(4) do

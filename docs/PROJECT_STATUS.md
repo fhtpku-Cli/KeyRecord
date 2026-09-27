@@ -32,6 +32,11 @@ BLOCKED. Phase 1/G1, Release, formal performance and native Intel qualification
 remain open. See the [network preparation record](NETWORK_OBSERVATION_PREP.md)
 for the exact evidence boundary and remaining product scope.
 
+After the third invalid run, offline-only observer diagnostics now retain
+fixed counts for known status and unknown stderr prefix/read phase. They do
+not identify the historical line, establish its producer, or qualify product
+network behavior. No fourth host capture has been performed.
+
 ## Dedicated trial isolation and bounded restart follow-up — 2026-09-27
 
 PR #12 merged at `b57dbb796056e40d7967fea34879aedff39bbf4b`. This follow-up

@@ -49,4 +49,39 @@ class DelegatedLoopbackTrialTest < Minitest::Test
     assert_equal 1, trial.instance_variable_get(:@unparsed_lines)
     assert_empty trial.instance_variable_get(:@observations)
   end
+
+  def test_run_finishes_before_closing_receiver_without_privilege_or_network
+    receiver = Object.new
+    receiver.define_singleton_method(:bind) { |_, _| nil }
+    receiver.define_singleton_method(:addr) { [nil, 5001] }
+    receiver.define_singleton_method(:recv_nonblock) do |_, exception:|
+      raise IOError, 'closed stream' if @closed
+      :wait_readable
+    end
+    receiver.define_singleton_method(:close) { @closed = true }
+    receiver.define_singleton_method(:closed?) { !!@closed }
+
+    trial = DelegatedLoopbackTrial.new
+    trial.stub(:system, true) do
+      UDPSocket.stub(:new, receiver) do
+        trial.stub(:start_target, nil) do
+          trial.stub(:start_observer, nil) do
+            trial.stub(:start_sender, nil) do
+              trial.stub(:drain_once, nil) do
+                trial.stub(:monotonic, 0) do
+                  trial.instance_variable_get(:@buffers)[:observer_stderr] =
+                    "listening on pktap,lo0, link-type PKTAP, snapshot length 256 bytes\n"
+                  capture_io { trial.run }
+                end
+              end
+            end
+          end
+        end
+      end
+    end
+
+    assert receiver.closed?
+    assert_equal 0, trial.result[:control_received]
+    assert_equal 'inconclusive', trial.result[:outcome]
+  end
 end

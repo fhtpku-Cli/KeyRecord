@@ -688,21 +688,29 @@ and reducer's format compatibility for synthetic metadata. It cannot test
 whether the kernel labels any real delegated flow, whether a normal process
 may set `SO_DELEGATED`, or whether system services cover all traffic.
 
-## Delegated loopback control prepared, not run
+## Delegated loopback control: first host run inconclusive
 
 `Scripts/fixtures/pktap-delegated-loopback.rb --check` reports `prepared`
 without sudo, sockets, capture or product launch. Its separately approved
-`--run` path would authenticate the owner in Terminal, keep a normal-user
-target process alive, and elevate **two** fixed programs: system tcpdump and
+`--run` path authenticates the owner in Terminal, keeps a normal-user
+target process alive, and elevates **two** fixed programs: system tcpdump and
 `Scripts/fixtures/pktap-delegated-sender.rb` under system Ruby. The sender
-would set `SO_DELEGATED` to that target PID and send four fixed 17-byte UDP
-datagrams to one ephemeral receiver bound to 127.0.0.1. The observer would
-capture only IPv4 UDP on `pktap,lo0` with both endpoints 127.0.0.1 and that
+sets `SO_DELEGATED` to that target PID and sends four fixed 17-byte UDP
+datagrams to one ephemeral receiver bound to 127.0.0.1. The observer
+captures only IPv4 UDP on `pktap,lo0` with both endpoints 127.0.0.1 and that
 destination port, for eight seconds after readiness, with 256-byte snapshots
 and a 64-packet cap. No KeyRecord App, trial store, Keychain, TCC or external
-endpoint participates. This is a new root sender plus a real host packet
-capture; the previous approval covered neither this command nor its extra
-privilege. `--run` has not been executed.
+endpoint participates. This is a root sender plus a real host packet capture.
+
+The owner ran the approved command once and supplied a terminal traceback:
+`finish` called `recv_nonblock` on an already closed receiver socket, raising
+`IOError: closed stream`. The controller closed the receiver before invoking
+`finish`. No aggregate JSON was emitted, so this round is inconclusive; it
+does not establish that the sender ran, any packets were captured, or any
+delegated metadata was observed. The controller now closes the receiver after
+`finish`, including if finalization raises. An offline test exercises that
+cleanup order with a fake socket and no sudo or network. This fix has not
+been rerun on the live host.
 
 The controller retains decoded packet lines and sudo/tcpdump diagnostics in
 bounded memory, then emits only counts and error types. It writes no raw
@@ -717,7 +725,7 @@ Terminal and refresh the credential cache. A denial of `SO_DELEGATED` is
 reported as a blocked synthetic control, not as product evidence.
 
 Offline checks: Ruby syntax passed for both scripts; the controller's
-`--check` reported `prepared` without capture; two reducer tests passed with
-13 assertions; the sender's `--help` and invalid-argument paths behaved as
-expected; `git diff --check` passed. The root sender and live capture paths
-remain unverified until a separate scope approval and owner-run trial.
+`--check` reported `prepared` without capture; three tests passed with
+16 assertions, including the receiver cleanup regression; the sender's
+`--help` and invalid-argument paths behaved as expected; `git diff --check`
+passed. The root sender and live capture outcomes remain unverified.

@@ -65,9 +65,12 @@ class DelegatedLoopbackTrial
     stop_sender
     drain_remaining
     stop_target
-    @receiver&.close
     @readers.each_key { |io| io.close unless io.closed? }
-    finish
+    begin
+      finish
+    ensure
+      @receiver&.close
+    end
   end
 
   private

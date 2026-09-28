@@ -69,6 +69,9 @@ final class KeychainLifecycleScenarioTests: XCTestCase {
         let controller = HostedLifecycleScenarioController(backend: backend, authority: authority, configuration: configuration)
         let report = LifecycleScenarioMachine.run(.unlockedCRUD, controller: controller)
         XCTAssertEqual(report.status, .pass)
+        XCTAssertNil(report.observations.first?.policy.protectedReadDelta)
+        XCTAssertNil(report.observations.first?.policy.publishDelta)
+        XCTAssertNil(report.observations.first?.policy.aggregateDelta)
         XCTAssertEqual(backend.operations, [.add, .read, .attributes, .delete])
         XCTAssertEqual(backend.calls, 4)
     }
@@ -168,7 +171,7 @@ final class KeychainLifecycleScenarioTests: XCTestCase {
         XCTAssertEqual(backend.operations, [.add, .delete])
     }
 
-    func testFailureHostedLockWithoutProductObservationCannotPass() {
+    func testFailureHostedLockWithoutProductObservationCannotPass() throws {
         let controller = HostedLifecycleScenarioController(
             backend: RecordingBackend(), authority: FakeHostedAuthority(ready: true),
             configuration: .init(namespace: .init(attempt: "attempt", seed: UUID()),
@@ -177,7 +180,24 @@ final class KeychainLifecycleScenarioTests: XCTestCase {
         XCTAssertEqual(observation.status, .blocked)
         XCTAssertEqual(observation.policy.witnessRejection, "productObservationMissing")
         XCTAssertNil(observation.policy.captureClosed)
+        XCTAssertNil(observation.policy.protectedReadDelta)
+        XCTAssertNil(observation.policy.publishDelta)
+        XCTAssertNil(observation.policy.aggregateDelta)
         XCTAssertNil(observation.keychain.rawStatus)
+        let json = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(observation)) as? [String: Any])
+        let policy = try XCTUnwrap(json["policy"] as? [String: Any])
+        XCTAssertNil(policy["protectedReadDelta"])
+        XCTAssertNil(policy["publishDelta"])
+        XCTAssertNil(policy["aggregateDelta"])
+    }
+
+    func testMissingProductDeltasCannotPassLockTransition() {
+        let fake = FakeLifecycleController()
+        fake.missingProductDeltas = true
+        let report = LifecycleScenarioMachine.run(.lockBackground, controller: fake)
+        XCTAssertEqual(report.status, .blocked)
+        XCTAssertEqual(report.reason, "productObservationMissing")
+        XCTAssertNil(report.observations[1].policy.protectedReadDelta)
     }
 
     func testFailureObservedProductDeltaRejectsHostedLock() {
@@ -365,6 +385,7 @@ private final class FakeLifecycleController: LifecycleScenarioController {
     var supported = true
     var interrupt: LifecycleStep?
     var leak = false
+    var missingProductDeltas = false
     var witness = true
     var steps: [LifecycleStep] = []
     func supports(_ scenario: LifecycleScenario) -> Bool { supported }
@@ -375,8 +396,9 @@ private final class FakeLifecycleController: LifecycleScenarioController {
             accessibility: "aku", synchronizable: false, valueMatched: true,
             itemMissing: true, cleanupComplete: true)
         let policy = LifecyclePolicyEvidence(
-            authoritativeWitness: witness, protectedReadDelta: leak ? 1 : 0,
-            publishDelta: 0, aggregateDelta: 0, generationFenced: true, captureClosed: true)
+            authoritativeWitness: witness, protectedReadDelta: missingProductDeltas ? nil : (leak ? 1 : 0),
+            publishDelta: missingProductDeltas ? nil : 0, aggregateDelta: missingProductDeltas ? nil : 0,
+            generationFenced: true, captureClosed: true)
         return LifecycleStepObservation(status: step == interrupt ? .blocked : .pass, keychain: keychain, policy: policy)
     }
 }

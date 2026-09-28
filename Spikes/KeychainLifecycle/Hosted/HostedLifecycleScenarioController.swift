@@ -158,14 +158,14 @@ public final class HostedLifecycleScenarioController: LifecycleScenarioControlle
         .init(rawStatus: rawStatus, calls: 0, accessibility: nil, synchronizable: nil, valueMatched: nil, itemMissing: nil, cleanupComplete: nil)
     }
     private func policy(witness: Bool, fenced: Bool?) -> LifecyclePolicyEvidence {
-        .init(authoritativeWitness: witness, protectedReadDelta: 0, publishDelta: 0, aggregateDelta: 0,
+        .init(authoritativeWitness: witness, protectedReadDelta: nil, publishDelta: nil, aggregateDelta: nil,
               generationFenced: fenced, captureClosed: nil)
     }
     private func blocked(step: LifecycleStep, rejection: String? = nil,
                          witness: UUID? = nil, active: UUID? = nil) -> LifecycleStepObservation {
         observation(.blocked, keychain: Self.zeroKeychain(rawStatus: nil),
-                    policy: .init(authoritativeWitness: false, protectedReadDelta: 0, publishDelta: 0,
-                                  aggregateDelta: 0, generationFenced: false,
+                    policy: .init(authoritativeWitness: false, protectedReadDelta: nil, publishDelta: nil,
+                                  aggregateDelta: nil, generationFenced: false,
                                   captureClosed: nil,
                                   witnessGeneration: witness, activeGeneration: active,
                                   priorGeneration: nil, witnessRejection: rejection))

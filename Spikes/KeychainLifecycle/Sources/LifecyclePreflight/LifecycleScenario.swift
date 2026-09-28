@@ -11,6 +11,13 @@ public enum LifecycleStep: String, Codable, Sendable {
         case .lockBackground, .deleteMissing, .cleanup, .crossDeviceRestore: false
         }
     }
+    var needsProductObservation: Bool {
+        switch self {
+        case .unlockedCRUD, .deleteMissing, .cleanup: false
+        case .lockBackground, .unlockRevalidate, .restartLocked, .restartUnlocked,
+             .logoutLogin, .sleepWake, .crossDeviceRestore: true
+        }
+    }
 }
 public enum LifecycleScenario: String, CaseIterable, Codable, Sendable {
     case unlockedCRUD, lockBackground, unlockRevalidation, restartLocked, restartUnlocked
@@ -49,9 +56,9 @@ public struct LifecycleKeychainEvidence: Codable, Sendable {
 
 public struct LifecyclePolicyEvidence: Codable, Sendable {
     public let authoritativeWitness: Bool
-    public let protectedReadDelta: Int
-    public let publishDelta: Int
-    public let aggregateDelta: Int
+    public let protectedReadDelta: Int?
+    public let publishDelta: Int?
+    public let aggregateDelta: Int?
     public let generationFenced: Bool?
     public let captureClosed: Bool?
     public let witnessGeneration: UUID?
@@ -59,8 +66,8 @@ public struct LifecyclePolicyEvidence: Codable, Sendable {
     public let priorGeneration: UUID?
     public let witnessRejection: String?
 
-    public init(authoritativeWitness: Bool, protectedReadDelta: Int, publishDelta: Int,
-                aggregateDelta: Int, generationFenced: Bool?, captureClosed: Bool?,
+    public init(authoritativeWitness: Bool, protectedReadDelta: Int?, publishDelta: Int?,
+                aggregateDelta: Int?, generationFenced: Bool?, captureClosed: Bool?,
                 witnessGeneration: UUID? = nil, activeGeneration: UUID? = nil,
                 priorGeneration: UUID? = nil, witnessRejection: String? = nil) {
         self.authoritativeWitness = authoritativeWitness
@@ -134,7 +141,12 @@ public enum LifecycleScenarioMachine {
             case .pass:
                 if !valid(step, observation) {
                     status = .fail; reason = "stepContractFailed"
-                } else if observation.policy.protectedReadDelta != 0 || observation.policy.publishDelta != 0 || observation.policy.aggregateDelta != 0 {
+                } else if step.needsProductObservation &&
+                    (observation.policy.protectedReadDelta == nil || observation.policy.publishDelta == nil ||
+                     observation.policy.aggregateDelta == nil) {
+                    status = .blocked; reason = "productObservationMissing"
+                } else if [observation.policy.protectedReadDelta, observation.policy.publishDelta,
+                           observation.policy.aggregateDelta].compactMap({ $0 }).contains(where: { $0 != 0 }) {
                     status = .fail; reason = "protectedPolicyDelta"
                 } else if step.needsWitness && !observation.policy.authoritativeWitness {
                     status = .blocked; reason = "noAuthoritativeWitness"

@@ -33,7 +33,9 @@ flow boundary. These assignments do not prove screen rendering. Protected-data
 reads outside those paths are still not counted exhaustively, and no product
 observer is connected to the hosted controller. The journal cannot supply its
 `protectedReadDelta` or `publishDelta`; absent values must not be projected as
-zero. Older journal lines without `analysisPublicationCount` yield an
+zero. The hosted scenario report now leaves those deltas absent when no product
+observation was made and blocks a lock-transition PASS if any required delta is
+missing. Older journal lines without `analysisPublicationCount` yield an
 inconclusive closed-interval evaluation. Finite interval samples also do not
 prove that capture stayed closed at every instant of a lock.
 The probe's signed effect request and the current armed Debug product both select

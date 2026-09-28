@@ -109,7 +109,9 @@ extension ObjectStore {
     /// orphans/temps are removed; unresolved names stay protected and block retirement.
     func reconcileAfterRecovery(lease id: UUID, access: KeyringProtectedAccess) async throws {
         try requireLease(id)
+        let sessionToken = protectedSessionToken
         let versions = try await keySource.namespaceKeyVersions()
+        try requireProtectedSession(sessionToken)
         let classified = try fileSystem.listEntries(in: root).map { entry -> (RootEntry, RootEntryClassification) in
             (entry, RootEntryClassifier.classify(entry))
         }
@@ -117,8 +119,10 @@ extension ObjectStore {
             if case .manifest = $0.1 { return false } else { return true }
         }
         let journalLocators = try await pendingJournalLocators(known: versions)
+        try requireProtectedSession(sessionToken)
         try await reconcileUnreferenced(nonManifest,
-                                        referenced: try opened().locators.union(journalLocators), known: versions)
+                                        referenced: try opened().locators.union(journalLocators), known: versions,
+                                        sessionToken: sessionToken)
     }
 
     /// Complete protected-reference scan. Every referenced artifact is authenticated.

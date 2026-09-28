@@ -16,6 +16,7 @@ public actor ObjectStore {
     var materialCache: [UInt32: Data] = [UInt32: Data]()
     var unresolvedArtifacts: [String] = []
     var lease: UUID?
+    var protectedSessionToken = UUID()
     let cycleJournals: CycleResetJournalStore
     let configuredResetInjection: CycleResetInjection
 
@@ -36,7 +37,9 @@ public actor ObjectStore {
 
     public func bootstrap() async throws -> StoreBootstrapState {
         if let phase { return phase }
+        let sessionToken = protectedSessionToken
         let versions = try await keySource.namespaceKeyVersions()
+        try requireProtectedSession(sessionToken)
         let existed = fileSystem.rootExists(root)
         do {
             try fileSystem.preparePrivateRoot(at: root)
@@ -69,14 +72,19 @@ public actor ObjectStore {
                 phase = .freshInstall
                 return .freshInstall
             }
-            let manifest = try await recoverManifest(requiredVersions: versions)
+            let manifest = try await recoverManifest(requiredVersions: versions, sessionToken: sessionToken)
+            try requireProtectedSession(sessionToken)
             try await loadMaterial(Set([manifest.encryptionKeyVersion]
-                + manifest.manifest.entries.map(\.keyVersion)), known: versions)
+                + manifest.manifest.entries.map(\.keyVersion)), known: versions, sessionToken: sessionToken)
+            try requireProtectedSession(sessionToken)
             try validateReferencedFiles(manifest.manifest)
             let journalLocators = try await pendingJournalLocators(known: versions)
+            try requireProtectedSession(sessionToken)
             try await reconcileUnreferenced(classified.filter {
                 if case .manifest = $0.1 { return false } else { return true }
-            }, referenced: manifest.manifest.locators.union(journalLocators), known: versions)
+            }, referenced: manifest.manifest.locators.union(journalLocators), known: versions,
+               sessionToken: sessionToken)
+            try requireProtectedSession(sessionToken)
             manifestBox = manifest.manifest
             phase = .opened
             return .opened

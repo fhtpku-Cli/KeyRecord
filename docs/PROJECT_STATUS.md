@@ -207,6 +207,17 @@ host facts, not a signed Release audit or a usable permission trial. A final
 signed Release executable needs its own static audit; the prior trial must not
 be reused for permission qualification.
 
+An isolated arm64 Debug package was also compiled from the same PR #17 source
+with bundle ID `com.keyrecord.trial.permissioncandidate20260929`, display name
+`KeyRecord Phase 1 Permission Candidate`, and the required trial-isolation
+Info.plist marker set before the build. Its product dylib has SHA-256
+`f3b79b50c9955b16914e9ae3009153fb43756523c1d37194383527679bb028d9`.
+The bundle is ad hoc signed and has no embedded provisioning profile;
+`launch-isolated-debug-trial.sh --check` rejected it with exit 2 without
+launching. This is a compiled source candidate, not an operable host-trial
+package. It must be rebuilt with a matching development signature and profile
+before any permission or Keychain run.
+
 ## Dedicated trial isolation and bounded restart follow-up — 2026-09-27
 
 PR #12 merged at `b57dbb796056e40d7967fea34879aedff39bbf4b`. This follow-up

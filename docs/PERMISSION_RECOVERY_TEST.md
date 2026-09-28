@@ -116,6 +116,16 @@ The reproduction passed after the change, and all 52
 status/liveness fault. It does not prove that macOS reports a same-process Input
 Monitoring revocation or that the Settings switch takes effect before restart.
 
+The macOS SDK's `IOKit/hidsystem/IOHIDLib.h` describes
+`IOHIDCheckAccess(kIOHIDRequestTypeListenEvent)` as a check for
+IOHIDManager/IOHIDDevice access. This product observes a Core Graphics
+event tap and already polls `CGPreflightListenEventAccess()` plus the tap and
+source state. The HID API's documented scope does not establish that it would
+notice this tap's same-process permission revocation sooner. No new permission
+probe was added on that assumption; the signed candidate must first show an
+effective Keychain identity and reach Collecting, then a bounded host observation
+can determine what macOS actually reports after revocation.
+
 Historical 2026-09-27 baseline: product source main
 `64590a0e9b57a55af9a23921983f2c16bb59c62e`.
 This follow-up adds only `testLivePermissionRevocationRequiresExplicitStartAndPreservesDurableCounts`

@@ -42,6 +42,12 @@ product bootstrap without falling back. Query construction tests do not perform
 real Keychain operations. A successful probe result still cannot establish that
 the product's own backend closed or reopened correctly across lock transitions;
 that requires an isolated product run with product observation.
+An opt-in hosted XCTest now compiles a real, exact-namespace data-protection
+Keychain add/read/attributes/delete/read-after-delete path. It requires an
+explicit run switch and a valid signed host manifest before any effect, and
+retains the test service in the private attempt directory for exact cleanup
+if a later step fails. It has only built unsigned; no real Keychain operation
+has run. It can establish isolated CRUD behavior, not product lock lifecycle.
 An offline product regression models an existing encrypted store after its old
 Keychain namespace becomes unavailable: relaunch stays out of Collecting, creates
 no replacement key and leaves the encrypted manifest unchanged. It does not

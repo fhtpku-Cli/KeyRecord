@@ -1,4 +1,5 @@
 import XCTest
+import Security
 @testable import LifecyclePreflight
 
 final class KeychainLifecycleScenarioTests: XCTestCase {
@@ -71,6 +72,72 @@ final class KeychainLifecycleScenarioTests: XCTestCase {
         XCTAssertEqual(backend.operations, [.add, .read, .attributes, .delete])
         XCTAssertEqual(backend.calls, 4)
     }
+
+    #if KEYRECORD_SIGNED_HOSTED_TESTS
+    func testAuthorizedIsolatedKeychainCRUD() throws {
+        let environment = ProcessInfo.processInfo.environment
+        guard environment["KEYRECORD_HOSTED_KEYCHAIN_TRIAL"] == "1" else {
+            throw XCTSkip("No authorized Keychain host trial requested")
+        }
+        guard let attemptPath = environment["PHASE1_QA_ATTEMPT"], attemptPath.hasPrefix("/") else {
+            XCTFail("Missing private host attempt")
+            return
+        }
+        let attempt = URL(fileURLWithPath: attemptPath).standardizedFileURL
+        let manifest = attempt.appendingPathComponent("host.json")
+        guard case .ready = LivePreflight.evaluate(manifestURL: manifest, attempt: attempt) else {
+            XCTFail("Host preflight did not authorize this trial")
+            return
+        }
+
+        let seed = UUID()
+        let namespace = ProbeNamespace(attempt: attempt.lastPathComponent, seed: seed)
+        let serviceRecord = attempt.appendingPathComponent("keychain-probe-service.txt")
+        guard !FileManager.default.fileExists(atPath: serviceRecord.path),
+              FileManager.default.createFile(atPath: serviceRecord.path,
+                  contents: Data(namespace.service.utf8), attributes: [.posixPermissions: 0o600]) else {
+            XCTFail("Could not retain the exact test-item service for cleanup")
+            return
+        }
+
+        let backend = SignedCandidateBackend(attempt: attempt, seed: seed)
+        var itemMayExist = false
+        defer {
+            if itemMayExist {
+                do {
+                    let cleanup = try backend.perform(.delete, namespace: namespace)
+                    XCTAssertTrue(cleanup.status == errSecSuccess || cleanup.status == errSecItemNotFound,
+                                  "Exact test-item cleanup failed")
+                } catch {
+                    XCTFail("Exact test-item cleanup was blocked")
+                }
+            }
+        }
+
+        let add = try backend.perform(.add, namespace: namespace)
+        itemMayExist = add.status == errSecSuccess || add.status == errSecDuplicateItem
+        guard add.status == errSecSuccess else { XCTFail("Test-item add failed: \(add.status)"); return }
+        let read = try backend.perform(.read, namespace: namespace)
+        XCTAssertEqual(read.status, errSecSuccess)
+        XCTAssertEqual(read.valueMatched, true)
+        let attributes = try backend.perform(.attributes, namespace: namespace)
+        XCTAssertEqual(attributes.status, errSecSuccess)
+        XCTAssertEqual(attributes.accessibility, kSecAttrAccessibleWhenUnlockedThisDeviceOnly as String)
+        XCTAssertEqual(attributes.synchronizable, false)
+        let deletion = try backend.perform(.delete, namespace: namespace)
+        guard deletion.status == errSecSuccess else {
+            XCTFail("Exact test-item delete failed: \(deletion.status)")
+            return
+        }
+        let missing = try backend.perform(.read, namespace: namespace)
+        guard missing.status == errSecItemNotFound else {
+            XCTFail("Test item remained after exact delete: \(missing.status)")
+            return
+        }
+        itemMayExist = false
+        XCTAssertEqual(backend.calls, 5)
+    }
+    #endif
 
     func testFailureHostedControllerWithoutWitnessHasZeroEffects() {
         let backend = RecordingBackend()

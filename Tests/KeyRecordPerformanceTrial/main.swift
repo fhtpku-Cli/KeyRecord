@@ -355,6 +355,7 @@ private enum PerformanceTrialCLI {
                       archive.diagnosticsEnabled, archive.diagnosticsIncludedInOverhead,
                       archive.retainedSampleCount == archive.samples.count,
                       archive.pid == archive.samples.first?.pid,
+                      let processStart = archive.samples.first?.startAbstime,
                       archive.executablePath == archive.samples.first?.executablePath,
                       archive.result.outcome == "measured", archive.result.productProcessOnly,
                       archive.result == ResourceEvaluator.recompute(archive),
@@ -379,7 +380,8 @@ private enum PerformanceTrialCLI {
                     machineRAM: report.machineRAM, bundleID: report.bundleID,
                     executableSHA256: report.executableSHA256,
                     productCodeSHA256: report.productCodeSHA256,
-                    executablePath: archive.executablePath, cpuPercent: cpu,
+                    executablePath: archive.executablePath, pid: archive.pid,
+                    startAbstime: processStart, cpuPercent: cpu,
                     footprintMeanBytes: mean, footprintPeakBytes: peak,
                     effectiveMeasureSeconds: duration, acceptedEvents: expected,
                     durableKeyDownTotal: expected / 2))
@@ -420,6 +422,7 @@ private enum PerformanceTrialCLI {
             for repeatIndex in 1...3 {
                 let directory = root.appendingPathComponent("\(phase)-\(repeatIndex)")
                 guard mkdir(directory.path, 0o700) == 0 else { throw TrialFailure("self-check-directory") }
+                let windowID = (phase == "typing" ? 0 : 3) + repeatIndex
                 let cpuRate = phase == "typing" ? 0.005 : 0.0005
                 let samples = (0...1_321).map { index in
                     let elapsed = Double(index) * 0.5
@@ -427,7 +430,8 @@ private enum PerformanceTrialCLI {
                         monotonicSeconds: 100 + elapsed,
                         cpuNanoseconds: UInt64(elapsed * cpuRate * 1e9),
                         childCPUNanoseconds: 0, footprintBytes: 50_000_000,
-                        pid: 12345, startAbstime: 42, executablePath: executablePath, consoleUID: 501)
+                        pid: Int32(12_000 + windowID), startAbstime: UInt64(42 + windowID),
+                        executablePath: executablePath, consoleUID: 501)
                 }
                 let request = ResourceWindowRequest(protocolKind: .formalFRS2, phase: phase,
                     warmupSeconds: 60, measureSeconds: 600, intervalSeconds: 0.5,

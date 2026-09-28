@@ -11,6 +11,8 @@ public struct PerformanceWindowSummary: Equatable, Sendable {
     public let executableSHA256: String
     public let productCodeSHA256: String
     public let executablePath: String
+    public let pid: Int32
+    public let startAbstime: UInt64
     public let cpuPercent: Double
     public let footprintMeanBytes: Double
     public let footprintPeakBytes: UInt64
@@ -21,6 +23,7 @@ public struct PerformanceWindowSummary: Equatable, Sendable {
     public init(phase: String, architecture: String, macOS: String, machineModel: String,
                 chip: String, machineRAM: UInt64, bundleID: String,
                 executableSHA256: String, productCodeSHA256: String, executablePath: String,
+                pid: Int32, startAbstime: UInt64,
                 cpuPercent: Double, footprintMeanBytes: Double, footprintPeakBytes: UInt64,
                 effectiveMeasureSeconds: Double, acceptedEvents: Int64, durableKeyDownTotal: Int64) {
         self.phase = phase
@@ -33,6 +36,8 @@ public struct PerformanceWindowSummary: Equatable, Sendable {
         self.executableSHA256 = executableSHA256
         self.productCodeSHA256 = productCodeSHA256
         self.executablePath = executablePath
+        self.pid = pid
+        self.startAbstime = startAbstime
         self.cpuPercent = cpuPercent
         self.footprintMeanBytes = footprintMeanBytes
         self.footprintPeakBytes = footprintPeakBytes
@@ -47,6 +52,7 @@ public enum PerformanceHostError: Error, Equatable {
     case phaseCount
     case identityMismatch
     case invalidWindow
+    case reusedProcessWindow
 }
 
 public struct PerformanceHostResult: Equatable, Sendable, Encodable {
@@ -72,6 +78,11 @@ public struct PerformanceHostResult: Equatable, Sendable, Encodable {
 }
 
 public enum PerformanceHostEvaluator {
+    private struct ProcessIdentity: Hashable {
+        let pid: Int32
+        let startAbstime: UInt64
+    }
+
     public static func evaluate(_ windows: [PerformanceWindowSummary]) throws -> PerformanceHostResult {
         guard windows.count == 6, let first = windows.first else { throw PerformanceHostError.windowCount }
         let typing = windows.filter { $0.phase == "typing" }
@@ -97,6 +108,7 @@ public enum PerformanceHostEvaluator {
                   window.executableSHA256.allSatisfy({ "0123456789abcdef".contains($0) }),
                   window.productCodeSHA256.allSatisfy({ "0123456789abcdef".contains($0) }),
                   !window.executablePath.isEmpty,
+                  window.pid > 0, window.startAbstime > 0,
                   window.cpuPercent.isFinite, window.cpuPercent >= 0,
                   window.footprintMeanBytes.isFinite, window.footprintMeanBytes > 0,
                   Double(window.footprintPeakBytes) >= window.footprintMeanBytes,
@@ -106,6 +118,8 @@ public enum PerformanceHostEvaluator {
                 throw PerformanceHostError.invalidWindow
             }
         }
+        let processes = Set(windows.map { ProcessIdentity(pid: $0.pid, startAbstime: $0.startAbstime) })
+        guard processes.count == windows.count else { throw PerformanceHostError.reusedProcessWindow }
         func median(_ values: [Double]) -> Double {
             let sorted = values.sorted()
             return sorted[sorted.count / 2]

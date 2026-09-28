@@ -102,7 +102,35 @@ key gate and session to remain closed after it completes.
 Debug build-for-testing and all 55 `ProductRecoveryQuitTests` passed after the
 repair (zero failures, 63 seconds). Logs:
 `/private/tmp/keyrecord-rebuild-race-{build-red,red,build-green,green}.log`.
-The new repair has no live host result yet; `10676e1aa` is the observed candidate.
+Those offline results were followed by the separately approved host round below.
+
+### Bounded repair confirmation at `8e3ca0c55`
+
+After the owner explicitly confirmed readiness, the signed repaired trial ran
+once using the same private store/namespace and `--recovery3` controller. The
+owner confirmed one Command-A in TextEdit and returned to chat. The journal has
+17 records: 15 Collecting, then two Stopped at normal Quit. There is no Blocked
+phase, privacy trigger or denied-preflight witness. Three capture sessions
+occurred; the rebuilding symptom did not recur during this bounded round.
+
+The summary reports 3 down/3 up/6 modifier callbacks, 12 accepted handoffs,
+aggregate delta 3, shortcut total 7, bare total 0, and 4 issued/returned/succeeded/
+durable writes. Failures, timeouts, invalidations, overflow and snapshot read
+failures are zero. Although the owner confirmed one Command-A, these aggregate
+counters cannot identify the remaining two increments or establish exact
+TextEdit/shortcut attribution. They are not reported as three Command-A presses.
+
+Normal Quit was requested at 55 seconds; controller exited 0 before 60 seconds
+without forced termination. The quit action reports `phaseAfter=stopped`,
+`sessionLiveAfter=false`, saved outcome and terminate decision; a process check
+found no remaining App. The summary's cached `captureSessionLive=true` is not a
+post-quit liveness witness. Evidence: `privacy-recovery3.jsonl` and
+`summary-recovery3.json` in the existing private root, plus
+`/private/tmp/keyrecord-mvp-recovery3-controller-20260929.log`.
+
+This completes the narrow isolated regrant/restart and foreground-rebuild
+regression check for this signed candidate. Same-process revoke/regrant,
+continuous closed-interval privacy, lock/sleep and full Release remain separate.
 
 ## Permission polling fallback — 2026-09-28 candidate
 

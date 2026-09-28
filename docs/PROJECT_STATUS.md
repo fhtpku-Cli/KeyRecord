@@ -3,6 +3,17 @@
 ## Current Apple Silicon MVP status — 2026-09-29
 
 Latest autonomous checkpoint: [MVP closeout](MVP_CLOSEOUT_20260929.md).
+The follow-up signed repair `8e3ca0c55` now has a separately approved bounded
+host result: Collecting survived the owner's TextEdit input and return to chat,
+with three capture sessions, no false Blocked phase, four successful durable
+writes and normal Quit at 55 seconds. No process remained. The 17-record journal
+contains only Collecting then Stopped. Shortcut total moved 4 to 7; the owner
+confirmed one Command-A, but aggregate-only evidence cannot identify the other
+two shortcut increments. This closes the narrow regrant/isolated-restart and
+foreground-rebuild regression round, not same-process revocation or the full
+privacy/Release requirements below. No further owner action is needed for this
+round.
+
 The subsequent reason-classification repair replaces the generic handler's
 incorrect `sessionLocked` label with `privacyCheckRequired`, while retaining
 actual lock reasons and all closure protections. Three new assertions failed

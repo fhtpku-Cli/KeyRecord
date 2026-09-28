@@ -336,6 +336,34 @@ with zero failures. Red/green logs are
 `/private/tmp/keyrecord-rebuild-race-{build-red,red,build-green,green}.log`.
 These are synthetic results for the newer repair, not another host qualification.
 
+## Bounded host confirmation of `8e3ca0c55`
+
+The signed repair built using existing assets and was installed at the same
+trial path, retaining `10676e1aa` at
+`/private/tmp/keyrecord-mvp-installed-10676e1aa-backup.app`. Strict signature and
+no-launch isolation checks passed. The locally compiled controller's new
+`--recovery3` mode preserves all earlier evidence and uses new journal/summary
+files. Only after explicit owner readiness did this one 60-second round launch.
+
+The owner confirmed one Command-A and returned from TextEdit to chat. Three
+capture sessions occurred. All 15 pre-stop journal records stayed Collecting;
+two final records were Stopped, with no Blocked phase or privacy trigger.
+Summary totals: 3 down/3 up/6 modifier callbacks, 12 accepted handoffs, delta 3,
+shortcuts 7/bare keys 0, 4 issued and 4 successful durable writes, zero failures,
+timeouts, invalidations, overflow or snapshot read failures. Aggregate evidence
+does not identify the other two shortcut increments or exact attribution.
+
+The controller requested normal Quit at 55 seconds and exited 0 before 60
+seconds. The quit action records stopped, sessionLiveAfter=false, saved and
+terminate. A process check found no remaining App; forced stop was not used.
+The summary's cached live flag is not a teardown witness. Evidence lives in the
+same private root as `privacy-recovery3.jsonl` / `summary-recovery3.json` and in
+`/private/tmp/keyrecord-mvp-recovery3-controller-20260929.log`.
+
+The narrow permission regrant/isolated-restart and false foreground-rebuild
+block task is complete for this candidate. The owner needs no further action
+for this round; this does not expand the acceptance scope to the items below.
+
 Still open: current-candidate attribution rows, native consent
 and accessibility, permission revoke/regrant, continuous lock/sleep closure and
 recovery, exhaustive live product observation for the hosted Keychain controller,

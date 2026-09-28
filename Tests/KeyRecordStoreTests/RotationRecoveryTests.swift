@@ -5,7 +5,30 @@ import KeyRecordCore
 
 actor RotationBackend: KeychainBackend {
     var items: [KeychainItemID: Data] = [:]
-    func read(_ id: KeychainItemID) async throws -> Data? { items[id] }
+    private var readToSuspend: KeychainItemID?
+    private var suspendedRead: CheckedContinuation<Void, Never>?
+    private var readEntered: CheckedContinuation<Void, Never>?
+
+    func suspendNextRead(_ id: KeychainItemID) { readToSuspend = id }
+    func waitForSuspendedRead() async {
+        if suspendedRead != nil { return }
+        await withCheckedContinuation { readEntered = $0 }
+    }
+    func releaseRead() {
+        suspendedRead?.resume()
+        suspendedRead = nil
+    }
+    func read(_ id: KeychainItemID) async throws -> Data? {
+        if readToSuspend == id {
+            readToSuspend = nil
+            await withCheckedContinuation { continuation in
+                suspendedRead = continuation
+                readEntered?.resume()
+                readEntered = nil
+            }
+        }
+        return items[id]
+    }
     func versions(in namespace: KeychainNamespace) async throws -> Set<KeyVersion> {
         Set(items.keys.filter { $0.namespace == namespace }.compactMap(\.version))
     }
@@ -135,6 +158,79 @@ final class RotationRecoveryTests: XCTestCase {
         XCTAssertEqual(Set(newFiles).subtracting(oldFiles.map { $0 }), [entry.locator.fileName],
                        "only the new locator file appears")
         XCTAssertFalse(oldFiles.contains(entry.locator.fileName))
+        await session.release()
+    }
+
+    func testClosedMigrationDoesNotWriteAfterPendingKeyRead() async throws {
+        let wiring = try await makeWiring()
+        defer { wiring.harness.cleanup() }
+        try await bootCommitted((wiring.store, wiring.ring))
+        try await seedNewKey(wiring)
+        let filesBefore = Set(try wiring.harness.rootEntries())
+        let session = try await wiring.store.acquireExclusiveAccess()
+        let generation = try wiring.gate.begin()
+        let access = wiring.ring.access(generation, versions: [v1, v2])
+        await wiring.backend.suspendNextRead(.key(wiring.namespace, v1))
+
+        let migration = Task {
+            try await session.migrateData(KeyRotation(from: v1, to: v2), access: access)
+        }
+        await wiring.backend.waitForSuspendedRead()
+        await wiring.store.closeProtectedSession()
+        await wiring.backend.releaseRead()
+
+        do {
+            try await migration.value
+            XCTFail("Migration from a closed protected session completed")
+        } catch is CancellationError {} catch { XCTFail("Unexpected error: \(error)") }
+        XCTAssertEqual(Set(try wiring.harness.rootEntries()), filesBefore,
+                       "A closed migration must not create a new ciphertext locator")
+        await session.release()
+    }
+
+    func testClosedManifestReencryptionDoesNotWriteAfterPendingKeyRead() async throws {
+        let wiring = try await makeWiring()
+        defer { wiring.harness.cleanup() }
+        try await bootCommitted((wiring.store, wiring.ring))
+        try await seedNewKey(wiring)
+        let manifestURL = wiring.harness.root.appendingPathComponent(ManifestDiscovery.fileName)
+        let manifestBefore = try Data(contentsOf: manifestURL)
+        let session = try await wiring.store.acquireExclusiveAccess()
+        let generation = try wiring.gate.begin()
+        let access = wiring.ring.access(generation, versions: [v1, v2])
+        await wiring.backend.suspendNextRead(.key(wiring.namespace, v2))
+
+        let reencryption = Task {
+            try await session.reencryptManifestAndJournals(KeyRotation(from: v1, to: v2), access: access)
+        }
+        await wiring.backend.waitForSuspendedRead()
+        await wiring.store.closeProtectedSession()
+        await wiring.backend.releaseRead()
+
+        do {
+            try await reencryption.value
+            XCTFail("Manifest reencryption from a closed protected session completed")
+        } catch is CancellationError {} catch { XCTFail("Unexpected error: \(error)") }
+        XCTAssertEqual(try Data(contentsOf: manifestURL), manifestBefore,
+                       "A closed reencryption must not replace the manifest")
+        await session.release()
+    }
+
+    func testOldReferenceSessionCannotScanAfterStoreReopens() async throws {
+        let wiring = try await makeWiring()
+        defer { wiring.harness.cleanup() }
+        try await bootCommitted((wiring.store, wiring.ring))
+        let session = try await wiring.store.acquireExclusiveAccess()
+        let generation = try wiring.gate.begin()
+        let access = wiring.ring.access(generation, versions: [v1])
+        await wiring.store.closeProtectedSession()
+        let reopened = try await wiring.store.bootstrap()
+        XCTAssertEqual(reopened, .opened)
+
+        do {
+            _ = try await session.scan(access: access)
+            XCTFail("A reference session from before closure scanned the reopened store")
+        } catch is CancellationError {} catch { XCTFail("Unexpected error: \(error)") }
         await session.release()
     }
 

@@ -41,6 +41,13 @@ results establish offline behavior only. Actual macOS permission revocation and
 regrant, real Keychain access, lock timing, formal ARM/Intel resource measurement
 and signed Release qualification remain open.
 
+Candidate review reproduced a late-write fault in protected Keychain rotation:
+closing the store during a pending key read allowed an old migration to create a
+ciphertext locator or replace the manifest afterward. The existing protected
+session token now fences the reference session and resumed store work. Both
+failing-first regressions pass after repair; the Store suite and a SwiftPM
+Release build passed. This is an offline fix, not a host lock result.
+
 The resource sampler's own synthetic self-check initially returned
 `interrupted/duration-short`: its last sample landed 0.066 seconds beyond the
 nominal endpoint and was discarded. The measurement evaluator now includes the

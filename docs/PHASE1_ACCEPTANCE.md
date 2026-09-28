@@ -184,6 +184,18 @@ passed. The first product XCTest attempt used incompatible DerivedData and faile
 before running tests; the fresh test build produced the 53-test passing result.
 This is an offline race repair, not a real lock or Keychain qualification.
 
+Candidate review found a further asynchronous rotation boundary. A pending
+Keychain read could return after the protected store session closed and let the
+old migration create a ciphertext locator or replace the manifest. Two
+deterministic regressions failed before repair and passed afterward.
+Protected-reference sessions now retain the store session token across migration,
+manifest reencryption, recovery and scans. Rotation checks the token and the
+existing key gate after awaited key reads and before further file writes. A
+separate test rejects a reference session reused after close and reopen. The
+Store suite passed 172 tests before that last test was added; the last test
+passed separately, and the SwiftPM Release build succeeded. These are offline
+results, not a real lock or Keychain qualification.
+
 For source commit `888438edddad74d5779d28a6b40be203174391a6`, `PrivacyEgressTests` and `PrivacyBinaryAuditTests` passed 6/6. An unsigned Release App build with `ARCHS="arm64 x86_64"` and `ONLY_ACTIVE_ARCH=NO` succeeded; `lipo -archs` confirmed both slices in the executable. `Scripts/audit-product-network.sh` passed on that exact executable: SHA-256 `8aa1be8f9a0cacc9e8f8890287f2133f40e65d76e9ca36f3868d8f424113fcf1`, 1,854 undefined-symbol lines, 20,132 string lines, zero matches, `liveReceipt=false`. This is static evidence for the specified unsigned candidate only. The final signed Release artifact has not been built or audited, and no live network observation is claimed.
 
 For source commit `69e34284ea6af1f69f25e45a6f81933d68af5c66`, the same six privacy source and negative-fixture tests passed. Its unsigned universal Release App built successfully with arm64 and x86_64 slices. The exact executable passed `Scripts/audit-product-network.sh`: SHA-256 `89d44bbffd29c12707fba8f5bd35a88f962ca198e314793af9550615cd28d72b`, 1,854 undefined-symbol lines, 20,127 string lines, zero matches, `liveReceipt=false`. This was the next unsigned candidate; the signed Release artifact remained unaudited.

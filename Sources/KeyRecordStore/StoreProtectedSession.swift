@@ -39,12 +39,17 @@ extension ObjectStore {
         lease id: UUID,
         rotation: KeyRotation,
         access: KeyringProtectedAccess,
+        sessionToken: UUID,
         injection provided: MigrationInjection? = nil
     ) async throws {
         try requireLease(id)
+        try requireProtectedSession(sessionToken)
+        try access.check()
         let injection = provided ?? configuredMigrationInjection
         let snapshot = try opened()
         for entry in snapshot.entries where entry.keyVersion == rotation.from.rawValue {
+            try requireProtectedSession(sessionToken)
+            try access.check()
             let bytes = try readEntryFile(entry)
             let payload = try await access.withMaterial(rotation.from) { oldMaterial -> Data in
                 let opened = try LocatorCodec.open(
@@ -52,10 +57,13 @@ extension ObjectStore {
                     materialByVersion: [rotation.from.rawValue: oldMaterial])
                 return opened.payload
             }
+            try requireProtectedSession(sessionToken)
             let sealed = try await access.withMaterial(rotation.to) { newMaterial -> SealedObject in
                 try LocatorCodec.seal(identity: entry.identity, payload: payload,
                                       keyVersion: rotation.to.rawValue, material: newMaterial)
             }
+            try requireProtectedSession(sessionToken)
+            try access.check()
             try fileSystem.commitFile(name: sealed.locator.fileName, in: root,
                                       bytes: sealed.envelope,                                       phase: .data, injection: injection.data)
             let relocated = ManifestEntry(identity: entry.identity, locator: sealed.locator,
@@ -69,10 +77,13 @@ extension ObjectStore {
                                       keyVersion: rotation.from.rawValue,
                                       material: oldMaterial).envelope
             }
+            try requireProtectedSession(sessionToken)
+            try access.check()
             try fileSystem.commitFile(name: ManifestDiscovery.fileName, in: root,
                                       bytes: manifestEnvelope, phase: .data,
                                       injection: injection.data)
             manifestBox = nextManifest
+            try access.check()
             try fileSystem.removeFile(name: entry.locator.fileName, in: root,
                                       injection: injection.cleanup)
         }
@@ -84,9 +95,12 @@ extension ObjectStore {
         lease id: UUID,
         rotation: KeyRotation,
         access: KeyringProtectedAccess,
+        sessionToken: UUID,
         injection provided: DurabilityInjection? = nil
     ) async throws {
         try requireLease(id)
+        try requireProtectedSession(sessionToken)
+        try access.check()
         let injection = provided ?? configuredMigrationInjection.manifest
         let snapshot = try opened()
         guard snapshot.currentKeyVersion == rotation.from.rawValue else { return }
@@ -97,21 +111,29 @@ extension ObjectStore {
             try LocatorCodec.seal(identity: CanonicalLogicalIdentity.manifest,
                                   payload: manifestPayload,
                                   keyVersion: rotation.to.rawValue,
-                                  material: newMaterial).envelope
+                                      material: newMaterial).envelope
         }
+        try requireProtectedSession(sessionToken)
+        try access.check()
         try fileSystem.commitFile(name: ManifestDiscovery.fileName, in: root,
                                   bytes: manifestEnvelope, phase: .manifest, injection: injection)
         manifestBox = nextManifest
+        try access.check()
         try await journalSource.reencryptJournals(rotation: rotation, access: access)
+        try requireProtectedSession(sessionToken)
+        try access.check()
     }
 
     /// Reconcile owned artifacts after interruption. Only authenticated proven-owned
     /// orphans/temps are removed; unresolved names stay protected and block retirement.
-    func reconcileAfterRecovery(lease id: UUID, access: KeyringProtectedAccess) async throws {
+    func reconcileAfterRecovery(lease id: UUID, access: KeyringProtectedAccess,
+                                sessionToken: UUID) async throws {
         try requireLease(id)
-        let sessionToken = protectedSessionToken
+        try requireProtectedSession(sessionToken)
+        try access.check()
         let versions = try await keySource.namespaceKeyVersions()
         try requireProtectedSession(sessionToken)
+        try access.check()
         let classified = try fileSystem.listEntries(in: root).map { entry -> (RootEntry, RootEntryClassification) in
             (entry, RootEntryClassifier.classify(entry))
         }
@@ -120,22 +142,30 @@ extension ObjectStore {
         }
         let journalLocators = try await pendingJournalLocators(known: versions)
         try requireProtectedSession(sessionToken)
+        try access.check()
         try await reconcileUnreferenced(nonManifest,
                                         referenced: try opened().locators.union(journalLocators), known: versions,
                                         sessionToken: sessionToken)
+        try requireProtectedSession(sessionToken)
+        try access.check()
     }
 
     /// Complete protected-reference scan. Every referenced artifact is authenticated.
     /// Coverage includes all five kinds (empty journal sets are still complete coverage);
     /// any unreadable reference makes required versions unknowable and blocks retirement.
-    func protectedScan(lease id: UUID, access: KeyringProtectedAccess) async throws
+    func protectedScan(lease id: UUID, access: KeyringProtectedAccess,
+                       sessionToken: UUID) async throws
         -> ProtectedReferenceSnapshot {
         try requireLease(id)
+        try requireProtectedSession(sessionToken)
+        try access.check()
         let manifest = try opened()
         var references: [ProtectedReference] = []
         let manifestBytes = try fileSystem.readWholeFile(name: ManifestDiscovery.fileName, in: root)
         let materials = try await materialMap(for: Set(manifest.entries.map(\.keyVersion))
-                                              .union([manifest.currentKeyVersion]))
+                                              .union([manifest.currentKeyVersion]), sessionToken: sessionToken)
+        try requireProtectedSession(sessionToken)
+        try access.check()
         if (try? EncryptedManifest.open(envelope: manifestBytes, materialByVersion: materials)) != nil {
             references.append(.known(.fixedManifest, KeyVersion(rawValue: manifest.currentKeyVersion)))
         } else {
@@ -157,10 +187,16 @@ extension ObjectStore {
         }
         do {
             references.append(contentsOf: try await journalSource.journalProtectedReferences(access: access))
+            try requireProtectedSession(sessionToken)
+            try access.check()
         } catch {
+            try requireProtectedSession(sessionToken)
+            try access.check()
             references.append(.unreadable(.unfinishedJournal))
             references.append(.unreadable(.journalRecoveryObject))
         }
+        try requireProtectedSession(sessionToken)
+        try access.check()
         return ProtectedReferenceSnapshot(coverage: Set(ProtectedReferenceKind.allCases),
                                           references: references)
     }
@@ -185,47 +221,13 @@ extension ObjectStore {
         return KeyVersion(rawValue: parsed.header.keyVersion)
     }
 
-    private func materialMap(for versions: Set<UInt32>) async throws -> [UInt32: Data] {
+    private func materialMap(for versions: Set<UInt32>, sessionToken: UUID) async throws -> [UInt32: Data] {
         var result = [UInt32: Data]()
-        for raw in versions { result[raw] = try await material(raw, versions: nil) }
+        for raw in versions {
+            try requireProtectedSession(sessionToken)
+            result[raw] = try await material(raw, versions: nil)
+            try requireProtectedSession(sessionToken)
+        }
         return result
-    }
-}
-
-extension ObjectStore: ProtectedReferenceProviding {
-    public func acquireExclusiveAccess() async throws -> any ProtectedReferenceSession {
-        StoreSession(store: self, lease: try beginLease())
-    }
-}
-
-private final class StoreSession: ProtectedReferenceSession, @unchecked Sendable {
-    private let store: ObjectStore
-    private let lease: UUID
-    private var released = false
-
-    init(store: ObjectStore, lease: UUID) {
-        self.store = store; self.lease = lease
-    }
-
-    func migrateData(_ rotation: KeyRotation, access: KeyringProtectedAccess) async throws {
-        try await store.migrateObjects(lease: lease, rotation: rotation, access: access)
-    }
-
-    func reencryptManifestAndJournals(_ rotation: KeyRotation, access: KeyringProtectedAccess) async throws {
-        try await store.reencryptFixedManifest(lease: lease, rotation: rotation, access: access)
-    }
-
-    func recoverAndReconcile(access: KeyringProtectedAccess) async throws {
-        try await store.reconcileAfterRecovery(lease: lease, access: access)
-    }
-
-    func scan(access: KeyringProtectedAccess) async throws -> ProtectedReferenceSnapshot {
-        try await store.protectedScan(lease: lease, access: access)
-    }
-
-    func release() async {
-        guard !released else { return }
-        released = true
-        await store.endLease(lease)
     }
 }

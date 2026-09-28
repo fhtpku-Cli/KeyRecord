@@ -79,6 +79,18 @@ the lock notification and checks both results, including no automatic recovery.
 The interval is a polling cadence, not a guaranteed real-macOS closure time;
 actual lock/sleep delivery and continuous closed-state evidence remain open.
 
+The Debug distributed screen-lock callback now revokes the key gate, capture queue,
+and manual recovery fence synchronously, before scheduling main-actor lifecycle
+cleanup. A hostless product test failed on the previous implementation: directly
+after a delivered lock notification, the gate and queue were still open and a
+synthetic event was accepted. The same test now observes the gate and queue
+closed and the event rejected before the callback returns. The unsigned Debug
+App test bundle compiled; two logged runs of all 53 product recovery tests
+passed. An earlier full run reported
+three failures with its diagnostic lines lost to console truncation; the two
+logged reruns did not reproduce them. This proves the local callback ordering,
+not delivery timing or protected-state closure on a real macOS lock.
+
 ## Executable lanes and their meaning
 
 - `Scripts/verify-local.sh --build-only`: package tests, offline harness CLI regressions, SwiftPM Release, universal unsigned App Release and native Debug test compilation. Does not launch capture or run App XCTest. A completed build is not Intel execution.

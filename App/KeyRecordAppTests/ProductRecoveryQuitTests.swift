@@ -58,9 +58,9 @@ private struct SilentLogin: LoginItemBackend {
 
 @MainActor
 private final class ManualLockNotifications: LockNotificationCentering {
-    private var handlers: [Notification.Name: [@MainActor () -> Void]] = [:]
+    private var handlers: [Notification.Name: [@Sendable () -> Void]] = [:]
     func addObserver(for name: Notification.Name,
-                     handler: @escaping @MainActor () -> Void) -> any NSObjectProtocol {
+                     handler: @escaping @Sendable () -> Void) -> any NSObjectProtocol {
         handlers[name, default: []].append(handler)
         return NSObject()
     }
@@ -550,6 +550,21 @@ final class ProductRecoveryQuitTests: XCTestCase {
         XCTAssertEqual(start["sessionLiveAfter"] as? Bool, true)
         XCTAssertEqual(start["readinessOutcome"] as? String,
                        "lock=unlocked,secure=disabled,foreground=attributable")
+    }
+
+    func testLockNotificationClosesGateBeforeAsyncCleanup() async throws {
+        let product = try await collecting()
+        product.host.setLock(.locked)
+        product.notifications.post(ProductComposition.screenLockedNotification)
+
+        XCTAssertFalse(product.keyGateOpen)
+        XCTAssertFalse(product.composition.capture.queue.isOpen)
+        XCTAssertEqual(try product.tap?.press(), .closed)
+
+        try await waitUntil("blocked after lock notification") {
+            let live = await product.live
+            return product.phase == .blocked && !live
+        }
     }
 
     func testCollectingPollClosesWhenLockNotificationIsMissing() async throws {

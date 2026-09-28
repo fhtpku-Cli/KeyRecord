@@ -17,15 +17,15 @@ final class ProductMaintenanceHooks {
 /// registration is testable without touching the real system session (KR-01).
 @MainActor
 protocol LockNotificationCentering {
-    func addObserver(for name: Notification.Name, handler: @escaping @MainActor () -> Void) -> any NSObjectProtocol
+    func addObserver(for name: Notification.Name, handler: @escaping @Sendable () -> Void) -> any NSObjectProtocol
 }
 
 @MainActor
 struct DistributedLockNotifications: LockNotificationCentering {
     func addObserver(for name: Notification.Name,
-                     handler: @escaping @MainActor () -> Void) -> any NSObjectProtocol {
+                     handler: @escaping @Sendable () -> Void) -> any NSObjectProtocol {
         DistributedNotificationCenter.default().addObserver(forName: name, object: nil, queue: nil) { _ in
-            Task { @MainActor in handler() }
+            handler()
         }
     }
 }
@@ -382,7 +382,9 @@ final class ProductComposition: NSObject, NSMenuDelegate {
         // KR-01: registration now happens with a non-nil provider, because it was injected
         // into the initializer instead of assigned after the initializer returned.
         guard localSessionLock != nil else { return }
-        observers.append(lockNotifications.addObserver(for: Self.screenLockedNotification) { [weak self] in
+        observers.append(lockNotifications.addObserver(for: Self.screenLockedNotification) {
+            [weak self, reduction, queue, manualRecoveryFence] in
+            reduction.revokeProtectedState(queue: queue, recoveryFence: manualRecoveryFence)
             Task { @MainActor in await self?.handleSessionLocked() }
         })
         observers.append(lockNotifications.addObserver(for: Self.screenUnlockedNotification) { [weak self] in

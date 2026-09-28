@@ -46,6 +46,12 @@ An offline product regression models an existing encrypted store after its old
 Keychain namespace becomes unavailable: relaunch stays out of Collecting, creates
 no replacement key and leaves the encrypted manifest unchanged. It does not
 establish real macOS Keychain access or migrate earlier trial data.
+The collecting monitor now also reads the session-lock provider on each 250 ms
+poll. A locked or unknown result revokes capture, closes protected state and
+requires an explicit Start after an unlocked read. A hostless product test omits
+the lock notification and checks both results, including no automatic recovery.
+The interval is a polling cadence, not a guaranteed real-macOS closure time;
+actual lock/sleep delivery and continuous closed-state evidence remain open.
 
 ## Executable lanes and their meaning
 

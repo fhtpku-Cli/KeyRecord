@@ -552,6 +552,30 @@ final class ProductRecoveryQuitTests: XCTestCase {
                        "lock=unlocked,secure=disabled,foreground=attributable")
     }
 
+    func testCollectingPollClosesWhenLockNotificationIsMissing() async throws {
+        for lockState in [SessionLockState.locked, .unknown] {
+            let product = try await collecting()
+            product.host.setLock(lockState)
+            try await waitUntil("closed after missed \(lockState) notification") {
+                let live = await product.live
+                return product.phase == .blocked && !live && !product.keyGateOpen
+            }
+            XCTAssertFalse(product.composition.flow.sensitiveContentVisible)
+            XCTAssertEqual(try product.tap?.press(), .closed)
+            let marks = try product.marks()
+            XCTAssertTrue(marks.contains {
+                $0["role"] as? String == "begin"
+                    && $0["privacyTrigger"] as? String == "sessionLockMonitor-\(lockState)"
+            })
+
+            product.host.setLock(.unlocked)
+            try await Task.sleep(for: .milliseconds(400))
+            XCTAssertEqual(product.phase, .blocked)
+            await product.composition.startOrRetry()
+            XCTAssertEqual(product.phase, .collecting)
+        }
+    }
+
     func testClosedIntervalBoundariesComeFromTheProductPath() async throws {
         let product = try await collecting()
         try await product.press(1)

@@ -396,13 +396,7 @@ final class ProductComposition: NSObject, NSMenuDelegate {
     /// Lock/sleep contract: revoke immediately, clear queued events and sensitive
     /// snapshots, close the scheduler and key gate, then stop the source.
     func handleSessionLocked() async {
-        diagnostics.notePrivacyTrigger("screenLockedNotification")
-        manualRecoveryFence.invalidate()
-        gate.update(.locked)
-        capture.queue.revoke()
-        reduction.clear()
-        lifecycle.requireRecovery(reason: .sessionLocked)
-        await closeProtectedState()
+        await closeForSessionLock(trigger: "screenLockedNotification")
     }
 
     /// KR-01/lock contract: unlock only exposes an explicit retry path. The key gate stays
@@ -412,6 +406,18 @@ final class ProductComposition: NSObject, NSMenuDelegate {
         handleRuntimeAvailable()
     }
     #endif
+
+    private func closeForSessionLock(trigger: String) async {
+        #if DEBUG
+        diagnostics.notePrivacyTrigger(trigger)
+        #endif
+        manualRecoveryFence.invalidate()
+        gate.update(.locked)
+        capture.queue.revoke()
+        reduction.clear()
+        lifecycle.requireRecovery(reason: .sessionLocked)
+        await closeProtectedState()
+    }
 
     private func handleRuntimeAvailable() {
         syncRuntime()
@@ -848,6 +854,12 @@ final class ProductComposition: NSObject, NSMenuDelegate {
             #endif
             while !Task.isCancelled {
                 guard let self else { break }
+                let lockState = await self.capture.sessionLockState()
+                guard !Task.isCancelled, self.monitorIsCurrent(generation) else { break }
+                if lockState != .unlocked {
+                    await self.closeForSessionLock(trigger: "sessionLockMonitor-\(lockState)")
+                    break
+                }
                 let permission = await self.capture.inputMonitoringStatus()
                 guard !Task.isCancelled, self.monitorIsCurrent(generation) else { break }
                 #if DEBUG

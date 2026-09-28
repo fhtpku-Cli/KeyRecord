@@ -2,7 +2,7 @@
 
 Current status: [PROJECT_STATUS.md](PROJECT_STATUS.md). Requirements: [PHASE1_CONTRACT.md](PHASE1_CONTRACT.md) and architecture §12.4/15. This matrix separates executable regression coverage from host qualification; it is not a new gate or acceptance receipt.
 
-**Current MVP scope (2026-09-29):** The first usable capture MVP may target native Apple Silicon only. Intel compatibility and Intel performance are later complete G1/v1 work, not reasons to block this MVP. Apple Silicon product performance, effective Keychain access, real collection/privacy behavior and a working collecting build remain unverified. The historical full G1 requirements and prior candidate-specific results below retain their stated scope; this decision does not turn a missing measurement into PASS.
+**Current MVP scope (2026-09-29):** The first usable capture MVP may target native Apple Silicon only. Intel compatibility and Intel performance are later complete G1/v1 work, not reasons to block this MVP. A provisioned Debug trial has initialized protected storage and reached Collecting on isolated restart. Apple Silicon product performance, complete Keychain lifecycle, physical input/durability, privacy recovery and a qualified collecting Release remain unverified. The historical full G1 requirements and prior candidate-specific results below retain their stated scope; this decision does not turn a missing measurement into PASS.
 
 ## Evidence and remaining work
 
@@ -13,8 +13,12 @@ provisioning attempt: the arm64 trial at `de8b9c526` is signed and passed the
 existing no-launch identity/profile check. An approved first-consent run completed
 key provisioning and encrypted preferences initialization before Input Monitoring
 denial stopped capture. No session or input was accepted. OS Quit and Reopen
-showed a blocked state; recovery via the isolated wrapper is prepared but not
-yet run. The remaining live acceptance rows below stay open.
+showed a blocked state. A separately approved isolated restart reached Collecting
+with granted Input Monitoring and one session, then quit normally at the
+controller deadline. Keyboard callbacks, accepted events, aggregates and
+flushes were all zero. This verifies bounded startup recovery, not physical
+input or collected-count retention. The remaining live acceptance rows below
+stay open.
 
 Current-main update: PR #13 merged at `6257b03b40f618fd976c6cbcc77dc83d374c59bb`. Marked Debug trials now reject missing isolation configuration on relaunch. The [bounded permission restart observation](PERMISSION_RECOVERY_TEST.md) preserves counts and normal Quit, but does not close same-process revoke/regrant coverage. PR #10 Secure Input evidence remains historical in [its report](PR10_SINGLEPAGE_REGRESSION.md); formal Phase 1 acceptance remains open.
 

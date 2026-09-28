@@ -18,8 +18,13 @@ capture startup then failed with `permissionStatus=denied`, zero sessions and
 zero accepted events. It quit normally. The owner enabled permission and used
 OS Quit and Reopen; the reopened instance showed blocked/privacy check and did
 not write to the original journal. This is consistent with missing trial
-environment on OS relaunch, not evidence of a new Keychain error. Explicit
-isolated recovery is prepared; real revoke/regrant and Collecting remain open.
+environment on OS relaunch, not evidence of a new Keychain error. A separately
+approved explicit isolated restart reused the store and namespace and reached
+Collecting with `inputMonitoringPreflightGranted`. It recorded one session,
+zero keyboard callbacks and zero aggregate/flush counts, then quit normally
+after the controller requested termination at 55 seconds. No permission was
+changed during this recovery round. It establishes isolated startup recovery;
+physical input and same-process revoke/regrant remain unverified.
 
 ## Permission polling fallback — 2026-09-28 candidate
 

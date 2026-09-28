@@ -141,8 +141,34 @@ known trial root and namespace and writes `privacy-reopen.jsonl` and
 `summary-reopen.json`, preserving the first run. It compiled with Swift 6 and
 `-parse-as-library`; the standalone SourceKit diagnostic about `@main` lacked
 that build mode, while the actual compiler succeeded. `--resume-check` passed
-without launching. A new bounded recovery request is pending owner approval;
-it does not include further permission changes, lock/sleep or ordinary data.
+without launching. The owner subsequently approved exactly one recovery round
+with the same root, namespace and signed candidate; no further permission
+changes, lock/sleep or ordinary data were included.
+
+That round ran through `BoundedTrial --resume`. Its controller log is
+`/private/tmp/keyrecord-mvp-resume-controller-20260929.log`; the preserved root
+contains `privacy-reopen.jsonl` (17 records) and `summary-reopen.json`. The
+journal starts in Collecting and witnesses `inputMonitoringPreflightGranted`.
+The summary records `sessionCount=1`, `snapshotPublicationCount=51`,
+`analysisPublicationCount=52`, and `snapshotReadFailureCount=0`. Reusing the
+existing encrypted store reached startup recovery without a new consent action
+or key-provisioning request. This is bounded real product startup evidence.
+
+All three keyboard callback counters, `handoffAccepted`, `normalizationOutput`,
+`aggregateDelta`, published shortcut/bare-key totals, `flushIssued` and
+`flushDurable` are zero. The owner subsequently reported missing the prompt to
+perform the agreed shortcuts. The coordinated input step was not completed;
+this round cannot diagnose an event-delivery failure or establish physical-input
+or durable-count acceptance. Before any future owner-assisted timed round, pause
+and wait for an explicit ready response before launching or starting the clock.
+
+The controller requested normal Quit at 55 seconds and exited 0 before the
+60-second forced-stop deadline. The journal records `phaseAfter=stopped`,
+`sessionLiveAfter=false`, `quitDecision=terminate` and no unsaved reduction or
+scheduler data. The summary's cached `captureSessionLive=true` is not an atomic
+post-quit observation; the action detail and an outside-sandbox process check
+(no `KeyRecordApp` remained) establish teardown. The forced-stop branch was not
+exercised. No additional launch was performed.
 
 Still open: real collection and durable restart, current-candidate native consent
 and accessibility, permission revoke/regrant, continuous lock/sleep closure and

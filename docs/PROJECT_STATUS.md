@@ -12,11 +12,15 @@ built the arm64 trial at `de8b9c526`. Its separately approved first-consent run
 completed key provisioning and encrypted preferences initialization, then failed
 capture startup with Input Monitoring denied. It never entered Collecting and
 quit normally. The owner enabled Input Monitoring and used OS Quit and Reopen;
-the reopened App was blocked and wrote no new isolated journal. Recovery through
-the explicit isolation wrapper is prepared, not yet run. Local provisioning and
-initial protected-store creation now have product evidence; capture, durability
-of collected counts and full Keychain lifecycle remain open. A reusable trial
-build helper preserves the ordinary project defaults.
+the reopened App was blocked and wrote no new isolated journal. A separately
+approved restart through the explicit isolation controller reused that store
+and namespace, reached Collecting with Input Monitoring granted, and quit
+normally after the controller's 55-second request, before its 60-second limit.
+It recorded one capture session but zero keyboard callbacks, accepted events,
+aggregates and flushes. Local provisioning, initial protected-store creation
+and isolated startup recovery now have product evidence; physical input,
+durability of collected counts and full Keychain lifecycle remain open. A
+reusable trial build helper preserves the ordinary project defaults.
 
 The owner accepts an Apple Silicon-only first usable capture MVP. Intel runtime,
 Intel product-performance measurement and SP6B Intel backup-KDF timing are not
@@ -37,10 +41,9 @@ regrant, lock, sleep or product Keychain behavior. Do not repeat host toggles
 with either package. See [permission evidence](PERMISSION_RECOVERY_TEST.md) and
 [remaining acceptance](PHASE1_ACCEPTANCE.md).
 
-The immediate dependency is recovery of the provisioned isolated Apple Silicon
-candidate through its explicit wrapper so it can reach Collecting. It then needs
-candidate-bound observation of consent/Start, small non-sensitive shortcut
-aggregates and durable restart, actual permission and lock/sleep closure and
+The provisioned isolated Apple Silicon candidate now reaches Collecting through
+its explicit wrapper. It still needs candidate-bound observation of small
+non-sensitive shortcut aggregates and durable restart, actual permission and lock/sleep closure and
 recovery, and native Apple Silicon typing/idle resource windows. Offline
 KeychainLifecycle scenario tests have passed, but no live product observer is
 wired into the hosted controller; its missing closed-interval counters cannot

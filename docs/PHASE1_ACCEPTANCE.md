@@ -2,7 +2,7 @@
 
 Current status: [PROJECT_STATUS.md](PROJECT_STATUS.md). Requirements: [PHASE1_CONTRACT.md](PHASE1_CONTRACT.md) and architecture §12.4/15. This matrix separates executable regression coverage from host qualification; it is not a new gate or acceptance receipt.
 
-**Current MVP scope (2026-09-29):** The first usable capture MVP may target native Apple Silicon only. Intel compatibility and Intel performance are later complete G1/v1 work, not reasons to block this MVP. A provisioned Debug trial has initialized protected storage, reached Collecting on isolated restart and recorded 3 physical shortcuts with 4 issued/4 durable writes. Apple Silicon product performance, complete Keychain lifecycle, collected-count restart readback, privacy recovery and a qualified collecting Release remain unverified. The historical full G1 requirements and prior candidate-specific results below retain their stated scope; this decision does not turn a missing measurement into PASS.
+**Current MVP scope (2026-09-29):** The first usable capture MVP may target native Apple Silicon only. Intel compatibility and Intel performance are later complete G1/v1 work, not reasons to block this MVP. A provisioned Debug trial has initialized protected storage, recorded 3 physical shortcuts with 4 issued/4 durable writes and read back the same total after restart with no new input or read failure. Apple Silicon product performance, complete Keychain lifecycle, privacy recovery and a qualified collecting Release remain unverified. The historical full G1 requirements and prior candidate-specific results below retain their stated scope; this decision does not turn a missing measurement into PASS.
 
 ## Evidence and remaining work
 
@@ -20,8 +20,10 @@ flushes were all zero. This verifies bounded startup recovery, not physical
 input or collected-count retention. A subsequent round, launched only after the
 owner's explicit ready response, recorded 3 shortcuts, 0 bare keys and 4 issued/4
 durable writes with no failure or timeout, then quit normally. This adds bounded
-physical-input/save evidence; collected-count restart readback and the broader
-live acceptance rows below stay open.
+physical-input/save evidence. A separately approved restart read back 3 shortcuts
+and 0 bare keys with zero input, writes or snapshot read failures, then quit
+normally within its 20-second limit. Bounded aggregate restart readback is now
+observed for this candidate; the broader live acceptance rows below stay open.
 
 Current-main update: PR #13 merged at `6257b03b40f618fd976c6cbcc77dc83d374c59bb`. Marked Debug trials now reject missing isolation configuration on relaunch. The [bounded permission restart observation](PERMISSION_RECOVERY_TEST.md) preserves counts and normal Quit, but does not close same-process revoke/regrant coverage. PR #10 Secure Input evidence remains historical in [its report](PR10_SINGLEPAGE_REGRESSION.md); formal Phase 1 acceptance remains open.
 

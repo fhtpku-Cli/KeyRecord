@@ -28,7 +28,10 @@ same-process revoke/regrant remains unverified. A subsequent separately
 coordinated input round, launched after an explicit ready response, recorded
 3 shortcuts, 0 bare keys and 4 issued/4 durable writes before normal Quit. It
 adds bounded physical-input/save evidence without exercising a permission
-transition; restart readback and same-process revoke/regrant remain open.
+transition. A subsequent approved restart read back 3 shortcuts and 0 bare keys,
+with no new input, writes or snapshot read failures, and quit normally within
+20 seconds. These bounded startup and persistence results do not establish
+same-process revoke/regrant, which remains open.
 
 ## Permission polling fallback — 2026-09-28 candidate
 

@@ -203,11 +203,41 @@ is not a post-quit process witness. Forced stop was not exercised.
 This establishes bounded physical input through aggregation and reported durable
 save on the signed Debug candidate. The summary contains no per-application or
 shortcut identity rows; it cannot independently establish TextEdit attribution
-or the exact Command-A row. No new process has read back the three saved counts,
-so restart persistence remains unverified. No broader privacy or Release result
-is inferred.
+or the exact Command-A row. At that checkpoint no new process had read back the
+three saved counts; the separately approved follow-up below adds that evidence.
+No broader privacy or Release result is inferred.
 
-Still open: collected-count restart readback, current-candidate native consent
+## Bounded restart readback
+
+The owner requested continuation and explicitly confirmed readiness after a
+20-second restart round was prepared. The local controller's `--readback` mode
+passed actual Swift 6 compilation with `-parse-as-library` and the no-launch
+`--readback-check`. It preserved prior artifacts and reused the same installed
+signed `de8b9c526` candidate, private root, encrypted store and Keychain namespace.
+The owner was asked to refrain from pressing keys during this round. No
+permission change, lock/sleep operation or ordinary-data access was included.
+
+Controller log: `/private/tmp/keyrecord-mvp-readback-controller-20260929.log`.
+The trial root contains `privacy-readback.jsonl` (9 records) and
+`summary-readback.json`. A new process reached Collecting and published shortcut
+total 3 and bare-key total 0. All keyboard callback counters, accepted handoffs,
+normalization output, aggregate delta, issued writes and durable writes were
+zero. It published 15 snapshots with zero snapshot read failures. Thus the
+published total came from restart restoration, not new input in this run.
+
+The controller requested normal Quit at 15 seconds and exited 0 before the
+20-second forced-stop deadline. The quit action records stopped, no live
+session, no unsaved reduction/scheduler data and `quitDecision=terminate`.
+The summary also reports `captureSessionLive=false`. An outside-sandbox process
+check found no KeyRecordApp remaining. Forced stop was not exercised.
+
+Together, the coordinated input and readback rounds establish bounded physical
+input, reported durable save and aggregate retention across normal quit/restart
+for this signed Debug candidate. They do not independently establish the
+application/shortcut identity rows, crash recovery, closed-interval privacy,
+complete Keychain lifecycle or Release qualification.
+
+Still open: current-candidate attribution rows, native consent
 and accessibility, permission revoke/regrant, continuous lock/sleep closure and
 recovery, exhaustive live product observation for the hosted Keychain controller,
 six native ARM resource windows, and qualified Release composition. Release

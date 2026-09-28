@@ -23,9 +23,12 @@ After an explicit ready response, a separately coordinated input round recorded
 durable writes, with no write failure or timeout. It quit normally after the
 55-second controller request and left no process. Local provisioning, initial
 protected-store creation, isolated startup recovery and bounded physical input
-through durable save now have product evidence. Restart readback of those
-counts and full Keychain lifecycle remain open. A reusable trial build helper
-preserves the ordinary project defaults.
+through durable save now have product evidence. A separately approved restart
+read back the same 3 shortcuts and 0 bare keys with zero new input, writes or
+snapshot read failures. It quit normally after a 15-second request, within the
+20-second limit, and left no process. This closes bounded aggregate restart
+readback for this candidate; full Keychain lifecycle remains open. A reusable
+trial build helper preserves the ordinary project defaults.
 
 The owner accepts an Apple Silicon-only first usable capture MVP. Intel runtime,
 Intel product-performance measurement and SP6B Intel backup-KDF timing are not
@@ -36,8 +39,8 @@ The earlier PR #17 checkpoint assessed product source `87a26a216` on
 `codex/phase1-acceptance`. The newer `de8b9c526` trial above has its own record;
 later documentation-only commits do not rebind either candidate's host results.
 Offline permission, tap-liveness, lock-callback and protected-store race repairs
-are present. The provisioned trial above has bounded capture/save evidence but
-no readback of its collected counts after restart. An earlier installed permission-witness trial appeared in
+are present. The provisioned trial above has bounded capture/save/restart
+readback evidence. An earlier installed permission-witness trial appeared in
 Input Monitoring, then failed before Collecting with effective data-protection
 Keychain error `-34018`. A later isolated arm64 Debug App compiled from this
 branch is ad hoc signed with no matching embedded provisioning profile; its
@@ -47,8 +50,8 @@ with either package. See [permission evidence](PERMISSION_RECOVERY_TEST.md) and
 [remaining acceptance](PHASE1_ACCEPTANCE.md).
 
 The provisioned isolated Apple Silicon candidate now reaches Collecting through
-its explicit wrapper and has recorded the agreed small shortcut set. It still
-needs candidate-bound durable restart, actual permission and lock/sleep closure and
+its explicit wrapper and has retained the agreed small shortcut total across
+restart. It still needs actual permission and lock/sleep closure and
 recovery, and native Apple Silicon typing/idle resource windows. Offline
 KeychainLifecycle scenario tests have passed, but no live product observer is
 wired into the hosted controller; its missing closed-interval counters cannot

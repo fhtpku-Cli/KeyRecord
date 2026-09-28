@@ -126,6 +126,15 @@ but has not been run or verified in Settings.
 The live acceptance remains open.
 See [the witness trial](PERMISSION_RECOVERY_TEST.md#owner-assisted-permission-witness-trial--2026-09-28).
 
+A later installed witness package did appear in Input Monitoring as
+`KeyRecord Permission Witness Trial 20260928b`. Enabling it required Quit and
+Reopen. Its initial isolated run failed before Collecting with unavailable
+protected storage; `secd` ignored the embedded application identifier because
+of an invalid signature or incorrect provisioning profile and returned
+`-34018` on Keychain lookup. The automatic relaunch did not write to the
+isolated journal. This is a trial-packaging failure, not evidence for real
+permission revocation or recovery; no further host toggle is planned from it.
+
 A later offline repair checks the actual Core Graphics tap state when deciding
 whether a session is live. In a synthetic product test, a disabled tap with no
 callback moves Collecting to Blocked and requires manual Start; 47 product

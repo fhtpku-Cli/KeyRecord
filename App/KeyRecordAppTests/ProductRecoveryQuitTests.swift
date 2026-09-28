@@ -471,6 +471,27 @@ final class ProductRecoveryQuitTests: XCTestCase {
         XCTAssertEqual(itemCount, 0)
     }
 
+    func testExistingStoreWithMissingKeychainNamespaceStaysUntouched() async throws {
+        let product = try await collecting()
+        try await product.press(2)
+        try await product.waitDurable()
+        await product.composition.requestQuit()
+
+        let manifest = product.storeRoot.appendingPathComponent("manifest.krenc")
+        let before = try Data(contentsOf: manifest)
+        let next = SyntheticProduct(root: product.root, keychain: MemoryKeychain())
+        products.append(next)
+        try await next.boot()
+
+        XCTAssertNotEqual(next.phase, .collecting)
+        let live = await next.live
+        XCTAssertFalse(live)
+        XCTAssertFalse(next.composition.flow.sensitiveContentVisible)
+        let newItemCount = await next.keychain.itemCount
+        XCTAssertEqual(newItemCount, 0)
+        XCTAssertEqual(try Data(contentsOf: manifest), before)
+    }
+
     func testFixedReplayTraversesProductReductionAndEncryptedStore() async throws {
         let product = try SyntheticProduct.fresh()
         let controller = FixedReplayController()

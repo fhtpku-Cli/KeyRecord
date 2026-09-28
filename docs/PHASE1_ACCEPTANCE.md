@@ -42,6 +42,10 @@ product bootstrap without falling back. Query construction tests do not perform
 real Keychain operations. A successful probe result still cannot establish that
 the product's own backend closed or reopened correctly across lock transitions;
 that requires an isolated product run with product observation.
+An offline product regression models an existing encrypted store after its old
+Keychain namespace becomes unavailable: relaunch stays out of Collecting, creates
+no replacement key and leaves the encrypted manifest unchanged. It does not
+establish real macOS Keychain access or migrate earlier trial data.
 
 ## Executable lanes and their meaning
 

@@ -90,6 +90,20 @@ disabled tap that can be observed through
 same-process Input Monitoring revocation or that the absent witness entry now
 appears in Settings. The real permission acceptance remains open.
 
+### Silent event-source stop fallback — 2026-09-28
+
+A hostless product reproduction stopped the event source without an invalidation
+callback while the lifecycle was Collecting. Before the repair, the collecting
+monitor left the product in Collecting for the full eight-second test timeout.
+The monitor now treats a stopped source as a privacy failure when Secure Input
+is disabled and the lifecycle expects it to be disabled. It closes protected
+state and requires an explicit Start; the existing Secure Input recovery path
+still handles an intentionally stopped source while Secure Input is active.
+The reproduction passed after the change, and all 52
+`ProductRecoveryQuitTests` passed on native ARM. This closes an offline
+status/liveness fault. It does not prove that macOS reports a same-process Input
+Monitoring revocation or that the Settings switch takes effect before restart.
+
 Historical 2026-09-27 baseline: product source main
 `64590a0e9b57a55af9a23921983f2c16bb59c62e`.
 This follow-up adds only `testLivePermissionRevocationRequiresExplicitStartAndPreservesDurableCounts`

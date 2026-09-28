@@ -1100,6 +1100,26 @@ final class ProductRecoveryQuitTests: XCTestCase {
         try await product.press(1)
     }
 
+    func testStoppedSourceWithoutCallbackStopsCollectingUntilExplicitStart() async throws {
+        let product = try await collecting()
+        let oldTap = try XCTUnwrap(product.tap)
+        await product.composition.capture.source.stop()
+
+        try await waitUntil("stopped source blocks collecting") {
+            let live = await product.live
+            return product.phase == .blocked && !live && !product.keyGateOpen
+        }
+        XCTAssertEqual(try oldTap.press(), .closed)
+        XCTAssertFalse(product.composition.flow.sensitiveContentVisible)
+
+        await product.composition.startOrRetry()
+        try await waitUntil("explicit Start restores stopped source") {
+            let live = await product.live
+            return product.phase == .collecting && live
+        }
+        try await product.press(1)
+    }
+
     func testLockDuringSecureInputStillNeedsExplicitStart() async throws {
         let product = try await collecting()
         product.host.setSecureInput(.enabled)

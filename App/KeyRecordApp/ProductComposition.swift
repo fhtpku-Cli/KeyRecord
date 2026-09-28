@@ -886,11 +886,13 @@ final class ProductComposition: NSObject, NSMenuDelegate {
                 self.lastSecureInput = state
                 let health = await self.capture.sessionHealth()
                 guard self.monitorIsCurrent(generation) else { break }
-                if health == .tapUnavailable {
+                let unexpectedStop = health == .stopped && state == .disabled
+                    && self.lifecycle.state.conditions.secureInput == .disabled
+                if health == .tapUnavailable || unexpectedStop {
                     self.reduction.revokeProtectedState(queue: self.capture.queue,
                                                        recoveryFence: self.manualRecoveryFence)
                     #if DEBUG
-                    self.diagnostics.notePrivacyTrigger("tapUnavailable")
+                    self.diagnostics.notePrivacyTrigger(unexpectedStop ? "sourceStopped" : "tapUnavailable")
                     #endif
                     await self.handlePrivacyInvalidation()
                     await self.runtimeCoordinator?.handle(.invalidated(.tapUnavailable))

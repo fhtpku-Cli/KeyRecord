@@ -27,6 +27,12 @@ The hosted Keychain scenario controller requires a separate product observation
 for lock-transition results. Without it, those steps return BLOCKED; the fake
 observer in offline tests establishes only that the controller handles supplied
 measurements. No live product observer is wired into the hosted probe yet.
+The Debug privacy journal records capture state, aggregate counters, and protected
+snapshot/analysis attempts, but not an exhaustive count of protected-data reads
+or publications across the product. It cannot supply the hosted observer's
+`protectedReadDelta` or `publishDelta`; absent values must not be projected as
+zero. Finite interval samples also do not prove that capture stayed closed at
+every instant of a lock.
 The probe's signed effect request and the current armed Debug product both select
 the nonsynchronizable data-protection Keychain (`kSecUseDataProtectionKeychain`,
 SDK key `nleg`) so that `WhenUnlockedThisDeviceOnly` can apply. The earlier Debug

@@ -255,6 +255,7 @@ public struct PrivacyIntervalMark: Equatable, Sendable, Decodable {
     public var protectedSnapshotRejected: Int64
     public var protectedAnalysisAttempts: Int64
     public var protectedAnalysisRejected: Int64
+    public var protectedGateEntries: Int64?
     public var snapshotPublicationCount: Int64
     public var analysisPublicationCount: Int64?
 
@@ -271,6 +272,7 @@ public struct PrivacyIntervalMark: Equatable, Sendable, Decodable {
                 flushInvalidated: Int64, protectedSnapshotAttempts: Int64, protectedSnapshotRejected: Int64,
                 protectedAnalysisAttempts: Int64, protectedAnalysisRejected: Int64,
                 snapshotPublicationCount: Int64, analysisPublicationCount: Int64? = nil,
+                protectedGateEntries: Int64? = nil,
                 role: String = "change",
                 lockReadStatus: String = "notChecked", secureInputReadStatus: String = "notChecked",
                 countersAreAtomicSnapshot: Bool = false, action: String? = nil,
@@ -297,6 +299,7 @@ public struct PrivacyIntervalMark: Equatable, Sendable, Decodable {
         self.protectedSnapshotRejected = protectedSnapshotRejected
         self.protectedAnalysisAttempts = protectedAnalysisAttempts
         self.protectedAnalysisRejected = protectedAnalysisRejected
+        self.protectedGateEntries = protectedGateEntries
         self.snapshotPublicationCount = snapshotPublicationCount
         self.analysisPublicationCount = analysisPublicationCount
     }
@@ -317,6 +320,7 @@ public struct PrivacySpanDelta: Equatable, Sendable, Codable {
     public var protectedSnapshotAttempts: Int64
     public var protectedSnapshotRejected: Int64
     public var protectedAnalysisAttempts: Int64
+    public var protectedGateEntries: Int64?
     public var snapshotPublicationCount: Int64
     public var analysisPublicationCount: Int64?
 }
@@ -370,6 +374,7 @@ public enum PrivacyIntervalEvaluator {
                 protectedSnapshotAttempts: delta(end.protectedSnapshotAttempts, start.protectedSnapshotAttempts),
                 protectedSnapshotRejected: delta(end.protectedSnapshotRejected, start.protectedSnapshotRejected),
                 protectedAnalysisAttempts: delta(end.protectedAnalysisAttempts, start.protectedAnalysisAttempts),
+                protectedGateEntries: optionalDelta(end.protectedGateEntries, start.protectedGateEntries),
                 snapshotPublicationCount: delta(end.snapshotPublicationCount, start.snapshotPublicationCount),
                 analysisPublicationCount: optionalDelta(end.analysisPublicationCount, start.analysisPublicationCount)))
         }
@@ -421,6 +426,15 @@ public enum PrivacyIntervalEvaluator {
         guard ([begin] + during + [end]).allSatisfy({ $0.analysisPublicationCount != nil }) else {
             return report("inconclusive", "analysis-publication-counter-missing", begin: begin, end: end)
         }
+        let intervalMarks = [begin] + during + [end]
+        guard intervalMarks.allSatisfy({ $0.protectedGateEntries != nil }) else {
+            return report("inconclusive", "protected-gate-counter-missing", begin: begin, end: end)
+        }
+        if zip(intervalMarks, intervalMarks.dropFirst()).contains(where: {
+            ($0.1.protectedGateEntries ?? 0) < ($0.0.protectedGateEntries ?? 0)
+        }) {
+            return report("invalid", "counter-decreased", begin: begin, end: end)
+        }
         if end.aggregateDelta < begin.aggregateDelta || end.handoffAccepted < begin.handoffAccepted
             || end.normalizationOutput < begin.normalizationOutput
             || end.flushDurable < begin.flushDurable || end.flushInvalidated < begin.flushInvalidated
@@ -448,6 +462,7 @@ public enum PrivacyIntervalEvaluator {
                 protectedSnapshotAttempts: delta(to.protectedSnapshotAttempts, from.protectedSnapshotAttempts),
                 protectedSnapshotRejected: delta(to.protectedSnapshotRejected, from.protectedSnapshotRejected),
                 protectedAnalysisAttempts: delta(to.protectedAnalysisAttempts, from.protectedAnalysisAttempts),
+                protectedGateEntries: optionalDelta(to.protectedGateEntries, from.protectedGateEntries),
                 snapshotPublicationCount: delta(to.snapshotPublicationCount, from.snapshotPublicationCount),
                 analysisPublicationCount: optionalDelta(to.analysisPublicationCount, from.analysisPublicationCount))
         }
@@ -460,6 +475,7 @@ public enum PrivacyIntervalEvaluator {
         var violations: [String] = []
         if closed.aggregateDelta > 0 || closed.normalizationOutput > 0 { violations.append("closed-interval-input-counted") }
         if protectedReadsSucceeded > 0 { violations.append("closed-interval-protected-read-succeeded") }
+        if (closed.protectedGateEntries ?? 0) > 0 { violations.append("closed-interval-protected-gate-entry") }
         if closed.snapshotPublicationCount > 0 || (closed.analysisPublicationCount ?? 0) > 0 {
             violations.append("closed-interval-publication")
         }

@@ -154,6 +154,7 @@ final class ResourceEvaluationTests: XCTestCase {
         XCTAssertEqual(stableReport.spans.last?.aggregateDelta, 1, "input after the session boundary is not closed input")
         XCTAssertFalse(stableReport.provesContinuousClosedInterval)
         XCTAssertFalse(stableReport.countersAreAtomicSnapshot)
+        XCTAssertEqual(stableReport.spans.first?.protectedGateEntries, 0)
 
         let anomaly = try recorderMarks { recorder in
             recorder.record { $0.captureSessionLive = false; $0.sensitiveContentVisible = false }
@@ -183,6 +184,37 @@ final class ResourceEvaluationTests: XCTestCase {
         XCTAssertTrue(recorder.privacyJournalWriteFailed)
         XCTAssertTrue(recorder.runSummary.privacyJournalWriteFailed)
         XCTAssertEqual(PrivacyIntervalEvaluator.evaluateClosed([], journalWriteFailed: recorder.privacyJournalWriteFailed).outcome, "invalid")
+    }
+
+    func testClosedIntervalRejectsMissingOrAdvancingGateCounter() throws {
+        let marks = try recorderMarks { recorder in
+            recorder.record { $0.phase = .blocked; $0.captureSessionLive = false; $0.sensitiveContentVisible = false }
+            recorder.beginClosedInterval(cause: "protectedStateClosed")
+            recorder.observeClosedInterval()
+            recorder.endClosedInterval(cause: "captureSessionStarting")
+        }
+        XCTAssertEqual(PrivacyIntervalEvaluator.evaluateClosed(marks, journalWriteFailed: false).outcome, "observed")
+        let observeIndex = try XCTUnwrap(marks.firstIndex(where: { $0.role == "observe" }))
+        let endIndex = try XCTUnwrap(marks.firstIndex(where: { $0.role == "end" }))
+
+        var missing = marks
+        missing[observeIndex].protectedGateEntries = nil
+        XCTAssertEqual(PrivacyIntervalEvaluator.evaluateClosed(missing, journalWriteFailed: false).reason,
+                       "protected-gate-counter-missing")
+
+        var admitted = marks
+        admitted[observeIndex].protectedGateEntries = 1
+        admitted[endIndex].protectedGateEntries = 1
+        let admittedReport = PrivacyIntervalEvaluator.evaluateClosed(admitted, journalWriteFailed: false)
+        XCTAssertEqual(admittedReport.reason, "closed-interval-protected-gate-entry")
+        XCTAssertEqual(admittedReport.spans.first?.protectedGateEntries, 1)
+        XCTAssertFalse(admittedReport.provesEveryProtectedRead)
+
+        var decreased = marks
+        decreased[observeIndex].protectedGateEntries = 2
+        decreased[endIndex].protectedGateEntries = 1
+        XCTAssertEqual(PrivacyIntervalEvaluator.evaluateClosed(decreased, journalWriteFailed: false).reason,
+                       "counter-decreased")
     }
 
     func testClosedIntervalSeparatesBoundaryWorkFromClosedInput() throws {
@@ -298,6 +330,7 @@ final class ResourceEvaluationTests: XCTestCase {
 
     private func recorderMarks(_ body: (CaptureDiagnosticsRecorder) -> Void) throws -> [PrivacyIntervalMark] {
         let recorder = CaptureDiagnosticsRecorder()
+        recorder.configureProtectedGateEntries { 0 }
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: root) }

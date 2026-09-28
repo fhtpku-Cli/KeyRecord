@@ -87,6 +87,43 @@ final class ResourceEvaluationTests: XCTestCase {
         }
     }
 
+    func testClockAndCPUCounterRegressionCannotProduceMeasuredWindow() {
+        var backwardTime = [
+            sample(t: 0, cpu: 0, bytes: 10),
+            sample(t: 1, cpu: 100_000_000, bytes: 10),
+            sample(t: 0.8, cpu: 120_000_000, bytes: 10),
+            sample(t: 2, cpu: 200_000_000, bytes: 10)
+        ]
+        XCTAssertEqual(ResourceEvaluator.evaluate(request(samples: backwardTime)).reason,
+                       "sample-clock-regressed")
+
+        backwardTime[2] = sample(t: 1.5, cpu: 20_000_000, bytes: 10)
+        backwardTime[3] = sample(t: 2, cpu: 100_000_000, bytes: 10)
+        XCTAssertEqual(ResourceEvaluator.evaluate(request(samples: backwardTime)).reason,
+                       "cpu-counter-regressed")
+
+        var childCounter = series()
+        childCounter[0].childCPUNanoseconds = 5
+        childCounter[1].childCPUNanoseconds = 4
+        childCounter[2].childCPUNanoseconds = 5
+        XCTAssertEqual(ResourceEvaluator.evaluate(request(samples: childCounter)).reason,
+                       "child-cpu-counter-regressed")
+
+        var backwardMonotonic = series()
+        backwardMonotonic[1].monotonicSeconds = -0.2
+        XCTAssertEqual(ResourceEvaluator.evaluate(request(samples: backwardMonotonic)).reason,
+                       "sample-clock-regressed")
+
+        var nonfinite = series()
+        nonfinite[1].uptimeSeconds = .nan
+        XCTAssertEqual(ResourceEvaluator.evaluate(request(samples: nonfinite)).reason,
+                       "sample-clock-invalid")
+
+        var nonfiniteInterval = request(samples: series())
+        nonfiniteInterval.intervalSeconds = .infinity
+        XCTAssertEqual(ResourceEvaluator.evaluate(nonfiniteInterval).reason, "bad-duration")
+    }
+
     func testShortFormalAndPausedProtocolsStayInvalid() {
         let formal = ResourceWindowRequest(protocolKind: .formalFRS2, phase: "typing",
             warmupSeconds: 1, measureSeconds: 2, intervalSeconds: 1, samples: series())

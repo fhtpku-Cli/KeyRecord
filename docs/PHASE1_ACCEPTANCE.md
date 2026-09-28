@@ -105,6 +105,16 @@ The controller's `--check` accepted those exact files without launching the
 App. The sampler and six-window evaluator passed synthetic self-checks only;
 there are no product resource samples or Keychain effects from this preparation.
 
+An offline resource-evaluator reproduction showed that a sampled clock or CPU
+counter could decrease between samples while the window still reported
+`measured`; a child-CPU counter decrease could also leave the
+product-process-only result true. The evaluator now rejects nonfinite and
+nonincreasing sample clocks, decreasing process or child CPU counters, and
+nonfinite duration inputs. The reproduction failed before the repair, then
+passed; all 16 focused resource/host-evaluation tests and both sampler and
+six-window synthetic self-checks passed. This validates arithmetic rejection
+paths, not ARM or Intel product resource budgets.
+
 ## Minimum owner-assisted follow-up
 
 Before asking the owner to act, prepare the exact signed candidate and a bounded run plan: candidate/version, private output directory, permitted store/key namespace, steps, normal shutdown and forced-stop fallback. Obtain approval for the particular session/privacy/Keychain operations. Existing build permission does not cover them.

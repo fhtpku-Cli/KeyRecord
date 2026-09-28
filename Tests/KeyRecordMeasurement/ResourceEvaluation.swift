@@ -110,7 +110,10 @@ public enum ResourceEvaluator {
            (request.warmupSeconds < 60 || request.measureSeconds < 600) {
             return finish("invalid", "paused-monitor-candidate-requires-60s-warmup-and-600s-measure")
         }
-        guard request.intervalSeconds > 0, request.warmupSeconds >= 0, request.measureSeconds > 0 else {
+        guard request.intervalSeconds.isFinite, request.warmupSeconds.isFinite,
+              request.measureSeconds.isFinite, request.intervalSeconds > 0,
+              request.warmupSeconds >= 0, request.measureSeconds > 0,
+              (request.warmupSeconds + request.measureSeconds).isFinite else {
             return finish("invalid", "bad-duration")
         }
         guard let first = request.samples.first, !first.failed, !first.exited else {
@@ -127,6 +130,9 @@ public enum ResourceEvaluator {
             let sample = request.samples[index]
             if sample.failed { return finish("invalid", "sample-missing") }
             if sample.exited { return finish("interrupted", "process-exited") }
+            if !sample.uptimeSeconds.isFinite || !sample.monotonicSeconds.isFinite {
+                return finish("invalid", "sample-clock-invalid")
+            }
             if sample.pid != first.pid || sample.startAbstime != first.startAbstime || sample.executablePath != first.executablePath {
                 return finish("invalid", "pid-reused")
             }
@@ -137,13 +143,18 @@ public enum ResourceEvaluator {
                 let previous = request.samples[index - 1]
                 let uptime = sample.uptimeSeconds - previous.uptimeSeconds
                 let monotonic = sample.monotonicSeconds - previous.monotonicSeconds
+                if uptime <= 0 || monotonic <= 0 { return finish("invalid", "sample-clock-regressed") }
+                if sample.cpuNanoseconds < previous.cpuNanoseconds {
+                    return finish("invalid", "cpu-counter-regressed")
+                }
+                if sample.childCPUNanoseconds < previous.childCPUNanoseconds {
+                    return finish("invalid", "child-cpu-counter-regressed")
+                }
                 if monotonic - uptime > 0.5 { return finish("interrupted", "sleep") }
                 if uptime > request.intervalSeconds * 2.5 && monotonic > request.intervalSeconds * 2.5 {
                     return finish("invalid", "sample-missing")
                 }
-                if sample.childCPUNanoseconds >= previous.childCPUNanoseconds {
-                    childDelta = sample.childCPUNanoseconds - request.samples[0].childCPUNanoseconds
-                }
+                childDelta = sample.childCPUNanoseconds - request.samples[0].childCPUNanoseconds
             }
         }
         let measureStart = origin + request.warmupSeconds

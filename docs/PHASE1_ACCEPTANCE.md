@@ -38,6 +38,10 @@ observation was made and blocks a lock-transition PASS if any required delta is
 missing. Older journal lines without `analysisPublicationCount` yield an
 inconclusive closed-interval evaluation. Finite interval samples also do not
 prove that capture stayed closed at every instant of a lock.
+The hosted controller now checks its authority preflight for every lock
+transition and requests a fresh unlocked witness for the delete/missing read;
+loss of that witness blocks the step before another Keychain operation. This is
+offline controller behavior, not a qualified system lock observation.
 The probe's signed effect request and the current armed Debug product both select
 the nonsynchronizable data-protection Keychain (`kSecUseDataProtectionKeychain`,
 SDK key `nleg`) so that `WhenUnlockedThisDeviceOnly` can apply. The earlier Debug

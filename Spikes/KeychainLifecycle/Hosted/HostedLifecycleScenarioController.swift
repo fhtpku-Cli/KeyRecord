@@ -66,7 +66,7 @@ public final class HostedLifecycleScenarioController: LifecycleScenarioControlle
     }
 
     private func crud() -> LifecycleStepObservation {
-        guard authorized() else { return blocked(step: .unlockedCRUD) }
+        guard authorized(step: .unlockedCRUD) else { return blocked(step: .unlockedCRUD) }
         var observations: [CandidateObservation] = []
         for operation in [CandidateOperation.add, .read, .attributes] {
             let next: CandidateObservation
@@ -89,7 +89,7 @@ public final class HostedLifecycleScenarioController: LifecycleScenarioControlle
     }
 
     private func deleteMissing() -> LifecycleStepObservation {
-        guard authority.preflightIsReady() else { return blocked(step: .deleteMissing) }
+        guard authorized(step: .deleteMissing) else { return blocked(step: .deleteMissing) }
         let observations: [CandidateObservation]
         do { observations = try [.delete, .read].map { try backend.perform($0, namespace: configuration.namespace) } }
         catch { return blocked(step: .deleteMissing) }
@@ -101,7 +101,7 @@ public final class HostedLifecycleScenarioController: LifecycleScenarioControlle
     }
 
     private func cleanup() -> LifecycleStepObservation {
-        guard authorized() else { return blocked(step: .cleanup) }
+        guard authorized(step: .cleanup) else { return blocked(step: .cleanup) }
         let result: CandidateObservation
         do { result = try backend.perform(.delete, namespace: configuration.namespace) }
         catch { return blocked(step: .cleanup) }
@@ -114,6 +114,9 @@ public final class HostedLifecycleScenarioController: LifecycleScenarioControlle
     private func transition(_ step: LifecycleStep) -> LifecycleStepObservation {
         guard let productObserver else {
             return blocked(step: step, rejection: "productObservationMissing", active: qualification.challenge.generation)
+        }
+        guard authority.preflightIsReady() else {
+            return blocked(step: step, rejection: "lockAuthorityUnavailable", active: qualification.challenge.generation)
         }
         let unlocked = step != .lockBackground && step != .restartLocked
         guard let witness = authority.witness(challenge: qualification.challenge, step: step) else {
@@ -143,9 +146,9 @@ public final class HostedLifecycleScenarioController: LifecycleScenarioControlle
         }
     }
 
-    private func authorized() -> Bool {
+    private func authorized(step: LifecycleStep) -> Bool {
         guard authority.preflightIsReady(),
-              let witness = authority.witness(challenge: qualification.challenge, step: .unlockedCRUD),
+              let witness = authority.witness(challenge: qualification.challenge, step: step),
               witness.challenge == qualification.challenge, witness.unlocked else { return false }
         qualification.accept(.init(challenge: witness.challenge, unlocked: true))
         return qualification.state == .unlocked

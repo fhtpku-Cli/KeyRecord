@@ -159,6 +159,28 @@ final class KeychainLifecycleScenarioTests: XCTestCase {
         XCTAssertTrue(backend.operations.isEmpty)
     }
 
+    func testFailureDeleteMissingRequiresFreshUnlockedWitness() {
+        let backend = RecordingBackend()
+        let authority = ContradictoryStateAuthority(contradictorySteps: [])
+        let controller = HostedLifecycleScenarioController(
+            backend: backend, authority: authority,
+            configuration: .init(namespace: .init(attempt: "attempt", seed: UUID()),
+                                 supportedScenarios: [.deleteMissing]))
+        XCTAssertEqual(controller.execute(.unlockedCRUD).status, .pass)
+        authority.contradictorySteps.insert(.deleteMissing)
+        let observation = controller.execute(.deleteMissing)
+        XCTAssertEqual(observation.status, .blocked)
+        XCTAssertEqual(backend.operations, [.add, .read, .attributes])
+    }
+
+    func testFailureLockTransitionRequiresReadyAuthority() {
+        let controller = hostedController(FakeHostedAuthority(ready: false), scenarios: [.lockBackground])
+        let observation = controller.execute(.lockBackground)
+        XCTAssertEqual(observation.status, .blocked)
+        XCTAssertEqual(observation.policy.witnessRejection, "lockAuthorityUnavailable")
+        XCTAssertNil(observation.policy.captureClosed)
+    }
+
     func testFailureHostedAddCannotBeHiddenByLaterRead() {
         let backend = FailingAddBackend()
         let controller = HostedLifecycleScenarioController(
@@ -364,7 +386,8 @@ private final class ContradictoryStateAuthority: HostedLockAuthority {
     init(contradictorySteps: Set<LifecycleStep>) { self.contradictorySteps = contradictorySteps }
     func preflightIsReady() -> Bool { true }
     func witness(challenge: LockChallenge, step: LifecycleStep) -> HostedLockWitness? {
-        let expectedUnlocked = step == .unlockedCRUD || step == .unlockRevalidate || step == .restartUnlocked
+        let expectedUnlocked = step == .unlockedCRUD || step == .deleteMissing || step == .cleanup
+            || step == .unlockRevalidate || step == .restartUnlocked
         let unlocked = contradictorySteps.contains(step) ? !expectedUnlocked : expectedUnlocked
         return .init(challenge: challenge, unlocked: unlocked)
     }
@@ -377,7 +400,8 @@ private final class ReplayHostedAuthority: HostedLockAuthority {
     func witness(challenge: LockChallenge, step: LifecycleStep) -> HostedLockWitness? {
         requestedChallenges.append(challenge)
         let challenge = replayChallenge ?? challenge
-        return .init(challenge: challenge, unlocked: step == .unlockedCRUD || step == .unlockRevalidate || step == .restartUnlocked)
+        return .init(challenge: challenge, unlocked: step == .unlockedCRUD || step == .deleteMissing
+                     || step == .cleanup || step == .unlockRevalidate || step == .restartUnlocked)
     }
 }
 

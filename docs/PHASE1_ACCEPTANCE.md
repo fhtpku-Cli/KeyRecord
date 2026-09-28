@@ -42,6 +42,9 @@ The hosted controller now checks its authority preflight for every lock
 transition and requests a fresh unlocked witness for the delete/missing read;
 loss of that witness blocks the step before another Keychain operation. This is
 offline controller behavior, not a qualified system lock observation.
+The scenario report also rejects a claimed CRUD, delete/missing read, or cleanup
+PASS when its recorded Keychain call count does not match the operations that
+step must have executed; a zero-call fake cannot qualify those steps.
 The probe's signed effect request and the current armed Debug product both select
 the nonsynchronizable data-protection Keychain (`kSecUseDataProtectionKeychain`,
 SDK key `nleg`) so that `WhenUnlockedThisDeviceOnly` can apply. The earlier Debug

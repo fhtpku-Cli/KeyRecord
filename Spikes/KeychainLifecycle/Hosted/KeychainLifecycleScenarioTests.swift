@@ -53,6 +53,30 @@ final class KeychainLifecycleScenarioTests: XCTestCase {
         XCTAssertEqual(report.reason, "cleanupPending")
     }
 
+    func testFailureClaimedCRUDAndCleanupWithoutKeychainCalls() {
+        let noCRUD = FakeLifecycleController()
+        noCRUD.zeroKeychainCalls = true
+        let report = LifecycleScenarioMachine.run(.unlockedCRUD, controller: noCRUD)
+        XCTAssertEqual(report.status, .fail)
+        XCTAssertEqual(report.reason, "stepContractFailed")
+        XCTAssertEqual(report.observations.first?.keychain.calls, 0)
+        XCTAssertEqual(report.keychainCalls, 1)
+
+        let noCleanup = FakeLifecycleController()
+        noCleanup.zeroCleanupCalls = true
+        let cleanupReport = LifecycleScenarioMachine.run(.unlockedCRUD, controller: noCleanup)
+        XCTAssertEqual(cleanupReport.status, .fail)
+        XCTAssertEqual(cleanupReport.reason, "cleanupFailed")
+    }
+
+    func testFailureClaimedDeleteMissingWithoutDeleteAndRead() {
+        let fake = FakeLifecycleController()
+        fake.zeroDeleteMissingCalls = true
+        let report = LifecycleScenarioMachine.run(.deleteMissing, controller: fake)
+        XCTAssertEqual(report.status, .fail)
+        XCTAssertEqual(report.reason, "stepContractFailed")
+    }
+
     func testFailureProtectedDeltaRejectsRawReadSuccess() {
         // Given raw success while locked, when policy leaked a delta, then qualification fails.
         let fake = FakeLifecycleController()
@@ -411,12 +435,22 @@ private final class FakeLifecycleController: LifecycleScenarioController {
     var leak = false
     var missingProductDeltas = false
     var witness = true
+    var zeroKeychainCalls = false
+    var zeroDeleteMissingCalls = false
+    var zeroCleanupCalls = false
     var steps: [LifecycleStep] = []
     func supports(_ scenario: LifecycleScenario) -> Bool { supported }
     func execute(_ step: LifecycleStep) -> LifecycleStepObservation {
         steps.append(step)
+        let calls: Int
+        switch step {
+        case .unlockedCRUD: calls = zeroKeychainCalls ? 0 : 3
+        case .deleteMissing: calls = zeroDeleteMissingCalls ? 0 : 2
+        case .cleanup: calls = zeroCleanupCalls ? 0 : 1
+        default: calls = 0
+        }
         let keychain = LifecycleKeychainEvidence(
-            rawStatus: step == .deleteMissing ? -25300 : 0, calls: 0,
+            rawStatus: step == .deleteMissing ? -25300 : 0, calls: calls,
             accessibility: "aku", synchronizable: false, valueMatched: true,
             itemMissing: true, cleanupComplete: true)
         let policy = LifecyclePolicyEvidence(

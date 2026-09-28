@@ -159,6 +159,7 @@ public enum LifecycleScenarioMachine {
         switch cleanup.status {
         case .pass:
             if cleanup.keychain.cleanupComplete != true { status = .blocked; reason = "cleanupPending" }
+            else if cleanup.keychain.calls != 1 { status = .fail; reason = "cleanupFailed" }
         case .fail: status = .fail; reason = "cleanupFailed"
         case .blocked:
             if status != .fail { status = .blocked; reason = "cleanupPending" }
@@ -171,14 +172,16 @@ public enum LifecycleScenarioMachine {
         guard value.keychain.calls >= 0 else { return false }
         switch step {
         case .unlockedCRUD:
-            return value.keychain.rawStatus == 0 && value.keychain.accessibility == "aku" &&
+            return value.keychain.calls == 3 && value.keychain.rawStatus == 0 && value.keychain.accessibility == "aku" &&
                 value.keychain.synchronizable == false && value.keychain.valueMatched == true
-        case .deleteMissing: return value.keychain.itemMissing == true && value.keychain.rawStatus == -25300
+        case .deleteMissing:
+            return value.keychain.calls == 2 && value.keychain.itemMissing == true &&
+                value.keychain.rawStatus == -25300
         case .lockBackground, .restartLocked, .sleepWake:
             return value.policy.generationFenced == true && value.policy.captureClosed == true
         case .restartUnlocked, .unlockRevalidate, .logoutLogin:
             return value.policy.generationFenced == true
-        case .cleanup: return value.keychain.cleanupComplete == true
+        case .cleanup: return value.keychain.calls == 1 && value.keychain.cleanupComplete == true
         case .crossDeviceRestore: return true
         }
     }

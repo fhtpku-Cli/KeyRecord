@@ -24,8 +24,10 @@ public enum Preflight {
         guard manifest.scratchRoot == context.scratchRoot, manifest.scratchRoot.hasPrefix("/"),
               !manifest.scratchRoot.split(separator: "/").contains("..") else { return .blocked(.scratchRootMismatch) }
         guard manifest.attemptID == context.attemptID, !manifest.attemptID.isEmpty else { return .blocked(.attemptMismatch) }
-        guard Set(manifest.operations) == Set(HostOperation.allCases),
-              manifest.operations.count == HostOperation.allCases.count else { return .blocked(.operationAllowlistMismatch) }
+        guard manifest.operations.contains(.keychain),
+              manifest.operations.count == Set(manifest.operations).count else {
+            return .blocked(.operationAllowlistMismatch)
+        }
         guard manifest.controllerPath.hasPrefix("/"), context.controllerExists else { return .blocked(.controllerMissing) }
         guard context.controllerRegular else { return .blocked(.controllerNotRegular) }
         guard context.controllerExecutable else { return .blocked(.controllerNotExecutable) }

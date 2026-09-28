@@ -68,14 +68,27 @@ final class HostedProbePreflightTests: XCTestCase {
         try assertBlocked(.attemptMismatch, data: PreflightFixture().data(changing: "attemptID", to: "replayed"))
     }
 
-    func testOperationAllowlistMismatch() throws {
+    func testKeychainOnlyManifestDoesNotRequireUnrelatedHostOperations() throws {
+        let fixture = PreflightFixture()
+        let verdict = Preflight.evaluate(data: try fixture.data(), context: fixture.context, now: now)
+        XCTAssertEqual(verdict, .ready)
+        let manifest = try JSONDecoder().decode(HostManifest.self, from: fixture.data())
+        XCTAssertEqual(manifest.operations, [.keychain])
+    }
+
+    func testEmptyAllowlistBlocksBeforeAnyEffect() throws {
         try assertBlocked(.operationAllowlistMismatch,
-                          data: PreflightFixture().data(changing: "operations", to: HostOperation.allCases.dropLast().map(\.rawValue)))
+                          data: PreflightFixture().data(changing: "operations", to: []))
+    }
+
+    func testUnrelatedOperationAloneBlocksBeforeAnyEffect() throws {
+        try assertBlocked(.operationAllowlistMismatch,
+                          data: PreflightFixture().data(changing: "operations", to: [HostOperation.screen.rawValue]))
     }
 
     func testOperationAllowlistMismatchWhenDuplicated() throws {
         try assertBlocked(.operationAllowlistMismatch,
-                          data: PreflightFixture().data(changing: "operations", to: (HostOperation.allCases + [.keychain]).map(\.rawValue)))
+                          data: PreflightFixture().data(changing: "operations", to: [HostOperation.keychain.rawValue, HostOperation.keychain.rawValue]))
     }
 
     func testControllerMissing() throws {

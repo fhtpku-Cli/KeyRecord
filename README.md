@@ -2,7 +2,7 @@
 
 KeyRecord is an in-development native macOS menu-bar app for local, aggregate keyboard-use statistics. It aims to count shortcuts by application and bare keys without storing typed text or event sequences. The codebase uses Swift 6, macOS 14+, and Apple system frameworks.
 
-**Current stage: Apple Silicon capture MVP qualification on draft PR #17.** The owner has deferred Intel compatibility for this MVP. Earlier signed Debug runs observed bounded physical input, attribution, restart retention and some privacy recovery on older candidates. PR #17 contains newer offline repairs, but its latest isolated Debug package has not completed a qualified Collecting run; effective data-protection Keychain access remains unresolved. Release still uses blocked capture and Keychain composition, so no collecting Release or usable MVP is claimed. Earlier PR #17 source and an unsigned Release executable passed static network-capability checks; no repeat packet-capture round is required for FR-P1. See [current status](docs/PROJECT_STATUS.md) and [remaining acceptance](docs/PHASE1_ACCEPTANCE.md).
+**Current stage: Apple Silicon capture MVP qualification on draft PR #17.** The owner has deferred Intel compatibility for this MVP. Earlier signed Debug runs observed bounded physical input, attribution, restart retention and some privacy recovery on older candidates. The provisioned trial at `de8b9c526` completed first-consent key provisioning and encrypted preferences initialization, then stopped at denied Input Monitoring without entering Collecting. After the owner enabled permission, OS Quit and Reopen showed a blocked state; recovery through the explicit isolation wrapper is prepared. Release still uses blocked capture and Keychain composition, so no collecting Release or usable MVP is claimed. Current product source and an unsigned Release executable passed static network-capability checks; no repeat packet-capture round is required for FR-P1. See [current status](docs/PROJECT_STATUS.md) and [remaining acceptance](docs/PHASE1_ACCEPTANCE.md).
 
 ## Build and test
 
@@ -36,7 +36,7 @@ For a provisioned Apple Silicon Debug trial, use
 `bash Scripts/build-isolated-debug-trial.sh --help`. This builds a separately
 identified, isolation-required App without installing or launching it. The
 [latest checkpoint](docs/MVP_CLOSEOUT_20260929.md) records the tested candidate,
-offline results, and the missing local provisioning profile; a build or signature
+offline results, and the resolved local provisioning issue; a build or signature
 check alone does not establish effective Keychain access.
 
 The [Phase 1 acceptance matrix](docs/PHASE1_ACCEPTANCE.md) lists current evidence, remaining

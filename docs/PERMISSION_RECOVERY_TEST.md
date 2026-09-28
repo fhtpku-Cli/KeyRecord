@@ -1,6 +1,6 @@
 # Synthetic live-permission recovery coverage
 
-**Current result (2026-09-29):** The installed 20260928b witness appeared in
+**Earlier packages:** The installed 20260928b witness appeared in
 Input Monitoring but failed effective data-protection Keychain access with
 `-34018` before Collecting. A later arm64 PR #17 candidate compiled, but has
 only an ad hoc signature and no matching embedded provisioning profile;
@@ -10,10 +10,16 @@ no-launch identity/profile checks and reaches Collecting before any further
 permission toggle. See [current status](PROJECT_STATUS.md). The dated results
 below retain their original scope.
 
-The [2026-09-29 signing build](MVP_CLOSEOUT_20260929.md) now confirms a matching
-development provisioning profile is missing, despite a valid local Apple
-Development identity. Its new build helper prepares entitlements and trial
-isolation through Xcode; no new permission operation or Collecting run occurred.
+The [2026-09-29 signing follow-up](MVP_CLOSEOUT_20260929.md) resolved the initially
+missing profile in one owner-approved Xcode attempt. The trial at `de8b9c526`
+is signed and passed the existing no-launch check. Its owner-approved first
+consent completed key provisioning and encrypted preferences initialization;
+capture startup then failed with `permissionStatus=denied`, zero sessions and
+zero accepted events. It quit normally. The owner enabled permission and used
+OS Quit and Reopen; the reopened instance showed blocked/privacy check and did
+not write to the original journal. This is consistent with missing trial
+environment on OS relaunch, not evidence of a new Keychain error. Explicit
+isolated recovery is prepared; real revoke/regrant and Collecting remain open.
 
 ## Permission polling fallback — 2026-09-28 candidate
 

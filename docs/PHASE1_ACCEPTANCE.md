@@ -8,9 +8,13 @@ Current status: [PROJECT_STATUS.md](PROJECT_STATUS.md). Requirements: [PHASE1_CO
 
 The [2026-09-29 closeout checkpoint](MVP_CLOSEOUT_20260929.md) records fresh
 offline results at `ba57ea711` and the reproducible arm64 trial build command.
-An Apple Development identity is available; the actual signing build is blocked
-by a missing matching development provisioning profile. No new product host
-trial was run, and the remaining live acceptance rows below stay open.
+The initial missing-profile error was resolved by one owner-approved Xcode
+provisioning attempt: the arm64 trial at `de8b9c526` is signed and passed the
+existing no-launch identity/profile check. An approved first-consent run completed
+key provisioning and encrypted preferences initialization before Input Monitoring
+denial stopped capture. No session or input was accepted. OS Quit and Reopen
+showed a blocked state; recovery via the isolated wrapper is prepared but not
+yet run. The remaining live acceptance rows below stay open.
 
 Current-main update: PR #13 merged at `6257b03b40f618fd976c6cbcc77dc83d374c59bb`. Marked Debug trials now reject missing isolation configuration on relaunch. The [bounded permission restart observation](PERMISSION_RECOVERY_TEST.md) preserves counts and normal Quit, but does not close same-process revoke/regrant coverage. PR #10 Secure Input evidence remains historical in [its report](PR10_SINGLEPAGE_REGRESSION.md); formal Phase 1 acceptance remains open.
 

@@ -5,21 +5,27 @@
 Latest autonomous checkpoint: [MVP closeout](MVP_CLOSEOUT_20260929.md).
 At `ba57ea711`, 546 package tests, 133 selected hostless App tests and 122
 KeychainLifecycle logic tests passed; fresh unsigned builds and the Release
-network-capability audit also passed. A real signing build identified the
-current local blocker: the Apple Development identity exists, but no matching
-Mac App Development provisioning profile is installed for
-`com.keyrecord.trial.mvp20260929`. A reusable arm64 trial build helper now
-prepares the isolated identity and entitlements without launching the product.
-Its signed success path and effective Keychain access remain unverified.
+network-capability audit also passed. An initial signing build identified a
+missing provisioning profile. In one subsequently approved Xcode attempt,
+the existing account generated the matching Mac App Development profile and
+built the arm64 trial at `de8b9c526`. Its separately approved first-consent run
+completed key provisioning and encrypted preferences initialization, then failed
+capture startup with Input Monitoring denied. It never entered Collecting and
+quit normally. The owner enabled Input Monitoring and used OS Quit and Reopen;
+the reopened App was blocked and wrote no new isolated journal. Recovery through
+the explicit isolation wrapper is prepared, not yet run. Local provisioning and
+initial protected-store creation now have product evidence; capture, durability
+of collected counts and full Keychain lifecycle remain open. A reusable trial
+build helper preserves the ordinary project defaults.
 
 The owner accepts an Apple Silicon-only first usable capture MVP. Intel runtime,
 Intel product-performance measurement and SP6B Intel backup-KDF timing are not
 MVP prerequisites. The original full G1/v1 requirements still exist as later
 work; neither G1 nor public Release is marked PASS by this scope decision.
 
-The PR #17 product source assessed here is `87a26a216` on
-`codex/phase1-acceptance`; a later documentation-only commit does not rebind
-the recorded builds or host results.
+The earlier PR #17 checkpoint assessed product source `87a26a216` on
+`codex/phase1-acceptance`. The newer `de8b9c526` trial above has its own record;
+later documentation-only commits do not rebind either candidate's host results.
 Offline permission, tap-liveness, lock-callback and protected-store race repairs
 are present, but no current signed candidate has completed a real end-to-end
 capture and persistence run. The installed permission-witness trial appeared in
@@ -31,8 +37,8 @@ regrant, lock, sleep or product Keychain behavior. Do not repeat host toggles
 with either package. See [permission evidence](PERMISSION_RECOVERY_TEST.md) and
 [remaining acceptance](PHASE1_ACCEPTANCE.md).
 
-The immediate dependency is an operable, isolated Apple Silicon candidate with
-effective data-protection Keychain access that reaches Collecting. It then needs
+The immediate dependency is recovery of the provisioned isolated Apple Silicon
+candidate through its explicit wrapper so it can reach Collecting. It then needs
 candidate-bound observation of consent/Start, small non-sensitive shortcut
 aggregates and durable restart, actual permission and lock/sleep closure and
 recovery, and native Apple Silicon typing/idle resource windows. Offline

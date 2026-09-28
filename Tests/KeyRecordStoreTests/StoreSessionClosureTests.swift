@@ -62,6 +62,83 @@ private actor SuspendedMaterialKeys: ObjectStoreKeySource {
 }
 
 final class StoreSessionClosureTests: XCTestCase {
+    func testCloseWhileInitialKeyIsPendingDoesNotCreateManifest() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let keys = SuspendedMaterialKeys()
+        let store = ObjectStore(root: root, keySource: keys)
+        let initialState = try await store.bootstrap()
+        XCTAssertEqual(initialState, .freshInstall)
+
+        await keys.suspendNextMaterial()
+        let initialize = Task { try await store.initializeFreshInstallation() }
+        await keys.waitForMaterial()
+        await store.closeProtectedSession()
+        await keys.releaseMaterial()
+
+        do {
+            try await initialize.value
+            XCTFail("Initial manifest was committed after protected session closure")
+        } catch is CancellationError {} catch { XCTFail("Unexpected error: \(error)") }
+        let state = await store.bootstrapState()
+        XCTAssertNil(state)
+        let cachedKeys = await store.materialCache.count
+        XCTAssertEqual(cachedKeys, 0)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: root.appendingPathComponent(ManifestDiscovery.fileName).path))
+    }
+
+    func testCloseWhileWriteKeyIsPendingDoesNotCommitObject() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let keys = SuspendedMaterialKeys()
+        let store = ObjectStore(root: root, keySource: keys)
+        _ = try await store.bootstrap()
+        try await store.initializeFreshInstallation()
+        await keys.install()
+        await store.invalidateTransientMaterial()
+
+        await keys.suspendNextMaterial()
+        let write = Task { try await store.put(identity: try objectIdentity("closed-write"), payload: Data([1])) }
+        await keys.waitForMaterial()
+        await store.closeProtectedSession()
+        await keys.releaseMaterial()
+
+        do {
+            _ = try await write.value
+            XCTFail("Object write completed after protected session closure")
+        } catch is CancellationError {} catch { XCTFail("Unexpected error: \(error)") }
+        let names = try FileManager.default.contentsOfDirectory(atPath: root.path)
+        XCTAssertEqual(names, [ManifestDiscovery.fileName])
+        let cachedKeys = await store.materialCache.count
+        XCTAssertEqual(cachedKeys, 0)
+    }
+
+    func testCloseWhileReadKeyIsPendingDoesNotReturnPlaintext() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let keys = SuspendedMaterialKeys()
+        let store = ObjectStore(root: root, keySource: keys)
+        _ = try await store.bootstrap()
+        try await store.initializeFreshInstallation()
+        await keys.install()
+        let identity = try objectIdentity("closed-read")
+        _ = try await store.put(identity: identity, payload: Data([1]))
+        await store.invalidateTransientMaterial()
+
+        await keys.suspendNextMaterial()
+        let read = Task { try await store.read(identity) }
+        await keys.waitForMaterial()
+        await store.closeProtectedSession()
+        await keys.releaseMaterial()
+
+        do {
+            _ = try await read.value
+            XCTFail("Plaintext read completed after protected session closure")
+        } catch is CancellationError {} catch { XCTFail("Unexpected error: \(error)") }
+        let cachedKeys = await store.materialCache.count
+        XCTAssertEqual(cachedKeys, 0)
+    }
+
     func testCloseDuringBootstrapDoesNotReopenProtectedSession() async throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: root) }

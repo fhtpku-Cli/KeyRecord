@@ -6,6 +6,21 @@ extension ObjectStore {
         guard protectedSessionToken == token else { throw CancellationError() }
     }
 
+    public func initializeFreshInstallation(version: KeyVersion = KeyVersion(rawValue: 1)) async throws {
+        guard phase == .some(.freshInstall), manifestBox == nil else {
+            throw phase == nil ? ObjectStoreError.storeNotInitialized : ObjectStoreError.alreadyInitialized
+        }
+        let sessionToken = protectedSessionToken
+        let manifest = try EncryptedManifest(currentKeyVersion: version.rawValue)
+        let material = try await material(version.rawValue, versions: nil)
+        try requireProtectedSession(sessionToken)
+        let envelope = try EncryptedManifest.seal(manifest, material: material)
+        try fileSystem.commitFile(name: ManifestDiscovery.fileName, in: root, bytes: envelope,
+                                  phase: .manifest)
+        manifestBox = manifest
+        phase = .opened
+    }
+
     func recoverManifest(requiredVersions versions: Set<KeyVersion>, sessionToken: UUID) async throws
         -> (manifest: EncryptedManifest, encryptionKeyVersion: UInt32) {
         let bytes: Data

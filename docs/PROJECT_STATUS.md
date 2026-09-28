@@ -30,6 +30,17 @@ snapshot read failures. It quit normally after a 15-second request, within the
 readback for this candidate; full Keychain lifecycle remains open. A reusable
 trial build helper preserves the ordinary project defaults.
 
+A later separately approved permission round observed Collecting followed by
+Blocked with `privacyTrigger=sourceStopped`, `blockedReason=sessionLocked`, no
+live capture session and hidden sensitive state. The owner reported a restart
+or authentication prompt, triggering the agreed early stop. Normal Quit
+completed and no process remained. The observed protected-state counters stayed
+unchanged after closure, but all recorded Input Monitoring preflights before
+closure were granted. The initiating cause is not isolated; no explicit
+regrant/Start or recovery interval was exercised. This is partial closure
+evidence, not permission-recovery acceptance. The final Settings toggle state
+was not independently verified or automatically changed.
+
 The owner accepts an Apple Silicon-only first usable capture MVP. Intel runtime,
 Intel product-performance measurement and SP6B Intel backup-KDF timing are not
 MVP prerequisites. The original full G1/v1 requirements still exist as later

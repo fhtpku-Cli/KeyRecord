@@ -237,6 +237,46 @@ for this signed Debug candidate. They do not independently establish the
 application/shortcut identity rows, crash recovery, closed-interval privacy,
 complete Keychain lifecycle or Release qualification.
 
+## Permission round stopped on a system prompt
+
+The next permission round was separately prepared and launched only after the
+owner explicitly confirmed readiness. The local controller's `--permission`
+mode passed Swift 6 compilation and its no-launch check, preserves prior files,
+and requests normal Quit at 115 seconds with a 120-second stop deadline. The
+read-only `PrivacyTrialReport` adapter compiles against the repository's existing
+`ResourceEvaluation.swift` and calls `PrivacyIntervalEvaluator.evaluateClosed`;
+it neither starts capture nor reads keys or encrypted store content. Running it
+on the preceding readback journal correctly reported missing-boundary, not PASS.
+
+Candidate, installation, root and namespace were unchanged. The controller log
+is `/private/tmp/keyrecord-mvp-permission-controller-20260929.log`; the root now
+also contains `privacy-permission.jsonl` and `summary-permission.json`. After
+Collecting was observed, the owner was instructed to turn off this trial's
+Input Monitoring and reported a restart or authentication prompt. This was the
+agreed stop condition. A normal-termination request matched both the exact
+installed path and bundle ID, the controller exited 0 before its deadline, and
+an outside-sandbox process check found no remaining KeyRecordApp. No prompt was
+confirmed by the agent, and no regrant, new test input or relaunch was performed.
+The final Settings toggle state remains unverified and was not changed back.
+
+The journal has 66 records: five collecting records, then 61 blocked records.
+The seq 6 transition has `privacyTrigger=sourceStopped`,
+`blockedReason=sessionLocked`, `captureSessionLive=false` and
+`sensitiveContentVisible=false`; seq 7 begins `protectedStateClosed`. All four
+recorded Input Monitoring witnesses before closure were granted. There was no
+denied witness or tap-disabled event. Thus source closure was observed, but its
+causal relationship to the permission change versus the system prompt is not
+isolated. No actual screen-lock result is claimed from the blocked reason.
+
+Across the 60 records from closure through normal Quit, gate entries remain 68,
+snapshot attempts/publications 13 and analysis attempts/publications 14; input,
+handoff, normalization and durable-write counters remain zero. The aggregate
+summary retains shortcuts 3 and bare keys 0, with no input or writes in this
+run. The existing evaluator returns `inconclusive / interval-not-ended` because
+there was no recovery end boundary. This is partial fail-closed observation,
+not same-process revoke/regrant, exhaustive read protection or continuous
+privacy qualification. See [permission trial details](PERMISSION_RECOVERY_TEST.md).
+
 Still open: current-candidate attribution rows, native consent
 and accessibility, permission revoke/regrant, continuous lock/sleep closure and
 recovery, exhaustive live product observation for the hosted Keychain controller,

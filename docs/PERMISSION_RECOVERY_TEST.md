@@ -33,6 +33,38 @@ with no new input, writes or snapshot read failures, and quit normally within
 20 seconds. These bounded startup and persistence results do not establish
 same-process revoke/regrant, which remains open.
 
+## Provisioned permission trial — 2026-09-29
+
+After the owner explicitly confirmed readiness, the same installed signed
+`de8b9c526` trial launched with its existing private store and namespace under
+a 115-second normal-Quit / 120-second stop controller. It reached Collecting.
+The owner was then instructed to disable Input Monitoring for that trial only,
+and reported a restart or authentication prompt. The exact prompt type was not
+distinguished. Per the agreed stop condition, a path-and-bundle-matched
+`NSRunningApplication.terminate()` request ended the trial before the deadline;
+the controller exited 0 and a subsequent process check found no KeyRecordApp.
+There was no regrant, explicit Start, test shortcut or automatic relaunch.
+
+The 66-record `privacy-permission.jsonl` observes Collecting -> Blocked at seq 6
+and `protectedStateClosed` at seq 7. `captureSessionLive=false`,
+`sensitiveContentVisible=false`, `privacyTrigger=sourceStopped`, and
+`blockedReason=sessionLocked` are recorded. All four recorded preflight
+witnesses before closure were `inputMonitoringPreflightGranted`; no denied
+preflight or tap-disabled callback was observed. The source-stop trigger and
+concurrent system prompt do not establish that the permission poll detected
+revocation, nor that an actual screen lock occurred.
+
+Across seq 7–66, observed aggregate/handoff/normalization/durable-write counters
+remain zero; protected gate entries remain 68, snapshot attempts/publications
+remain 13 and analysis attempts/publications remain 14. These finite,
+non-atomic observations are partial closure evidence, not exhaustive protected
+reads or continuous closure proof. The existing `PrivacyIntervalEvaluator`
+returns `inconclusive / interval-not-ended` because no reauthorization end
+boundary exists. The final aggregate summary retains shortcuts 3 and bare keys
+0, with no new input or writes. The final system permission toggle state was
+not independently verified or restored. Do not repeat toggles or claim
+same-process permission recovery from this interrupted round.
+
 ## Permission polling fallback — 2026-09-28 candidate
 
 `codex/phase1-acceptance` adds a read-only Input Monitoring preflight to the

@@ -181,9 +181,12 @@ public enum LifecycleScenarioMachine {
             return value.keychain.calls == 2 && value.keychain.itemMissing == true &&
                 value.keychain.rawStatus == -25300
         case .lockBackground, .restartLocked, .sleepClosed:
-            return value.policy.generationFenced == true && value.policy.captureClosed != false
+            return value.keychain.calls == 1 && value.keychain.rawStatus != nil &&
+                (value.keychain.rawStatus != 0 || value.keychain.valueMatched == true) &&
+                value.policy.generationFenced == true && value.policy.captureClosed != false
         case .restartUnlocked, .unlockRevalidate, .wakeRevalidate, .logoutLogin:
-            return value.policy.generationFenced == true
+            return value.keychain.calls == 1 && value.keychain.rawStatus == 0 &&
+                value.keychain.valueMatched == true && value.policy.generationFenced == true
         case .sleepWake: return false
         case .cleanup: return value.keychain.calls == 1 && value.keychain.cleanupComplete == true
         case .crossDeviceRestore: return true

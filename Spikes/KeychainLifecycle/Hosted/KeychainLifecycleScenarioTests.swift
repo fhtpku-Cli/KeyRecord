@@ -123,6 +123,15 @@ final class KeychainLifecycleScenarioTests: XCTestCase {
         XCTAssertEqual(report.reason, "stepContractFailed")
     }
 
+    func testLockTransitionCannotPassWithoutKeychainRead() {
+        let fake = FakeLifecycleController()
+        fake.zeroTransitionCalls = true
+        let report = LifecycleScenarioMachine.run(.unlockRevalidation, controller: fake)
+        XCTAssertEqual(report.status, .fail)
+        XCTAssertEqual(report.reason, "stepContractFailed")
+        XCTAssertEqual(report.observations[1].keychain.calls, 0)
+    }
+
     func testFailureProtectedDeltaRejectsRawReadSuccess() {
         // Given raw success while locked, when policy leaked a delta, then qualification fails.
         let fake = FakeLifecycleController()
@@ -144,6 +153,70 @@ final class KeychainLifecycleScenarioTests: XCTestCase {
         XCTAssertNil(report.observations.first?.policy.aggregateDelta)
         XCTAssertEqual(backend.operations, [.add, .read, .attributes, .delete])
         XCTAssertEqual(backend.calls, 4)
+    }
+
+    func testHostedLockAndUnlockReadExactProbeItem() {
+        let backend = RecordingBackend()
+        let controller = HostedLifecycleScenarioController(
+            backend: backend, authority: FakeHostedAuthority(ready: true),
+            configuration: .init(namespace: .init(attempt: "attempt", seed: UUID()),
+                                 supportedScenarios: [.unlockRevalidation]),
+            productObserver: FakeHostedProductObserver())
+
+        XCTAssertEqual(controller.execute(.unlockedCRUD).status, .pass)
+        let locked = controller.execute(.lockBackground)
+        let unlocked = controller.execute(.unlockRevalidate)
+        XCTAssertEqual(locked.keychain.calls, 1)
+        XCTAssertEqual(locked.keychain.rawStatus, 0)
+        XCTAssertEqual(unlocked.keychain.calls, 1)
+        XCTAssertEqual(unlocked.keychain.valueMatched, true)
+        XCTAssertEqual(backend.operations, [.add, .read, .attributes, .read, .read])
+    }
+
+    func testLockedKeychainDenialIsRecordedWithoutReplacingProductLockEvidence() {
+        let backend = RecordingBackend()
+        backend.readStatuses = [0, -25308, 0]
+        let controller = HostedLifecycleScenarioController(
+            backend: backend, authority: FakeHostedAuthority(ready: true),
+            configuration: .init(namespace: .init(attempt: "attempt", seed: UUID()),
+                                 supportedScenarios: [.unlockRevalidation]),
+            productObserver: FakeHostedProductObserver())
+
+        let report = LifecycleScenarioMachine.run(.unlockRevalidation, controller: controller)
+        XCTAssertEqual(report.status, .pass)
+        XCTAssertEqual(report.observations[1].keychain.rawStatus, -25308)
+        XCTAssertEqual(report.observations[2].keychain.rawStatus, 0)
+        XCTAssertEqual(report.observations[2].keychain.valueMatched, true)
+    }
+
+    func testUnlockReadWithWrongProbeValueFailsLifecycle() {
+        let backend = RecordingBackend()
+        backend.readMatches = [true, true, false]
+        let controller = HostedLifecycleScenarioController(
+            backend: backend, authority: FakeHostedAuthority(ready: true),
+            configuration: .init(namespace: .init(attempt: "attempt", seed: UUID()),
+                                 supportedScenarios: [.unlockRevalidation]),
+            productObserver: FakeHostedProductObserver())
+
+        let report = LifecycleScenarioMachine.run(.unlockRevalidation, controller: controller)
+        XCTAssertEqual(report.status, .fail)
+        XCTAssertEqual(report.reason, "stepContractFailed")
+        XCTAssertEqual(report.observations[2].keychain.rawStatus, 0)
+        XCTAssertEqual(report.observations[2].keychain.valueMatched, false)
+    }
+
+    func testHostedCrossDeviceRestoreHasNoLocalQualificationShortcut() {
+        let backend = RecordingBackend()
+        let controller = HostedLifecycleScenarioController(
+            backend: backend, authority: FakeHostedAuthority(ready: true),
+            configuration: .init(namespace: .init(attempt: "attempt", seed: UUID()),
+                                 supportedScenarios: [.crossDeviceRestore]),
+            productObserver: FakeHostedProductObserver())
+
+        let observation = controller.execute(.crossDeviceRestore)
+        XCTAssertEqual(observation.status, .blocked)
+        XCTAssertEqual(observation.policy.witnessRejection, "secondDeviceUnavailable")
+        XCTAssertTrue(backend.operations.isEmpty)
     }
 
     #if KEYRECORD_SIGNED_HOSTED_TESTS
@@ -470,10 +543,15 @@ final class KeychainLifecycleScenarioTests: XCTestCase {
 
 private final class RecordingBackend: CandidateBackend {
     private(set) var operations: [CandidateOperation] = []
+    var readStatuses: [Int32] = []
+    var readMatches: [Bool] = []
     var calls: Int { operations.count }
     func perform(_ operation: CandidateOperation, namespace: ProbeNamespace) throws -> CandidateObservation {
         operations.append(operation)
-        return .init(status: 0, accessibility: "aku", synchronizable: false, valueMatched: operation == .read)
+        let status = operation == .read && !readStatuses.isEmpty ? readStatuses.removeFirst() : 0
+        let matches = operation == .read ? (readMatches.isEmpty ? true : readMatches.removeFirst()) : false
+        return .init(status: status, accessibility: "aku", synchronizable: false,
+                     valueMatched: operation == .read && status == 0 && matches)
     }
 }
 
@@ -577,6 +655,7 @@ private final class FakeLifecycleController: LifecycleScenarioController {
     var zeroKeychainCalls = false
     var zeroDeleteMissingCalls = false
     var zeroCleanupCalls = false
+    var zeroTransitionCalls = false
     var steps: [LifecycleStep] = []
     func supports(_ scenario: LifecycleScenario) -> Bool { supported }
     func execute(_ step: LifecycleStep) -> LifecycleStepObservation {
@@ -586,6 +665,9 @@ private final class FakeLifecycleController: LifecycleScenarioController {
         case .unlockedCRUD: calls = zeroKeychainCalls ? 0 : 3
         case .deleteMissing: calls = zeroDeleteMissingCalls ? 0 : 2
         case .cleanup: calls = zeroCleanupCalls ? 0 : 1
+        case .lockBackground, .restartLocked, .sleepClosed, .restartUnlocked,
+             .unlockRevalidate, .wakeRevalidate, .logoutLogin:
+            calls = zeroTransitionCalls ? 0 : 1
         default: calls = 0
         }
         let keychain = LifecycleKeychainEvidence(

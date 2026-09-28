@@ -122,6 +122,9 @@ public final class HostedLifecycleScenarioController: LifecycleScenarioControlle
     }
 
     private func transition(_ step: LifecycleStep) -> LifecycleStepObservation {
+        guard step != .crossDeviceRestore else {
+            return blocked(step: step, rejection: "secondDeviceUnavailable")
+        }
         guard let productObserver else {
             return blocked(step: step, rejection: "productObservationMissing", active: qualification.challenge.generation)
         }
@@ -144,6 +147,18 @@ public final class HostedLifecycleScenarioController: LifecycleScenarioControlle
                 return blocked(step: step, rejection: "productObservationMissing",
                                witness: witness.challenge.generation, active: transition.current.generation)
             }
+            let callsBefore = backend.calls
+            let keychainRead: CandidateObservation
+            do { keychainRead = try backend.perform(.read, namespace: configuration.namespace) }
+            catch {
+                return blocked(step: step, rejection: "keychainReadUnavailable",
+                               witness: witness.challenge.generation, active: transition.current.generation,
+                               keychainCalls: backend.calls - callsBefore)
+            }
+            let keychain = LifecycleKeychainEvidence(
+                rawStatus: keychainRead.status, calls: backend.calls - callsBefore,
+                accessibility: nil, synchronizable: nil, valueMatched: keychainRead.valueMatched,
+                itemMissing: nil, cleanupComplete: nil)
             let policy = LifecyclePolicyEvidence(
                 authoritativeWitness: true,
                 protectedReadDelta: observed.protectedReadDelta,
@@ -152,7 +167,7 @@ public final class HostedLifecycleScenarioController: LifecycleScenarioControlle
                 generationFenced: transition.previous.generation != transition.current.generation,
                 captureClosed: observed.captureClosed, witnessGeneration: witness.challenge.generation,
                 activeGeneration: transition.current.generation, priorGeneration: transition.previous.generation)
-            return observation(.pass, keychain: Self.zeroKeychain(rawStatus: nil), policy: policy)
+            return observation(.pass, keychain: keychain, policy: policy)
         }
     }
 

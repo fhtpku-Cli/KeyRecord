@@ -47,6 +47,17 @@ step remains decodable but cannot pass. The complete offline package suite and
 unsigned hosted Xcode test bundle build passed. This is scenario-model coverage
 only: there is still no live lock authority or product observer attached to the
 hosted test App.
+Another failing-first regression found that a lock/unlock scenario could claim
+PASS without a Keychain read during either transition. The hosted controller now
+performs one signed-effect read of its exact test item after each lock, unlock,
+sleep, wake, restart or login witness and product observation. The runner rejects
+a transition without that call; an unlocked read must succeed and match the
+item. A locked read records the raw macOS status without assuming it must fail,
+because the independent product lock gate remains authoritative. The hosted
+controller blocks cross-device restore when no second device exists. The offline
+KeychainLifecycle suites passed 38/38 and 82/82, and the unsigned hosted Xcode
+test bundle compiled. No real Keychain, lock transition, product observer or
+process restart was exercised, so host lifecycle qualification remains open.
 The hosted product-observation type now retains missing counters as absent
 values. A missing capture-closed observation on a lock step now yields BLOCKED
 instead of FAIL; an observed still-open capture remains FAIL. The missing-capture

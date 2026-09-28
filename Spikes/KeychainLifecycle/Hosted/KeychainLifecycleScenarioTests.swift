@@ -522,14 +522,21 @@ final class KeychainLifecycleScenarioTests: XCTestCase {
         XCTAssertEqual(controller.execute(.unlockRevalidate).status, .pass)
     }
 
-    func testHappyRestartLockedClosesCaptureWindow() {
+    func testHostedRestartLockedBlocksWithoutNewProcess() {
         let controller = hostedController(FakeHostedAuthority(ready: true), scenarios: [.restartLocked])
         let observation = controller.execute(.restartLocked)
-        XCTAssertEqual(observation.status, .pass)
-        XCTAssertEqual(observation.policy.captureClosed, true)
-        XCTAssertEqual(observation.policy.protectedReadDelta, 0)
-        XCTAssertEqual(observation.policy.publishDelta, 0)
-        XCTAssertEqual(observation.policy.aggregateDelta, 0)
+        XCTAssertEqual(observation.status, .blocked)
+        XCTAssertEqual(observation.policy.witnessRejection, "processRestartUnavailable")
+        XCTAssertNil(observation.policy.captureClosed)
+        XCTAssertNil(observation.policy.protectedReadDelta)
+    }
+
+    func testHostedRestartCannotPassWithoutNewProcess() {
+        let controller = hostedController(FakeHostedAuthority(ready: true), scenarios: [.restartUnlocked])
+        XCTAssertEqual(controller.execute(.unlockedCRUD).status, .pass)
+        let observation = controller.execute(.restartUnlocked)
+        XCTAssertEqual(observation.status, .blocked)
+        XCTAssertEqual(observation.policy.witnessRejection, "processRestartUnavailable")
     }
 
     func testFailureRawReadSuccessWithoutWitness() {

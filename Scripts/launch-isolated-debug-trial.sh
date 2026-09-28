@@ -34,6 +34,18 @@ if [[ "$namespace" == com.keyrecord.app || ! "$namespace" =~ ^[A-Za-z0-9.-]{1,12
 fi
 /usr/bin/codesign --verify --strict --deep "$app"
 
+# A valid signature alone does not make the data-protection Keychain usable.
+# A trial built and then re-signed without its application-identifier entitlement
+# passed codesign verification but failed SecItemAdd with -34018 on first consent.
+signed_team="$(/usr/bin/codesign -dv --verbose=2 "$app" 2>&1 | /usr/bin/sed -n 's/^TeamIdentifier=//p')"
+entitlements="$(/usr/bin/codesign -d --entitlements - "$app" 2>/dev/null)"
+if [[ -z "$signed_team" || "$signed_team" == 'not set' ||
+      "$entitlements" != *'com.apple.application-identifier'* ||
+      "$entitlements" != *"$signed_team.$bundle_id"* ]]; then
+    printf '%s\n' 'Trial signature lacks its matching data-protection Keychain application identifier.' >&2
+    exit 2
+fi
+
 printf 'Trial identity: %s (%s)\n' "$display_name" "$bundle_id"
 if [[ "$mode" == check ]]; then
     printf '%s\n' 'Launch inputs verified; no app was started.'

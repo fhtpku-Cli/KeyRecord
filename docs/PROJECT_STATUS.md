@@ -195,6 +195,18 @@ passed `Scripts/audit-product-network.sh` with zero matches. This does not
 connect a live product observer to the hosted Keychain controller or audit a
 final signed Release.
 
+At PR #17 source commit `e550075ca3d6d325249196eb793e655ecbb2be0c`, an
+unsigned universal Release App built with arm64 and x86_64 slices. Its exact
+executable (`SHA-256 29feb7e48756d7002ed1c2dc03127342c8eb28c6ac9ff7ac340994ece19507ab`)
+passed `Scripts/audit-product-network.sh`: 1,854 undefined-symbol lines and
+20,192 string lines were inspected with zero matches. The executable has an
+ad hoc signature and no Team ID. On this host, `security find-identity -v -p
+codesigning` found zero valid identities, and the installed permission witness
+trial has no embedded provisioning profile. These are current candidate and
+host facts, not a signed Release audit or a usable permission trial. A final
+signed Release executable needs its own static audit; the prior trial must not
+be reused for permission qualification.
+
 ## Dedicated trial isolation and bounded restart follow-up — 2026-09-27
 
 PR #12 merged at `b57dbb796056e40d7967fea34879aedff39bbf4b`. This follow-up

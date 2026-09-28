@@ -60,8 +60,11 @@ public final class HostedLifecycleScenarioController: LifecycleScenarioControlle
         case .unlockedCRUD: crud()
         case .deleteMissing: deleteMissing()
         case .cleanup: cleanup()
-        case .lockBackground, .unlockRevalidate, .restartLocked, .restartUnlocked, .logoutLogin, .sleepWake, .crossDeviceRestore:
+        case .lockBackground, .unlockRevalidate, .restartLocked, .restartUnlocked, .logoutLogin,
+             .sleepClosed, .wakeRevalidate, .crossDeviceRestore:
             transition(step)
+        case .sleepWake:
+            blocked(step: step, rejection: "compositeSleepWakeUnsupported")
         }
     }
 
@@ -125,7 +128,7 @@ public final class HostedLifecycleScenarioController: LifecycleScenarioControlle
         guard authority.preflightIsReady() else {
             return blocked(step: step, rejection: "lockAuthorityUnavailable", active: qualification.challenge.generation)
         }
-        let unlocked = step != .lockBackground && step != .restartLocked
+        let unlocked = step != .lockBackground && step != .restartLocked && step != .sleepClosed
         guard let witness = authority.witness(challenge: qualification.challenge, step: step) else {
             return blocked(step: step, active: qualification.challenge.generation)
         }

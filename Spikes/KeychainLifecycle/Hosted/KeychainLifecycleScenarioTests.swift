@@ -3,6 +3,52 @@ import Security
 @testable import LifecyclePreflight
 
 final class KeychainLifecycleScenarioTests: XCTestCase {
+    func testSleepWakeRequiresSeparateClosedSleepAndVerifiedWakeSteps() {
+        XCTAssertEqual(LifecycleScenario.sleepWake.steps.map(\.rawValue),
+                       ["unlockedCRUD", "sleepClosed", "wakeRevalidate"])
+    }
+
+    func testSleepWakeWithoutSleepClosureCannotReachWake() {
+        let fake = FakeLifecycleController()
+        fake.missingCaptureClosure = true
+        let report = LifecycleScenarioMachine.run(.sleepWake, controller: fake)
+        XCTAssertEqual(report.status, .blocked)
+        XCTAssertEqual(report.reason, "productObservationMissing")
+        XCTAssertEqual(fake.steps, [.unlockedCRUD, .sleepClosed, .cleanup])
+    }
+
+    func testHostedSleepWakeUsesLockedThenUnlockedWitness() {
+        let controller = hostedController(FakeHostedAuthority(ready: true), scenarios: [.sleepWake])
+        let report = LifecycleScenarioMachine.run(.sleepWake, controller: controller)
+        XCTAssertEqual(report.status, .pass)
+        XCTAssertEqual(report.observations.count, 4)
+        XCTAssertEqual(report.observations[1].policy.captureClosed, true)
+        XCTAssertEqual(report.observations[2].policy.captureClosed, false)
+        XCTAssertEqual(report.observations[1].policy.activeGeneration,
+                       report.observations[2].policy.priorGeneration)
+        XCTAssertNotEqual(report.observations[1].policy.priorGeneration,
+                          report.observations[2].policy.activeGeneration)
+        XCTAssertEqual(controller.execute(.sleepWake).status, .blocked)
+    }
+
+    func testSleepClosureRejectsUnlockedWitnessBeforeWake() {
+        let authority = ContradictoryStateAuthority(contradictorySteps: [.sleepClosed])
+        let controller = hostedController(authority, scenarios: [.sleepWake])
+        let report = LifecycleScenarioMachine.run(.sleepWake, controller: controller)
+        XCTAssertEqual(report.status, .blocked)
+        XCTAssertEqual(report.reason, "witnessStateMismatch")
+        XCTAssertEqual(report.observations.count, 3)
+    }
+
+    func testSleepClosureWithoutAuthorityCannotPass() {
+        let fake = FakeLifecycleController()
+        fake.missingSleepWitness = true
+        let report = LifecycleScenarioMachine.run(.sleepWake, controller: fake)
+        XCTAssertEqual(report.status, .blocked)
+        XCTAssertEqual(report.reason, "noAuthoritativeWitness")
+        XCTAssertEqual(fake.steps, [.unlockedCRUD, .sleepClosed, .cleanup])
+    }
+
     func testHappyAllScenariosThroughFakeController() throws {
         // Given a fully capable fake, when each scenario executes, then all steps and cleanup run.
         for scenario in LifecycleScenario.allCases {
@@ -468,7 +514,7 @@ private final class FakeHostedAuthority: HostedLockAuthority {
     func preflightIsReady() -> Bool { ready }
     func witness(challenge: LockChallenge, step: LifecycleStep) -> HostedLockWitness? {
         guard witness else { return nil }
-        let unlocked = step != .lockBackground && step != .restartLocked
+        let unlocked = step != .lockBackground && step != .restartLocked && step != .sleepClosed
         return .init(challenge: challenge, unlocked: unlocked)
     }
 }
@@ -489,7 +535,7 @@ private final class FakeHostedProductObserver: HostedProductObserver {
         self.aggregateDelta = aggregateDelta
     }
     func observe(step: LifecycleStep, transition: LockTransition) -> HostedProductObservation? {
-        let closed = step == .lockBackground || step == .restartLocked || step == .sleepWake
+        let closed = step == .lockBackground || step == .restartLocked || step == .sleepClosed
         return .init(protectedReadDelta: protectedReadDelta, publishDelta: 0, aggregateDelta: aggregateDelta,
                      captureClosed: closed)
     }
@@ -527,6 +573,7 @@ private final class FakeLifecycleController: LifecycleScenarioController {
     var missingCaptureClosure = false
     var captureStillOpen = false
     var witness = true
+    var missingSleepWitness = false
     var zeroKeychainCalls = false
     var zeroDeleteMissingCalls = false
     var zeroCleanupCalls = false
@@ -546,7 +593,8 @@ private final class FakeLifecycleController: LifecycleScenarioController {
             accessibility: "aku", synchronizable: false, valueMatched: true,
             itemMissing: true, cleanupComplete: true)
         let policy = LifecyclePolicyEvidence(
-            authoritativeWitness: witness, protectedReadDelta: missingProductDeltas ? nil : (leak ? 1 : 0),
+            authoritativeWitness: witness && !(missingSleepWitness && step == .sleepClosed),
+            protectedReadDelta: missingProductDeltas ? nil : (leak ? 1 : 0),
             publishDelta: missingProductDeltas ? nil : 0, aggregateDelta: missingProductDeltas ? nil : 0,
             generationFenced: true, captureClosed: missingCaptureClosure ? nil : !captureStillOpen)
         return LifecycleStepObservation(status: step == interrupt ? .blocked : .pass, keychain: keychain, policy: policy)

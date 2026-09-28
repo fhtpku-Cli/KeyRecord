@@ -38,6 +38,15 @@ observation was made and blocks a lock-transition PASS if any required delta is
 missing. Older journal lines without `analysisPublicationCount` yield an
 inconclusive closed-interval evaluation. Finite interval samples also do not
 prove that capture stayed closed at every instant of a lock.
+The sleep/wake scenario now has separate `sleepClosed` and `wakeRevalidate`
+steps. The previous composite step could accept one post-wake observation
+without ever checking that capture closed during sleep. A failing-first offline
+test reproduced that gap; the revised runner stops before wake when the sleep
+closure observation or independent locked witness is missing. The old composite
+step remains decodable but cannot pass. The complete offline package suite and
+unsigned hosted Xcode test bundle build passed. This is scenario-model coverage
+only: there is still no live lock authority or product observer attached to the
+hosted test App.
 The hosted product-observation type now retains missing counters as absent
 values. A missing capture-closed observation on a lock step now yields BLOCKED
 instead of FAIL; an observed still-open capture remains FAIL. The missing-capture

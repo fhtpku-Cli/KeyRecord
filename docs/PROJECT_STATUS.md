@@ -115,6 +115,13 @@ data-protection Keychain is unavailable. The probe still has no live product
 observer, so even a future probe result alone cannot qualify the product's
 Keychain and lock lifecycle. The remaining evidence gap is recorded in
 [Phase 1 acceptance](PHASE1_ACCEPTANCE.md).
+The offline sleep/wake scenario now checks sleep closure and post-wake
+revalidation as separate steps. Its previous one-step form could skip the
+sleep interval; the failing-first test caught that model gap. A missing locked
+witness also blocks before wake. The complete KeychainLifecycle SwiftPM suite
+and unsigned hosted Xcode test bundle build passed after the repair. No sleep
+or wake was performed on the host, and live lifecycle qualification remains
+open.
 Apple documents that macOS applies `kSecAttrAccessible` only when
 `kSecUseDataProtectionKeychain` or `kSecAttrSynchronizable` is true
 ([attribute reference](https://developer.apple.com/documentation/security/ksecattraccessible),

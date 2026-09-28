@@ -4,18 +4,19 @@ import CryptoKit
 public enum LifecycleStatus: String, Codable, Sendable { case pass = "PASS", fail = "FAIL", blocked = "BLOCKED" }
 public enum LifecycleStep: String, Codable, Sendable {
     case unlockedCRUD, lockBackground, unlockRevalidate, restartLocked, restartUnlocked
-    case logoutLogin, sleepWake, deleteMissing, cleanup, crossDeviceRestore
+    case logoutLogin, sleepWake, sleepClosed, wakeRevalidate, deleteMissing, cleanup, crossDeviceRestore
     var needsWitness: Bool {
         switch self {
-        case .unlockedCRUD, .unlockRevalidate, .restartLocked, .restartUnlocked, .logoutLogin, .sleepWake: true
-        case .lockBackground, .deleteMissing, .cleanup, .crossDeviceRestore: false
+        case .unlockedCRUD, .unlockRevalidate, .restartLocked, .restartUnlocked,
+             .logoutLogin, .sleepClosed, .wakeRevalidate: true
+        case .lockBackground, .sleepWake, .deleteMissing, .cleanup, .crossDeviceRestore: false
         }
     }
     var needsProductObservation: Bool {
         switch self {
         case .unlockedCRUD, .deleteMissing, .cleanup: false
         case .lockBackground, .unlockRevalidate, .restartLocked, .restartUnlocked,
-             .logoutLogin, .sleepWake, .crossDeviceRestore: true
+             .logoutLogin, .sleepWake, .sleepClosed, .wakeRevalidate, .crossDeviceRestore: true
         }
     }
 }
@@ -30,7 +31,7 @@ public enum LifecycleScenario: String, CaseIterable, Codable, Sendable {
         case .restartLocked: [.unlockedCRUD, .lockBackground, .restartLocked]
         case .restartUnlocked: [.unlockedCRUD, .restartUnlocked]
         case .logoutLogin: [.unlockedCRUD, .logoutLogin]
-        case .sleepWake: [.unlockedCRUD, .sleepWake]
+        case .sleepWake: [.unlockedCRUD, .sleepClosed, .wakeRevalidate]
         case .deleteMissing: [.unlockedCRUD, .deleteMissing]
         case .crossDeviceRestore: [.crossDeviceRestore]
         }
@@ -144,7 +145,7 @@ public enum LifecycleScenarioMachine {
                 } else if step.needsProductObservation &&
                     (observation.policy.protectedReadDelta == nil || observation.policy.publishDelta == nil ||
                      observation.policy.aggregateDelta == nil ||
-                     ([LifecycleStep.lockBackground, .restartLocked, .sleepWake].contains(step)
+                     ([LifecycleStep.lockBackground, .restartLocked, .sleepClosed].contains(step)
                       && observation.policy.captureClosed == nil)) {
                     status = .blocked; reason = "productObservationMissing"
                 } else if [observation.policy.protectedReadDelta, observation.policy.publishDelta,
@@ -179,10 +180,11 @@ public enum LifecycleScenarioMachine {
         case .deleteMissing:
             return value.keychain.calls == 2 && value.keychain.itemMissing == true &&
                 value.keychain.rawStatus == -25300
-        case .lockBackground, .restartLocked, .sleepWake:
+        case .lockBackground, .restartLocked, .sleepClosed:
             return value.policy.generationFenced == true && value.policy.captureClosed != false
-        case .restartUnlocked, .unlockRevalidate, .logoutLogin:
+        case .restartUnlocked, .unlockRevalidate, .wakeRevalidate, .logoutLogin:
             return value.policy.generationFenced == true
+        case .sleepWake: return false
         case .cleanup: return value.keychain.calls == 1 && value.keychain.cleanupComplete == true
         case .crossDeviceRestore: return true
         }

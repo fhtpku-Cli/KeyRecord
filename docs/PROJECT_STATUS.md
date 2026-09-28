@@ -72,6 +72,12 @@ waits for Collecting and writes only aggregate progress to the trial's private
 root. It has not been launched or measured on a host, so neither ARM nor Intel
 performance qualification is established.
 
+Review found that fixed replay had used a constant-granted Input Monitoring
+stub, omitting the real system preflight cost from a formal product measurement.
+The App now supplies the system permission provider; hostless tests inject a
+provider and verify that denial blocks replay. Both focused replay tests and
+an unsigned Debug App test build passed. The changed host path remains unrun.
+
 A later offline candidate adds a monotonic start marker shared with the
 resource sampler and a two-second drain tail after the 60-second warmup and
 600-second measurement window. Before reading the isolated encrypted aggregate,

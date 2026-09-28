@@ -115,6 +115,14 @@ not delivery timing or protected-state closure on a real macOS lock.
 4. CPU = process CPU seconds / elapsed monotonic seconds × 100, relative to one logical core. Formal windows require an observed sample at or after the full 600-second endpoint; a near-endpoint sample below 600 seconds remains interrupted. Report typing and idle medians separately. Typing <1%, idle <0.1%. Record physical footprint across both measured phases at a stated cadence, their means and peaks; each phase must stay below 100 MB. Sampled peak is not proof no inter-sample transient occurred. Do not substitute RSS, whole-machine CPU or a ten-minute wall clock dominated by sleep.
 5. Keep raw samples, measured duration and work completed. Report controller/fixture overhead explicitly; do not subtract an arbitrary baseline or turn an XCTest failure into a product regression claim. Empty/missing/interrupted evidence is not PASS. Compare input and durable aggregate totals to ensure the workload really ran.
 
+Candidate review found that fixed replay had used a constant-granted Input
+Monitoring stub, so a formal product replay would not include the real system
+preflight cost. The App now supplies `SystemInputMonitoringPermission` to the
+replay source. Replay requires authorization before Collecting and keeps the
+same preflight in its collecting-state monitor; only hostless tests inject a
+synthetic permission provider. Two focused replay tests, including denial, and
+an unsigned Debug App test build passed. No host replay was run after this change.
+
 The private native ARM Debug trial package prepared from this PR has bundle ID
 `com.keyrecord.trial.performance5c54a178`, a distinct display name and the
 required isolation marker. Its ad-hoc signature passed strict verification.

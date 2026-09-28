@@ -66,11 +66,6 @@ public final class FixedReplayController: @unchecked Sendable {
     }
 }
 
-private struct FixedReplayPermission: InputMonitoringPermission {
-    func preflight() -> InputMonitoringStatus { .granted }
-    func request() -> InputMonitoringStatus { .granted }
-}
-
 private final class FixedReplayBackend: CaptureTapBackend, @unchecked Sendable {
     private let queue: CaptureQueue
     private let providers: CaptureProviderSet
@@ -111,11 +106,12 @@ private final class FixedReplayBackend: CaptureTapBackend, @unchecked Sendable {
 
 extension ListenOnlyEventSource {
     public static func fixedReplay(queue: CaptureQueue, qualification: any CaptureQualification,
-                                   providers: CaptureProviderSet, controller: FixedReplayController)
+                                   providers: CaptureProviderSet, controller: FixedReplayController,
+                                   permission: any InputMonitoringPermission)
         -> ListenOnlyEventSource {
         ListenOnlyEventSource(queue: queue, qualification: qualification,
             backend: FixedReplayBackend(queue: queue, providers: providers, controller: controller),
-            permission: FixedReplayPermission())
+            permission: permission)
     }
 }
 #endif

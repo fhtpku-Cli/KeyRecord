@@ -146,7 +146,8 @@ final class ProductComposition: NSObject, NSMenuDelegate {
         host.eventSource = { queue, qualification, sessionLock in
             ListenOnlyEventSource.fixedReplay(queue: queue, qualification: qualification,
                 providers: CaptureProviderSet(foreground: foreground, secureInput: secureInput,
-                                              sessionLock: sessionLock), controller: controller)
+                                              sessionLock: sessionLock), controller: controller,
+                permission: SystemInputMonitoringPermission())
         }
         return try await assemble(host)
     }

@@ -269,7 +269,8 @@ private final class SyntheticProduct {
                 if let replayController {
                     return ListenOnlyEventSource.fixedReplay(queue: queue, qualification: qualification,
                         providers: CaptureProviderSet(foreground: host, secureInput: host,
-                                                      sessionLock: host), controller: replayController)
+                                                      sessionLock: host), controller: replayController,
+                        permission: host)
                 }
                 let tap = SyntheticTap(host: host, queue: queue)
                 self?.tap = tap

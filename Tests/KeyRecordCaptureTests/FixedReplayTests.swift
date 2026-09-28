@@ -10,6 +10,12 @@ private struct ReplayProviders: FrontmostAppProvider, SecureInputProvider, Sessi
     func sessionLockState() async -> SessionLockState { .unlocked }
 }
 
+private struct ReplayPermission: InputMonitoringPermission {
+    let status: InputMonitoringStatus
+    func preflight() -> InputMonitoringStatus { status }
+    func request() -> InputMonitoringStatus { status }
+}
+
 final class FixedReplayTests: XCTestCase {
     func testFixtureBytesMatchTheEventsDrivenByTheController() async throws {
         XCTAssertEqual(try JSONEncoder().encode(FixedReplayController.pattern), FixedReplayController.fixtureJSON)
@@ -22,7 +28,8 @@ final class FixedReplayTests: XCTestCase {
         let controller = FixedReplayController()
         let source = ListenOnlyEventSource.fixedReplay(queue: queue, qualification: AllowedCapture(),
             providers: CaptureProviderSet(foreground: providers, secureInput: providers,
-                                          sessionLock: providers), controller: controller)
+                                          sessionLock: providers), controller: controller,
+            permission: ReplayPermission(status: .granted))
         let received = CaptureLock([Int]())
         let delivered = expectation(description: "fixed fixture delivered")
         delivered.expectedFulfillmentCount = 16
@@ -43,6 +50,28 @@ final class FixedReplayTests: XCTestCase {
         XCTAssertFalse(liveAfter)
         XCTAssertEqual(controller.emit(tick: 1), 0)
         XCTAssertEqual(controller.acceptedEvents, 16)
+    }
+
+    func testDeniedPermissionCannotStartReplay() async throws {
+        let queue = CaptureQueue()
+        let providers = ReplayProviders()
+        queue.install(GateInputs(collecting: true, keyAvailability: .available,
+            sessionLock: .unlocked, secureInput: .disabled,
+            foreground: .attributable(bundleID: "performance.fixture"), exclusion: .included),
+            for: queue.generation)
+        let controller = FixedReplayController()
+        let source = ListenOnlyEventSource.fixedReplay(queue: queue, qualification: AllowedCapture(),
+            providers: CaptureProviderSet(foreground: providers, secureInput: providers,
+                                          sessionLock: providers), controller: controller,
+            permission: ReplayPermission(status: .denied))
+
+        do {
+            try await source.start { _ in .accepted }
+            XCTFail("Replay started without Input Monitoring authorization")
+        } catch CaptureStartError.permissionRequired {}
+        let live = await source.hasLiveSession
+        XCTAssertFalse(live)
+        XCTAssertEqual(controller.emit(tick: 0), 0)
     }
 }
 #endif

@@ -12,6 +12,10 @@ enum LocalKeychainQueries {
         kSecAttrAccessibleWhenUnlockedThisDeviceOnly
     }
 
+    static func productIdentity(service: String, account: String) -> [String: Any] {
+        identityQuery(service: service, account: account, dataProtection: true)
+    }
+
     static func identityQuery(service: String, account: String, dataProtection: Bool) -> [String: Any] {
         var query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,

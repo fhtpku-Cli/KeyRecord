@@ -6,20 +6,14 @@ import KeyRecordStore
 
 // REAL Security.framework backend, compiled only into DEBUG builds and selected only
 // when KEYRECORD_LOCAL_CAPTURE=1 arms the local developer capture path. Security
-// invariants: exact service+account generic-password items in the TRADITIONAL file
-// keychain (data-protection keychain requires a paid provisioned access-group
-// entitlement and returns errSecMissingEntitlement -34018 on a free account; local
-// dev uses the file keychain under the same exact service namespace),
-// kSecAttrSynchronizable false (no iCloud), this-device-only accessibility,
+// invariants: exact service+account generic-password items in the data-protection
+// keychain, kSecAttrSynchronizable false (no iCloud), this-device-only accessibility,
 // kSecMatchLimitOne reads, no enumeration or prefix deletion, and key bytes are never
-// logged. Release and non-armed Debug builds keep BlockedLiveKeychain.
+// logged. An unavailable data-protection keychain fails closed. Release and
+// non-armed Debug builds keep BlockedLiveKeychain.
 struct LocalKeychainBackend: KeychainBackend {
-    // DEBUG local dev always uses the traditional file keychain; ignore the
-    // root-package dataProtection preference (which targets a paid entitlement).
-    private static let usesDataProtectionKeychain = false
-
     func read(_ id: KeychainItemID) async throws -> Data? {
-        let identity = Self.identity(id, dataProtection: Self.usesDataProtectionKeychain)
+        let identity = Self.identity(id)
         var result: CFTypeRef?
         let status = SecItemCopyMatching(LocalKeychainQueries.queryForReadingData(identity: identity) as CFDictionary,
                                          &result)
@@ -59,7 +53,7 @@ struct LocalKeychainBackend: KeychainBackend {
         // writer owns the namespace, so the window is uncontended; any drift is a conflict.
         guard let current = try await read(update.id), current == expected
         else { throw KeyringError.metadataConflict }
-        let identity = Self.identity(update.id, dataProtection: Self.usesDataProtectionKeychain)
+        let identity = Self.identity(update.id)
         let attributes = LocalKeychainQueries.attributesForUpdate(
             data: update.replacement, accessible: Self.accessible(update.policy))
         let status = SecItemUpdate(identity as CFDictionary, attributes as CFDictionary)
@@ -70,14 +64,14 @@ struct LocalKeychainBackend: KeychainBackend {
     }
 
     func delete(_ id: KeychainItemID) async throws {
-        let status = SecItemDelete(Self.identity(id, dataProtection: Self.usesDataProtectionKeychain) as CFDictionary)
+        let status = SecItemDelete(Self.identity(id) as CFDictionary)
         guard status == errSecSuccess || status == errSecItemNotFound else {
             throw Self.statusError(status)
         }
     }
 
     private func add(id: KeychainItemID, data: Data, policy: KeychainAccessibilityPolicy) async throws {
-        let identity = Self.identity(id, dataProtection: Self.usesDataProtectionKeychain)
+        let identity = Self.identity(id)
         let attributes = LocalKeychainQueries.attributesForAdd(
             identity: identity, data: data, accessible: Self.accessible(policy))
         let status = SecItemAdd(attributes as CFDictionary, nil)
@@ -87,9 +81,8 @@ struct LocalKeychainBackend: KeychainBackend {
         }
     }
 
-    private static func identity(_ id: KeychainItemID, dataProtection: Bool) -> [String: Any] {
-        LocalKeychainQueries.identityQuery(service: id.namespace.service,
-                                           account: id.account, dataProtection: dataProtection)
+    private static func identity(_ id: KeychainItemID) -> [String: Any] {
+        LocalKeychainQueries.productIdentity(service: id.namespace.service, account: id.account)
     }
 
     private static func accessible(_ policy: KeychainAccessibilityPolicy) -> CFString {

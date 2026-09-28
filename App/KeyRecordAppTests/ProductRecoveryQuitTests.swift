@@ -13,11 +13,13 @@ import KeyRecordCore
 
 private actor MemoryKeychain: KeychainBackend {
     private var items: [KeychainItemID: Data] = [:]
+    private var unavailable = false
     private var holdingDeletes = false
     private var failNextDelete = false
     private var heldDeletes: [CheckedContinuation<Void, Never>] = []
     private(set) var deleteAttempts = 0
     var itemCount: Int { items.count }
+    func setUnavailable(_ value: Bool) { unavailable = value }
     /// Parks every delete until released, to pause erase in the middle of maintenance.
     func holdDeletes() { holdingDeletes = true }
     func failNextDeleteOnce() { failNextDelete = true }
@@ -26,7 +28,10 @@ private actor MemoryKeychain: KeychainBackend {
         heldDeletes.forEach { $0.resume() }
         heldDeletes.removeAll()
     }
-    func read(_ id: KeychainItemID) async throws -> Data? { items[id] }
+    func read(_ id: KeychainItemID) async throws -> Data? {
+        if unavailable { throw KeyringError.backendUnavailable }
+        return items[id]
+    }
     func versions(in namespace: KeychainNamespace) async throws -> Set<KeyVersion> {
         Set(items.keys.filter { $0.namespace == namespace }.compactMap(\.version))
     }
@@ -449,6 +454,22 @@ final class ProductRecoveryQuitTests: XCTestCase {
     }
 
     // MARK: - Recovery
+
+    func testUnavailableKeychainBlocksFreshProductBeforeCapture() async throws {
+        let product = try SyntheticProduct.fresh()
+        products.append(product)
+        await product.keychain.setUnavailable(true)
+        try await product.boot()
+        await product.composition.startOrRetry()
+        XCTAssertEqual(product.phase, .consent)
+        await product.composition.flow.accept()
+        XCTAssertEqual(product.phase, .failed)
+        let live = await product.live
+        XCTAssertFalse(live)
+        XCTAssertFalse(product.composition.flow.sensitiveContentVisible)
+        let itemCount = await product.keychain.itemCount
+        XCTAssertEqual(itemCount, 0)
+    }
 
     func testFixedReplayTraversesProductReductionAndEncryptedStore() async throws {
         let product = try SyntheticProduct.fresh()

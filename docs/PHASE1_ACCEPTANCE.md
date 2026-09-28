@@ -27,14 +27,15 @@ The hosted Keychain scenario controller requires a separate product observation
 for lock-transition results. Without it, those steps return BLOCKED; the fake
 observer in offline tests establishes only that the controller handles supplied
 measurements. No live product observer is wired into the hosted probe yet.
-The probe's signed effect request selects the data-protection Keychain
-(`kSecUseDataProtectionKeychain`, SDK key `nleg`), while the current armed Debug
-product deliberately uses the traditional file Keychain. The existing query
-tests cover each construction separately (six product query tests and seven
-probe effect tests passed offline on this candidate). A successful probe result
-therefore cannot be reused as evidence that the product's own Keychain backend
-closed or reopened correctly across lock transitions; that requires an isolated product
-run with a product observation.
+The probe's signed effect request and the current armed Debug product both select
+the nonsynchronizable data-protection Keychain (`kSecUseDataProtectionKeychain`,
+SDK key `nleg`) so that `WhenUnlockedThisDeviceOnly` can apply. The earlier Debug
+product used the traditional file Keychain, where macOS does not apply that
+accessibility attribute. An unavailable data-protection Keychain now blocks
+product bootstrap without falling back. Query construction tests do not perform
+real Keychain operations. A successful probe result still cannot establish that
+the product's own backend closed or reopened correctly across lock transitions;
+that requires an isolated product run with product observation.
 
 ## Executable lanes and their meaning
 

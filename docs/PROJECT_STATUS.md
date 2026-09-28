@@ -89,11 +89,23 @@ product observation it returns BLOCKED. A failed Keychain add stops the CRUD seq
 and records the failing status rather than allowing a later read to mask it.
 These changes improve evidence integrity; no real Keychain or lock transition
 was exercised.
-The standalone probe requests the data-protection Keychain, while the current
-armed Debug product uses the traditional file Keychain. The probe also has no
-live product observer, so even a future probe result alone cannot qualify the
-product's Keychain and lock lifecycle. The distinction is recorded in
+The standalone probe and the current armed Debug product request the
+nonsynchronizable data-protection Keychain. The earlier Debug product used the
+traditional file Keychain, which did not enforce its requested
+`WhenUnlockedThisDeviceOnly` attribute. The product now fails closed if the
+data-protection Keychain is unavailable. The probe still has no live product
+observer, so even a future probe result alone cannot qualify the product's
+Keychain and lock lifecycle. The remaining evidence gap is recorded in
 [Phase 1 acceptance](PHASE1_ACCEPTANCE.md).
+Apple documents that macOS applies `kSecAttrAccessible` only when
+`kSecUseDataProtectionKeychain` or `kSecAttrSynchronizable` is true
+([attribute reference](https://developer.apple.com/documentation/security/ksecattraccessible),
+[Mac Keychain technote](https://developer.apple.com/documentation/technotes/tn3137-on-mac-keychains)).
+The revised Debug product uses the former and keeps synchronization false.
+Its six query tests and the synthetic unavailable-Keychain product test passed;
+the focused App run passed 76 tests with one Release-binary-dependent skip.
+No real Keychain item was created or read in that run, and no lock transition
+was performed.
 
 The first owner-assisted same-process permission trial on the isolated Debug
 candidate did **not** show the required closure: after Input Monitoring was

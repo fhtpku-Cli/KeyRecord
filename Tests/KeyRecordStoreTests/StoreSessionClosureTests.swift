@@ -61,7 +61,108 @@ private actor SuspendedMaterialKeys: ObjectStoreKeySource {
     }
 }
 
+private actor SuspendedResetInventoryKeys: ObjectStoreKeySource {
+    let wrapped: FakeObjectKeySource
+    private var armed = false
+    private var waiting = false
+    private var entered: CheckedContinuation<Void, Never>?
+    private var resumeInventory: CheckedContinuation<Void, Never>?
+
+    init(wrapped: FakeObjectKeySource) { self.wrapped = wrapped }
+
+    func suspendNextInventory() { armed = true }
+
+    func namespaceKeyVersions() async throws -> Set<KeyVersion> {
+        if armed {
+            armed = false
+            waiting = true
+            entered?.resume()
+            entered = nil
+            await withCheckedContinuation { resumeInventory = $0 }
+        }
+        return try await wrapped.namespaceKeyVersions()
+    }
+
+    func material(for version: KeyVersion) async throws -> Data {
+        try await wrapped.material(for: version)
+    }
+
+    func waitForInventory() async {
+        if waiting { return }
+        await withCheckedContinuation { entered = $0 }
+    }
+
+    func releaseInventory() {
+        resumeInventory?.resume()
+        resumeInventory = nil
+    }
+}
+
 final class StoreSessionClosureTests: XCTestCase {
+    func testClosedResetDoesNotContinueAfterStoreReopens() async throws {
+        let harness = try StoreHarness()
+        defer { harness.cleanup() }
+        let keys = SuspendedResetInventoryKeys(wrapped: harness.keySource)
+        let store = ObjectStore(root: harness.root, keySource: keys)
+        let initialState = try await store.bootstrap()
+        XCTAssertEqual(initialState, .freshInstall)
+        await harness.keySource.seed(version: 1)
+        try await store.initializeFreshInstallation()
+        _ = try await seedReset(store)
+
+        await keys.suspendNextInventory()
+        let reset = Task {
+            try await store.resetCycle(operationID: resetOperation, day: LocalDay("2026-09-13"))
+        }
+        await keys.waitForInventory()
+        await store.closeProtectedSession()
+        let reopened = try await store.bootstrap()
+        XCTAssertEqual(reopened, .opened)
+        await keys.releaseInventory()
+
+        do {
+            _ = try await reset.value
+            XCTFail("Reset from the closed session continued after reopening")
+        } catch is CancellationError {} catch { XCTFail("Unexpected error: \(error)") }
+        let current = try await store.currentCycleRecord()
+        XCTAssertEqual(current.cycleID, resetOldCycle)
+    }
+
+    func testClosedJournalRecoveryDoesNotContinueAfterStoreReopens() async throws {
+        let harness = try StoreHarness()
+        defer { harness.cleanup() }
+        let keys = SuspendedResetInventoryKeys(wrapped: harness.keySource)
+        let store = ObjectStore(root: harness.root, keySource: keys)
+        let initialState = try await store.bootstrap()
+        XCTAssertEqual(initialState, .freshInstall)
+        await harness.keySource.seed(version: 1)
+        try await store.initializeFreshInstallation()
+        _ = try await seedReset(store)
+        do {
+            _ = try await store.resetCycle(operationID: resetOperation, day: LocalDay("2026-09-13"),
+                injection: CycleResetInjection(
+                    summaryWrite: DurabilityInjection(failPhase: .data, failAt: .afterRename)))
+            XCTFail("Expected an interrupted reset journal")
+        } catch ObjectStoreError.filesystem {}
+
+        await keys.suspendNextInventory()
+        let recovery = Task { try await store.continueUnfinishedReset(day: LocalDay("2026-09-13")) }
+        await keys.waitForInventory()
+        await store.closeProtectedSession()
+        let reopened = try await store.bootstrap()
+        XCTAssertEqual(reopened, .opened)
+        await keys.releaseInventory()
+
+        do {
+            _ = try await recovery.value
+            XCTFail("Journal recovery from the closed session continued after reopening")
+        } catch is CancellationError {} catch { XCTFail("Unexpected error: \(error)") }
+        let current = try await store.currentCycleRecord()
+        XCTAssertEqual(current.cycleID, resetOldCycle)
+        let pending = try await store.pendingResetOperationID()
+        XCTAssertEqual(pending, resetOperation)
+    }
+
     func testCloseWhileInitialKeyIsPendingDoesNotCreateManifest() async throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: root) }

@@ -165,6 +165,17 @@ An offline race test exposed a separate store lifecycle fault: `ObjectStore.boot
 
 A follow-up reproduction found the same ordering fault during first-installation manifest creation: a pending key request returned after session close and still committed `manifest.krenc`. Initial creation and the raw store read/write/delete paths now check the same session token after key retrieval, before plaintext return or file mutation; a late key result cannot repopulate the transient cache. The initial-creation reproduction failed before the repair and passed afterward. The five session-closure tests, all 168 Store tests, 51 hostless product recovery tests, and unsigned Debug App build passed for this follow-up candidate. These are offline results; no real Keychain or lock session was exercised.
 
+A further failing-first reproduction paused cycle reset during Keychain version
+inventory, closed the protected store session, reopened it, then released the old
+inventory call. Before repair, that old reset completed and changed the current
+cycle in the new session. Cycle reset and pending-journal continuation now retain
+the original protected-session token across their asynchronous steps and check it
+before further writes. Both closed-session regressions and all 170 Store tests
+passed; the unsigned arm64 Debug App built and 53 hostless product recovery tests
+passed. The first product XCTest attempt used incompatible DerivedData and failed
+before running tests; the fresh test build produced the 53-test passing result.
+This is an offline race repair, not a real lock or Keychain qualification.
+
 For source commit `888438edddad74d5779d28a6b40be203174391a6`, `PrivacyEgressTests` and `PrivacyBinaryAuditTests` passed 6/6. An unsigned Release App build with `ARCHS="arm64 x86_64"` and `ONLY_ACTIVE_ARCH=NO` succeeded; `lipo -archs` confirmed both slices in the executable. `Scripts/audit-product-network.sh` passed on that exact executable: SHA-256 `8aa1be8f9a0cacc9e8f8890287f2133f40e65d76e9ca36f3868d8f424113fcf1`, 1,854 undefined-symbol lines, 20,132 string lines, zero matches, `liveReceipt=false`. This is static evidence for the specified unsigned candidate only. The final signed Release artifact has not been built or audited, and no live network observation is claimed.
 
 For source commit `69e34284ea6af1f69f25e45a6f81933d68af5c66`, the same six privacy source and negative-fixture tests passed. Its unsigned universal Release App built successfully with arm64 and x86_64 slices. The exact executable passed `Scripts/audit-product-network.sh`: SHA-256 `89d44bbffd29c12707fba8f5bd35a88f962ca198e314793af9550615cd28d72b`, 1,854 undefined-symbol lines, 20,127 string lines, zero matches, `liveReceipt=false`. This was the next unsigned candidate; the signed Release artifact remained unaudited.

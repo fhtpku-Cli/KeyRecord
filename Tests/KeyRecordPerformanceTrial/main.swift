@@ -3,6 +3,7 @@ import CryptoKit
 import Darwin
 import Foundation
 import KeyRecordMeasurement
+import Security
 
 private struct TrialFailure: Error, CustomStringConvertible {
     let description: String
@@ -205,6 +206,7 @@ private enum PerformanceTrialCLI {
         try codesign.run()
         codesign.waitUntilExit()
         guard codesign.terminationStatus == 0 else { throw TrialFailure("trial-signature-invalid") }
+        try inspectKeychainIdentity(app: options.app, bundleID: bundleID)
         if options.run {
             guard let sampler = options.sampler,
                   FileManager.default.isExecutableFile(atPath: sampler.path) else {
@@ -219,6 +221,50 @@ private enum PerformanceTrialCLI {
         return TrialIdentity(bundleID: bundleID, displayName: name, executable: executable,
                              executableSHA256: digest, productCode: productCode,
                              productCodeSHA256: codeDigest)
+    }
+
+    private static func inspectKeychainIdentity(app: URL, bundleID: String) throws {
+        let profileURL = app.appendingPathComponent("Contents/embedded.provisionprofile")
+        var profileStatus = stat()
+        guard profileURL.path.withCString({ lstat($0, &profileStatus) }) == 0,
+              profileStatus.st_mode & mode_t(S_IFMT) == mode_t(S_IFREG) else {
+            throw TrialFailure("trial-provisioning-profile-missing")
+        }
+        var code: SecStaticCode?
+        guard SecStaticCodeCreateWithPath(app as CFURL, [], &code) == errSecSuccess,
+              let code else { throw TrialFailure("trial-signing-identity-unavailable") }
+        var raw: CFDictionary?
+        guard SecCodeCopySigningInformation(code, SecCSFlags(rawValue: kSecCSSigningInformation), &raw) == errSecSuccess,
+              let info = raw as? [String: Any],
+              let team = info[kSecCodeInfoTeamIdentifier as String] as? String,
+              let signedBundleID = info[kSecCodeInfoIdentifier as String] as? String,
+              signedBundleID == bundleID,
+              let entitlements = info[kSecCodeInfoEntitlementsDict as String] as? [String: Any],
+              entitlements["com.apple.application-identifier"] as? String == "\(team).\(bundleID)" else {
+            throw TrialFailure("trial-keychain-application-identifier-invalid")
+        }
+        let decode = Process()
+        decode.executableURL = URL(fileURLWithPath: "/usr/bin/security")
+        decode.arguments = ["cms", "-D", "-i", profileURL.path]
+        let output = Pipe()
+        decode.standardOutput = output
+        decode.standardError = FileHandle.nullDevice
+        try decode.run()
+        let profileData = output.fileHandleForReading.readDataToEndOfFile()
+        decode.waitUntilExit()
+        guard decode.terminationStatus == 0,
+              let profile = try? PropertyListSerialization.propertyList(from: profileData, format: nil) as? [String: Any],
+              let teams = profile["TeamIdentifier"] as? [String], teams.contains(team),
+              let profileEntitlements = profile["Entitlements"] as? [String: Any],
+              let profileAppID = profileEntitlements["com.apple.application-identifier"] as? String else {
+            throw TrialFailure("trial-provisioning-profile-invalid")
+        }
+        let expectedAppID = "\(team).\(bundleID)"
+        let authorized = profileAppID == expectedAppID ||
+            (profileAppID.hasSuffix("*") &&
+             profileAppID.hasPrefix("\(team).") &&
+             expectedAppID.hasPrefix(String(profileAppID.dropLast())))
+        guard authorized else { throw TrialFailure("trial-provisioning-profile-mismatch") }
     }
 
     private static func sha256(_ url: URL) throws -> String {

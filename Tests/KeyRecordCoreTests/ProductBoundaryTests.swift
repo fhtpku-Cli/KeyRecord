@@ -100,7 +100,7 @@ final class ProductBoundaryTests: XCTestCase {
                 allowed.formUnion(["Darwin", "SystemConfiguration", "KeyRecordMeasurement"])
             }
             if file.path.contains("Tests/KeyRecordPerformanceTrial/") {
-                allowed.formUnion(["AppKit", "CryptoKit", "Darwin", "KeyRecordMeasurement"])
+                allowed.formUnion(["AppKit", "CryptoKit", "Darwin", "KeyRecordMeasurement", "Security"])
             }
             if file.path.contains("Tests/KeyRecordMeasurementTests/") { allowed.insert("KeyRecordMeasurement") }
             XCTAssertTrue(imports.isSubset(of: allowed), file.path)

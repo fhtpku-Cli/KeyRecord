@@ -90,6 +90,11 @@ process launches, recomputes the saved samples and applies the per-host budget.
 Its file-loading path passed an explicitly synthetic six-window self-check, but
 has no real reports to evaluate. The controller has not launched a product App, and no ARM/Intel host
 performance result exists. The formal host performance lane remains inert.
+The performance controller now rejects a trial package without a matching
+provisioning profile and signed Keychain application identifier. Its previous
+ad hoc package returned `trial-provisioning-profile-missing` in a no-launch
+check. A passing profile check would still require a bounded runtime Keychain
+readiness check before any formal measurement.
 
 The standalone Keychain lifecycle probe built unsigned on native ARM and its
 80 SwiftPM logic tests passed on this candidate. The build and tests did not

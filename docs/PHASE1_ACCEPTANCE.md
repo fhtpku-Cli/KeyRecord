@@ -148,6 +148,16 @@ and marker alignment matching; the six-window evaluator's synthetic self-check
 also passed. No performance window, product Keychain operation, or qualification
 measurement was performed with this package.
 
+That earlier `--check` only verified the ad hoc code signature. The performance
+replay subsequently needs the product's data-protection Keychain, and the
+permission witness trial showed that a valid code signature alone can still
+lead to Keychain status `-34018`. The controller now requires a matching
+embedded provisioning profile and signed application identifier before it
+reports a trial package ready. Rechecking the second package above returned
+`trial-provisioning-profile-missing` with exit 2 and did not launch it. This
+preflight prevents a known unusable package from consuming a formal window;
+it does not prove that a future package can access the Keychain at runtime.
+
 The subsequent cycle-reset repair at `648144555b0bee70b819148f381de1d6aacbb54c`
 changed the product code again. An unsigned Debug build of that source has
 `KeyRecordApp.debug.dylib` SHA-256

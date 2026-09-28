@@ -89,6 +89,12 @@ final class KeychainLifecycleScenarioTests: XCTestCase {
             XCTFail("Host preflight did not authorize this trial")
             return
         }
+        guard let manifestData = try? Data(contentsOf: manifest),
+              let authorization = try? JSONDecoder().decode(HostManifest.self, from: manifestData),
+              authorization.operations == [.keychain] else {
+            XCTFail("This CRUD trial requires Keychain-only authorization")
+            return
+        }
 
         let seed = UUID()
         let namespace = ProbeNamespace(attempt: attempt.lastPathComponent, seed: seed)

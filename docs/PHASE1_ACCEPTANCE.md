@@ -50,7 +50,7 @@ hosted test App.
 Another failing-first regression found that a lock/unlock scenario could claim
 PASS without a Keychain read during either transition. The hosted controller now
 performs one signed-effect read of its exact test item after each lock, unlock,
-sleep, wake or login witness and product observation. The runner rejects
+sleep or wake witness and product observation. The runner rejects
 a transition without that call; an unlocked read must succeed and match the
 item. A locked read records the raw macOS status without assuming it must fail,
 because the independent product lock gate remains authoritative. The hosted
@@ -58,7 +58,9 @@ controller blocks cross-device restore when no second device exists. A separate
 failing-first regression showed that the in-process controller also labeled a
 same-process witness as a successful restart. It now blocks both restart scenarios
 until an external controller can prove a new process and a fresh product witness.
-The offline KeychainLifecycle suites passed 39/39 and 82/82, and the unsigned
+An equivalent reproduction showed logout/login could pass without any session
+handoff; the hosted controller now blocks that step until a real session controller
+exists. The offline KeychainLifecycle suites passed 40/40 and 82/82. The unsigned
 hosted Xcode test bundle compiled. No real Keychain, lock transition, product
 observer or process restart was exercised, so host lifecycle qualification remains open.
 The hosted product-observation type now retains missing counters as absent

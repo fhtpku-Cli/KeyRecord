@@ -539,6 +539,14 @@ final class KeychainLifecycleScenarioTests: XCTestCase {
         XCTAssertEqual(observation.policy.witnessRejection, "processRestartUnavailable")
     }
 
+    func testHostedLogoutLoginCannotPassWithoutSessionHandoff() {
+        let controller = hostedController(FakeHostedAuthority(ready: true), scenarios: [.logoutLogin])
+        XCTAssertEqual(controller.execute(.unlockedCRUD).status, .pass)
+        let observation = controller.execute(.logoutLogin)
+        XCTAssertEqual(observation.status, .blocked)
+        XCTAssertEqual(observation.policy.witnessRejection, "sessionHandoffUnavailable")
+    }
+
     func testFailureRawReadSuccessWithoutWitness() {
         // Given a controller unable to attest unlocked state, when startup runs, then it blocks.
         let fake = FakeLifecycleController()

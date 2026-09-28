@@ -128,6 +128,9 @@ public final class HostedLifecycleScenarioController: LifecycleScenarioControlle
         guard step != .restartLocked && step != .restartUnlocked else {
             return blocked(step: step, rejection: "processRestartUnavailable")
         }
+        guard step != .logoutLogin else {
+            return blocked(step: step, rejection: "sessionHandoffUnavailable")
+        }
         guard let productObserver else {
             return blocked(step: step, rejection: "productObservationMissing", active: qualification.challenge.generation)
         }

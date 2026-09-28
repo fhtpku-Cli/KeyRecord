@@ -141,6 +141,14 @@ passed `Scripts/audit-product-network.sh` with zero matches; six
 negative fixtures. Both macOS build CI jobs passed for this source commit.
 This is a static capability result for that unsigned executable.
 
+At PR #17 source commit `b188f5bd5ef5d731c7d96b6ac4fe13a4a1dd9bd6`, a fresh
+unsigned Release App built with arm64 and x86_64 slices. Its exact executable
+(`SHA-256 28ed199def331a6e20a00735c95c200f6179ab3f819a41807acac97b8cfc38ad`)
+passed `Scripts/audit-product-network.sh`: 1,848 undefined-symbol lines and
+20,069 string lines were inspected with zero matches. This qualifies only the
+static audit of that unsigned candidate. The final signed Release executable
+still needs its own audit.
+
 ## Dedicated trial isolation and bounded restart follow-up — 2026-09-27
 
 PR #12 merged at `b57dbb796056e40d7967fea34879aedff39bbf4b`. This follow-up

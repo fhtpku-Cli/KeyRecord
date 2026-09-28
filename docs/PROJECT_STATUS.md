@@ -149,6 +149,18 @@ passed `Scripts/audit-product-network.sh`: 1,848 undefined-symbol lines and
 static audit of that unsigned candidate. The final signed Release executable
 still needs its own audit.
 
+At PR #17 source commit `1b9bf5adc13df5d3eb57a626cd13d82e17d4b524`, the
+Debug journal counts visible snapshot and analysis assignments at their flow
+boundary, including paused restoration. An older journal without the analysis
+count is inconclusive for closed-interval publication evaluation. The focused
+SwiftPM diagnostic, privacy-schema and evaluator tests passed; 11 native
+snapshot-publication tests and the paused-restoration test passed. The unsigned
+universal Release bundle passed the existing project and bundle boundary scans.
+Its executable (`SHA-256 b25c1a800a3d02cc354cc34625e1cfa8ae804e5270727a8323f265e7efec6031`)
+passed `Scripts/audit-product-network.sh` with zero matches. This does not
+connect a live product observer to the hosted Keychain controller or audit a
+final signed Release.
+
 ## Dedicated trial isolation and bounded restart follow-up — 2026-09-27
 
 PR #12 merged at `b57dbb796056e40d7967fea34879aedff39bbf4b`. This follow-up

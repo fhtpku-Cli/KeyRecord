@@ -23,7 +23,7 @@
 
 - 结束摘要：Debug 进程在正常退出时，若设置了 `KEYRECORD_DIAGNOSTIC_SUMMARY_PATH`，写入累计计数。它包含全程合计及缓存状态；退出时通用 `captureSessionLive` 可能陈旧，需结合 Quit 的 `sessionLiveAfter`、摘要和进程退出核对。
 - 分层计数：tap、handoff、normalization、aggregate、flush 的 issued/durable/failed/timeout/returned/succeeded/invalidated。`flushInvalidated` 表示迟到写回被作废。
-- 发布计数：`snapshotPublicationCount` 是模型发布，不是屏幕像素。
+- 发布计数：`snapshotPublicationCount` 与 `analysisPublicationCount` 分别记录统计快照和分析内容实际写入可见 flow 模型的次数，不是屏幕像素。
 - 暂停隐私监视：暂停且统计仍可见时，约每 250ms 复查；条件不明或不可用则关闭受保护状态，不自动恢复采集。
 - 资源采样：`KeyRecordResourceSampler` 用 `proc_pid_rusage` 的 `ri_phys_footprint`。不读 RSS，不把 RSS 当成物理占用。
 
@@ -41,7 +41,7 @@
 - `witness`：只有设置了 `KEYRECORD_SYSTEM_WITNESS_SECONDS`（1–300）且日记已启用时才写，每秒一次，到时自动停止，每次启动只开一个窗口。它在任何阶段都读，包括采集中，所以不依赖产品是否关闭。只读锁屏和安全输入的粗状态，不读密码、按键或受保护统计。
 - `privacyTrigger` 是关闭调用点的名字。生命周期里的 `blockedReason` 仍可能是 `sessionLocked`，不能只用这个标签判断真的锁屏。
 - `lockReadStatus` / `secureInputReadStatus`：`notChecked`、`unknown`、`locked`/`unlocked`、`enabled`/`disabled`。`notChecked` 不是安全。`unknown` 也不是安全。
-- 计数是逐项拷贝，不是原子快照。写入串行化，文件顺序与 `seq` 一致。写文件失败时 `privacyJournalWriteFailed` 为真（也写进结束摘要），评估结果是 `invalid`。缺 begin 或 observe 是 `inconclusive`，缺 end 是 `interval-not-ended`。关闭段里只增加了 `handoffAccepted`、其他输入计数不变时是 `inconclusive`（可能是边界前的在途事件）。`flushInvalidated` 记为边界前在途写回被作废，不算关闭期间的新输入。关闭期间成功的受保护读取、发布或 durable 确认都算异常。有限的 observe 不能证明每个时刻都关闭。
+- 计数是逐项拷贝，不是原子快照。写入串行化，文件顺序与 `seq` 一致。写文件失败时 `privacyJournalWriteFailed` 为真（也写进结束摘要），评估结果是 `invalid`。缺 begin 或 observe 是 `inconclusive`，缺 end 是 `interval-not-ended`；旧日记缺 `analysisPublicationCount` 也按 `inconclusive` 处理。关闭段里只增加了 `handoffAccepted`、其他输入计数不变时是 `inconclusive`（可能是边界前的在途事件）。`flushInvalidated` 记为边界前在途写回被作废，不算关闭期间的新输入。关闭期间成功的受保护读取、发布或 durable 确认都算异常。有限的 observe 不能证明每个时刻都关闭。
 
 当前 Debug 采集路径由 `secureInputMonitor` 约每 250 ms 复查安全输入；enabled/unknown 关闭采集和受保护展示，恢复需新鲜的安全条件与既有采集意图。250 ms 是轮询间隔，不是严格最大响应时间。仍需独立 `witness` 确认 enabled，不能只用产品是否关闭或密码框外观判断。
 

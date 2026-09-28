@@ -284,6 +284,7 @@ public struct CaptureRunSummary: Encodable, Sendable {
     public var flushInvalidated: Int64 = 0
     public var sessionCount = 0
     public var snapshotPublicationCount = 0
+    public var analysisPublicationCount = 0
     public var snapshotReadFailureCount = 0
     public var lastPublishedShortcutTotal: Int64?
     public var lastPublishedBareKeyTotal: Int64?
@@ -340,6 +341,7 @@ public struct CapturePrivacyIntervalMark: Encodable, Sendable {
     public var protectedAnalysisAttempts: Int64
     public var protectedAnalysisRejected: Int64
     public var snapshotPublicationCount: Int
+    public var analysisPublicationCount: Int
     public var snapshotReadFailureCount: Int
 }
 
@@ -462,6 +464,10 @@ public final class CaptureDiagnosticsRecorder: @unchecked Sendable {
             run.lastPublishedShortcutTotal = shortcutTotal
             run.lastPublishedBareKeyTotal = bareKeyTotal
         }
+    }
+
+    public func recordAnalysisPublication() {
+        lock.withLock { run.analysisPublicationCount += 1 }
     }
 
     public func recordSnapshotReadFailure() {
@@ -623,6 +629,7 @@ public final class CaptureDiagnosticsRecorder: @unchecked Sendable {
             protectedAnalysisAttempts: summary.protectedAnalysisAttempts,
             protectedAnalysisRejected: summary.protectedAnalysisRejected,
             snapshotPublicationCount: summary.snapshotPublicationCount,
+            analysisPublicationCount: summary.analysisPublicationCount,
             snapshotReadFailureCount: summary.snapshotReadFailureCount)
         guard let line = try? JSONEncoder().encode(mark) else {
             lock.withLock { journalWriteFailed = true }

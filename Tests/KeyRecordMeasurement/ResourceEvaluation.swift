@@ -256,6 +256,7 @@ public struct PrivacyIntervalMark: Equatable, Sendable, Decodable {
     public var protectedAnalysisAttempts: Int64
     public var protectedAnalysisRejected: Int64
     public var snapshotPublicationCount: Int64
+    public var analysisPublicationCount: Int64?
 
     public var lockReadStatus: String
     public var secureInputReadStatus: String
@@ -269,7 +270,8 @@ public struct PrivacyIntervalMark: Equatable, Sendable, Decodable {
                 handoffClosed: Int64, normalizationOutput: Int64, flushDurable: Int64,
                 flushInvalidated: Int64, protectedSnapshotAttempts: Int64, protectedSnapshotRejected: Int64,
                 protectedAnalysisAttempts: Int64, protectedAnalysisRejected: Int64,
-                snapshotPublicationCount: Int64, role: String = "change",
+                snapshotPublicationCount: Int64, analysisPublicationCount: Int64? = nil,
+                role: String = "change",
                 lockReadStatus: String = "notChecked", secureInputReadStatus: String = "notChecked",
                 countersAreAtomicSnapshot: Bool = false, action: String? = nil,
                 actionSeq: Int? = nil, boundaryCause: String? = nil) {
@@ -296,6 +298,7 @@ public struct PrivacyIntervalMark: Equatable, Sendable, Decodable {
         self.protectedAnalysisAttempts = protectedAnalysisAttempts
         self.protectedAnalysisRejected = protectedAnalysisRejected
         self.snapshotPublicationCount = snapshotPublicationCount
+        self.analysisPublicationCount = analysisPublicationCount
     }
 }
 
@@ -315,6 +318,7 @@ public struct PrivacySpanDelta: Equatable, Sendable, Codable {
     public var protectedSnapshotRejected: Int64
     public var protectedAnalysisAttempts: Int64
     public var snapshotPublicationCount: Int64
+    public var analysisPublicationCount: Int64?
 }
 
 public struct PrivacyIntervalReport: Equatable, Sendable, Codable {
@@ -349,6 +353,10 @@ public enum PrivacyIntervalEvaluator {
             if start.expectedCollecting == false { paused = true }
             if paused && end.captureSessionLive && end.expectedCollecting == false { unexpected = true }
             func delta(_ later: Int64, _ earlier: Int64) -> Int64 { later - earlier }
+            func optionalDelta(_ later: Int64?, _ earlier: Int64?) -> Int64? {
+                guard let later, let earlier else { return nil }
+                return later - earlier
+            }
             spans.append(PrivacySpanDelta(
                 fromSeq: start.seq, toSeq: end.seq, phase: start.phase,
                 captureSessionLive: start.captureSessionLive,
@@ -362,7 +370,8 @@ public enum PrivacyIntervalEvaluator {
                 protectedSnapshotAttempts: delta(end.protectedSnapshotAttempts, start.protectedSnapshotAttempts),
                 protectedSnapshotRejected: delta(end.protectedSnapshotRejected, start.protectedSnapshotRejected),
                 protectedAnalysisAttempts: delta(end.protectedAnalysisAttempts, start.protectedAnalysisAttempts),
-                snapshotPublicationCount: delta(end.snapshotPublicationCount, start.snapshotPublicationCount)))
+                snapshotPublicationCount: delta(end.snapshotPublicationCount, start.snapshotPublicationCount),
+                analysisPublicationCount: optionalDelta(end.analysisPublicationCount, start.analysisPublicationCount)))
         }
         let closed = spans.filter { !$0.captureSessionLive && !$0.sensitiveContentVisible }
         if closed.isEmpty {
@@ -409,14 +418,23 @@ public enum PrivacyIntervalEvaluator {
         }
         let during = marks.filter { $0.role == "observe" && $0.seq > begin.seq && $0.seq < end.seq }
         guard !during.isEmpty else { return report("inconclusive", "missing-boundary", begin: begin, end: end) }
+        guard ([begin] + during + [end]).allSatisfy({ $0.analysisPublicationCount != nil }) else {
+            return report("inconclusive", "analysis-publication-counter-missing", begin: begin, end: end)
+        }
         if end.aggregateDelta < begin.aggregateDelta || end.handoffAccepted < begin.handoffAccepted
             || end.normalizationOutput < begin.normalizationOutput
             || end.flushDurable < begin.flushDurable || end.flushInvalidated < begin.flushInvalidated
             || end.protectedSnapshotAttempts < begin.protectedSnapshotAttempts
-            || end.protectedAnalysisAttempts < begin.protectedAnalysisAttempts {
+            || end.protectedAnalysisAttempts < begin.protectedAnalysisAttempts
+            || end.snapshotPublicationCount < begin.snapshotPublicationCount
+            || (end.analysisPublicationCount ?? 0) < (begin.analysisPublicationCount ?? 0) {
             return report("invalid", "counter-decreased", begin: begin, end: end)
         }
         func delta(_ later: Int64, _ earlier: Int64) -> Int64 { later - earlier }
+        func optionalDelta(_ later: Int64?, _ earlier: Int64?) -> Int64? {
+            guard let later, let earlier else { return nil }
+            return later - earlier
+        }
         func span(_ from: PrivacyIntervalMark, _ to: PrivacyIntervalMark) -> PrivacySpanDelta {
             PrivacySpanDelta(
                 fromSeq: from.seq, toSeq: to.seq, phase: from.phase,
@@ -430,7 +448,8 @@ public enum PrivacyIntervalEvaluator {
                 protectedSnapshotAttempts: delta(to.protectedSnapshotAttempts, from.protectedSnapshotAttempts),
                 protectedSnapshotRejected: delta(to.protectedSnapshotRejected, from.protectedSnapshotRejected),
                 protectedAnalysisAttempts: delta(to.protectedAnalysisAttempts, from.protectedAnalysisAttempts),
-                snapshotPublicationCount: delta(to.snapshotPublicationCount, from.snapshotPublicationCount))
+                snapshotPublicationCount: delta(to.snapshotPublicationCount, from.snapshotPublicationCount),
+                analysisPublicationCount: optionalDelta(to.analysisPublicationCount, from.analysisPublicationCount))
         }
         let closed = span(begin, end)
         var spans = [closed]
@@ -441,7 +460,9 @@ public enum PrivacyIntervalEvaluator {
         var violations: [String] = []
         if closed.aggregateDelta > 0 || closed.normalizationOutput > 0 { violations.append("closed-interval-input-counted") }
         if protectedReadsSucceeded > 0 { violations.append("closed-interval-protected-read-succeeded") }
-        if closed.snapshotPublicationCount > 0 { violations.append("closed-interval-publication") }
+        if closed.snapshotPublicationCount > 0 || (closed.analysisPublicationCount ?? 0) > 0 {
+            violations.append("closed-interval-publication")
+        }
         if closed.flushDurable > 0 { violations.append("closed-interval-durable-acknowledgment") }
         let inFlight = closed.flushInvalidated
         if !violations.isEmpty {

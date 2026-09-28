@@ -209,6 +209,13 @@ final class AppFlowObservable: ObservableObject {
     @Published private var rawAnalysis: AnalysisSnapshot?
     @Published private(set) var layout = LayoutPreference()
     var saveLayoutAction: (@MainActor (LayoutPreference) async throws -> Void)?
+    #if DEBUG
+    private var diagnostics: CaptureDiagnosticsRecorder?
+
+    func configureDiagnostics(_ recorder: CaptureDiagnosticsRecorder) {
+        diagnostics = recorder
+    }
+    #endif
 
     private let flow: Phase1FlowModel
     var actions: FlowActions
@@ -228,6 +235,12 @@ final class AppFlowObservable: ObservableObject {
         set {
             if newValue == nil { rawAnalysis = nil }
             flow.displayedAggregate = newValue
+            #if DEBUG
+            if let visible = self.snapshot {
+                diagnostics?.recordPublication(shortcutTotal: visible.shortcutTotal,
+                                               bareKeyTotal: visible.bareKeyTotal)
+            }
+            #endif
         }
     }
 
@@ -235,6 +248,9 @@ final class AppFlowObservable: ObservableObject {
 
     func publishAnalysis(_ snapshot: AnalysisSnapshot?) {
         rawAnalysis = sensitiveContentVisible ? snapshot : nil
+        #if DEBUG
+        if rawAnalysis != nil { diagnostics?.recordAnalysisPublication() }
+        #endif
     }
 
     func saveLayout(_ preset: LayoutPreset) async {

@@ -268,6 +268,7 @@ final class ProductComposition: NSObject, NSMenuDelegate {
         composition.completeRecoveredReset = { try await destruction.completeRecoveredReset() }
         #if DEBUG
         reduction.configureDiagnostics(composition.diagnostics)
+        flow.configureDiagnostics(composition.diagnostics)
         await scheduler.setDiagnostics(composition.diagnostics)
         await eventSource.setDiagnostics(composition.diagnostics)
         composition.diagnostics.configureCounterInstrumentation()
@@ -1084,7 +1085,7 @@ final class ProductComposition: NSObject, NSMenuDelegate {
                         self.captureSessionLive = live
                         self.sync()
                     }
-                    let snapshot = try ProductSnapshotPublication.refresh(
+                    _ = try ProductSnapshotPublication.refresh(
                         flow: self.flow, state: self.lifecycle.state, captureSessionLive: live,
                         readSnapshot: {
                             do { return try self.reduction.snapshot() }
@@ -1099,12 +1100,6 @@ final class ProductComposition: NSObject, NSMenuDelegate {
                             return try self.reduction.analysis(preferences: preferences)
                         })
                     self.updateRecommendationBadge()
-                    #if DEBUG
-                    if let snapshot {
-                        self.diagnostics.recordPublication(shortcutTotal: snapshot.shortcutTotal,
-                                                           bareKeyTotal: snapshot.bareKeyTotal)
-                    }
-                    #endif
                 }
                 catch is CountError {
                     await self.closeProtectedState()

@@ -218,6 +218,19 @@ final class ResourceEvaluationTests: XCTestCase {
         XCTAssertEqual(PrivacyIntervalEvaluator.evaluateClosed(read, journalWriteFailed: false).reason,
                        "closed-interval-protected-read-succeeded")
 
+        let analysisPublication = try recorderMarks { recorder in
+            recorder.beginClosedInterval(cause: "protectedStateClosed")
+            recorder.recordAnalysisPublication()
+            recorder.observeClosedInterval()
+            recorder.endClosedInterval(cause: "captureSessionStarting")
+        }
+        XCTAssertEqual(PrivacyIntervalEvaluator.evaluateClosed(analysisPublication, journalWriteFailed: false).reason,
+                       "closed-interval-publication")
+        var legacy = analysisPublication
+        legacy[1].analysisPublicationCount = nil
+        XCTAssertEqual(PrivacyIntervalEvaluator.evaluateClosed(legacy, journalWriteFailed: false).reason,
+                       "analysis-publication-counter-missing")
+
         let unattributable = try recorderMarks { recorder in
             recorder.beginClosedInterval(cause: "protectedStateClosed")
             recorder.observeClosedInterval()
@@ -324,6 +337,6 @@ final class ResourceEvaluationTests: XCTestCase {
             normalizationOutput: aggregate, flushDurable: 0, flushInvalidated: 0,
             protectedSnapshotAttempts: attempts, protectedSnapshotRejected: rejected,
             protectedAnalysisAttempts: attempts, protectedAnalysisRejected: rejected,
-            snapshotPublicationCount: attempts - rejected)
+            snapshotPublicationCount: attempts - rejected, analysisPublicationCount: 0)
     }
 }

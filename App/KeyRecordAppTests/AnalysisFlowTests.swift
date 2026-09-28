@@ -181,6 +181,27 @@ final class ProductSnapshotPublicationTests: XCTestCase {
         return (harness, flow, reduction, Preferences(currentCycleID: input.cycleID))
     }
 
+    func testVisiblePublicationCountsAtFlowBoundaryIncludingAnalysis() async throws {
+        let (harness, flow, reduction, preferences) = try await fixture()
+        let diagnostics = CaptureDiagnosticsRecorder()
+        flow.configureDiagnostics(diagnostics)
+
+        try ProductSnapshotPublication.refresh(flow: flow, state: harness.orchestrator.state,
+            captureSessionLive: true, readSnapshot: { try reduction.snapshot() },
+            readAnalysis: { try reduction.analysis(preferences: preferences) })
+        XCTAssertEqual(diagnostics.runSummary.snapshotPublicationCount, 1)
+        XCTAssertEqual(diagnostics.runSummary.analysisPublicationCount, 1)
+
+        harness.orchestrator.observe(.unknown)
+        flow.sync(from: harness.orchestrator.state)
+        flow.snapshot = try reduction.snapshot()
+        flow.publishAnalysis(try reduction.analysis(preferences: preferences))
+        XCTAssertNil(flow.snapshot)
+        XCTAssertNil(flow.analysis)
+        XCTAssertEqual(diagnostics.runSummary.snapshotPublicationCount, 1)
+        XCTAssertEqual(diagnostics.runSummary.analysisPublicationCount, 1)
+    }
+
     func testAnalysisFailureDoesNotEscapeIntoPulseShutdown() async throws {
         let (harness, flow, reduction, preferences) = try await fixture()
         flow.publishAnalysis(try reduction.analysis(preferences: preferences))

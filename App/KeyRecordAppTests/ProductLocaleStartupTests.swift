@@ -102,6 +102,8 @@ final class ProductPausedStartupTests: XCTestCase {
         let harness = LifecycleHarness(storage: InMemoryPreferencesStorage(
             ciphertext: try PreferencesRepository.encode(preferences)))
         let flow = AppFlowObservable(flow: Phase1FlowModel(lifecycle: harness.orchestrator))
+        let diagnostics = CaptureDiagnosticsRecorder()
+        flow.configureDiagnostics(diagnostics)
         let gate = KeyAvailabilityGate()
         gate.update(.unlocked)
         let reduction = ProductReduction(gate: gate)
@@ -134,6 +136,8 @@ final class ProductPausedStartupTests: XCTestCase {
                 }))
         XCTAssertEqual(flow.snapshot?.bareKeyTotal, 21, "paused boot must publish saved totals")
         XCTAssertNotNil(flow.analysis)
+        XCTAssertEqual(diagnostics.runSummary.snapshotPublicationCount, 1)
+        XCTAssertEqual(diagnostics.runSummary.analysisPublicationCount, 1)
         XCTAssertEqual(checks, 2, "privacy must be fresh before and after protected reads")
         XCTAssertEqual(reads, 1)
         XCTAssertEqual(harness.orchestrator.phase, .paused)

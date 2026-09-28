@@ -58,9 +58,11 @@ final class CaptureDiagnosticCounterTests: XCTestCase {
         let recorder = CaptureDiagnosticsRecorder()
         XCTAssertNil(recorder.runSummary.lastPublishedShortcutTotal)
         recorder.recordPublication(shortcutTotal: 5, bareKeyTotal: 7)
+        recorder.recordAnalysisPublication()
         recorder.recordSnapshotReadFailure()
         recorder.beginSession(generation: 1)
         XCTAssertEqual(recorder.runSummary.snapshotPublicationCount, 1)
+        XCTAssertEqual(recorder.runSummary.analysisPublicationCount, 1)
         XCTAssertEqual(recorder.runSummary.snapshotReadFailureCount, 1)
         XCTAssertEqual(recorder.runSummary.lastPublishedShortcutTotal, 5)
         XCTAssertEqual(recorder.runSummary.lastPublishedBareKeyTotal, 7)
@@ -83,7 +85,7 @@ final class CaptureDiagnosticCounterTests: XCTestCase {
             "handoffAccepted", "handoffClosed", "handoffOverflow", "normalizationOutput", "aggregateDelta",
             "flushIssued", "flushDurable", "flushFailed", "flushTimedOut",
             "flushWriteReturned", "flushWriteSucceeded", "flushInvalidated", "sessionCount",
-            "snapshotPublicationCount", "snapshotReadFailureCount", "lastPublishedShortcutTotal",
+            "snapshotPublicationCount", "analysisPublicationCount", "snapshotReadFailureCount", "lastPublishedShortcutTotal",
             "lastPublishedBareKeyTotal", "countersInstrumented", "captureSessionLive", "sensitiveContentVisible",
             "protectedSnapshotAttempts", "protectedSnapshotRejected",
             "protectedAnalysisAttempts", "protectedAnalysisRejected", "privacyJournalWriteFailed"

@@ -60,7 +60,7 @@ enum PrivacySchemaAudit {
             "handoffAccepted", "handoffClosed", "handoffOverflow", "normalizationOutput", "aggregateDelta",
             "flushIssued", "flushDurable", "flushFailed", "flushTimedOut",
             "flushWriteReturned", "flushWriteSucceeded", "flushInvalidated", "sessionCount",
-            "snapshotPublicationCount", "snapshotReadFailureCount", "lastPublishedShortcutTotal",
+            "snapshotPublicationCount", "analysisPublicationCount", "snapshotReadFailureCount", "lastPublishedShortcutTotal",
             "lastPublishedBareKeyTotal", "countersInstrumented", "captureSessionLive", "sensitiveContentVisible",
             "protectedSnapshotAttempts", "protectedSnapshotRejected", "protectedAnalysisAttempts", "protectedAnalysisRejected",
             "privacyJournalWriteFailed"],
@@ -72,7 +72,7 @@ enum PrivacySchemaAudit {
                 "aggregateDelta", "handoffAccepted", "handoffClosed",
                 "normalizationOutput", "flushDurable", "flushInvalidated", "protectedSnapshotAttempts",
                 "protectedSnapshotRejected", "protectedAnalysisAttempts", "protectedAnalysisRejected",
-                "snapshotPublicationCount", "snapshotReadFailureCount"],
+                "snapshotPublicationCount", "analysisPublicationCount", "snapshotReadFailureCount"],
             "CapturePrivacyActionDetail": [
                 "invocation", "phaseBefore", "earlyReturn", "prepareOutcome", "prepareLockRead", "permissionStatus",
                 "lifecycleCommandRun", "abortRun", "readinessCalls", "readinessOutcome", "lifecycleFlushCalls",

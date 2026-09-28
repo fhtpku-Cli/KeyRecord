@@ -124,8 +124,8 @@ The controller's `--check` accepted those exact files without launching the
 App. The sampler and six-window evaluator passed synthetic self-checks only;
 there are no product resource samples or Keychain effects from this preparation.
 
-That package predates the current candidate and its product-code digest does not
-match. A fresh native ARM Debug package was built from source commit
+That first package predates the later candidate and its product-code digest does
+not match. A second native ARM Debug package was built from source commit
 `df6163f85896a7d906bc7c99b026b496e16328e1` at
 `/private/tmp/keyrecord-performance-current-df6163f8/DerivedData/Build/Products/Debug/KeyRecordApp.app`.
 It uses bundle ID `com.keyrecord.trial.performance.df6163f8`, the dedicated
@@ -139,6 +139,14 @@ The current sampler's offline self-check reported `measured` with recomputation
 and marker alignment matching; the six-window evaluator's synthetic self-check
 also passed. No performance window, product Keychain operation, or qualification
 measurement was performed with this package.
+
+The subsequent cycle-reset repair at `648144555b0bee70b819148f381de1d6aacbb54c`
+changed the product code again. An unsigned Debug build of that source has
+`KeyRecordApp.debug.dylib` SHA-256
+`4579f6a27b9df613190a7027f0c08d5a796750226f4f078439f3ea697893fd60`,
+which differs from both prepared trial packages. They remain no-launch historical
+preparations, not a measurement package for the revised source. Prepare a matching
+isolated package only for an approved real performance session.
 
 An offline resource-evaluator reproduction showed that a sampled clock or CPU
 counter could decrease between samples while the window still reported

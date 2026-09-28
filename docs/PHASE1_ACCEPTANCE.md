@@ -45,6 +45,13 @@ offline controller behavior, not a qualified system lock observation.
 The scenario report also rejects a claimed CRUD, delete/missing read, or cleanup
 PASS when its recorded Keychain call count does not match the operations that
 step must have executed; a zero-call fake cannot qualify those steps.
+The hosted controller now reports the backend's actual per-step call-count
+change even when a later operation throws. Before this repair, add followed by
+an interrupted read yielded a blocked step claiming zero Keychain calls, while
+the cleanup call was still counted. A failing reproduction and follow-up tests
+cover interrupted CRUD, delete/missing read and cleanup. The full offline
+KeychainLifecycle package test suite and unsigned hosted test compilation
+passed. No real Keychain item or lock transition was exercised by this repair.
 The probe's signed effect request and the current armed Debug product both select
 the nonsynchronizable data-protection Keychain (`kSecUseDataProtectionKeychain`,
 SDK key `nleg`) so that `WhenUnlockedThisDeviceOnly` can apply. The earlier Debug

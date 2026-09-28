@@ -4,6 +4,7 @@ import Foundation
 final class EffectCounter: CandidateBackend {
     var keychain = 0
     var controller = 0
+    var calls: Int { keychain }
     func perform(_ operation: CandidateOperation, namespace: ProbeNamespace) throws -> CandidateObservation {
         keychain += 1
         return CandidateObservation(status: 0, accessibility: nil, synchronizable: false, valueMatched: true)

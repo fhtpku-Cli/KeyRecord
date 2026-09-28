@@ -217,6 +217,44 @@ final class KeychainLifecycleScenarioTests: XCTestCase {
         XCTAssertEqual(backend.operations, [.add, .delete])
     }
 
+    func testBlockedReadReportsEarlierKeychainCallsAndCleanup() {
+        let backend = ThrowingReadBackend()
+        let controller = HostedLifecycleScenarioController(
+            backend: backend, authority: FakeHostedAuthority(ready: true),
+            configuration: .init(namespace: .init(attempt: "attempt", seed: UUID()),
+                                 supportedScenarios: [.unlockedCRUD]))
+        let report = LifecycleScenarioMachine.run(.unlockedCRUD, controller: controller)
+        XCTAssertEqual(report.status, .blocked)
+        XCTAssertEqual(report.observations.first?.keychain.calls, 2)
+        XCTAssertEqual(report.keychainCalls, 3)
+        XCTAssertEqual(backend.operations, [.add, .read, .delete])
+    }
+
+    func testBlockedDeleteMissingReadReportsBothCalls() {
+        let backend = ThrowingReadBackend()
+        let controller = HostedLifecycleScenarioController(
+            backend: backend, authority: FakeHostedAuthority(ready: true),
+            configuration: .init(namespace: .init(attempt: "attempt", seed: UUID()),
+                                 supportedScenarios: [.deleteMissing]))
+        let observation = controller.execute(.deleteMissing)
+        XCTAssertEqual(observation.status, .blocked)
+        XCTAssertEqual(observation.keychain.calls, 2)
+        XCTAssertEqual(backend.operations, [.delete, .read])
+    }
+
+    func testBlockedCleanupDeleteReportsAttemptedCall() {
+        let backend = ThrowingDeleteBackend()
+        let controller = HostedLifecycleScenarioController(
+            backend: backend, authority: FakeHostedAuthority(ready: true),
+            configuration: .init(namespace: .init(attempt: "attempt", seed: UUID()),
+                                 supportedScenarios: [.unlockedCRUD]))
+        let report = LifecycleScenarioMachine.run(.unlockedCRUD, controller: controller)
+        XCTAssertEqual(report.status, .blocked)
+        XCTAssertEqual(report.observations.last?.keychain.calls, 1)
+        XCTAssertEqual(report.keychainCalls, 4)
+        XCTAssertEqual(backend.operations, [.add, .read, .attributes, .delete])
+    }
+
     func testFailureHostedLockWithoutProductObservationCannotPass() throws {
         let controller = HostedLifecycleScenarioController(
             backend: RecordingBackend(), authority: FakeHostedAuthority(ready: true),
@@ -368,10 +406,31 @@ private final class RecordingBackend: CandidateBackend {
 
 private final class FailingAddBackend: CandidateBackend {
     private(set) var operations: [CandidateOperation] = []
+    var calls: Int { operations.count }
     func perform(_ operation: CandidateOperation, namespace: ProbeNamespace) throws -> CandidateObservation {
         operations.append(operation)
         return .init(status: operation == .add ? -25299 : 0, accessibility: "aku",
                      synchronizable: false, valueMatched: true)
+    }
+}
+
+private final class ThrowingReadBackend: CandidateBackend {
+    private(set) var operations: [CandidateOperation] = []
+    var calls: Int { operations.count }
+    func perform(_ operation: CandidateOperation, namespace: ProbeNamespace) throws -> CandidateObservation {
+        operations.append(operation)
+        if operation == .read { throw PreflightBlock.unavailableIdentity }
+        return .init(status: 0, accessibility: "aku", synchronizable: false, valueMatched: true)
+    }
+}
+
+private final class ThrowingDeleteBackend: CandidateBackend {
+    private(set) var operations: [CandidateOperation] = []
+    var calls: Int { operations.count }
+    func perform(_ operation: CandidateOperation, namespace: ProbeNamespace) throws -> CandidateObservation {
+        operations.append(operation)
+        if operation == .delete { throw PreflightBlock.unavailableIdentity }
+        return .init(status: 0, accessibility: "aku", synchronizable: false, valueMatched: true)
     }
 }
 

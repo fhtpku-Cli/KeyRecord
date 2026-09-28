@@ -9,6 +9,7 @@ public struct PerformanceWindowSummary: Equatable, Sendable {
     public let machineRAM: UInt64
     public let bundleID: String
     public let executableSHA256: String
+    public let productCodeSHA256: String
     public let executablePath: String
     public let cpuPercent: Double
     public let footprintMeanBytes: Double
@@ -19,7 +20,7 @@ public struct PerformanceWindowSummary: Equatable, Sendable {
 
     public init(phase: String, architecture: String, macOS: String, machineModel: String,
                 chip: String, machineRAM: UInt64, bundleID: String,
-                executableSHA256: String, executablePath: String,
+                executableSHA256: String, productCodeSHA256: String, executablePath: String,
                 cpuPercent: Double, footprintMeanBytes: Double, footprintPeakBytes: UInt64,
                 effectiveMeasureSeconds: Double, acceptedEvents: Int64, durableKeyDownTotal: Int64) {
         self.phase = phase
@@ -30,6 +31,7 @@ public struct PerformanceWindowSummary: Equatable, Sendable {
         self.machineRAM = machineRAM
         self.bundleID = bundleID
         self.executableSHA256 = executableSHA256
+        self.productCodeSHA256 = productCodeSHA256
         self.executablePath = executablePath
         self.cpuPercent = cpuPercent
         self.footprintMeanBytes = footprintMeanBytes
@@ -58,6 +60,7 @@ public struct PerformanceHostResult: Equatable, Sendable, Encodable {
     public let machineRAM: UInt64
     public let bundleID: String
     public let executableSHA256: String
+    public let productCodeSHA256: String
     public let executablePath: String
     public let typingMedianCPUPercent: Double
     public let idleMedianCPUPercent: Double
@@ -81,6 +84,7 @@ public enum PerformanceHostEvaluator {
                   window.machineRAM == first.machineRAM,
                   window.bundleID == first.bundleID,
                   window.executableSHA256 == first.executableSHA256,
+                  window.productCodeSHA256 == first.productCodeSHA256,
                   window.executablePath == first.executablePath else {
                 throw PerformanceHostError.identityMismatch
             }
@@ -88,8 +92,10 @@ public enum PerformanceHostEvaluator {
             guard ["arm64", "x86_64"].contains(window.architecture),
                   !window.macOS.isEmpty, !window.machineModel.isEmpty, !window.chip.isEmpty,
                   window.machineRAM > 0, window.executableSHA256.count == 64,
+                  window.productCodeSHA256.count == 64,
                   window.bundleID.hasPrefix("com.keyrecord.trial.performance"),
                   window.executableSHA256.allSatisfy({ "0123456789abcdef".contains($0) }),
+                  window.productCodeSHA256.allSatisfy({ "0123456789abcdef".contains($0) }),
                   !window.executablePath.isEmpty,
                   window.cpuPercent.isFinite, window.cpuPercent >= 0,
                   window.footprintMeanBytes.isFinite, window.footprintMeanBytes > 0,
@@ -114,7 +120,8 @@ public enum PerformanceHostEvaluator {
             architecture: first.architecture, macOS: first.macOS,
             machineModel: first.machineModel, chip: first.chip, machineRAM: first.machineRAM,
             bundleID: first.bundleID,
-            executableSHA256: first.executableSHA256, executablePath: first.executablePath,
+            executableSHA256: first.executableSHA256, productCodeSHA256: first.productCodeSHA256,
+            executablePath: first.executablePath,
             typingMedianCPUPercent: typingMedian, idleMedianCPUPercent: idleMedian,
             highestWindowFootprintMeanBytes: highestMean,
             highestWindowFootprintPeakBytes: highestPeak, windowCount: windows.count)

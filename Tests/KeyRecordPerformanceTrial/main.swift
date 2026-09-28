@@ -57,6 +57,8 @@ private struct TrialIdentity {
     let displayName: String
     let executable: URL
     let executableSHA256: String
+    let productCode: URL
+    let productCodeSHA256: String
 }
 
 private struct ReplaySummary: Codable {
@@ -78,6 +80,7 @@ private struct TrialReport: Encodable {
     let mode: String
     let bundleID: String
     let executableSHA256: String
+    let productCodeSHA256: String
     let architecture: String?
     let macOS: String?
     let machineModel: String
@@ -101,6 +104,7 @@ private struct StoredTrialReport: Decodable {
     let mode: String
     let bundleID: String
     let executableSHA256: String
+    let productCodeSHA256: String
     let architecture: String?
     let macOS: String?
     let machineModel: String
@@ -143,7 +147,7 @@ private enum PerformanceTrialCLI {
             let options = try TrialOptions(arguments)
             let identity = try inspect(options)
             if !options.run {
-                print("trial-check=ready displayName=\(identity.displayName) bundleID=\(identity.bundleID) launched=false")
+                print("trial-check=ready displayName=\(identity.displayName) bundleID=\(identity.bundleID) executableSHA256=\(identity.executableSHA256) productCodeSHA256=\(identity.productCodeSHA256) launched=false")
                 return
             }
             let report = try await run(options, identity: identity)
@@ -180,8 +184,15 @@ private enum PerformanceTrialCLI {
             throw TrialFailure("app-is-not-a-dedicated-performance-trial")
         }
         let executable = options.app.appendingPathComponent("Contents/MacOS/").appendingPathComponent(executableName)
-        guard FileManager.default.isExecutableFile(atPath: executable.path) else {
+        guard executable.resolvingSymlinksInPath() == executable,
+              FileManager.default.isExecutableFile(atPath: executable.path) else {
             throw TrialFailure("trial-executable-missing")
+        }
+        let productCode = executable.deletingLastPathComponent()
+            .appendingPathComponent(executableName + ".debug.dylib")
+        guard productCode.resolvingSymlinksInPath() == productCode,
+              FileManager.default.isExecutableFile(atPath: productCode.path) else {
+            throw TrialFailure("trial-product-code-missing")
         }
         guard options.app.resolvingSymlinksInPath() == options.app else {
             throw TrialFailure("trial-app-path-has-symlink")
@@ -203,10 +214,15 @@ private enum PerformanceTrialCLI {
                 throw TrialFailure("trial-already-running")
             }
         }
-        let digest = SHA256.hash(data: try Data(contentsOf: executable))
-            .map { String(format: "%02x", $0) }.joined()
+        let digest = try sha256(executable)
+        let codeDigest = try sha256(productCode)
         return TrialIdentity(bundleID: bundleID, displayName: name, executable: executable,
-                             executableSHA256: digest)
+                             executableSHA256: digest, productCode: productCode,
+                             productCodeSHA256: codeDigest)
+    }
+
+    private static func sha256(_ url: URL) throws -> String {
+        SHA256.hash(data: try Data(contentsOf: url)).map { String(format: "%02x", $0) }.joined()
     }
 
     private static func run(_ options: TrialOptions, identity: TrialIdentity) async throws -> TrialReport {
@@ -272,8 +288,8 @@ private enum PerformanceTrialCLI {
             && (summary?.endedUptimeSeconds ?? 0) >= (summary?.startedUptimeSeconds ?? .infinity)
                 + workloadSeconds - 0.5
         let recomputed = archive.map { ResourceEvaluator.recompute($0) == $0.result } ?? false
-        let afterDigest = SHA256.hash(data: try Data(contentsOf: identity.executable))
-            .map { String(format: "%02x", $0) }.joined()
+        let afterDigest = try sha256(identity.executable)
+        let afterCodeDigest = try sha256(identity.productCode)
         let valid = process.terminationStatus == 0 && result?.outcome == "measured"
             && archive?.protocolKind == .formalFRS2 && archive?.phase == mode
             && archive?.architecture == nativeArch
@@ -281,9 +297,11 @@ private enum PerformanceTrialCLI {
             && archive?.executablePath == identity.executable.path
             && result?.productProcessOnly == true && recomputed
             && afterDigest == identity.executableSHA256
+            && afterCodeDigest == identity.productCodeSHA256
             && aligned && completed && normalExit
         return TrialReport(outcome: valid ? "measured" : "invalid", mode: mode,
             bundleID: identity.bundleID, executableSHA256: identity.executableSHA256,
+            productCodeSHA256: identity.productCodeSHA256,
             architecture: archive?.architecture, macOS: archive?.operatingSystem,
             machineModel: machineModel, chip: chip, machineRAM: machineRAM,
             sampleOutcome: result?.outcome, sampleReason: result?.reason,
@@ -360,6 +378,7 @@ private enum PerformanceTrialCLI {
                     machineModel: report.machineModel, chip: report.chip,
                     machineRAM: report.machineRAM, bundleID: report.bundleID,
                     executableSHA256: report.executableSHA256,
+                    productCodeSHA256: report.productCodeSHA256,
                     executablePath: archive.executablePath, cpuPercent: cpu,
                     footprintMeanBytes: mean, footprintPeakBytes: peak,
                     effectiveMeasureSeconds: duration, acceptedEvents: expected,
@@ -420,6 +439,7 @@ private enum PerformanceTrialCLI {
                 let expected = phase == "typing" ? Int64(ReplayWorkload.expectedTypingEvents) : 0
                 let report = TrialReport(outcome: "measured", mode: phase,
                     bundleID: "com.keyrecord.trial.performance.synthetic", executableSHA256: digest,
+                    productCodeSHA256: String(repeating: "b", count: 64),
                     architecture: "arm64", macOS: "synthetic", machineModel: "SyntheticMac",
                     chip: "SyntheticChip", machineRAM: 16_000_000_000,
                     sampleOutcome: "measured", sampleReason: nil,

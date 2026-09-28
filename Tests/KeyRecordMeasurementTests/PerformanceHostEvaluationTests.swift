@@ -4,13 +4,15 @@ import KeyRecordMeasurement
 final class PerformanceHostEvaluationTests: XCTestCase {
     private func window(phase: String, cpu: Double, model: String = "Mac15,12",
                         digest: String = String(repeating: "a", count: 64),
+                        codeDigest: String = String(repeating: "c", count: 64),
                         seconds: Double = 600.1, mean: Double = 50_000_000,
                         peak: UInt64 = 60_000_000) -> PerformanceWindowSummary {
         let events = phase == "typing" ? Int64(ReplayWorkload.expectedTypingEvents) : 0
         return PerformanceWindowSummary(phase: phase, architecture: "arm64", macOS: "fixture",
             machineModel: model, chip: "Apple M3", machineRAM: 16_000_000_000,
             bundleID: "com.keyrecord.trial.performance.fixture",
-            executableSHA256: digest, executablePath: "/private/tmp/trial/KeyRecordApp",
+            executableSHA256: digest, productCodeSHA256: codeDigest,
+            executablePath: "/private/tmp/trial/KeyRecordApp",
             cpuPercent: cpu, footprintMeanBytes: mean, footprintPeakBytes: peak,
             effectiveMeasureSeconds: seconds, acceptedEvents: events,
             durableKeyDownTotal: events / 2)
@@ -50,6 +52,10 @@ final class PerformanceHostEvaluationTests: XCTestCase {
             XCTAssertEqual($0 as? PerformanceHostError, .identityMismatch)
         }
         mixed[1] = window(phase: "idle", cpu: 0.05, digest: String(repeating: "b", count: 64))
+        XCTAssertThrowsError(try PerformanceHostEvaluator.evaluate(mixed)) {
+            XCTAssertEqual($0 as? PerformanceHostError, .identityMismatch)
+        }
+        mixed[1] = window(phase: "idle", cpu: 0.05, codeDigest: String(repeating: "d", count: 64))
         XCTAssertThrowsError(try PerformanceHostEvaluator.evaluate(mixed)) {
             XCTAssertEqual($0 as? PerformanceHostError, .identityMismatch)
         }

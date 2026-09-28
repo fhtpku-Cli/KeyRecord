@@ -36,6 +36,7 @@ let package = Package(
         .executableTarget(name: "KeyRecordPerformanceTrial",
                           dependencies: ["KeyRecordMeasurement"],
                           path: "Tests/KeyRecordPerformanceTrial",
+                          exclude: ["TrialInfo.plist"],
                           linkerSettings: [.linkedFramework("AppKit")]),
         .testTarget(name: "KeyRecordMeasurementTests", dependencies: ["KeyRecordMeasurement", "KeyRecordCore"]),
         .testTarget(name: "KeyRecordCoreTests", dependencies: ["KeyRecordCore", "KeyRecordTestSupport"]),

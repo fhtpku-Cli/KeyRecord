@@ -65,6 +65,45 @@ boundary exists. The final aggregate summary retains shortcuts 3 and bare keys
 not independently verified or restored. Do not repeat toggles or claim
 same-process permission recovery from this interrupted round.
 
+## Isolated regrant/restart and rebuild race — 2026-09-29
+
+The reason-repaired signed candidate `10676e1aa` used the same bundle identity,
+private store and Keychain namespace. The first approved `--recovery` launch
+failed before collection. Exact-bundle TCC preflight returned denied; read-only
+System Settings inspection showed the trial's switch off and a separate
+KeyRecordApp switch on. The trial quit normally with zero sessions, input or
+writes. No switch was changed by the agent.
+
+After the owner enabled the exact trial and confirmed readiness, `--recovery2`
+reached Collecting with granted preflight. The owner confirmed pressing one
+Command-A. The summary records one key-down/up, two modifier callbacks, four
+accepted handoffs, aggregate delta 1, shortcut total 4, bare-key total 0, and one
+issued/returned/successful/durable write. There were no write failures, timeouts,
+invalidations or snapshot-read failures. Normal Quit at 55 seconds completed
+before 60 seconds; no KeyRecordApp remained.
+
+However, journal seq 13 records `sourceStopped` / `privacyCheckRequired` before
+Quit; seq 14 closes protected state. This run establishes restored permission,
+isolated startup and input/save after restart, not sustained recovery. The
+23-record journal and summary are `privacy-recovery2.jsonl` and
+`summary-recovery2.json` in the existing private trial root. No additional live
+round was started to diagnose the unexpected stop.
+
+A hostless regression holds a foreground-triggered session rebuild across
+multiple health polls. The unmodified monitor reproducibly enters Blocked and
+cannot resume, matching the observed symptom without establishing the exact
+live interleaving. The repair distinguishes a health observation overlapping
+reconciliation from a stable source failure, using outstanding reconciliation
+calls and the capture queue's existing generation. Lock, permission and Secure
+Input checks continue; stable silent stops and disabled taps still block. A
+second regression revokes permission during the held rebuild and requires the
+key gate and session to remain closed after it completes.
+
+Debug build-for-testing and all 55 `ProductRecoveryQuitTests` passed after the
+repair (zero failures, 63 seconds). Logs:
+`/private/tmp/keyrecord-rebuild-race-{build-red,red,build-green,green}.log`.
+The new repair has no live host result yet; `10676e1aa` is the observed candidate.
+
 ## Permission polling fallback — 2026-09-28 candidate
 
 ### Follow-up: generic closure reason repair — 2026-09-29

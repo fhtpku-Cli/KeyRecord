@@ -77,6 +77,7 @@ final class ProductComposition: NSObject, NSMenuDelegate {
     #endif
     private var exclusionCandidates: any ExclusionCandidateSource = WorkspaceExclusionCandidates()
     private var runtimeCoordinator: CaptureRuntimeCoordinator?
+    private var runtimeReconciliations = 0
     private let manualRecoveryFence = ManualRecoveryFence()
     private var pausedPrivacyTask: Task<Void, Never>?
     private var secureInputMonitor: Task<Void, Never>?
@@ -726,15 +727,24 @@ final class ProductComposition: NSObject, NSMenuDelegate {
                     self?.diagnostics.notePrivacyTrigger("captureInvalidationNoAutoRecovery")
                     #endif
                     await self?.handlePrivacyInvalidation()
-                    await coordinator.handle(.invalidated(reason))
+                    await self?.reconcileCapture(.invalidated(reason), using: coordinator)
                 }
             } else {
                 Task { @MainActor in
-                    let outcome = await coordinator.handle(.invalidated(reason))
-                    await self?.settleFailedRecovery(outcome)
+                    guard let self else { return }
+                    let outcome = await self.reconcileCapture(.invalidated(reason), using: coordinator)
+                    await self.settleFailedRecovery(outcome)
                 }
             }
         }
+    }
+
+    @discardableResult
+    private func reconcileCapture(_ trigger: CaptureRuntimeTrigger,
+                                  using coordinator: CaptureRuntimeCoordinator) async -> CaptureRuntimeOutcome {
+        runtimeReconciliations += 1
+        defer { runtimeReconciliations -= 1 }
+        return await coordinator.handle(trigger)
     }
 
     /// A failed automatic rebuild leaves no session and no trigger that would retry it, so
@@ -820,7 +830,7 @@ final class ProductComposition: NSObject, NSMenuDelegate {
         if let runtimeCoordinator {
             // Same serial entry point as every invalidation (KR-02), so an exclusion change
             // cannot race a concurrent foreground/tap recovery.
-            await settleFailedRecovery(await runtimeCoordinator.handle(.exclusionsChanged))
+            await settleFailedRecovery(await reconcileCapture(.exclusionsChanged, using: runtimeCoordinator))
         } else if let preferences = lifecycle.state.preferences {
             await capture.reapplyPolicy(preferences: preferences)
         }
@@ -880,25 +890,33 @@ final class ProductComposition: NSObject, NSMenuDelegate {
                     self.diagnostics.notePrivacyTrigger("inputMonitoringRevoked")
                     #endif
                     await self.handlePrivacyInvalidation()
-                    await self.runtimeCoordinator?.handle(.invalidated(.permissionRevoked))
+                    if let coordinator = self.runtimeCoordinator {
+                        await self.reconcileCapture(.invalidated(.permissionRevoked), using: coordinator)
+                    }
                     break
                 }
                 let state = await self.capture.secureInputState()
                 guard !Task.isCancelled, self.monitorIsCurrent(generation) else { break }
                 let previous = self.lastSecureInput
                 self.lastSecureInput = state
+                let wasReconciling = self.runtimeReconciliations > 0
+                let captureGeneration = self.capture.queue.generation
                 let health = await self.capture.sessionHealth()
                 guard self.monitorIsCurrent(generation) else { break }
+                let healthIsStable = !wasReconciling && self.runtimeReconciliations == 0
+                    && self.capture.queue.generation == captureGeneration
                 let unexpectedStop = health == .stopped && state == .disabled
                     && self.lifecycle.state.conditions.secureInput == .disabled
-                if health == .tapUnavailable || unexpectedStop {
+                if healthIsStable && (health == .tapUnavailable || unexpectedStop) {
                     self.reduction.revokeProtectedState(queue: self.capture.queue,
                                                        recoveryFence: self.manualRecoveryFence)
                     #if DEBUG
                     self.diagnostics.notePrivacyTrigger(unexpectedStop ? "sourceStopped" : "tapUnavailable")
                     #endif
                     await self.handlePrivacyInvalidation()
-                    await self.runtimeCoordinator?.handle(.invalidated(.tapUnavailable))
+                    if let coordinator = self.runtimeCoordinator {
+                        await self.reconcileCapture(.invalidated(.tapUnavailable), using: coordinator)
+                    }
                     break
                 }
                 let live = health == .active
@@ -910,8 +928,8 @@ final class ProductComposition: NSObject, NSMenuDelegate {
                     self.diagnostics.notePrivacyTrigger("secureInputMonitor-\(state)")
                     #endif
                     self.syncRuntime()
-                    if live {
-                        await self.runtimeCoordinator?.handle(.invalidated(.secureInputChanged))
+                    if live, let coordinator = self.runtimeCoordinator {
+                        await self.reconcileCapture(.invalidated(.secureInputChanged), using: coordinator)
                         guard self.monitorIsCurrent(generation) else { break }
                     }
                     let refreshedLive = await self.capture.hasLiveSession()
@@ -920,10 +938,10 @@ final class ProductComposition: NSObject, NSMenuDelegate {
                     self.syncRuntime()
                 } else if state == .disabled,
                           (previous != .disabled && !live) || self.lifecycle.state.conditions.secureInput != .disabled {
-                    if !live {
-                        let outcome = await self.runtimeCoordinator?.handle(.invalidated(.secureInputChanged))
+                    if !live, let coordinator = self.runtimeCoordinator {
+                        let outcome = await self.reconcileCapture(.invalidated(.secureInputChanged), using: coordinator)
                         guard self.monitorIsCurrent(generation) else { break }
-                        if let outcome { await self.settleFailedRecovery(outcome) }
+                        await self.settleFailedRecovery(outcome)
                         guard self.monitorIsCurrent(generation) else { break }
                     }
                     let resumed = await self.capture.hasLiveSession()

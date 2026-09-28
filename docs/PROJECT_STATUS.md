@@ -7,10 +7,17 @@ The subsequent reason-classification repair replaces the generic handler's
 incorrect `sessionLocked` label with `privacyCheckRequired`, while retaining
 actual lock reasons and all closure protections. Three new assertions failed
 before the repair; all 53 recovery/quit and 233 Core tests passed afterward.
-The owner clarified the last system prompt was Quit and Reopen. The remaining
-short host step is regrant plus explicit isolated restart, not same-process
-recovery. The newer repair has no host result yet; the results below remain
-bound to `de8b9c526`.
+The owner clarified the last system prompt was Quit and Reopen. On signed
+`10676e1aa`, re-enabling the exact trial followed by an isolated restart reached
+Collecting; one confirmed shortcut increased the restored total from 3 to 4
+with one successful durable write. Normal Quit left no process. An unexpected
+`sourceStopped` block before Quit prevents a sustained-recovery pass. A held
+foreground rebuild reproduces that false block offline; the follow-up repair
+keeps health observations during reconciliation from becoming permanent faults
+while retaining the permission/lock checks. See the candidate-specific record
+and the passing 55 recovery/quit tests (zero failures; Debug test build passed)
+in [permission recovery](PERMISSION_RECOVERY_TEST.md). The older results below
+remain bound to `de8b9c526`.
 
 At `ba57ea711`, 546 package tests, 133 selected hostless App tests and 122
 KeychainLifecycle logic tests passed; fresh unsigned builds and the Release

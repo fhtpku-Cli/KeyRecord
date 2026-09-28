@@ -304,6 +304,38 @@ and launching through the isolation controller will test the system-required
 restart path; it cannot qualify same-process regrant. Prior live results stay
 bound to the old signed source rather than being transferred to the repair.
 
+## Regrant/restart follow-up and foreground rebuild repair
+
+Signed `10676e1aa` replaced the installed trial at the same path, identity and
+namespace, retaining the earlier App under a private backup path. Its first
+approved restart failed before capture with denied Input Monitoring. Exact
+trial TCC evidence and read-only Settings inspection agreed the trial was off;
+a distinct KeyRecordApp row was on. The trial exited normally with zero sessions
+or writes. The agent did not change system permissions.
+
+After the owner enabled the exact trial and confirmed readiness, the separate
+`--recovery2` run reached Collecting and received the confirmed one Command-A.
+It recorded aggregate delta 1, shortcut total 4, bare total 0, one successful
+durable write, no write/read failures, and two capture sessions. The controller
+requested normal Quit at 55 seconds and exited 0 before 60 seconds; process
+inspection found no remaining App. Evidence: the existing private root's
+`privacy-recovery2.jsonl`, `summary-recovery2.json`, and
+`/private/tmp/keyrecord-mvp-recovery2-controller-20260929.log`.
+
+The journal also records a `sourceStopped` / `privacyCheckRequired` block before
+Quit. Restored permission and input/save after isolated restart are observed;
+stable recovery is not yet qualified. A hostless test then held a foreground
+rebuild across multiple monitor polls and reproduced the same false block
+before the fix. The monitor now recognizes health reads overlapping runtime
+reconciliation using its outstanding calls and the existing queue generation.
+Permission, lock and Secure Input checks continue. The additional protection
+test revokes permission during a held rebuild and requires closure to persist.
+No further live launch was performed for this diagnosis or repair.
+Debug build-for-testing and all 55 recovery/quit tests passed after the repair,
+with zero failures. Red/green logs are
+`/private/tmp/keyrecord-rebuild-race-{build-red,red,build-green,green}.log`.
+These are synthetic results for the newer repair, not another host qualification.
+
 Still open: current-candidate attribution rows, native consent
 and accessibility, permission revoke/regrant, continuous lock/sleep closure and
 recovery, exhaustive live product observation for the hosted Keychain controller,

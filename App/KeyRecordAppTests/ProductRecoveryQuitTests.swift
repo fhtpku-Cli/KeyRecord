@@ -169,6 +169,20 @@ private final class SyntheticTap: CaptureTapBackend, @unchecked Sendable {
     private var handoff: (@Sendable (ObservedKeyEvent) -> EventHandoffResult)?
     private var cached = CaptureProviderSnapshot.unknown
     private var enabled = false
+    private var holdStart = false
+    private var heldStart: CheckedContinuation<Void, Never>?
+
+    func holdNextStart() { mutex.withLock { holdStart = true } }
+    var startIsHeld: Bool { mutex.withLock { heldStart != nil } }
+    func releaseStart() {
+        let continuation = mutex.withLock {
+            let continuation = heldStart
+            heldStart = nil
+            holdStart = false
+            return continuation
+        }
+        continuation?.resume()
+    }
 
     init(host: SyntheticHost, queue: CaptureQueue) { self.host = host; self.queue = queue }
 
@@ -188,6 +202,12 @@ private final class SyntheticTap: CaptureTapBackend, @unchecked Sendable {
     func cachedProviders() -> CaptureProviderSnapshot { mutex.withLock { cached } }
     func isEnabled() -> Bool { mutex.withLock { enabled && handoff != nil } }
     func start(handoff: @escaping @Sendable (ObservedKeyEvent) -> EventHandoffResult) async throws {
+        await withCheckedContinuation { continuation in
+            mutex.withLock {
+                if holdStart { heldStart = continuation }
+                else { continuation.resume() }
+            }
+        }
         mutex.withLock { self.handoff = handoff; enabled = true }
         host.tapDidStart()
     }
@@ -847,6 +867,43 @@ final class ProductRecoveryQuitTests: XCTestCase {
         XCTAssertEqual(product.phase, .collecting)
         let live = await product.live
         XCTAssertTrue(live)
+    }
+
+    func testForegroundRebuildDoesNotLookLikeAnUnexpectedSourceStop() async throws {
+        let product = try await collecting()
+        try await product.press(1)
+        let tap = try XCTUnwrap(product.tap)
+        tap.holdNextStart()
+        defer { tap.releaseStart() }
+        XCTAssertTrue(tap.report(.foregroundChanged))
+        try await waitUntil("rebuild start held") { tap.startIsHeld }
+        // Cross multiple health polls while the real source is deliberately rebuilding.
+        try await Task.sleep(for: .milliseconds(800))
+        XCTAssertEqual(product.phase, .collecting)
+        XCTAssertTrue(product.keyGateOpen)
+        tap.releaseStart()
+        try await waitUntil("foreground rebuild completed") { await product.live }
+        try await product.press(1)
+        XCTAssertEqual(product.aggregateDelta, 2)
+    }
+
+    func testPermissionLossStillClosesWhileForegroundRebuildIsHeld() async throws {
+        let product = try await collecting()
+        let tap = try XCTUnwrap(product.tap)
+        tap.holdNextStart()
+        defer { tap.releaseStart() }
+        XCTAssertTrue(tap.report(.foregroundChanged))
+        try await waitUntil("rebuild start held") { tap.startIsHeld }
+        product.host.setPermission(.denied)
+        try await waitUntil("permission loss closes protected state") {
+            product.phase == .blocked && !product.keyGateOpen
+        }
+        tap.releaseStart()
+        try await Task.sleep(for: .milliseconds(600))
+        let live = await product.live
+        XCTAssertFalse(live)
+        XCTAssertFalse(product.keyGateOpen)
+        XCTAssertEqual(product.phase, .blocked)
     }
 
     func testFailedAutomaticRecoveryLeavesAnActionableState() async throws {

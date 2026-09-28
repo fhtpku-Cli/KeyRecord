@@ -24,7 +24,11 @@ Collecting with `inputMonitoringPreflightGranted`. It recorded one session,
 zero keyboard callbacks and zero aggregate/flush counts, then quit normally
 after the controller requested termination at 55 seconds. No permission was
 changed during this recovery round. It establishes isolated startup recovery;
-physical input and same-process revoke/regrant remain unverified.
+same-process revoke/regrant remains unverified. A subsequent separately
+coordinated input round, launched after an explicit ready response, recorded
+3 shortcuts, 0 bare keys and 4 issued/4 durable writes before normal Quit. It
+adds bounded physical-input/save evidence without exercising a permission
+transition; restart readback and same-process revoke/regrant remain open.
 
 ## Permission polling fallback — 2026-09-28 candidate
 

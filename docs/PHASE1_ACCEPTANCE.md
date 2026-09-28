@@ -2,7 +2,7 @@
 
 Current status: [PROJECT_STATUS.md](PROJECT_STATUS.md). Requirements: [PHASE1_CONTRACT.md](PHASE1_CONTRACT.md) and architecture §12.4/15. This matrix separates executable regression coverage from host qualification; it is not a new gate or acceptance receipt.
 
-**Current MVP scope (2026-09-29):** The first usable capture MVP may target native Apple Silicon only. Intel compatibility and Intel performance are later complete G1/v1 work, not reasons to block this MVP. A provisioned Debug trial has initialized protected storage and reached Collecting on isolated restart. Apple Silicon product performance, complete Keychain lifecycle, physical input/durability, privacy recovery and a qualified collecting Release remain unverified. The historical full G1 requirements and prior candidate-specific results below retain their stated scope; this decision does not turn a missing measurement into PASS.
+**Current MVP scope (2026-09-29):** The first usable capture MVP may target native Apple Silicon only. Intel compatibility and Intel performance are later complete G1/v1 work, not reasons to block this MVP. A provisioned Debug trial has initialized protected storage, reached Collecting on isolated restart and recorded 3 physical shortcuts with 4 issued/4 durable writes. Apple Silicon product performance, complete Keychain lifecycle, collected-count restart readback, privacy recovery and a qualified collecting Release remain unverified. The historical full G1 requirements and prior candidate-specific results below retain their stated scope; this decision does not turn a missing measurement into PASS.
 
 ## Evidence and remaining work
 
@@ -17,8 +17,11 @@ showed a blocked state. A separately approved isolated restart reached Collectin
 with granted Input Monitoring and one session, then quit normally at the
 controller deadline. Keyboard callbacks, accepted events, aggregates and
 flushes were all zero. This verifies bounded startup recovery, not physical
-input or collected-count retention. The remaining live acceptance rows below
-stay open.
+input or collected-count retention. A subsequent round, launched only after the
+owner's explicit ready response, recorded 3 shortcuts, 0 bare keys and 4 issued/4
+durable writes with no failure or timeout, then quit normally. This adds bounded
+physical-input/save evidence; collected-count restart readback and the broader
+live acceptance rows below stay open.
 
 Current-main update: PR #13 merged at `6257b03b40f618fd976c6cbcc77dc83d374c59bb`. Marked Debug trials now reject missing isolation configuration on relaunch. The [bounded permission restart observation](PERMISSION_RECOVERY_TEST.md) preserves counts and normal Quit, but does not close same-process revoke/regrant coverage. PR #10 Secure Input evidence remains historical in [its report](PR10_SINGLEPAGE_REGRESSION.md); formal Phase 1 acceptance remains open.
 
@@ -28,7 +31,7 @@ Starting source: `31b65c523db3ec40c06f0877395da52b7c026935` (merged PR #3/#4). E
 
 | Requirement | Evidence / version | Gap | Safe autonomous work | Human / host prerequisite |
 |---|---|---|---|---|
-| FR-C normalization, sided modifiers, repeats, event origin | Package Core/Capture regressions; older signed Debug counted bounded TextEdit input | Current signed candidate, keyboard/OS coverage; unknown first modifier side is supported | Queue, normalization and synthetic provenance tests | On identified current Debug candidate, release modifiers then press a small agreed shortcut set; compare all matching rows |
+| FR-C normalization, sided modifiers, repeats, event origin | Package Core/Capture regressions; `de8b9c526` recorded the coordinated 3 shortcuts with zero bare keys; older signed Debug counted bounded TextEdit input | Current-candidate attribution rows and broader keyboard/OS coverage; unknown first modifier side is supported | Queue, normalization and synthetic provenance tests | On identified current Debug candidate, release modifiers then press a small agreed shortcut set; compare all matching rows |
 | FR-P privacy gate and zero metadata while closed | Synthetic privacy, overflow/generation, queued protection tests; bounded Secure Input closure/recovery on `64590a0e` ([report](PR10_SINGLEPAGE_REGRESSION.md)); older exclusion observation | Synthetic product permission revoke/explicit recovery is covered ([test](PERMISSION_RECOVERY_TEST.md)); actual OS permission delivery, broader continuous/hardware coverage and user switching remain open; one Debug Secure Input round is not full qualification | Inject false/unknown conditions with nonzero pending events; assert zero deltas and stale completions discarded | Separately approved short trials with coarse state/counters only, known permitted input before/after; no password text or per-event stream |
 | Lock/sleep, user pause, recovery | Older signed Debug observed manual Start after lock and actual sleep | Not continuous locked-interval proof; current binary and OS support not qualified | Lifecycle/restart/flush race tests with delayed writes and synthetic lock providers | Owner operates lock/sleep; record closed state, retained durable counts, fresh-check recovery and paused-state behavior; no automatic unlock/wake |
 | Encrypted persistence, missing key, corruption, reset/delete | Real temporary-file AES-GCM, crash subprocess, rotation/reset/recovery tests with injected keys | Real Keychain accessibility and current-candidate lifecycle qualification | Replay existing Store/Integration regressions, canary/serialization scans | Isolated explicitly approved test namespace and authorized controller; never remove user keys or use real statistics as fixtures |

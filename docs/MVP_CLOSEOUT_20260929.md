@@ -168,9 +168,46 @@ The controller requested normal Quit at 55 seconds and exited 0 before the
 scheduler data. The summary's cached `captureSessionLive=true` is not an atomic
 post-quit observation; the action detail and an outside-sandbox process check
 (no `KeyRecordApp` remained) establish teardown. The forced-stop branch was not
-exercised. No additional launch was performed.
+exercised. No additional launch was performed within that recovery approval.
 
-Still open: real collection and durable restart, current-candidate native consent
+## Coordinated physical-input round
+
+The owner asked to continue. The local controller gained a separate `--input`
+mode preserving both earlier runs and writing `privacy-input.jsonl` and
+`summary-input.json`. Actual Swift 6 compilation with `-parse-as-library` and
+`--input-check` passed without launching. After the owner explicitly replied
+ready, this one round launched the same installed, signed `de8b9c526` candidate
+with the existing trial root and Keychain namespace. The agreed interaction was
+three Command-A shortcuts in blank TextEdit after Collecting. No permission,
+lock/sleep or ordinary-data operation was included.
+
+The controller log is `/private/tmp/keyrecord-mvp-input-controller-20260929.log`.
+The trial root's input journal has 17 records. Aggregate summary results:
+
+| Observation | Result |
+|---|---:|
+| Key-down / key-up / modifier callbacks | 3 / 3 / 6 |
+| Accepted handoffs / normalization output | 12 / 6 |
+| Aggregate delta / published shortcut total / bare-key total | 3 / 3 / 0 |
+| Issued / returned / successful / durable writes | 4 / 4 / 4 / 4 |
+| Failed / timed-out / invalidated writes | 0 / 0 / 0 |
+| Handoff overflow / tap-disabled events / snapshot read failures | 0 / 0 / 0 |
+
+Collecting and granted Input Monitoring were observed. The controller requested
+normal Quit at 55 seconds and exited 0 before 60 seconds. The quit action records
+`phaseAfter=stopped`, `sessionLiveAfter=false`, `quitDecision=terminate` and no
+unsaved reduction/scheduler data. An outside-sandbox process check found no
+remaining KeyRecordApp. As in the preceding run, the summary's cached live flag
+is not a post-quit process witness. Forced stop was not exercised.
+
+This establishes bounded physical input through aggregation and reported durable
+save on the signed Debug candidate. The summary contains no per-application or
+shortcut identity rows; it cannot independently establish TextEdit attribution
+or the exact Command-A row. No new process has read back the three saved counts,
+so restart persistence remains unverified. No broader privacy or Release result
+is inferred.
+
+Still open: collected-count restart readback, current-candidate native consent
 and accessibility, permission revoke/regrant, continuous lock/sleep closure and
 recovery, exhaustive live product observation for the hosted Keychain controller,
 six native ARM resource windows, and qualified Release composition. Release

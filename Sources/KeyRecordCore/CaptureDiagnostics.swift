@@ -295,6 +295,7 @@ public struct CaptureRunSummary: Encodable, Sendable {
     public var protectedSnapshotRejected: Int64 = 0
     public var protectedAnalysisAttempts: Int64 = 0
     public var protectedAnalysisRejected: Int64 = 0
+    public var protectedGateEntries: Int64?
     public var privacyJournalWriteFailed = false
 }
 
@@ -340,6 +341,7 @@ public struct CapturePrivacyIntervalMark: Encodable, Sendable {
     public var protectedSnapshotRejected: Int64
     public var protectedAnalysisAttempts: Int64
     public var protectedAnalysisRejected: Int64
+    public var protectedGateEntries: Int64?
     public var snapshotPublicationCount: Int
     public var analysisPublicationCount: Int
     public var snapshotReadFailureCount: Int
@@ -396,6 +398,7 @@ public final class CaptureDiagnosticsRecorder: @unchecked Sendable {
     private var actionSeq = 0
     private var journalWriteFailed = false
     private let journalWriteLock = NSLock()
+    private var protectedGateEntries: (@Sendable () -> Int64?)?
 
     public init() {
         counterBaseline = atomicCounters.snapshot()
@@ -429,14 +432,16 @@ public final class CaptureDiagnosticsRecorder: @unchecked Sendable {
     }
 
     public var runSummary: CaptureRunSummary {
-        var result = lock.withLock {
+        let (base, gateEntries) = lock.withLock {
             var result = run
             result.countersInstrumented = counters.countersInstrumented
             result.captureSessionLive = counters.captureSessionLive
             result.sensitiveContentVisible = counters.sensitiveContentVisible
             result.privacyJournalWriteFailed = journalWriteFailed
-            return result
+            return (result, protectedGateEntries)
         }
+        var result = base
+        result.protectedGateEntries = gateEntries?()
         let values = atomicCounters.snapshot()
         result.tapCallbackKeyDown = values[CaptureDiagnosticCounter.tapCallbackKeyDown.rawValue]
         result.tapCallbackKeyUp = values[CaptureDiagnosticCounter.tapCallbackKeyUp.rawValue]
@@ -486,6 +491,10 @@ public final class CaptureDiagnosticsRecorder: @unchecked Sendable {
             run.protectedAnalysisAttempts += 1
             if rejected { run.protectedAnalysisRejected += 1 }
         }
+    }
+
+    public func configureProtectedGateEntries(_ read: @escaping @Sendable () -> Int64?) {
+        lock.withLock { protectedGateEntries = read }
     }
 
     public var privacyJournalEnabled: Bool { lock.withLock { intervalPath != nil } }
@@ -628,6 +637,7 @@ public final class CaptureDiagnosticsRecorder: @unchecked Sendable {
             protectedSnapshotRejected: summary.protectedSnapshotRejected,
             protectedAnalysisAttempts: summary.protectedAnalysisAttempts,
             protectedAnalysisRejected: summary.protectedAnalysisRejected,
+            protectedGateEntries: summary.protectedGateEntries,
             snapshotPublicationCount: summary.snapshotPublicationCount,
             analysisPublicationCount: summary.analysisPublicationCount,
             snapshotReadFailureCount: summary.snapshotReadFailureCount)

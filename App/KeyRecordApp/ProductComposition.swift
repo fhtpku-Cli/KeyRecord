@@ -267,6 +267,7 @@ final class ProductComposition: NSObject, NSMenuDelegate {
         composition.resumeSuspendedWriter = { try await destruction.resumeWriterIfIdle() }
         composition.completeRecoveredReset = { try await destruction.completeRecoveredReset() }
         #if DEBUG
+        composition.diagnostics.configureProtectedGateEntries { gate.diagnosticProtectedEntryCount }
         reduction.configureDiagnostics(composition.diagnostics)
         flow.configureDiagnostics(composition.diagnostics)
         await scheduler.setDiagnostics(composition.diagnostics)

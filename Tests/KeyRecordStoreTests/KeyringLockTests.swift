@@ -84,4 +84,30 @@ final class KeyringLockTests: XCTestCase {
         // Then
         XCTAssertThrowsError(try gate.begin()) { XCTAssertEqual($0 as? KeyringError, .locked) }
     }
+
+    #if DEBUG
+    func testProtectedEntryCountAdvancesOnlyWhenGateAdmitsOperation() async throws {
+        let gate = KeyAvailabilityGate()
+        XCTAssertEqual(gate.diagnosticProtectedEntryCount, 0)
+        XCTAssertThrowsError(try gate.begin())
+        XCTAssertEqual(gate.diagnosticProtectedEntryCount, 0)
+
+        gate.update(.unlocked)
+        let generation = try gate.begin()
+        XCTAssertEqual(try gate.use(generation) { 1 }, 1)
+        let asyncResult = try await gate.run(generation) { 2 }
+        XCTAssertEqual(asyncResult, 2)
+        XCTAssertEqual(gate.diagnosticProtectedEntryCount, 2)
+
+        gate.update(.locked)
+        XCTAssertThrowsError(try gate.use(generation) { 3 })
+        do {
+            _ = try await gate.run(generation) { 4 }
+            XCTFail("Locked gate admitted operation")
+        } catch {
+            XCTAssertEqual(error as? KeyringError, .staleGeneration)
+        }
+        XCTAssertEqual(gate.diagnosticProtectedEntryCount, 2)
+    }
+    #endif
 }

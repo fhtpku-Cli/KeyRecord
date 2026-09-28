@@ -21,6 +21,20 @@ public final class KeyAvailabilityGate: KeyAvailabilityFencing, @unchecked Senda
     public init(generation: CaptureGeneration = CaptureGeneration(rawValue: 0)) { self.generation = generation }
 
     #if DEBUG
+    private var diagnosticProtectedEntries: Int64 = 0
+    private var diagnosticProtectedEntriesExhausted = false
+    public var diagnosticProtectedEntryCount: Int64? {
+        mutex.withLock { diagnosticProtectedEntriesExhausted ? nil : diagnosticProtectedEntries }
+    }
+
+    private func recordProtectedEntryLocked() {
+        if diagnosticProtectedEntries == .max {
+            diagnosticProtectedEntriesExhausted = true
+        } else {
+            diagnosticProtectedEntries += 1
+        }
+    }
+
     /// Who last changed the gate, for diagnostics only. A caller-supplied label from a
     /// fixed set of call sites — never user data. DEBUG-only so Release cannot carry it.
     public private(set) var lastUpdateSource: String?
@@ -65,6 +79,9 @@ public final class KeyAvailabilityGate: KeyAvailabilityFencing, @unchecked Senda
     public func use<T>(_ candidate: CaptureGeneration, body: () throws -> T) throws -> T {
         try mutex.withLock {
             try checkLocked(candidate)
+            #if DEBUG
+            recordProtectedEntryLocked()
+            #endif
             let result = try body()
             try checkLocked(candidate)
             return result
@@ -76,6 +93,9 @@ public final class KeyAvailabilityGate: KeyAvailabilityFencing, @unchecked Senda
         let id = UUID()
         let task = try mutex.withLock {
             try checkLocked(candidate)
+            #if DEBUG
+            recordProtectedEntryLocked()
+            #endif
             let task = Task { try self.check(candidate); try Task.checkCancellation(); return try await operation() }
             operations[id] = { task.cancel() }
             return task

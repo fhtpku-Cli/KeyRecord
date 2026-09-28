@@ -63,7 +63,7 @@ enum PrivacySchemaAudit {
             "snapshotPublicationCount", "analysisPublicationCount", "snapshotReadFailureCount", "lastPublishedShortcutTotal",
             "lastPublishedBareKeyTotal", "countersInstrumented", "captureSessionLive", "sensitiveContentVisible",
             "protectedSnapshotAttempts", "protectedSnapshotRejected", "protectedAnalysisAttempts", "protectedAnalysisRejected",
-            "privacyJournalWriteFailed"],
+            "protectedGateEntries", "privacyJournalWriteFailed"],
             "CapturePrivacyIntervalMark": [
                 "seq", "role", "phase", "blockedReason", "privacyTrigger", "boundaryCause", "captureSessionLive",
                 "sensitiveContentVisible", "expectedCollecting", "currentLockState", "lockReadStatus",
@@ -72,7 +72,7 @@ enum PrivacySchemaAudit {
                 "aggregateDelta", "handoffAccepted", "handoffClosed",
                 "normalizationOutput", "flushDurable", "flushInvalidated", "protectedSnapshotAttempts",
                 "protectedSnapshotRejected", "protectedAnalysisAttempts", "protectedAnalysisRejected",
-                "snapshotPublicationCount", "analysisPublicationCount", "snapshotReadFailureCount"],
+                "protectedGateEntries", "snapshotPublicationCount", "analysisPublicationCount", "snapshotReadFailureCount"],
             "CapturePrivacyActionDetail": [
                 "invocation", "phaseBefore", "earlyReturn", "prepareOutcome", "prepareLockRead", "permissionStatus",
                 "lifecycleCommandRun", "abortRun", "readinessCalls", "readinessOutcome", "lifecycleFlushCalls",

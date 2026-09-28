@@ -33,6 +33,21 @@ final class CaptureDiagnosticCounterTests: XCTestCase {
         XCTAssertEqual(recorder.runSummary.sessionCount, 2)
     }
 
+    func testProtectedGateCountIsOptionalAndRecordedInPrivateJournal() throws {
+        let recorder = CaptureDiagnosticsRecorder()
+        XCTAssertNil(recorder.runSummary.protectedGateEntries)
+        let path = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: path) }
+        recorder.configureProtectedGateEntries { 3 }
+        recorder.enablePrivacyIntervalJournal(path: path.path)
+        recorder.beginClosedInterval(cause: "protectedStateClosed")
+
+        let mark = try XCTUnwrap(String(contentsOf: path, encoding: .utf8).split(separator: "\n").first)
+        let object = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(mark.utf8)) as? [String: Any])
+        XCTAssertEqual(recorder.runSummary.protectedGateEntries, 3)
+        XCTAssertEqual(object["protectedGateEntries"] as? Int, 3)
+    }
+
     func testFlushPhysicalAndInvalidationCountersRetainLifetimeTotalsAcrossSessionReset() {
         let recorder = CaptureDiagnosticsRecorder()
         let counters: [CaptureDiagnosticCounter] = [

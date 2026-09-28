@@ -234,23 +234,24 @@ final class AppFlowObservable: ObservableObject {
         get { flow.displayedAggregate }
         set {
             if newValue == nil { rawAnalysis = nil }
-            flow.displayedAggregate = newValue
             #if DEBUG
-            if let visible = self.snapshot {
+            if sensitiveContentVisible, let visible = newValue {
                 diagnostics?.recordPublication(shortcutTotal: visible.shortcutTotal,
                                                bareKeyTotal: visible.bareKeyTotal)
             }
             #endif
+            flow.displayedAggregate = newValue
         }
     }
 
     var analysis: AnalysisSnapshot? { sensitiveContentVisible ? rawAnalysis : nil }
 
     func publishAnalysis(_ snapshot: AnalysisSnapshot?) {
-        rawAnalysis = sensitiveContentVisible ? snapshot : nil
+        let visible = sensitiveContentVisible ? snapshot : nil
         #if DEBUG
-        if rawAnalysis != nil { diagnostics?.recordAnalysisPublication() }
+        if visible != nil { diagnostics?.recordAnalysisPublication() }
         #endif
+        rawAnalysis = visible
     }
 
     func saveLayout(_ preset: LayoutPreset) async {

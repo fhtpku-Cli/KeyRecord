@@ -6,6 +6,12 @@ Current status: [PROJECT_STATUS.md](PROJECT_STATUS.md). Requirements: [PHASE1_CO
 
 ## Evidence and remaining work
 
+The [2026-09-29 closeout checkpoint](MVP_CLOSEOUT_20260929.md) records fresh
+offline results at `ba57ea711` and the reproducible arm64 trial build command.
+An Apple Development identity is available; the actual signing build is blocked
+by a missing matching development provisioning profile. No new product host
+trial was run, and the remaining live acceptance rows below stay open.
+
 Current-main update: PR #13 merged at `6257b03b40f618fd976c6cbcc77dc83d374c59bb`. Marked Debug trials now reject missing isolation configuration on relaunch. The [bounded permission restart observation](PERMISSION_RECOVERY_TEST.md) preserves counts and normal Quit, but does not close same-process revoke/regrant coverage. PR #10 Secure Input evidence remains historical in [its report](PR10_SINGLEPAGE_REGRESSION.md); formal Phase 1 acceptance remains open.
 
 Historical follow-up: PR5/6/7 were merged at `3b9345c30086e9e33c4510047e2692337f5b8643`. The subsequent paused-restoration repair completed its bounded owner-assisted rounds; see [the acceptance record and remaining scope](CURRENT_MAIN_ACCEPTANCE.md). The starting source and measurements below describe the earlier offline closeout, not fresh current-main qualification.

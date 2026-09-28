@@ -32,6 +32,13 @@ This still runs SwiftPM tests and both App builds, but deliberately skips App XC
 
 ## Scope and host validation
 
+For a provisioned Apple Silicon Debug trial, use
+`bash Scripts/build-isolated-debug-trial.sh --help`. This builds a separately
+identified, isolation-required App without installing or launching it. The
+[latest checkpoint](docs/MVP_CLOSEOUT_20260929.md) records the tested candidate,
+offline results, and the missing local provisioning profile; a build or signature
+check alone does not establish effective Keychain access.
+
 The [Phase 1 acceptance matrix](docs/PHASE1_ACCEPTANCE.md) lists current evidence, remaining
 gaps, safe automated checks and the minimum owner-assisted follow-up.
 

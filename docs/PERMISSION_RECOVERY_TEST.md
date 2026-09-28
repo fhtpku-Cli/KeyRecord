@@ -10,6 +10,11 @@ no-launch identity/profile checks and reaches Collecting before any further
 permission toggle. See [current status](PROJECT_STATUS.md). The dated results
 below retain their original scope.
 
+The [2026-09-29 signing build](MVP_CLOSEOUT_20260929.md) now confirms a matching
+development provisioning profile is missing, despite a valid local Apple
+Development identity. Its new build helper prepares entitlements and trial
+isolation through Xcode; no new permission operation or Collecting run occurred.
+
 ## Permission polling fallback — 2026-09-28 candidate
 
 `codex/phase1-acceptance` adds a read-only Input Monitoring preflight to the

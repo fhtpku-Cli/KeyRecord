@@ -2,6 +2,16 @@
 
 ## Current Apple Silicon MVP status — 2026-09-29
 
+Latest autonomous checkpoint: [MVP closeout](MVP_CLOSEOUT_20260929.md).
+At `ba57ea711`, 546 package tests, 133 selected hostless App tests and 122
+KeychainLifecycle logic tests passed; fresh unsigned builds and the Release
+network-capability audit also passed. A real signing build identified the
+current local blocker: the Apple Development identity exists, but no matching
+Mac App Development provisioning profile is installed for
+`com.keyrecord.trial.mvp20260929`. A reusable arm64 trial build helper now
+prepares the isolated identity and entitlements without launching the product.
+Its signed success path and effective Keychain access remain unverified.
+
 The owner accepts an Apple Silicon-only first usable capture MVP. Intel runtime,
 Intel product-performance measurement and SP6B Intel backup-KDF timing are not
 MVP prerequisites. The original full G1/v1 requirements still exist as later

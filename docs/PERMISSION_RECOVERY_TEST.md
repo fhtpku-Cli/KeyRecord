@@ -83,6 +83,8 @@ The owner launched that replacement once. System Settings showed `KeyRecord Perm
 
 A narrow `secd` review at the first process's Keychain call showed that macOS **ignored** `com.apple.application-identifier` because of an invalid application signature or incorrect provisioning profile, then returned OSStatus `-34018` for `SecItemCopyMatching`. Thus the embedded entitlement and successful `codesign --verify` were insufficient to establish effective Keychain access. The Input Monitoring entry proves Settings discoverability for the installed package, but this round never reached Collecting or a same-process revoke/regrant interval. No further permission toggle is justified by this package result; real permission recovery remains unverified.
 
+The reusable isolated Debug launcher now also requires an embedded provisioning profile whose Team ID and exact or wildcard App ID authorize the signed trial identifier. `bash -n` passed, and `--check` rejected the installed 20260928b package before launch with exit 2 because it has no embedded profile. This closes the specific preflight false acceptance from that package; a matching profile still does not prove macOS will grant runtime Keychain access. Do not ask for another permission toggle until a new package has passed a bounded effective-access check and actually reached Collecting.
+
 ### Disabled-tap liveness fallback — 2026-09-28
 
 The product previously treated an installed dispatch signal as proof that a

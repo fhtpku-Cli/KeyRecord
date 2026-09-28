@@ -32,11 +32,12 @@ The script still reports `outcome: inconclusive-attribution-not-validated` and
 above is a manual, bounded conclusion for two owned IPv4 loopback UDP flows on
 this host and script revision. The aggregate counts do not prove one-to-one
 packet pairing or coverage of other protocols, interfaces, process descendants,
-or unattributed traffic. No KeyRecord network observation or zero-egress result
-exists. The existing product wrapper remains BLOCKED. A future product round
-needs a separately approved all-interface/process-scope controller; Phase 1,
-Release and Intel qualification remain open. No immediate repeat of the same
-synthetic pilot is warranted solely to revisit the historical missing line.
+or unattributed traffic. No valid KeyRecord zero-egress observation resulted
+from these pilots. The existing product wrapper remains BLOCKED as a historical
+lane. The later FR-P1 decision uses source and exact Release-executable audits,
+so the hypothetical all-interface product round in this old plan is not current
+work. The first capture MVP now targets Apple Silicon; Intel qualification is
+deferred. No repeat of this synthetic pilot is required.
 
 ## Executed synthetic control
 

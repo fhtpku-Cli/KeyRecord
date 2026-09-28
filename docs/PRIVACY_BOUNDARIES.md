@@ -5,6 +5,12 @@ exception in the normative architecture does not authorize an endpoint here.
 T20 adds evidence about the existing product; it does not change capture,
 attribution, storage, consent, or Keychain composition.
 
+Current scope: FR-P1 does not require another host packet capture. Its product
+source scan and negative fixtures must remain valid, and the exact signed
+Release executable still needs its own capability audit before release. The
+2026-09-29 Apple Silicon MVP decision defers Intel host performance; it does
+not turn the missing signed-binary audit or other privacy evidence into PASS.
+
 ## Deterministic code evidence
 
 - `PrivacyBoundaryTests` uses fixed synthetic events, a fixed fake key, and a real
@@ -88,9 +94,10 @@ Both commands legitimately exit 2 while G1 is BLOCKED. `capture`, `privacy`, and
 audits are not endorsed producers. `privacy` still requires both
 `t20.network.noClientCapability` and `t20.persistence.noEventLevelData`. The former
 must bind the source and exact Release-executable audit results to the candidate.
-Task 7 authorized host lifecycle evidence, producer endorsement, and architecture
-§12.4 ARM + Intel
-product performance remain independent requirements. FR-P6 full backup is neither
+Task 7 authorized host lifecycle evidence and producer endorsement remain
+independent requirements. Native Apple Silicon product performance remains
+necessary for the current MVP; Intel product performance belongs to complete
+G1/v1. FR-P6 full backup is neither
 implemented nor passed by these tests. T24 publishes the [milestone status](MILESTONE_STATUS.md)
 and attempt-local readiness only; T15's tracked snapshot is not republished before T25.
 

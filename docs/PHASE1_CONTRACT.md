@@ -4,7 +4,7 @@ This is the repository-contained Phase 1 implementation specification. It carrie
 
 ## Allocation and owner approval
 
-Implement FR-C1–C8, FR-P1–P5/P7 and supporting native consent/settings/status/aggregate views. FR-C2/C5/C8 tests preserve fixture-seeded backend objects byte-for-byte and expose no mapping actions; do not build a backend merely to test preservation. FR-P6, FR-R/FR-E, backend application/export/rollback and public-release requirements retain independent gates. G1 also requires architecture §12.4 ARM + Intel product-performance evidence, separately from SP6B Intel KDF timing.
+Implement FR-C1–C8, FR-P1–P5/P7 and supporting native consent/settings/status/aggregate views. FR-C2/C5/C8 tests preserve fixture-seeded backend objects byte-for-byte and expose no mapping actions; do not build a backend merely to test preservation. FR-P6, FR-R/FR-E, backend application/export/rollback and public-release requirements retain independent gates. The owner narrowed the first usable capture MVP to Apple Silicon on 2026-09-29. For that MVP, architecture §12.4 requires current-candidate native Apple Silicon product-performance evidence; Intel hardware and Intel performance are deferred. The original complete G1/v1 dual-architecture target and separate SP6B Intel KDF timing remain open, without being treated as MVP prerequisites. This scope decision does not mark any missing host evidence PASS.
 
 The owner-approved lock contract (2026-09-12) is: “screen/session lock stops capture and protected-data reads; invalidate volatile key handles and sensitive UI snapshots, resume only after unlock plus fresh key/privacy checks and only if `expectedCollecting` remains true. Do not promise guaranteed zeroization of copies managed by Swift/CryptoKit.”
 

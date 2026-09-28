@@ -1,5 +1,15 @@
 # Synthetic live-permission recovery coverage
 
+**Current result (2026-09-29):** The installed 20260928b witness appeared in
+Input Monitoring but failed effective data-protection Keychain access with
+`-34018` before Collecting. A later arm64 PR #17 candidate compiled, but has
+only an ad hoc signature and no matching embedded provisioning profile;
+`launch-isolated-debug-trial.sh --check` rejected it without launching. Neither
+package can validate actual revoke/regrant. Obtain a candidate that passes the
+no-launch identity/profile checks and reaches Collecting before any further
+permission toggle. See [current status](PROJECT_STATUS.md). The dated results
+below retain their original scope.
+
 ## Permission polling fallback — 2026-09-28 candidate
 
 `codex/phase1-acceptance` adds a read-only Input Monitoring preflight to the

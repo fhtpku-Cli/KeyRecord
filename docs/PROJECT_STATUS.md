@@ -1,6 +1,41 @@
 # Current project status
 
-## Current summary — 2026-09-28
+## Current Apple Silicon MVP status — 2026-09-29
+
+The owner accepts an Apple Silicon-only first usable capture MVP. Intel runtime,
+Intel product-performance measurement and SP6B Intel backup-KDF timing are not
+MVP prerequisites. The original full G1/v1 requirements still exist as later
+work; neither G1 nor public Release is marked PASS by this scope decision.
+
+The PR #17 product source assessed here is `87a26a216` on
+`codex/phase1-acceptance`; a later documentation-only commit does not rebind
+the recorded builds or host results.
+Offline permission, tap-liveness, lock-callback and protected-store race repairs
+are present, but no current signed candidate has completed a real end-to-end
+capture and persistence run. The installed permission-witness trial appeared in
+Input Monitoring, then failed before Collecting with effective data-protection
+Keychain error `-34018`. A later isolated arm64 Debug App compiled from this
+branch is ad hoc signed with no matching embedded provisioning profile; its
+no-launch preflight rejected it. These packages cannot qualify revocation,
+regrant, lock, sleep or product Keychain behavior. Do not repeat host toggles
+with either package. See [permission evidence](PERMISSION_RECOVERY_TEST.md) and
+[remaining acceptance](PHASE1_ACCEPTANCE.md).
+
+The immediate dependency is an operable, isolated Apple Silicon candidate with
+effective data-protection Keychain access that reaches Collecting. It then needs
+candidate-bound observation of consent/Start, small non-sensitive shortcut
+aggregates and durable restart, actual permission and lock/sleep closure and
+recovery, and native Apple Silicon typing/idle resource windows. Offline
+KeychainLifecycle scenario tests have passed, but no live product observer is
+wired into the hosted controller; its missing closed-interval counters cannot
+count as zero. Current Release composition still uses `BlockedLiveKeychain` and
+`UnqualifiedCapture`, so it cannot yet serve as a collecting MVP. The exact
+eventual signed Release executable must pass the static FR-P1 capability audit;
+earlier unsigned binaries passing that audit do not qualify it. Current-candidate
+native consent/status/accessibility checks are also outstanding. No additional
+host packet-capture round is required for FR-P1.
+
+## 2026-09-28 network and permission checkpoint (historical)
 
 Main includes PR #16 at `f7dbe7434188edb706e877f168ff9940f7bea438`.
 The owner ended packet-capture qualification for FR-P1. This milestone has no

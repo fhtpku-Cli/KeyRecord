@@ -4,6 +4,8 @@
 `64590a0e9b57a55af9a23921983f2c16bb59c62e` 的单页安全输入回归见
 [专门记录](PR10_SINGLEPAGE_REGRESSION.md)。下方旧结果各自绑定历史候选，不是当前性能验收。
 
+**2026-09-29 适用范围：** 本文的资源与隐私实机方案绑定旧候选，不能直接作为 PR #17 的操作指令。当前 MVP 只需 Apple Silicon 实机资格；Intel 延后。PR #17 的试验包尚未通过有效钥匙串访问预检，也没有产品实测资源窗口。先按 [当前验收清单](PHASE1_ACCEPTANCE.md)准备可进入 Collecting 的隔离候选，再为具体轮次确定方案。旧版关于传统文件钥匙串的诊断不适用于当前使用数据保护钥匙串的候选。
+
 ## 当前 Debug 试验隔离
 
 同时配置 `KEYRECORD_TRIAL_STORE`（私有临时目录）和 `KEYRECORD_TRIAL_NAMESPACE`
@@ -65,7 +67,7 @@ CPU = 100 × 目标进程自身 user+system 纳秒增量 / 1e9 / `CLOCK_MONOTONI
 | --- | --- | --- |
 | `exploratory` | 调用者指定的短窗口 | 只说明工具跑通，不是验收 |
 | `pausedMonitorCandidate` | 预热 60 秒，测量 600 秒 | 暂停监视开销的候选测量，不是 FR-S2 |
-| `formalFRS2` | 每个窗口预热 60 秒、测量 600 秒；打字与空闲各 3 次 | 短于该时长会被拒绝。单机结果仍不能代替 Intel 或其他系统版本 |
+| `formalFRS2` | 每个窗口预热 60 秒、测量 600 秒；打字与空闲各 3 次 | 短于该时长会被拒绝。当前 Apple Silicon MVP 需本机候选的有效结果；单机结果不能外推到其他系统版本或后续 Intel 目标 |
 
 入口：
 
@@ -122,7 +124,7 @@ bash Scripts/measure-process-resources.sh \
 
 ### 不做在本方案里的场景
 
-权限变化、快速用户切换、网络抓包、Intel 正式性能、Release 真采集。它们各自需要单独批准。
+权限变化、快速用户切换、Release 真采集均不在这份旧方案里。Intel 正式性能属于后续完整 v1；FR-P1 网络抓包已结束，不再安排。新的实机操作须按当前候选另定范围。
 
 ## 已观察的旧结果
 

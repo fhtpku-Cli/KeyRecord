@@ -1,5 +1,14 @@
 # T23: Release boundary qualification
 
+**Current scope (2026-09-29):** Apple Silicon compatibility is sufficient for
+the first capture MVP, but the current Release still composes
+`BlockedLiveKeychain` and `UnqualifiedCapture`; an unsigned universal build
+cannot establish a working collecting App. This document's universal/static
+checks describe the original complete G1/v1 target and remain useful structural
+checks. Current candidate status and the missing effective Keychain/signed
+Release evidence are in [PROJECT_STATUS.md](PROJECT_STATUS.md). Do not treat
+the historical PASS statement below as MVP or signed-host qualification.
+
 ## Outcome boundaries
 
 Static qualification is PASS. Signed product/host qualification remains **BLOCKED/2**.
@@ -74,14 +83,15 @@ Recovery requires all of:
    certificate fingerprint/Team/bundle IDs, permitted test namespace and scratch root,
    operation allowlist and approved noninteractive controller hash. Implement and
    qualify that controller before any signed-host effect.
-3. A genuine signed Universal build, strict codesign verification, inspection of
-   actual entitlements/Team/hardened runtime and fresh signed-product launch.
+3. A genuine signed Apple Silicon collecting build for the MVP, strict codesign
+   verification, inspection of actual entitlements/Team/hardened runtime and
+   fresh signed-product launch. Full v1 additionally requires the Universal build.
 4. Authorized KeyRecordAppUITests: T18 Phase1FlowTests all seven flows, plus T22
    system accessibility settings, Full Keyboard Access/Tab, VoiceOver and real screen
    edges. Direct XCTest does not discharge these retained checks.
 5. Observe the fresh product process tree with spawn count=1 on the supported
-   minimum-macOS/Intel/Apple Silicon host matrix. Deployment-target and lipo checks
-   do not prove runtime compatibility on those hosts.
+   Apple Silicon MVP host and macOS version. The Intel host matrix is later full
+   v1 work. Deployment-target and lipo checks do not prove runtime compatibility.
 6. Retain the signing/archive pipeline's notarytool/stapler checkpoint. Current
    preflight only discovers these tools; no upload, stapling or public distribution.
 

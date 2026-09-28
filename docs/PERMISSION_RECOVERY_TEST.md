@@ -73,6 +73,8 @@ without launching it. Shell syntax checking also passed. The changed launch
 path has **not** been run. Its TCC attribution and Settings appearance therefore
 remain unverified; no new permission trial has occurred.
 
+After the cycle-reset repair at product source `648144555b0bee70b819148f381de1d6aacbb54c`, a fresh arm64 Debug witness App was built from PR head `2f117e5433654f89fa01f826e92e9cfbc7ac58c4`. Its signed bundle ID is `com.keyrecord.trial.permissionwitness20260928`, its display name is `KeyRecord Permission Witness Trial`, and its mandatory trial-isolation marker is true. `codesign --verify --strict --deep` passed with the existing Apple Development identity. The actual Debug product dylib has SHA-256 `d44b62ed4f536dabfe8e938290501506fdd29a839e74d236118033891434623e`. The signed App was registered with LaunchServices after its plist was finalized; the current path's LaunchServices record now shows that display name and bundle ID. A private wrapper at `/private/tmp/keyrecord-permission-witness-current.WIhdZF/launch.sh` requires an explicit `--run`; its `--check` mode passed without launching, and invocation without a mode exits with usage status 2. No current App process was running after preparation. This establishes current-candidate build, signature, identity and LaunchServices registration only. The App has not been launched, no TCC permission was changed, and its Input Monitoring Settings appearance remains unverified.
+
 ### Disabled-tap liveness fallback — 2026-09-28
 
 The product previously treated an installed dispatch signal as proof that a

@@ -67,6 +67,26 @@ same-process permission recovery from this interrupted round.
 
 ## Permission polling fallback — 2026-09-28 candidate
 
+### Follow-up: generic closure reason repair — 2026-09-29
+
+The owner later clarified that the system prompt requested Quit and Reopen,
+not authentication. The next host scenario therefore covers regrant followed
+by an explicit isolated restart, separately from same-process recovery. An
+automatic OS relaunch still lacks the trial environment and must not be treated
+as an isolated test process; the required-isolation startup check stays intact.
+
+The mismatched `sourceStopped` / `sessionLocked` record has a reproducible
+application cause: `handlePrivacyInvalidation()` assigned `sessionLocked` for
+every generic privacy closure. On an unlocked injected host, the permission-poll,
+disabled-tap and stopped-source tests all failed the new reason assertion before
+the repair. The handler now uses `privacyCheckRequired`; actual lock handling
+and a rejected explicit-start lock check still use `sessionLocked`. Capture,
+key/store closure and manual-recovery behavior are unchanged. All 53
+`ProductRecoveryQuitTests` and 233 Core tests passed after the repair; the Debug
+test bundle built successfully. These tests repair the misleading reason, not
+the still-unisolated macOS cause of the real event-source stop. Prior live
+results remain bound to the older signed `de8b9c526` candidate.
+
 `codex/phase1-acceptance` adds a read-only Input Monitoring preflight to the
 existing collecting-state monitor. A denied or unknown result closes the queue,
 source, key gate and sensitive UI; restoring the fake permission alone does not

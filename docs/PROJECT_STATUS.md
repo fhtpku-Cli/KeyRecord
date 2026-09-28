@@ -3,6 +3,15 @@
 ## Current Apple Silicon MVP status — 2026-09-29
 
 Latest autonomous checkpoint: [MVP closeout](MVP_CLOSEOUT_20260929.md).
+The subsequent reason-classification repair replaces the generic handler's
+incorrect `sessionLocked` label with `privacyCheckRequired`, while retaining
+actual lock reasons and all closure protections. Three new assertions failed
+before the repair; all 53 recovery/quit and 233 Core tests passed afterward.
+The owner clarified the last system prompt was Quit and Reopen. The remaining
+short host step is regrant plus explicit isolated restart, not same-process
+recovery. The newer repair has no host result yet; the results below remain
+bound to `de8b9c526`.
+
 At `ba57ea711`, 546 package tests, 133 selected hostless App tests and 122
 KeychainLifecycle logic tests passed; fresh unsigned builds and the Release
 network-capability audit also passed. An initial signing build identified a

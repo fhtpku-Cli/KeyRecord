@@ -746,6 +746,8 @@ final class ProductRecoveryQuitTests: XCTestCase {
             return product.phase == .blocked && !live && !product.keyGateOpen
                 && !product.composition.flow.sensitiveContentVisible
         }
+        XCTAssertEqual(product.composition.lifecycle.state.blockedReason, .privacyCheckRequired,
+                       "Permission loss on an unlocked host must not be reported as a session lock")
         XCTAssertEqual(try oldTap.press(), .closed)
 
         product.host.setPermission(.granted)
@@ -1105,6 +1107,7 @@ final class ProductRecoveryQuitTests: XCTestCase {
             let live = await product.live
             return product.phase == .blocked && !live
         }
+        XCTAssertEqual(product.composition.lifecycle.state.blockedReason, .privacyCheckRequired)
         XCTAssertEqual(try product.tap?.press(), .closed)
         XCTAssertFalse(product.composition.flow.sensitiveContentVisible)
 
@@ -1125,6 +1128,8 @@ final class ProductRecoveryQuitTests: XCTestCase {
             let live = await product.live
             return product.phase == .blocked && !live && !product.keyGateOpen
         }
+        XCTAssertEqual(product.composition.lifecycle.state.blockedReason, .privacyCheckRequired,
+                       "A stopped event source does not establish that the session is locked")
         XCTAssertEqual(try oldTap.press(), .closed)
         XCTAssertFalse(product.composition.flow.sensitiveContentVisible)
 

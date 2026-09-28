@@ -473,7 +473,7 @@ final class ProductComposition: NSObject, NSMenuDelegate {
         guard lockState == .unlocked else {
             trace.detail.prepareOutcome = "lockNotUnlocked"
             diagnostics.notePrivacyTrigger("sessionLockReadNotUnlocked")
-            await handlePrivacyInvalidation()
+            await handlePrivacyInvalidation(reason: .sessionLocked)
             return false
         }
         gate.update(.unlocked)
@@ -1266,8 +1266,8 @@ final class ProductComposition: NSObject, NSMenuDelegate {
                                         captureSessionLive: captureSessionLive)
     }
 
-    private func handlePrivacyInvalidation() async {
-        lifecycle.requireRecovery(reason: .sessionLocked)
+    private func handlePrivacyInvalidation(reason: BlockedReason = .privacyCheckRequired) async {
+        lifecycle.requireRecovery(reason: reason)
         await closeProtectedState()
     }
 

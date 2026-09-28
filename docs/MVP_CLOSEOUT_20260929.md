@@ -277,6 +277,33 @@ there was no recovery end boundary. This is partial fail-closed observation,
 not same-process revoke/regrant, exhaustive read protection or continuous
 privacy qualification. See [permission trial details](PERMISSION_RECOVERY_TEST.md).
 
+## Generic privacy reason repair
+
+The owner clarified the prior prompt requested Quit and Reopen. Code inspection
+then located `handlePrivacyInvalidation()` assigning `sessionLocked` regardless
+of its caller. The existing permission-poll, disabled-tap and stopped-source
+hostless tests gained assertions requiring a generic privacy-check reason on
+their unlocked fake host. All three failed before the behavioral repair with
+actual `sessionLocked` versus expected `privacyCheckRequired`.
+
+The common handler now defaults to `privacyCheckRequired`; the explicit-start
+lock rejection passes `sessionLocked` explicitly, and the dedicated lock
+closure path is unchanged. No capture, store/key protection, manual-recovery
+fence or trial-isolation restriction was weakened. The full 53 recovery/quit
+tests and 233 Core tests passed after the change. Debug build-for-testing passed.
+Logs are `/private/tmp/keyrecord-permission-repair-red.log`,
+`/private/tmp/keyrecord-permission-repair-green.log`, and
+`/private/tmp/keyrecord-permission-repair-core.log`. This verifies classification
+and preserved synthetic recovery behavior, not a newly observed host recovery.
+
+The local controller's next `--recovery` mode preserves all five earlier rounds
+and writes `privacy-recovery.jsonl` / `summary-recovery.json`, with normal Quit
+at 55 seconds and forced stop at 60. It requires a separately coordinated ready
+response before launch. Re-enabling the trial's permission while it is stopped
+and launching through the isolation controller will test the system-required
+restart path; it cannot qualify same-process regrant. Prior live results stay
+bound to the old signed source rather than being transferred to the repair.
+
 Still open: current-candidate attribution rows, native consent
 and accessibility, permission revoke/regrant, continuous lock/sleep closure and
 recovery, exhaustive live product observation for the hosted Keychain controller,

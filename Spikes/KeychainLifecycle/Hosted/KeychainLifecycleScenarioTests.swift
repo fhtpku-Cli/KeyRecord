@@ -284,6 +284,33 @@ final class KeychainLifecycleScenarioTests: XCTestCase {
         XCTAssertNil(report.observations[1].policy.protectedReadDelta)
     }
 
+    func testMissingCaptureClosureStaysInconclusive() {
+        let fake = FakeLifecycleController()
+        fake.missingCaptureClosure = true
+        let report = LifecycleScenarioMachine.run(.lockBackground, controller: fake)
+        XCTAssertEqual(report.status, .blocked)
+        XCTAssertEqual(report.reason, "productObservationMissing")
+        XCTAssertNil(report.observations[1].policy.captureClosed)
+    }
+
+    func testObservedOpenCaptureStillFailsLockTransition() {
+        let fake = FakeLifecycleController()
+        fake.captureStillOpen = true
+        let report = LifecycleScenarioMachine.run(.lockBackground, controller: fake)
+        XCTAssertEqual(report.status, .fail)
+        XCTAssertEqual(report.reason, "stepContractFailed")
+        XCTAssertEqual(report.observations[1].policy.captureClosed, false)
+    }
+
+    func testPartialHostedProductObservationStaysInconclusive() {
+        let controller = hostedController(FakeHostedAuthority(ready: true), scenarios: [.lockBackground],
+                                          productObserver: FakeHostedProductObserver(protectedReadDelta: nil))
+        let report = LifecycleScenarioMachine.run(.lockBackground, controller: controller)
+        XCTAssertEqual(report.status, .blocked)
+        XCTAssertEqual(report.reason, "productObservationMissing")
+        XCTAssertNil(report.observations[1].policy.protectedReadDelta)
+    }
+
     func testFailureObservedProductDeltaRejectsHostedLock() {
         let controller = hostedController(FakeHostedAuthority(ready: true), scenarios: [.lockBackground],
                                           productObserver: FakeHostedProductObserver(aggregateDelta: 1))
@@ -455,11 +482,15 @@ private func hostedController(_ authority: HostedLockAuthority, scenarios: Set<L
 }
 
 private final class FakeHostedProductObserver: HostedProductObserver {
+    private let protectedReadDelta: Int?
     private let aggregateDelta: Int
-    init(aggregateDelta: Int = 0) { self.aggregateDelta = aggregateDelta }
+    init(protectedReadDelta: Int? = 0, aggregateDelta: Int = 0) {
+        self.protectedReadDelta = protectedReadDelta
+        self.aggregateDelta = aggregateDelta
+    }
     func observe(step: LifecycleStep, transition: LockTransition) -> HostedProductObservation? {
         let closed = step == .lockBackground || step == .restartLocked || step == .sleepWake
-        return .init(protectedReadDelta: 0, publishDelta: 0, aggregateDelta: aggregateDelta,
+        return .init(protectedReadDelta: protectedReadDelta, publishDelta: 0, aggregateDelta: aggregateDelta,
                      captureClosed: closed)
     }
 }
@@ -493,6 +524,8 @@ private final class FakeLifecycleController: LifecycleScenarioController {
     var interrupt: LifecycleStep?
     var leak = false
     var missingProductDeltas = false
+    var missingCaptureClosure = false
+    var captureStillOpen = false
     var witness = true
     var zeroKeychainCalls = false
     var zeroDeleteMissingCalls = false
@@ -515,7 +548,7 @@ private final class FakeLifecycleController: LifecycleScenarioController {
         let policy = LifecyclePolicyEvidence(
             authoritativeWitness: witness, protectedReadDelta: missingProductDeltas ? nil : (leak ? 1 : 0),
             publishDelta: missingProductDeltas ? nil : 0, aggregateDelta: missingProductDeltas ? nil : 0,
-            generationFenced: true, captureClosed: true)
+            generationFenced: true, captureClosed: missingCaptureClosure ? nil : !captureStillOpen)
         return LifecycleStepObservation(status: step == interrupt ? .blocked : .pass, keychain: keychain, policy: policy)
     }
 }

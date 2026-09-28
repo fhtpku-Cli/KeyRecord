@@ -143,7 +143,9 @@ public enum LifecycleScenarioMachine {
                     status = .fail; reason = "stepContractFailed"
                 } else if step.needsProductObservation &&
                     (observation.policy.protectedReadDelta == nil || observation.policy.publishDelta == nil ||
-                     observation.policy.aggregateDelta == nil) {
+                     observation.policy.aggregateDelta == nil ||
+                     ([LifecycleStep.lockBackground, .restartLocked, .sleepWake].contains(step)
+                      && observation.policy.captureClosed == nil)) {
                     status = .blocked; reason = "productObservationMissing"
                 } else if [observation.policy.protectedReadDelta, observation.policy.publishDelta,
                            observation.policy.aggregateDelta].compactMap({ $0 }).contains(where: { $0 != 0 }) {
@@ -178,7 +180,7 @@ public enum LifecycleScenarioMachine {
             return value.keychain.calls == 2 && value.keychain.itemMissing == true &&
                 value.keychain.rawStatus == -25300
         case .lockBackground, .restartLocked, .sleepWake:
-            return value.policy.generationFenced == true && value.policy.captureClosed == true
+            return value.policy.generationFenced == true && value.policy.captureClosed != false
         case .restartUnlocked, .unlockRevalidate, .logoutLogin:
             return value.policy.generationFenced == true
         case .cleanup: return value.keychain.calls == 1 && value.keychain.cleanupComplete == true

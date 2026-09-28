@@ -23,12 +23,12 @@ public protocol HostedLockAuthority {
 }
 
 public struct HostedProductObservation: Sendable {
-    public let protectedReadDelta: Int
-    public let publishDelta: Int
-    public let aggregateDelta: Int
+    public let protectedReadDelta: Int?
+    public let publishDelta: Int?
+    public let aggregateDelta: Int?
     public let captureClosed: Bool?
 
-    public init(protectedReadDelta: Int, publishDelta: Int, aggregateDelta: Int, captureClosed: Bool?) {
+    public init(protectedReadDelta: Int?, publishDelta: Int?, aggregateDelta: Int?, captureClosed: Bool?) {
         self.protectedReadDelta = protectedReadDelta
         self.publishDelta = publishDelta
         self.aggregateDelta = aggregateDelta

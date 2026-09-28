@@ -38,6 +38,13 @@ observation was made and blocks a lock-transition PASS if any required delta is
 missing. Older journal lines without `analysisPublicationCount` yield an
 inconclusive closed-interval evaluation. Finite interval samples also do not
 prove that capture stayed closed at every instant of a lock.
+The hosted product-observation type now retains missing counters as absent
+values. A missing capture-closed observation on a lock step now yields BLOCKED
+instead of FAIL; an observed still-open capture remains FAIL. The missing-capture
+test failed before this repair and passed afterward. Both offline
+KeychainLifecycle test bundles passed 28/28 and 82/82, and the unsigned hosted
+Xcode test bundle compiled. No product observer or real Keychain operation was
+added by this classification repair.
 The hosted controller now checks its authority preflight for every lock
 transition and requests a fresh unlocked witness for the delete/missing read;
 loss of that witness blocks the step before another Keychain operation. This is

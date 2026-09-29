@@ -3,6 +3,14 @@
 ## Current Apple Silicon MVP status — 2026-09-29
 
 Latest autonomous checkpoint: [MVP closeout](MVP_CLOSEOUT_20260929.md).
+Latest offline repair prevents a keyring destruction sequence from issuing its
+next backend read/delete after the preceding result crossed a lock-generation
+change. Each stage reuses the original generation; inventory decoding uses the
+existing protected scope. Six failing assertions reproduced the issue twice;
+five focused cases and all 583 root-package tests now pass. Unsigned arm64 Release
+build and its zero-match static network audit pass. No live deletion or installed
+trial replacement occurred. Single-operation cancellation and whole-pass generation
+coverage are not claimed. Details: [completion plan](PHASE1_COMPLETION_PLAN_20260929.md).
 Debug diagnostics now also read actual queue admission and key-gate state, rather
 than relying on the delayed lifecycle live flag. A failing-first product test
 reproduced the missing observation; both targeted product tests and all 43 focused

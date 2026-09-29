@@ -142,9 +142,11 @@ public actor KeychainKeyring {
     public func destructionInventory() async throws -> [KeyVersion] {
         let generation = try gate.begin()
         let backend = ports.backend, namespace = configuration.namespace
-        return try await gate.run(generation) {
-            var versions = Set(try await backend.versions(in: namespace))
-            if let bytes = try await backend.read(.metadata(namespace)),
+        let inventoried = try await gate.run(generation) { try await backend.versions(in: namespace) }
+        let bytes = try await readMetadata(generation)
+        return try gate.use(generation) {
+            var versions = inventoried
+            if let bytes,
                let metadata = try? KeyringMetadata.decode(bytes) {
                 versions.formUnion(metadata.versions)
             }
@@ -157,21 +159,19 @@ public actor KeychainKeyring {
     public func deleteOwnedVersionForDestruction(_ version: KeyVersion) async throws -> DeletionOutcome {
         let generation = try gate.begin()
         let backend = ports.backend, id = KeychainItemID.key(configuration.namespace, version)
-        return try await gate.run(generation) {
-            guard (try await backend.read(id)) != nil else {
-                return .missingKeyDuringDeletion(version.rawValue)
-            }
-            try await backend.delete(id)
-            return .succeeded
+        guard try await gate.run(generation, operation: { try await backend.read(id) }) != nil else {
+            return .missingKeyDuringDeletion(version.rawValue)
         }
+        try await gate.run(generation) { try await backend.delete(id) }
+        return .succeeded
     }
 
     /// Remove the namespace metadata item. Idempotent: an absent item is a no-op.
     public func deleteOwnedMetadataForDestruction() async throws {
         let generation = try gate.begin()
         let backend = ports.backend, id = KeychainItemID.metadata(configuration.namespace)
-        try await gate.run(generation) {
-            if (try await backend.read(id)) != nil { try await backend.delete(id) }
+        if try await gate.run(generation, operation: { try await backend.read(id) }) != nil {
+            try await gate.run(generation) { try await backend.delete(id) }
         }
     }
 

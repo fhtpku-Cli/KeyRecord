@@ -464,3 +464,35 @@ No complete rendering or AX PASS is claimed. Pure regular/accessory controls wor
 while a windowless
 control timed out without the exact crash; these do not qualify the product UI.
 See the current UI trial record for the consumed output paths and full result.
+
+## Fence destruction continuations after backend awaits — 2026-09-30
+
+An offline regression reproduced a protected-store deletion defect: one outer
+`gate.run` wrapped inventory/read or read/delete sequences. If the backend revoked
+the gate while returning from the first operation and ignored task cancellation,
+the next read or deletion still executed before the final generation check failed.
+Both lock-only and lock/reopen variants reproduced this. The original four tests
+reported six operation-trace failures twice: a metadata read after inventory,
+metadata deletion after read, and version deletion after read.
+
+Each backend stage now runs separately under the same original generation.
+Inventory metadata decode, union and sorting use the existing synchronous
+protected scope. No new gate or authorization mechanism was added. An absent key
+still returns `missingKeyDuringDeletion`; absent metadata remains a no-op.
+Five focused regression/control tests and all 583 root-package XCTest cases pass
+(187 storage, 32 measurement, 46 integration, 239 core, 67 capture, 12 analysis).
+Unsigned native arm64 Release builds successfully, and its existing static network
+audit returns zero matches. Read-only review found no scoped defect.
+
+Logs: `/private/tmp/keyrecord-destruction-fence-red.log`, `-red-repeat.log`,
+`-green.log`, `-full.log`, and `-release.log` (all share the same prefix).
+Release output reuses `/private/tmp/keyrecord-protected-read-release`.
+No system Keychain operation, live capture, real deletion or installed-bundle
+replacement was performed. The signed trial remains source `346dc26d8` and does
+not include this repair.
+
+This prevents subsequent stages after a revoked result; it does not make an
+individual asynchronous backend operation atomically cancellable or establish one
+generation across separate public destruction helpers. Those limits remain
+distinct from the repaired sequence. Full hosted observation, independent lock
+authority, native accessibility and qualified collecting Release remain open.

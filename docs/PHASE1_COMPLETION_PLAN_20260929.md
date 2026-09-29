@@ -444,6 +444,12 @@ OS witness. No hosted lifecycle PASS or collecting Release is claimed. The next
 owner-assisted check will inspect the current candidate's actual native aggregate
 rows and status; the completed performance and sleep rounds are not repeated.
 
-The signed `346dc26d8` candidate and a bounded controller are now prepared for the
-[current UI/attribution round](CURRENT_UI_TRIAL_20260930.md). No App installation
-or launch is included in that preparation; wait for owner readiness.
+The separately approved/readied signed `346dc26d8`
+[current UI/attribution round](CURRENT_UI_TRIAL_20260930.md) is now complete with
+partial evidence: two owner-confirmed shortcuts, aggregate delta/totals two,
+six successful durable writes, paused queue closure and normal Quit. The exact
+trial PID is gone. Native Computer Use disconnected before returning any UI,
+so actual rows, attribution, rendering and accessibility remain unverified.
+The occupied private root and original artifacts are preserved; no automatic
+repeat is authorized. Resolve the native observation limitation before another
+UI round. Full hosted lifecycle/independent lock authority and Release remain open.

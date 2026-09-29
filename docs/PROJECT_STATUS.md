@@ -11,10 +11,13 @@ network audit pass, with observation code absent from Release. These are sampled
 product states; the real hosted observer and independent lock authority remain
 unimplemented. Native current-candidate row/status inspection is the next bounded
 owner-assisted acceptance step; completed performance/sleep evidence is retained.
-The signed `346dc26d8` candidate is prepared for the
-[bounded native UI/attribution round](CURRENT_UI_TRIAL_20260930.md), using a new
-private directory and namespace. It has not been installed or launched; the next
-step needs owner approval/readiness.
+The owner-approved/readied signed `346dc26d8`
+[bounded native UI/attribution round](CURRENT_UI_TRIAL_20260930.md) recorded two
+physical shortcuts, aggregate delta/totals two and six successful durable writes.
+Pause closed the actual queue; normal Quit completed and the exact PID is gone.
+Computer Use disconnected before returning a native view, so rows, application
+attribution, rendering and accessibility remain unverified. The round's occupied
+private directory is preserved; no automatic repeat is authorized.
 The 2026-09-30 increment retains Debug read/processing counts at synchronous
 key revocation, before queued cleanup writes the journal. A failing-first product
 test reproduced the missing observation; the repaired evaluator detects activity

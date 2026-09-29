@@ -36,6 +36,15 @@ or scheduler changes. A process check confirmed PID `90634` was gone. The key ga
 field is a pre-exit sample; process termination, not that field, establishes that
 the trial is no longer running.
 
+Read-only diagnosis found two same-period `SkyComputerUseService` crash reports
+in `~/Library/Logs/DiagnosticReports`, named
+`SkyComputerUseService-2026-09-30-032326.ips` and
+`SkyComputerUseService-2026-09-30-032345.ips`. Both report `EXC_BREAKPOINT` /
+`SIGTRAP`, with `_assertionFailure` and `Array.remove(at:)` on the faulting stack.
+This corroborates failure of the native observation helper; it does not establish
+the exact triggering UI element or constitute a KeyRecord crash. No global tool
+configuration was changed and the trial was not relaunched to reproduce it.
+
 The current candidate therefore has bounded physical-input/save/pause/quit
 evidence. It does not yet have directly observed Command-A rows, TextEdit
 attribution, exact modifier provenance, native rendering or accessibility. The

@@ -1204,6 +1204,35 @@ final class ProductRecoveryQuitTests: XCTestCase {
         try await product.press(1)
     }
 
+    func testSleepInvalidationRequiresExplicitStartAfterAvailabilityReturns() async throws {
+        let product = try await collecting()
+        try await product.press(1)
+        try await product.waitDurable()
+        XCTAssertEqual(product.tap?.report(.sleep), true)
+        try await waitUntil("sleep closes capture and protected state") {
+            let live = await product.live
+            return product.phase == .blocked && !live && !product.keyGateOpen
+        }
+        XCTAssertFalse(product.composition.flow.sensitiveContentVisible)
+        XCTAssertEqual(try product.tap?.press(), .closed)
+        try await product.unlockScreen()
+        try await Task.sleep(for: .milliseconds(600))
+        let liveBeforeStart = await product.live
+        XCTAssertFalse(liveBeforeStart)
+        XCTAssertFalse(product.keyGateOpen)
+        XCTAssertEqual(product.phase, .blocked)
+        XCTAssertEqual(product.aggregateDelta, 1)
+        await product.composition.startOrRetry()
+        XCTAssertEqual(product.phase, .collecting)
+        try await product.press(1)
+        try await product.waitDurable()
+        let restoredTotal = try await product.diskBareTotal()
+        XCTAssertEqual(restoredTotal, 2)
+        XCTAssertTrue(try product.marks().contains {
+            $0["role"] as? String == "end" && $0["boundaryCause"] as? String == "protectedStoreReauthorized"
+        })
+    }
+
     func testLockDuringSecureInputStillNeedsExplicitStart() async throws {
         let product = try await collecting()
         product.host.setSecureInput(.enabled)

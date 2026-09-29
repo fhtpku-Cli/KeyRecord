@@ -582,14 +582,16 @@ Collecting, received two counted inputs, reported five durable writes, closed th
 actual queue on Pause and quit normally at the 175-second controller bound; exact
 PID 34309 is gone. The owner did not reach the expanded details before exit.
 
-The intended Command-only release and two left Command+A presses did **not** meet
-modifier acceptance: last-published totals are shortcuts 0 / bare keys 2, with
-two flagsChanged callbacks instead of the expected six. Preparation markers
+The owner subsequently clarified that the instructions were understood as Command
+press/release followed by two standalone A presses. The last-published totals,
+shortcuts 0 / bare keys 2, and two flagsChanged callbacks match that procedure.
+The prior classification-anomaly conclusion is withdrawn. The intended two
+Command+A chords and side provenance remain untested. Preparation markers
 bracket all six accepted callbacks between the third and fourth preparation,
 without a recorded preparation at an intermediate count. They are non-atomic
 snapshots and do not contain native flags or event identities. Source review found
 no swapped summary fields; missing flagsChanged alone cannot erase a Command flag
-present on key-down. All 16 queue tests plus one modifier-recovery test pass, but
-the live classification cause remains unresolved. No speculative capture fix,
+present on key-down. All 16 queue tests plus one modifier-recovery test pass.
+No new classification instrumentation is justified by this round. No speculative capture fix,
 automatic relaunch or Release qualification followed. Full result, preserved
 paths and limits: [bounded modifier trial](CURRENT_MODIFIER_TRIAL_20260930.md).

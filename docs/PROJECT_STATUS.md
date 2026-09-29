@@ -3,21 +3,38 @@
 ## Current Apple Silicon MVP status — 2026-09-29
 
 Latest autonomous checkpoint: [MVP closeout](MVP_CLOSEOUT_20260929.md).
+An [explicit hold-Command/press-A trial](CURRENT_COMMAND_CHORD_TRIAL_20260930.md)
+is prepared on the unchanged installed candidate, with a new empty isolated root
+and compiled 175/180-second controller. Whole-bundle comparison and installed
+no-launch checks pass. It has not launched; fresh owner approval/readiness is
+required. The complete input and paused-page steps will be explained before launch.
 Signed arm64 Debug candidate `426969c9f` was installed and run once after explicit
 owner approval/readiness for the [bounded modifier check](CURRENT_MODIFIER_TRIAL_20260930.md).
 The complete installed bundle matched staging and the old bundle is preserved.
-The owner reported completing Command-alone release, two left Command+A presses
-and Pause. Actual queue closure, five successful durable writes and normal Quit
-were recorded, and exact PID 34309 is gone. However, the two aggregate increments
-were published as **bare keys 2 / shortcuts 0**, with only two flagsChanged
-callbacks rather than the intended six. Modifier acceptance did not pass.
+The owner reported completing input and Pause, then clarified that the instructions
+were understood as Command press/release followed by two standalone A presses.
+Actual queue closure, five successful durable writes and normal Quit
+were recorded, and exact PID 34309 is gone. The two aggregate increments
+were published as **bare keys 2 / shortcuts 0**, with two flagsChanged callbacks.
+These totals match the clarified operation. The earlier classification-defect
+interpretation is withdrawn; Command+A and side acceptance remain untested.
 The 175-second deadline arrived before expanded UI details were observed.
 Preparation marks bracket all six accepted callbacks between attempts three and
 four; they do not show a preparation between the counted inputs. Incoming native
-flag values are not recorded, so the cause remains unresolved. Offline source
+flag values are not recorded. Offline source
 review found no swapped summary fields and no basis for converting a Command-active
 key-down to bare solely because flagsChanged was missing. No speculative capture
-fix or automatic repeat occurred. This is not collecting-Release qualification.
+fix or automatic repeat occurred. Additional classification instrumentation is
+not warranted by this round. This is not collecting-Release qualification.
+The owner is resting; no new live round is authorized. Push and PR CI at
+`aa124243c` both succeeded (runs
+[36632563667](https://github.com/fhtpku-Cli/KeyRecord/actions/runs/36632563667) and
+[36632570428](https://github.com/fhtpku-Cli/KeyRecord/actions/runs/36632570428)).
+Those jobs run package tests, the offline capture harness, SwiftPM Release,
+unsigned universal App Release and native Debug test compilation; they do not
+run App XCTest or establish live host qualification. Product source remains
+`426969c9f`; this correction/preparation changes documentation and a local controller
+only. The next owner action is the explicit chord and paused-row check above.
 The latest offline increment adds DEBUG preparation boundaries and the existing
 cumulative `sessionCount` to the opt-in privacy journal. This helps locate future
 capture resets around aggregate increments without persisting event traces.

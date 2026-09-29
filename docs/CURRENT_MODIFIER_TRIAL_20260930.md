@@ -1,11 +1,13 @@
 # Bounded modifier reconstruction trial
 
 Status: installed and run once after explicit owner approval/readiness. Normal
-exit completed. Modifier acceptance did not pass: the two aggregate increments
-were published as bare keys, not shortcuts. Visible details were not inspected
-before the deadline. Preserve this consumed run; no automatic repeat is authorized.
+exit completed. After the round, the owner clarified that the instruction was
+understood as Command press/release followed by two standalone A presses. Published
+bare-key total 2 / shortcut total 0 is consistent with that operation. Command+A
+and modifier-side acceptance remain untested, not a demonstrated classification
+defect. Preserve this consumed run; no automatic repeat is authorized.
 
-## Completed round and unexpected classification
+## Completed round and corrected interpretation
 
 The owner approved installation and validation after confirming readiness. The
 old installed bundle was moved to
@@ -17,7 +19,11 @@ and installed no-launch controller checks passed. Performance Trial was untouche
 The retained controller launched exact PID `34309` using the new root/namespace
 below. The owner chose Start/consent and reported started; the journal confirmed
 Collecting with actual capture queue and key gate open. The owner then reported
-completion of Command-alone release, two left Command+A presses and mouse Pause.
+completion and mouse Pause. The initial report was interpreted as the intended
+Command-alone release followed by two left Command+A chords. The owner's later
+clarification establishes that the instructions were understood as a Command
+press/release followed by two standalone A presses; the chord sequence was not
+established by the earlier completion reply.
 Sequence 63 confirms Paused with capture queue closed. The subsequent request to
 inspect expanded modifier details was not completed: the owner reported that the
 App had exited. The controller requested normal Quit at its 175-second bound and
@@ -43,9 +49,12 @@ The earlier conversational statement calling aggregate delta 2 "two shortcuts"
 was corrected after reading the category totals. These are last-published model
 totals plus reported durable writes, not a fresh encrypted-store readback or
 rendered-row proof. Stop retains those last-published diagnostic values while
-hiding sensitive presentation. The input protocol expected six flags callbacks
-and ten handoffs; this run observed only two and six, respectively. Neither the
-missing callbacks nor the input flags can be reconstructed from these totals.
+hiding sensitive presentation. The originally intended chord protocol would
+produce six flags callbacks and ten handoffs. The clarified Command press/release
+plus two standalone A presses instead predicts two flags callbacks, two key-downs,
+two key-ups, six handoffs and two bare-key increments, matching the observed totals.
+The initial description of missing callbacks and a classification mismatch is
+withdrawn. Cumulative counters still do not prove exact key identities or order.
 
 Preparation markers at sequences 31, 37 and 57 have accepted=0/aggregate=0;
 sequence 60 has accepted=6/aggregate=2, equal to final values. No preparation mark
@@ -60,10 +69,12 @@ the installed candidate. Each key-down independently decodes its Command flag;
 an active Command family remains a shortcut even when side is unknown or a
 flagsChanged callback is missing. Therefore reset or missing flagsChanged alone
 does not explain a Command-active key-down becoming bare. The live incoming flag
-values remain unknown; no speculative reconstruction change was made. The next
-distinguishing observation would be aggregate category counts at the native decode
-and reduction boundaries, without raw keys or event traces. That diagnostic work
-and any separately approved live round are still pending.
+values remain unknown, but the clarified procedure supplies an explanation
+consistent with the result. No speculative reconstruction change was made.
+Additional category-boundary instrumentation is not justified by this round.
+The next modifier check should use the unchanged candidate and explicit
+"hold Command while pressing A, then release both" instructions, with fresh
+approval/readiness and a new isolated run. It has not been launched.
 
 Offline verification after the round: `swift test --filter CaptureQueueTests`
 passes all 16 cases, including Command-active key-down after revoke/reopen without
@@ -134,8 +145,9 @@ capture or performance measurement is included.
    the owner to report Collecting, then check actual queue/key admission and the
    latest diagnostic state before asking for input.
 3. Ask the owner to switch to blank TextEdit, release all modifiers, then press
-   and release **left Command alone once**. Next press left Command+A twice,
-   releasing the keys between presses. Stay in TextEdit throughout that sequence.
+   and release **left Command alone once**. Next **hold left Command down, press A
+   while still holding Command, then release both keys**. Repeat that complete
+   hold-Command/press-A/release-both sequence once. Stay in TextEdit throughout.
    Finally use the mouse to choose Pause in the trial menu and report completion.
 4. Confirm closed admission after Pause. If time remains, ask the owner to open
    Settings > Aggregates and expand **Exact modifier sides and key code**, reporting

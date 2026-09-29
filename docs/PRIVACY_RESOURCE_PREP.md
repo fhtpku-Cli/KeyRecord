@@ -66,8 +66,8 @@ CPU = 100 × 目标进程自身 user+system 纳秒增量 / 1e9 / `CLOCK_MONOTONI
 | 协议 | 时长 | 结果含义 |
 | --- | --- | --- |
 | `exploratory` | 调用者指定的短窗口 | 只说明工具跑通，不是验收 |
-| `pausedMonitorCandidate` | 预热 60 秒，测量 600 秒 | 暂停监视开销的候选测量，不是 FR-S2 |
-| `formalFRS2` | 每个窗口预热 60 秒、测量 600 秒；打字与空闲各 3 次 | 短于该时长会被拒绝。当前 Apple Silicon MVP 需本机候选的有效结果；单机结果不能外推到其他系统版本或后续 Intel 目标 |
+| `pausedMonitorCandidate` | 历史协议：预热 60 秒，测量 600 秒 | 保留历史暂停监视测量口径，不是 FR-S2，也不是当前默认验收前提 |
+| `formalFRS2` | 每个窗口预热 30 秒、测量 120 秒；打字与空闲各 1 次 | 2026-09-29 用户调整后的正式协议，共约 5 分钟测量流程，另加启动与退出。只在异常时定向复测。仍拒绝未覆盖完整测量终点的样本；不能外推到其他系统/架构或长期耐久性 |
 
 入口：
 
@@ -142,7 +142,7 @@ bash Scripts/measure-process-resources.sh \
 
 - `swift test --filter 'ResourceEvaluationTests|CaptureDiagnosticCounterTests|PrivacySerializationTests'`：通过。资源评估 5 项、诊断计数 9 项、隐私序列化测试均无失败。
 - `KeyRecordResourceSampler --self-check`：退出 0。合成进程物理占用均值 35324384 字节，`qualification=not-a-product-pass`。日志：`self-check.txt`。
-- 正式协议若预热不是 60 秒或测量不是 600 秒，在采样前退出 2，输出 `formal-fr-s2 refuses short windows`。日志：`formal-short.txt`。
+- 当时的正式协议要求 60/600 秒，否则在采样前退出 2，输出 `formal-fr-s2 refuses short windows`。日志：`formal-short.txt`。这是旧协议的历史结果；当前正式协议已改为 30/120 秒、每种状态一次。
 
 本轮没有启动 KeyRecord，没有签名。Release 检查见下。
 

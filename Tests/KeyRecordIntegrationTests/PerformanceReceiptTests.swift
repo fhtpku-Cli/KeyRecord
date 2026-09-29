@@ -11,6 +11,10 @@ final class PerformanceReceiptTests: XCTestCase {
         XCTAssertEqual(FixedReplayController.fixtureJSON, PerformanceReceipt.workload)
         XCTAssertEqual(FixedReplayController.activeTicks, ReplayWorkload.activeTicks)
         XCTAssertEqual(FixedReplayController.windowTicks, ReplayWorkload.windowTicks)
+        XCTAssertEqual(Double(FixedReplayController.activeTicks) * ReplayWorkload.tickIntervalSeconds,
+                       PerformanceWindow.authorized.warmup + PerformanceWindow.authorized.window)
+        XCTAssertEqual(FixedReplayController.expectedEvents(tick: FixedReplayController.activeTicks), 0)
+        XCTAssertEqual(PerformanceWindow.authorized.repeats, 1)
         XCTAssertEqual((0..<FixedReplayController.windowTicks).reduce(0) {
             $0 + FixedReplayController.expectedEvents(tick: $1)
         }, ReplayWorkload.expectedTypingEvents)

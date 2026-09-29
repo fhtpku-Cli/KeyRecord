@@ -3,6 +3,12 @@
 ## Current Apple Silicon MVP status — 2026-09-29
 
 Latest autonomous checkpoint: [MVP closeout](MVP_CLOSEOUT_20260929.md).
+Formal performance acceptance was shortened at the owner's request: typing and
+idle once each, 30 seconds warmup plus 120 seconds measurement per window,
+about five minutes plus startup/exit. Targeted reruns replace automatic repeats;
+budgets and privacy/integrity checks are unchanged. This changes the formal
+default, not merely an exploratory precheck. See [the protocol](PHASE1_ACCEPTANCE.md#performance-plan).
+The new protocol has no live product measurement yet.
 The completed [second sleep/wake round](SLEEP_WAKE_SECOND_ROUND_20260929.md) on
 signed `cf08a07c` observed 32.028 seconds suspended, sampled closure through wake
 with unchanged counters, explicit Start back to Collecting, new post-recovery
@@ -205,7 +211,7 @@ The App now supplies the system permission provider; hostless tests inject a
 provider and verify that denial blocks replay. Both focused replay tests and
 an unsigned Debug App test build passed. The changed host path remains unrun.
 
-A later offline candidate adds a monotonic start marker shared with the
+Historical tool preparation under the former long protocol added a monotonic start marker shared with the
 resource sampler and a two-second drain tail after the 60-second warmup and
 600-second measurement window. Before reading the isolated encrypted aggregate,
 the Debug product waits for its queue to drain and checks the reduced total
@@ -214,9 +220,16 @@ one-window `KeyRecordPerformanceTrial` controller compiles and the sampler's
 marker self-check runs against its own short synthetic process. Its offline
 six-window evaluator verifies same-host/same-candidate identity and six distinct
 process launches, recomputes the saved samples and applies the per-host budget.
-Its file-loading path passed an explicitly synthetic six-window self-check, but
+Its file-loading path then passed an explicitly synthetic six-window self-check, but
 has no real reports to evaluate. The controller has not launched a product App, and no ARM/Intel host
 performance result exists. The formal host performance lane remains inert.
+
+The 2026-09-29 owner-requested protocol update supersedes that default with two
+30/120-second windows. The current two-window evaluator and sampler self-checks,
+35 focused package tests, Debug build-for-testing and one hostless product
+replay/store test passed. No real performance App was launched. The installed
+sleep-tested `cf08a07c` App predates this replay-duration change and is not the
+new performance measurement package.
 The performance controller now rejects a trial package without a matching
 provisioning profile and signed Keychain application identifier. Its previous
 ad hoc package returned `trial-provisioning-profile-missing` in a no-launch

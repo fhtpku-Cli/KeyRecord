@@ -11,8 +11,8 @@ public final class FixedReplayController: @unchecked Sendable {
 
     static let pattern = [[0, 1, 2, 3, 0, 1, 2, 3], [0], [1], [2], [3], [0], [1], [2], [3], [0]]
     public static let fixtureJSON = Data("[[0,1,2,3,0,1,2,3],[0],[1],[2],[3],[0],[1],[2],[3],[0]]".utf8)
-    public static let activeTicks = 6_600
-    public static let windowTicks = 6_620
+    public static let activeTicks = 1_500
+    public static let windowTicks = 1_520
     public static func expectedEvents(tick: Int) -> Int {
         guard tick >= 0, tick < activeTicks else { return 0 }
         return pattern[tick % pattern.count].count * 2

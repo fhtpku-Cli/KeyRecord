@@ -36,8 +36,9 @@ enum SamplerCLI {
             return
         }
         let options = try Options(arguments)
-        guard options.protocolKind != .formalFRS2 || (options.warmup == 60 && options.measure == 600) else {
-            throw SamplerFailure("formal-fr-s2 refuses short windows")
+        guard options.protocolKind != .formalFRS2 ||
+            (options.warmup == ReplayWorkload.warmupSeconds && options.measure == ReplayWorkload.measureSeconds) else {
+            throw SamplerFailure("formal-fr-s2 requires 30s warmup and 120s measure")
         }
         let run = try options.startMarker.map { try sampleFromReplayMarker(options, path: $0) }
             ?? (samples: sample(options), origin: nil)
@@ -73,7 +74,7 @@ enum SamplerCLI {
     --recompute <archive.json> repeats the saved-sample calculation.
     --self-check runs the offline fixture and does not attach to KeyRecord.
     --diagnostics-enabled means the target process is writing diagnostics, so that overhead is inside the measurement.
-    Short windows stay exploratory. formalFRS2 requires 60s warmup and 600s measure. Outcome is never a product pass.
+    formalFRS2 requires 30s warmup and 120s measure. Other durations stay exploratory. Outcome is never a product pass.
     """
 
     static func selfCheck() throws {

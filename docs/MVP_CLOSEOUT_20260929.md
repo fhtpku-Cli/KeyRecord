@@ -1,5 +1,12 @@
 # Apple Silicon MVP closeout checkpoint — 2026-09-29
 
+Performance protocol update: formal acceptance now uses one typing and one idle
+window, each 30 seconds warmup plus 120 seconds measurement. The previous
+six-window/hour-long default is superseded at the owner's request; thresholds,
+sample validity, durability and privacy checks remain. Targeted reruns only.
+See [the current protocol](PHASE1_ACCEPTANCE.md#performance-plan); historical
+long-window evidence below retains its original scope. No new live run occurred.
+
 Latest result: the approved [second sleep/wake round](SLEEP_WAKE_SECOND_ROUND_20260929.md)
 on signed `cf08a07c` observed 32.028 seconds suspended, unchanged sampled closed
 counters through wake, explicit Start restoring Collecting and new post-recovery
@@ -398,7 +405,7 @@ summary and flagged evaluation are retained. See [the detailed record](PERMISSIO
 Still open: current-candidate attribution rows, native consent
 and accessibility, permission revoke/regrant, continuous lock/sleep closure and
 recovery, exhaustive live product observation for the hosted Keychain controller,
-six native ARM resource windows, and qualified Release composition. Release
+the two current-protocol native ARM resource windows, and qualified Release composition. Release
 still uses `BlockedLiveKeychain` and `UnqualifiedCapture`. The final signed
 collecting Release must receive its own FR-P1 source/binary audit. These gaps are
 not converted to PASS by the tests or the unsigned build above.

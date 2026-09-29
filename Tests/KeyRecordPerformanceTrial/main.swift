@@ -302,8 +302,8 @@ private enum PerformanceTrialCLI {
         let process = Process()
         process.executableURL = sampler
         process.arguments = ["--pid", String(app.processIdentifier), "--expect-path", identity.executable.path,
-            "--protocol", "formalFRS2", "--phase", mode, "--warmup-seconds", "60",
-            "--measure-seconds", "600", "--interval-seconds", "0.5", "--output", output.path,
+            "--protocol", "formalFRS2", "--phase", mode, "--warmup-seconds", String(ReplayWorkload.warmupSeconds),
+            "--measure-seconds", String(ReplayWorkload.measureSeconds), "--interval-seconds", "0.5", "--output", output.path,
             "--start-marker", marker.path, "--diagnostics-enabled"]
         process.standardOutput = FileHandle.nullDevice
         process.standardError = FileHandle.nullDevice
@@ -311,7 +311,7 @@ private enum PerformanceTrialCLI {
             app.terminate()
             throw TrialFailure("sampler-start-failed")
         }
-        print("Trial launched. Choose Start in its menu and accept first-run consent. The fixed replay runs for 662 seconds after Collecting. Do not input keys. The trial will receive a normal Quit request after measurement.")
+        print("Trial launched. Choose Start in its menu and accept first-run consent. The fixed replay runs for \(Int(Double(ReplayWorkload.windowTicks) * ReplayWorkload.tickIntervalSeconds)) seconds after Collecting. Do not input keys. The trial will receive a normal Quit request after measurement.")
         process.waitUntilExit()
         let summary = try? await waitForSummary(at: marker, seconds: 20)
         let archive = try? JSONDecoder().decode(ResourceMeasurementArchive.self, from: Data(contentsOf: output))
@@ -375,7 +375,7 @@ private enum PerformanceTrialCLI {
         try checkPrivateDirectory(root)
         var windows: [PerformanceWindowSummary] = []
         for phase in ["typing", "idle"] {
-            for repeatIndex in 1...3 {
+            for repeatIndex in 1...ReplayWorkload.repeats {
                 let directory = root.appendingPathComponent("\(phase)-\(repeatIndex)")
                 try checkPrivateDirectory(directory)
                 let report = try JSONDecoder().decode(StoredTrialReport.self,
@@ -395,9 +395,10 @@ private enum PerformanceTrialCLI {
                       report.footprintSampledPeakBytes == archive.result.footprintSampledPeakBytes,
                       report.acceptedEvents == expected, report.durableKeyDownTotal == expected / 2,
                       archive.protocolKind == .formalFRS2, archive.phase == phase,
-                      archive.requestedWarmupSeconds == 60, archive.requestedMeasureSeconds == 600,
+                      archive.requestedWarmupSeconds == ReplayWorkload.warmupSeconds,
+                      archive.requestedMeasureSeconds == ReplayWorkload.measureSeconds,
                       archive.requestedIntervalSeconds == 0.5,
-                      archive.effectiveMeasureSeconds ?? 0 >= 600,
+                      archive.effectiveMeasureSeconds ?? 0 >= ReplayWorkload.measureSeconds,
                       archive.diagnosticsEnabled, archive.diagnosticsIncludedInOverhead,
                       archive.retainedSampleCount == archive.samples.count,
                       archive.pid == archive.samples.first?.pid,
@@ -412,7 +413,8 @@ private enum PerformanceTrialCLI {
                       replay.elapsedSeconds >= Double(ReplayWorkload.windowTicks)
                           * ReplayWorkload.tickIntervalSeconds - 0.5,
                       let start = replay.startedUptimeSeconds,
-                      let end = replay.endedUptimeSeconds, end >= start + 661.5,
+                      let end = replay.endedUptimeSeconds, end >= start
+                          + Double(ReplayWorkload.windowTicks) * ReplayWorkload.tickIntervalSeconds - 0.5,
                       let origin = archive.originUptimeSeconds, abs(origin - start) < 0.001,
                       let cpu = report.cpuPercentOfOneLogicalCore,
                       let mean = report.footprintMeanBytes,
@@ -465,12 +467,13 @@ private enum PerformanceTrialCLI {
         let expectedSeconds = Double(ReplayWorkload.windowTicks) * ReplayWorkload.tickIntervalSeconds
         let encoder = JSONEncoder()
         for phase in ["typing", "idle"] {
-            for repeatIndex in 1...3 {
+            for repeatIndex in 1...ReplayWorkload.repeats {
                 let directory = root.appendingPathComponent("\(phase)-\(repeatIndex)")
                 guard mkdir(directory.path, 0o700) == 0 else { throw TrialFailure("self-check-directory") }
-                let windowID = (phase == "typing" ? 0 : 3) + repeatIndex
+                let windowID = (phase == "typing" ? 0 : ReplayWorkload.repeats) + repeatIndex
                 let cpuRate = phase == "typing" ? 0.005 : 0.0005
-                let samples = (0...1_321).map { index in
+                let sampleCount = Int((ReplayWorkload.warmupSeconds + ReplayWorkload.measureSeconds) / 0.5)
+                let samples = (0...sampleCount).map { index in
                     let elapsed = Double(index) * 0.5
                     return ProcessResourceSample(uptimeSeconds: 100 + elapsed,
                         monotonicSeconds: 100 + elapsed,
@@ -480,7 +483,7 @@ private enum PerformanceTrialCLI {
                         executablePath: executablePath, consoleUID: 501)
                 }
                 let request = ResourceWindowRequest(protocolKind: .formalFRS2, phase: phase,
-                    warmupSeconds: 60, measureSeconds: 600, intervalSeconds: 0.5,
+                    warmupSeconds: ReplayWorkload.warmupSeconds, measureSeconds: ReplayWorkload.measureSeconds, intervalSeconds: 0.5,
                     originUptimeSeconds: 100, samples: samples)
                 let result = ResourceEvaluator.evaluate(request)
                 guard result.outcome == "measured" else { throw TrialFailure("self-check-sampling") }
@@ -509,8 +512,8 @@ private enum PerformanceTrialCLI {
             }
         }
         let result = try evaluateSession(at: root)
-        guard result.withinBudget, result.windowCount == 6,
-              result.typingMedianCPUPercent < 1, result.idleMedianCPUPercent < 0.1 else {
+        guard result.withinBudget, result.windowCount == 2,
+              result.typingCPUPercent < 1, result.idleCPUPercent < 0.1 else {
             throw TrialFailure("self-check-evaluation")
         }
     }

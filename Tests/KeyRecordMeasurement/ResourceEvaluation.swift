@@ -103,8 +103,8 @@ public enum ResourceEvaluator {
         }
 
         if request.protocolKind == .formalFRS2,
-           request.warmupSeconds != 60 || request.measureSeconds != 600 || request.samples.isEmpty {
-            return finish("invalid", "formal-protocol-requires-60s-warmup-and-600s-measure")
+           request.warmupSeconds != ReplayWorkload.warmupSeconds || request.measureSeconds != ReplayWorkload.measureSeconds || request.samples.isEmpty {
+            return finish("invalid", "formal-protocol-requires-30s-warmup-and-120s-measure")
         }
         if request.protocolKind == .pausedMonitorCandidate,
            (request.warmupSeconds < 60 || request.measureSeconds < 600) {

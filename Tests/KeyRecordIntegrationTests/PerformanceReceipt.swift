@@ -8,7 +8,8 @@ struct PerformanceWindow: Codable, Equatable {
     let warmup: Double
     let window: Double
     let repeats: Int
-    static let authorized = Self(warmup: 60, window: 600, repeats: 3)
+    static let authorized = Self(warmup: ReplayWorkload.warmupSeconds,
+                                 window: ReplayWorkload.measureSeconds, repeats: ReplayWorkload.repeats)
     static let compressed = Self(warmup: 0.2, window: 1, repeats: 2)
 }
 

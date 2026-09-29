@@ -127,30 +127,37 @@ final class ResourceEvaluationTests: XCTestCase {
     func testShortFormalAndPausedProtocolsStayInvalid() {
         let formal = ResourceWindowRequest(protocolKind: .formalFRS2, phase: "typing",
             warmupSeconds: 1, measureSeconds: 2, intervalSeconds: 1, samples: series())
-        XCTAssertEqual(ResourceEvaluator.evaluate(formal).reason, "formal-protocol-requires-60s-warmup-and-600s-measure")
+        XCTAssertEqual(ResourceEvaluator.evaluate(formal).reason, "formal-protocol-requires-30s-warmup-and-120s-measure")
         let paused = ResourceWindowRequest(protocolKind: .pausedMonitorCandidate, phase: "paused",
             warmupSeconds: 5, measureSeconds: 30, intervalSeconds: 1, samples: series())
         XCTAssertEqual(ResourceEvaluator.evaluate(paused).reason, "paused-monitor-candidate-requires-60s-warmup-and-600s-measure")
     }
 
-    func testFormalWindowRequiresAnObservedEndpointAtOrAfterTenMinutes() {
+    func testFormalWindowRequiresAnObservedEndpointAtOrAfterTwoMinutes() {
         let origin = 100.0
-        let times = stride(from: origin, through: 759.5, by: 0.5).map { $0 } + [759.8]
+        let times = stride(from: origin, through: 249.5, by: 0.5).map { $0 } + [249.8]
         let samples = times.map { sample(t: $0, cpu: UInt64($0 * 1_000_000), bytes: 32_000_000) }
         var request = ResourceWindowRequest(protocolKind: .formalFRS2, phase: "typing",
-            warmupSeconds: 60, measureSeconds: 600, intervalSeconds: 0.5,
+            warmupSeconds: 30, measureSeconds: 120, intervalSeconds: 0.5,
             originUptimeSeconds: origin, samples: samples)
         let short = ResourceEvaluator.evaluate(request)
         XCTAssertEqual(short.outcome, "interrupted")
         XCTAssertEqual(short.reason, "duration-short")
 
-        request.samples.append(sample(t: 760.1, cpu: 760_100_000, bytes: 32_000_000))
+        request.samples.append(sample(t: 250.1, cpu: 250_100_000, bytes: 32_000_000))
         let full = ResourceEvaluator.evaluate(request)
         XCTAssertEqual(full.outcome, "measured")
         let archive = ResourceMeasurementArchive(request: request, result: full,
             architecture: "arm64", operatingSystem: "fixture", diagnosticsEnabled: false)
-        XCTAssertGreaterThanOrEqual(archive.effectiveMeasureSeconds ?? 0, 600)
+        XCTAssertGreaterThanOrEqual(archive.effectiveMeasureSeconds ?? 0, 120)
         XCTAssertEqual(ResourceEvaluator.recompute(archive), full)
+    }
+
+    func testHistoricalDurationIsNotSilentlyRequalifiedAsCurrentFormalWindow() {
+        let legacy = ResourceWindowRequest(protocolKind: .formalFRS2, phase: "typing",
+            warmupSeconds: 60, measureSeconds: 600, intervalSeconds: 0.5, samples: series())
+        XCTAssertEqual(ResourceEvaluator.evaluate(legacy).reason,
+                       "formal-protocol-requires-30s-warmup-and-120s-measure")
     }
 
     func testClosedIntervalDeltasAreSeparatedFromEndpointEquality() {

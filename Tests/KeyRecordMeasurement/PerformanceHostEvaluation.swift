@@ -68,8 +68,8 @@ public struct PerformanceHostResult: Equatable, Sendable, Encodable {
     public let executableSHA256: String
     public let productCodeSHA256: String
     public let executablePath: String
-    public let typingMedianCPUPercent: Double
-    public let idleMedianCPUPercent: Double
+    public let typingCPUPercent: Double
+    public let idleCPUPercent: Double
     public let highestWindowFootprintMeanBytes: Double
     public let highestWindowFootprintPeakBytes: UInt64
     public let windowCount: Int
@@ -84,10 +84,10 @@ public enum PerformanceHostEvaluator {
     }
 
     public static func evaluate(_ windows: [PerformanceWindowSummary]) throws -> PerformanceHostResult {
-        guard windows.count == 6, let first = windows.first else { throw PerformanceHostError.windowCount }
+        guard windows.count == 2, let first = windows.first else { throw PerformanceHostError.windowCount }
         let typing = windows.filter { $0.phase == "typing" }
         let idle = windows.filter { $0.phase == "idle" }
-        guard typing.count == 3, idle.count == 3 else { throw PerformanceHostError.phaseCount }
+        guard typing.count == 1, idle.count == 1 else { throw PerformanceHostError.phaseCount }
         let expectedTyping = Int64(ReplayWorkload.expectedTypingEvents)
         for window in windows {
             guard window.architecture == first.architecture, window.macOS == first.macOS,
@@ -112,7 +112,7 @@ public enum PerformanceHostEvaluator {
                   window.cpuPercent.isFinite, window.cpuPercent >= 0,
                   window.footprintMeanBytes.isFinite, window.footprintMeanBytes > 0,
                   Double(window.footprintPeakBytes) >= window.footprintMeanBytes,
-                  window.effectiveMeasureSeconds.isFinite, window.effectiveMeasureSeconds >= 600,
+                  window.effectiveMeasureSeconds.isFinite, window.effectiveMeasureSeconds >= ReplayWorkload.measureSeconds,
                   window.acceptedEvents == expectedEvents,
                   window.durableKeyDownTotal == expectedEvents / 2 else {
                 throw PerformanceHostError.invalidWindow
@@ -120,15 +120,11 @@ public enum PerformanceHostEvaluator {
         }
         let processes = Set(windows.map { ProcessIdentity(pid: $0.pid, startAbstime: $0.startAbstime) })
         guard processes.count == windows.count else { throw PerformanceHostError.reusedProcessWindow }
-        func median(_ values: [Double]) -> Double {
-            let sorted = values.sorted()
-            return sorted[sorted.count / 2]
-        }
-        let typingMedian = median(typing.map(\.cpuPercent))
-        let idleMedian = median(idle.map(\.cpuPercent))
+        let typingCPU = typing[0].cpuPercent
+        let idleCPU = idle[0].cpuPercent
         let highestMean = windows.map(\.footprintMeanBytes).max() ?? .infinity
         let highestPeak = windows.map(\.footprintPeakBytes).max() ?? UInt64.max
-        let withinBudget = typingMedian < 1 && idleMedian < 0.1
+        let withinBudget = typingCPU < 1 && idleCPU < 0.1
             && highestMean < 100_000_000 && highestPeak < 100_000_000
         return PerformanceHostResult(outcome: withinBudget ? "within-budget" : "over-budget",
             architecture: first.architecture, macOS: first.macOS,
@@ -136,7 +132,7 @@ public enum PerformanceHostEvaluator {
             bundleID: first.bundleID,
             executableSHA256: first.executableSHA256, productCodeSHA256: first.productCodeSHA256,
             executablePath: first.executablePath,
-            typingMedianCPUPercent: typingMedian, idleMedianCPUPercent: idleMedian,
+            typingCPUPercent: typingCPU, idleCPUPercent: idleCPU,
             highestWindowFootprintMeanBytes: highestMean,
             highestWindowFootprintPeakBytes: highestPeak, windowCount: windows.count)
     }

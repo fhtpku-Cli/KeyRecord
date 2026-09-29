@@ -254,9 +254,15 @@ public struct PrivacyReadActivity: Equatable, Sendable, Decodable {
     public var decryptionCompleted: Int64
     public var keychainReadStarted: Int64
     public var keychainReadCompleted: Int64
+    public var storeCacheReadStarted: Int64?
+    public var storeCacheReadCompleted: Int64?
+    public var aggregateReadStarted: Int64?
+    public var aggregateReadCompleted: Int64?
 
     fileprivate var values: [Int64] {
         [decryptionStarted, decryptionCompleted, keychainReadStarted, keychainReadCompleted]
+            + [storeCacheReadStarted, storeCacheReadCompleted, aggregateReadStarted, aggregateReadCompleted]
+                .compactMap { $0 }
     }
 }
 
@@ -527,9 +533,14 @@ public enum PrivacyIntervalEvaluator {
         let reads = marks.compactMap(\.protectedReadActivity)
         guard !reads.isEmpty else { return nil }
         guard reads.count == marks.count else { return ("inconclusive", "protected-read-activity-missing") }
+        let widths = Set(reads.map { $0.values.count })
+        guard widths.count == 1, widths.first == 4 || widths.first == 8 else {
+            return ("inconclusive", "protected-read-coverage-missing")
+        }
         guard reads.allSatisfy({
-            $0.values.allSatisfy { $0 >= 0 } && $0.decryptionCompleted <= $0.decryptionStarted
-                && $0.keychainReadCompleted <= $0.keychainReadStarted
+            let values = $0.values
+            return values.allSatisfy { $0 >= 0 } && stride(from: 0, to: values.count, by: 2)
+                .allSatisfy { values[$0 + 1] <= values[$0] }
         }) else { return ("invalid", "protected-read-activity-inconsistent") }
         if zip(reads, reads.dropFirst()).contains(where: { before, after in
             zip(before.values, after.values).contains { $1 < $0 }
@@ -538,8 +549,12 @@ public enum PrivacyIntervalEvaluator {
         if last.decryptionStarted > first.decryptionStarted || last.keychainReadStarted > first.keychainReadStarted {
             return ("observed", "closed-interval-decryption-or-keychain-read")
         }
+        if first.values.count == 8 && (last.values[4] > first.values[4] || last.values[6] > first.values[6]) {
+            return ("observed", "closed-interval-cached-or-aggregate-read")
+        }
         if reads.contains(where: {
-            $0.decryptionStarted != $0.decryptionCompleted || $0.keychainReadStarted != $0.keychainReadCompleted
+            let values = $0.values
+            return stride(from: 0, to: values.count, by: 2).contains { values[$0] != values[$0 + 1] }
         }) { return ("inconclusive", "protected-read-in-flight") }
         return nil
     }

@@ -642,6 +642,19 @@ final class ProductRecoveryQuitTests: XCTestCase {
                         "protectedGateEntries", "snapshotPublicationCount", "analysisPublicationCount"] {
             XCTAssertEqual(end[counter] as? Int, begin[counter] as? Int, "\(counter) moved while closed")
         }
+        let readsAtClosure = try XCTUnwrap(begin["protectedReadActivity"] as? [String: Int])
+        let readKinds = ["decryption", "keychainRead", "storeCacheRead", "aggregateRead"]
+        XCTAssertEqual(readsAtClosure.count, readKinds.count * 2)
+        for mark in [begin] + observes + [end] {
+            let reads = try XCTUnwrap(mark["protectedReadActivity"] as? [String: Int])
+            for kind in readKinds {
+                let started = try XCTUnwrap(reads[kind + "Started"])
+                let completed = try XCTUnwrap(reads[kind + "Completed"])
+                XCTAssertEqual(started, completed, "\(kind) was in flight while closed")
+                XCTAssertEqual(started, readsAtClosure[kind + "Started"], "\(kind) started while closed")
+                XCTAssertEqual(completed, readsAtClosure[kind + "Completed"], "\(kind) completed while closed")
+            }
+        }
         XCTAssertEqual(product.aggregateDelta, Int64(end["aggregateDelta"] as? Int ?? -1) + 2,
                        "input after reopening is outside the closed interval")
         XCTAssertEqual(try product.actionEnds("start").last?["phaseAfter"] as? String, "collecting")

@@ -3,12 +3,14 @@
 ## Current Apple Silicon MVP status — 2026-09-29
 
 Latest autonomous checkpoint: [MVP closeout](MVP_CLOSEOUT_20260929.md).
-Latest offline increment adds Debug process-wide actual decrypt/Keychain read
-start/completion counts to the privacy journal. The interval evaluator detects
-new reads and retains in-flight or missing observations as inconclusive. All 562
-package tests and 57 hostless recovery/quit tests pass; Debug and unsigned arm64
-Release builds succeed, and the fresh Release static network audit has zero
-matches. Cached-read coverage and the full hosted observer are still incomplete;
+Latest offline increment adds Debug process-wide actual decrypt/Keychain, cached
+store and in-memory aggregate read start/completion counts to the privacy journal.
+The product-path closure test verifies all eight counts stay balanced and unchanged
+through explicit reauthorization. All 57 recovery/quit and 10 reduction tests pass.
+The 564-case package run found one source-length failure; helper extraction fixed
+it and all 175 affected storage tests then passed. Debug and unsigned arm64 Release
+builds succeed; Release excludes the observer and its static network audit has zero
+matches. Plaintext processing, publication and full hosted observation remain open;
 this is not new live acceptance. Details are in the completion plan below.
 The owner has set an active goal to complete Apple Silicon Phase 1, continuing
 autonomously until a concrete host step needs cooperation. The

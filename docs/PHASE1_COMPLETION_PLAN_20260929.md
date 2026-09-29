@@ -257,10 +257,35 @@ symbols/strings and passes the existing static network-capability audit with zer
 matches. This is build/audit evidence, not a collecting Release or signed launch.
 Logs: `/private/tmp/keyrecord-protected-read-{package-tests,app-build,app-tests,release-build,release-audit}.log`.
 
-This is an intermediate implementation, not the complete hosted observer. The
-source audit still identifies cached manifest/material reads and aggregate staging
-as paths needing explicit coverage beyond decryption and snapshot/analysis calls.
-The next implementation step is to cover those read boundaries, then connect
-observations to the hosted lifecycle controller with its independent lock witness.
-Native rendering is a separate check. The installed signed App remains `293f25a45`;
-no new host, permission, lock/sleep or performance round was run.
+This first increment does not implement the complete hosted observer. The next
+increment below adds cached reads. Native rendering remains a separate check.
+
+## Cached and aggregate read observation
+
+Debug observations now include cached manifest/key-material access and nonempty
+in-memory reducer access, for eight start/completion counters in total. The same
+process-wide observer covers cached access that does not decrypt again. Closed
+store rejection, empty staging and clearing state do not count as payload reads.
+The evaluator accepts complete legacy four-field observations or complete new
+eight-field observations; partial or changing coverage is inconclusive. It still
+does not claim exhaustive read coverage, actual rendering or continuous closure.
+
+The product-path closure regression asserts all eight counters are present,
+balanced and unchanged at closure, closed samples and explicit reauthorization.
+It passes with synthetic dependencies. All 57 recovery/quit and 10 reduction
+tests pass. The 564-case package run had one source-length check failure after
+adding helpers to ObjectStore; extracting them into an extension preserved that
+check, and all 175 affected storage tests then passed. No failed test was removed
+or weakened. Final Debug test and native arm64 unsigned Release builds pass;
+Release excludes the observer symbols/strings and its static network audit has
+zero matches. Logs use `/private/tmp/keyrecord-cached-read-` with
+`package-tests.log`, `store-rerun.log`, `recovery-tests.log`, `reduction-tests.log`,
+`boundary-test.log`, `final-debug-build.log`, `final-release-build.log` and
+`release-audit.log`.
+
+Remaining work includes plaintext processing after asynchronous reads, aggregate
+serialization after staging, publication coverage and connecting observations to
+the hosted lifecycle controller with its independent lock witness. These counts
+must not yet populate an exhaustive hosted protected-read claim. The installed
+signed App remains `293f25a45`; no new host, permission, lock/sleep or performance
+round was run.

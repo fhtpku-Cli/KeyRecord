@@ -95,7 +95,7 @@ public actor ObjectStore {
     }
 
     public func currentKeyVersion() throws -> KeyVersion {
-        guard let manifestBox, phase == .opened else { throw ObjectStoreError.storeNotInitialized }
+        guard phase == .opened, let manifestBox = cachedManifest() else { throw ObjectStoreError.storeNotInitialized }
         return KeyVersion(rawValue: manifestBox.currentKeyVersion)
     }
 
@@ -178,7 +178,7 @@ public actor ObjectStore {
     public func invalidateTransientMaterial() { materialCache.removeAll() }
 
     func opened() throws -> EncryptedManifest {
-        guard phase == .opened, let manifestBox else { throw ObjectStoreError.storeNotInitialized }
+        guard phase == .opened, let manifestBox = cachedManifest() else { throw ObjectStoreError.storeNotInitialized }
         return manifestBox
     }
 
@@ -193,7 +193,7 @@ public actor ObjectStore {
                 encryptionVersion: UInt32,
                 material: () throws -> Data,
                 injection: DurabilityInjection) throws {
-        guard var manifest = manifestBox else { throw ObjectStoreError.storeNotInitialized }
+        guard var manifest = cachedManifest() else { throw ObjectStoreError.storeNotInitialized }
         try mutation(&manifest)
         let envelope: Data
         do {
@@ -230,7 +230,7 @@ public actor ObjectStore {
     }
 
     func material(_ raw: UInt32, versions known: Set<KeyVersion>?) async throws -> Data {
-        if let cached = materialCache[raw] { return cached }
+        if let cached = cachedMaterial(raw) { return cached }
         if let known, !known.contains(KeyVersion(rawValue: raw)) {
             throw ObjectStoreError.corruption(.envelopeKeyMissing)
         }
@@ -240,4 +240,5 @@ public actor ObjectStore {
         materialCache[raw] = material
         return material
     }
+
 }

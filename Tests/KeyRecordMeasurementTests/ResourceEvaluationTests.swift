@@ -3,6 +3,24 @@ import KeyRecordCore
 import KeyRecordMeasurement
 
 final class ResourceEvaluationTests: XCTestCase {
+    func testCachedAndAggregateReadsAreNotMissedByClosedEvaluation() throws {
+        for kind in [ProtectedReadActivity.Kind.storeCache, .aggregate] {
+            let activity = ProtectedReadActivity()
+            var marks = try recorderMarks { recorder in
+                recorder.configureProtectedReadActivity { activity.snapshot }
+                recorder.beginClosedInterval(cause: "protectedStateClosed")
+                activity.observe(kind) {}
+                recorder.observeClosedInterval()
+                recorder.endClosedInterval(cause: "protectedStoreReauthorized")
+            }
+            XCTAssertEqual(PrivacyIntervalEvaluator.evaluateClosed(marks, journalWriteFailed: false).reason,
+                           "closed-interval-cached-or-aggregate-read")
+            marks[1].protectedReadActivity?.aggregateReadCompleted = nil
+            XCTAssertEqual(PrivacyIntervalEvaluator.evaluateClosed(marks, journalWriteFailed: false).reason,
+                           "protected-read-coverage-missing")
+        }
+    }
+
     func testClosedIntervalDetectsActualBoundaryReads() throws {
         for kind in [ProtectedReadActivity.Kind.decryption, .keychain] {
             let activity = ProtectedReadActivity()

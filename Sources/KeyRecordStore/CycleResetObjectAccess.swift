@@ -116,7 +116,7 @@ extension ObjectStore {
     }
 
     func openPayload(_ entry: ManifestEntry) throws -> Data {
-        guard let material = materialCache[entry.keyVersion] else {
+        guard let material = cachedMaterial(entry.keyVersion) else {
             throw ObjectStoreError.corruption(.envelopeKeyMissing)
         }
         let bytes = try readEntryFile(entry)

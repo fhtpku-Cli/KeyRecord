@@ -66,7 +66,7 @@ extension ObjectStore {
             } catch {
                 throw ObjectStoreError.corruption(.manifestUnreadable)
             }
-            guard let material = materialCache[entry.keyVersion] else {
+            guard let material = cachedMaterial(entry.keyVersion) else {
                 throw ObjectStoreError.corruption(.envelopeKeyMissing)
             }
             do {
@@ -80,7 +80,7 @@ extension ObjectStore {
 
     func loadMaterial(_ versions: Set<UInt32>, known: Set<KeyVersion>, sessionToken: UUID) async throws {
         for raw in versions {
-            if materialCache[raw] != nil { continue }
+            if cachedMaterial(raw) != nil { continue }
             let version = KeyVersion(rawValue: raw)
             guard known.contains(version) else { throw ObjectStoreError.corruption(.envelopeKeyMissing) }
             let material = try await keySource.material(for: version)

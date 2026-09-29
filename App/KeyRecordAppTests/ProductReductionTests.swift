@@ -5,6 +5,28 @@ import KeyRecordCore
 import KeyRecordStore
 
 final class ProductReductionTests: XCTestCase {
+    #if DEBUG
+    func testStagingReadsAreObservedAndClosedOrEmptyStateDoesNotReadAggregates() throws {
+        let reduction = makeReduction()
+        reduction.open(AggregationReducer(cycleID: CycleID(rawValue: "observed-staging")),
+                       inputs: inputs(bundleID: "com.apple.TextEdit"), generation: CaptureGeneration(rawValue: 12))
+        XCTAssertEqual(reduction.deliver(try bareEvent(generation: 12)), .accepted)
+        let before = try XCTUnwrap(ProtectedReadActivity.process.snapshot)
+        XCTAssertNotNil(try reduction.take())
+        let after = try XCTUnwrap(ProtectedReadActivity.process.snapshot)
+        XCTAssertEqual(after.aggregateReadStarted - before.aggregateReadStarted, 1)
+        XCTAssertEqual(after.aggregateReadCompleted - before.aggregateReadCompleted, 1)
+        XCTAssertNil(try reduction.take())
+        reduction.gate.update(.locked)
+        XCTAssertThrowsError(try reduction.snapshot())
+        XCTAssertThrowsError(try reduction.take())
+        reduction.clear()
+        reduction.gate.update(.unlocked)
+        XCTAssertNil(try reduction.snapshot())
+        XCTAssertEqual(ProtectedReadActivity.process.snapshot?.aggregateReadStarted, after.aggregateReadStarted)
+    }
+    #endif
+
     func testRecoveryAttributesTheNextChordToTheFreshForeground() throws {
         // Given: one chord attributed to foreground A in source generation 11.
         let reduction = makeReduction()

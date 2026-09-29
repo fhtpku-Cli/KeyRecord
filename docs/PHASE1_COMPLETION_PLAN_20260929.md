@@ -63,7 +63,7 @@ assert the new order object separately from unchanged count assertions. Logs:
 `/private/tmp/keyrecord-phase1-completion-package.log`.
 App build and test logs use `/private/tmp/keyrecord-phase1-completion-` with
 `app-build.log`, `product-tests.log` (first run) and `reduction-tests.log` (rerun).
-The installed trial Apps and their candidate-bound host measurements are unchanged.
+The earlier host measurements retain their original candidate bounds.
 
 ## Noninteractive Keychain queries
 
@@ -76,27 +76,29 @@ data-protection Keychain and nonsynchronizable attributes. Interaction-required
 access therefore takes the existing unavailable/locked error path.
 
 All seven LocalKeychainQueries hostless tests and the Debug App test build pass.
-No Security API operation was invoked by these tests. Runtime acceptance of the
-updated query on the signed candidate remains a separate isolated host check.
+No Security API operation was invoked by these tests. The separate signed-host
+input and restart check below now exercises the updated query successfully.
 Logs: `/private/tmp/keyrecord-keychain-ui-{red,build,tests}.log`.
 
-## Prepared input and restart check (not launched)
+## Completed input and restart check
 
 The signed arm64 Debug candidate at `293f25a45` includes both repairs above.
 The build used existing local signing assets without provisioning updates;
 signature, profile and isolation checks pass. The candidate is staged at
 `/private/tmp/keyrecord-phase1-next-candidate-20260929/build/Build/Products/Debug/KeyRecordApp.app`.
 Build log: `/private/tmp/keyrecord-phase1-next-candidate-build.log`.
-Neither installed trial App has been replaced or launched by this preparation.
+After the owner confirmed readiness, the installed MVP trial was replaced with
+this candidate. Its previous bundle is preserved at
+`/private/tmp/keyrecord-mvp-before-phase1-293f25a45.app`. The Performance Trial
+was unchanged.
 
-The next owner-assisted check uses **KeyRecord MVP Trial 20260929**, bundle
+The owner-assisted check used **KeyRecord MVP Trial 20260929**, bundle
 `com.keyrecord.trial.mvp20260929`, with fresh private root
 `/private/tmp/keyrecord-phase1-closeout-live-20260929` and Keychain namespace
-`com.keyrecord.trial.mvp20260929.phase1closeout1`. After owner readiness, preserve
-the old installed MVP bundle privately and install this candidate. The owner
-presses Start, accepts consent, waits for Collecting, then presses Command-A once
-in blank TextEdit. Inspect aggregate change and durable save, quit normally, then
-restart to check aggregate readback without further input. This checks the new
+`com.keyrecord.trial.mvp20260929.phase1closeout1`. The owner confirmed Collecting
+after Start/consent, then confirmed one Command-A in blank TextEdit. The controller
+quit normally after input/save, then restarted for readback without further input.
+This checks the new
 Keychain query and persistence path; it does not reproduce a clock rollback on
 the real machine or provide exhaustive protected-read observation.
 
@@ -110,7 +112,27 @@ Either stage can request early normal Quit via its private quit-request file.
 Stop on any permission, restart or Keychain prompt; do not change permissions.
 No lock/sleep, network observation or daily-data access is part of this check.
 
-Owner readiness is pending. This preparation is not live acceptance. The complete
+Input recorded one key-down, one key-up and two modifier callbacks, four accepted
+handoffs and aggregate delta one. Published totals were one shortcut and zero bare
+keys. All four issued writes returned successfully and were recorded durable;
+there were no write failures, timeouts, invalidations or snapshot read failures.
+The restarted process published the same totals with zero callbacks, handoffs,
+aggregate delta or writes, and 13 successful snapshot publications. Both controller
+processes exited zero after normal Quit; final quit action details reported Stopped
+and no live session. Exact PID checks confirmed both App processes (73689, 73858)
+were gone. Top-level diagnostic `captureSessionLive` is a non-atomic pre-cleanup
+sample; it is not evidence that capture remains active after process exit.
+
+Artifacts are `input-summary.json`, `readback-summary.json` and their corresponding
+`*-privacy.jsonl` files under the private root. Controller logs are
+`/private/tmp/keyrecord-phase1-closeout-{input,readback}-controller.log`.
+Both CI builds for documentation head `e808d6483` succeeded:
+[PR](https://github.com/fhtpku-Cli/KeyRecord/actions/runs/36546858162) and
+[push](https://github.com/fhtpku-Cli/KeyRecord/actions/runs/36546850292).
+
+This completes the bounded fresh-store physical-input/save/restart-readback check
+on `293f25a45`. It does not identify a specific application/shortcut row from
+aggregate-only evidence or exercise interaction-required Keychain failure. The complete
 hosted protected-read/publication observer, actual permission revoke/regrant,
 native UI/attribution checks and qualified collecting Release composition remain
 open. Earlier sleep and performance evidence remains bound to its recorded

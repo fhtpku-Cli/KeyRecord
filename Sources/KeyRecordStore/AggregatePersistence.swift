@@ -4,6 +4,10 @@ import KeyRecordCore
 public enum AggregatePersistence {
     public static func objects(_ reducer: AggregationReducer) throws -> [FlushObject] {
         var objects: [FlushObject] = []
+        if !reducer.activeDays.isEmpty {
+            objects.append(FlushObject(identity: try AggregateDayOrder.identity(reducer.cycleID),
+                payload: try JSONEncoder().encode(AggregateDayOrder(reducer))))
+        }
         for day in reducer.activeDays {
             let shortcuts = reducer.shortcuts.filter { $0.day == day }
             let bareKeys = reducer.bareKeys.filter { $0.day == day }
@@ -23,6 +27,14 @@ public enum AggregatePersistence {
                                gate: KeyAvailabilityGate) async throws -> AggregationReducer {
         let generation = try gate.begin()
         let entries = try await store.entries()
+        let orderIdentity = try AggregateDayOrder.identity(cycleID)
+        let order: AggregateDayOrder?
+        if entries.contains(where: { $0.identity == orderIdentity }) {
+            let bytes = try await store.readProtected(orderIdentity, gate: gate)
+            order = try gate.use(generation) { try JSONDecoder().decode(AggregateDayOrder.self, from: bytes) }
+        } else {
+            order = nil
+        }
         var shortcuts: [DailyShortcutAggregate] = []
         var bareKeys: [DailyBareKeyAggregate] = []
         for entry in entries where entry.identity.objectType == CanonicalLogicalIdentity.shardObjectType {
@@ -38,7 +50,9 @@ public enum AggregatePersistence {
             }
         }
         return try gate.use(generation) {
-            try AggregationReducer(cycleID: cycleID, shortcuts: shortcuts, bareKeys: bareKeys)
+            let observed = Set(shortcuts.map(\.day) + bareKeys.map(\.day))
+            return try AggregationReducer(cycleID: cycleID, shortcuts: shortcuts, bareKeys: bareKeys,
+                activeDays: order?.restoredDays(cycle: cycleID, observed: observed))
         }
     }
 }

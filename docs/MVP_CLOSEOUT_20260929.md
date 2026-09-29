@@ -414,7 +414,9 @@ summary and flagged evaluation are retained. See [the detailed record](PERMISSIO
 Still open: current-candidate attribution rows, native consent
 and accessibility, permission revoke/regrant, continuous lock/sleep closure and
 recovery, exhaustive live product observation for the hosted Keychain controller,
-the two current-protocol native ARM resource windows, and qualified Release composition. Release
+and qualified Release composition. The two current-protocol native ARM resource
+windows are complete for the signed `a604ad535` fixed-replay candidate, as recorded
+at the top of this document. Release
 still uses `BlockedLiveKeychain` and `UnqualifiedCapture`. The final signed
 collecting Release must receive its own FR-P1 source/binary audit. These gaps are
 not converted to PASS by the tests or the unsigned build above.

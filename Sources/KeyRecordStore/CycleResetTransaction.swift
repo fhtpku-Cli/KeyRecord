@@ -155,6 +155,8 @@ extension ObjectStore {
     private func deleteDetails(oldCycle: CycleID, injection: CycleResetInjection,
                                sessionToken: UUID) async throws {
         try requireProtectedSession(sessionToken)
+        try await removePresent(AggregateDayOrder.identity(oldCycle), injection: injection.detailDelete)
+        try requireProtectedSession(sessionToken)
         for entry in try opened().entries where entry.identity.objectType == CanonicalLogicalIdentity.shardObjectType {
             try requireProtectedSession(sessionToken)
             let triple = try entry.identity.shardComponents()

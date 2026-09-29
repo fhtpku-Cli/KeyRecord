@@ -109,7 +109,10 @@ final class ProductReductionTests: XCTestCase {
 
         // Then: the replacement writer receives the retained count without another key event.
         let objects = await writer.objects
-        let rows = try objects.flatMap { try JSONDecoder().decode([DailyBareKeyAggregate].self,
+        XCTAssertEqual(objects.map { $0.identity.objectType },
+            ["com.keyrecord.activeDayOrder", CanonicalLogicalIdentity.shardObjectType])
+        let rows = try objects.filter { $0.identity.objectType == CanonicalLogicalIdentity.shardObjectType }
+            .flatMap { try JSONDecoder().decode([DailyBareKeyAggregate].self,
                                                                   from: $0.payload) }
         XCTAssertEqual(rows.reduce(0) { $0 + $1.sourceCounts.total.value }, 1)
     }
@@ -139,7 +142,10 @@ final class ProductReductionTests: XCTestCase {
         try await scheduler.stage(AggregatePersistence.objects(try XCTUnwrap(reduction.take())))
         try await scheduler.flushWhileUnlocked()
         let objects = await writer.objects
-        let rows = try objects.flatMap { try JSONDecoder().decode([DailyBareKeyAggregate].self,
+        XCTAssertEqual(objects.map { $0.identity.objectType },
+            ["com.keyrecord.activeDayOrder", CanonicalLogicalIdentity.shardObjectType])
+        let rows = try objects.filter { $0.identity.objectType == CanonicalLogicalIdentity.shardObjectType }
+            .flatMap { try JSONDecoder().decode([DailyBareKeyAggregate].self,
                                                                   from: $0.payload) }
         XCTAssertEqual(rows.reduce(0) { $0 + $1.sourceCounts.total.value }, 1)
     }

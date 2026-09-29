@@ -3,6 +3,15 @@
 ## Current Apple Silicon MVP status — 2026-09-29
 
 Latest autonomous checkpoint: [MVP closeout](MVP_CLOSEOUT_20260929.md).
+The owner has set an active goal to complete Apple Silicon Phase 1, continuing
+autonomously until a concrete host step needs cooperation. The
+[completion plan](PHASE1_COMPLETION_PLAN_20260929.md) records the remaining work.
+An encrypted-store regression reproduced active-day encounter order being lost
+across restart after date rollback. The repair persists encrypted daily order
+and removes it during cycle reset; 52 focused tests and all 553 SwiftPM XCTest
+cases pass. The App test build and all 69 selected hostless product recovery,
+reduction and startup cases pass. Installed trial Apps are unchanged;
+their earlier live evidence does not automatically qualify this storage change.
 Formal performance acceptance was shortened at the owner's request: typing and
 idle once each, 30 seconds warmup plus 120 seconds measurement per window,
 about five minutes plus startup/exit. Targeted reruns replace automatic repeats;
@@ -137,7 +146,8 @@ The provisioned isolated Apple Silicon candidate now reaches Collecting through
 its explicit wrapper and has retained the agreed small shortcut total across
 restart. Bounded collecting lock and sleep/manual recovery now have the scoped
 observations above. Actual permission revoke/regrant, continuous lock/sleep
-protection and native Apple Silicon typing/idle resource windows remain open. Offline
+protection remain open. The agreed short native Apple Silicon fixed-replay
+typing/idle measurement is complete for `a604ad535`, as recorded above. Offline
 KeychainLifecycle scenario tests have passed, but no live product observer is
 wired into the hosted controller; its missing closed-interval counters cannot
 count as zero. Current Release composition still uses `BlockedLiveKeychain` and

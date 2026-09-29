@@ -28,6 +28,12 @@ func seedReset(_ store: ObjectStore) async throws -> [ManifestEntry] {
             payload: encoder.encode(keys))
     }
     var retained: [ManifestEntry] = []
+    let dayOrder = try CanonicalLogicalIdentity(objectType: "com.keyrecord.activeDayOrder",
+        schemaVersion: 1, logicalIDText: resetOldCycle.rawValue)
+    _ = try await store.put(identity: dayOrder, payload: JSONSerialization.data(withJSONObject: [
+        "schemaVersion": 1, "cycleID": ["rawValue": resetOldCycle.rawValue],
+        "days": [["label": "2026-09-11"], ["label": "2026-09-12"]]
+    ]))
     for kind in resetRetainedKinds {
         let identity = try objectIdentity(type: "com.keyrecord.\(kind)", "opaque-fixture")
         retained.append(try await store.put(identity: identity, payload: resetOpaquePayload))
@@ -47,6 +53,7 @@ func assertReset(_ store: ObjectStore, next: CycleID) async throws {
     XCTAssertEqual(entries.filter { $0.identity == CycleResetObjects.currentCycle }.count, 1)
     XCTAssertEqual(entries.filter { $0.identity.objectType == "com.keyrecord.cycleSummary" }.count, 1)
     XCTAssertTrue(entries.filter { $0.identity.objectType == CanonicalLogicalIdentity.shardObjectType }.isEmpty)
+    XCTAssertFalse(entries.contains { $0.identity.objectType == "com.keyrecord.activeDayOrder" })
     XCTAssertFalse(entries.contains { $0.identity == CycleResetObjects.journal })
     let current = try await decoder.decode(CycleRecord.self, from: store.read(CycleResetObjects.currentCycle))
     XCTAssertEqual(current.cycleID, next)

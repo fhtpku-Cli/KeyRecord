@@ -41,7 +41,7 @@ final class PrivacyBoundaryTests: XCTestCase {
         try fixture.aggregate.process(normalizer.process(bare),
             generation: normalizer.gate.generation, clock: IntegrationClock())
         let objects = try AggregatePersistence.objects(fixture.aggregate)
-        XCTAssertEqual(objects.count, 2)
+        XCTAssertEqual(objects.count, 3)
         // When: real serializer, AEAD envelope, opaque locator and atomic filesystem writer.
         try await FencedObjectWriter(store: fixture.store, gate: fixture.gate)
             .write(objects, generation: fixture.gate.begin())
@@ -71,6 +71,10 @@ final class PrivacyBoundaryTests: XCTestCase {
             let data = try await fixture.store.readProtected(entry.identity, gate: fixture.gate)
             XCTAssertNil(data.range(of: Data(canary.utf8)))
             XCTAssertNotNil(data.range(of: Data("integration-cycle".utf8)))
+            if entry.identity.objectType == "com.keyrecord.activeDayOrder" {
+                try PrivacySchemaAudit.checkJSON(data, allowed: ["schemaVersion", "cycleID", "days", "label", "rawValue"])
+                continue
+            }
             let component = try entry.identity.shardComponents()
             switch component.aggregateType {
             case "shortcut":

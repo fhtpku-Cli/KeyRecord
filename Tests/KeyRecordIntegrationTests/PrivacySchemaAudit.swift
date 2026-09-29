@@ -25,6 +25,7 @@ enum PrivacySchemaAudit {
 
     // File-qualified registration also covers private Wire DTOs and extensions adding conformance.
     static let serializableTypes: [String: Set<String>] = [
+        "AggregateDayOrder.swift": ["AggregateDayOrder"],
         "AppDelegate.swift": ["DebugReplayProgress"],
         "CaptureDiagnostics.swift": ["CaptureRunSummary", "CapturePrivacyIntervalMark", "CapturePrivacyActionDetail"],
         "Counts.swift": ["Count", "SourceCounts", "ActiveDayOrdinal"],
@@ -79,6 +80,7 @@ enum PrivacySchemaAudit {
                 "lifecycleFlushOutcome", "reductionUnsavedBefore", "schedulerUnsavedBefore", "reductionUnsavedAfter",
                 "schedulerUnsavedAfter", "quitDecision", "noticeAfter", "phaseAfter", "blockedReasonAfter",
                 "failureAfter", "sessionLiveAfter", "keyGateOpenAfter"]],
+        "AggregateDayOrder.swift": ["AggregateDayOrder": ["schemaVersion", "cycleID", "days"]],
         "Counts.swift": ["Count": ["value"], "SourceCounts": ["ordinary", "suspectedInjection", "total"],
             "ActiveDayOrdinal": ["value"]],
         "IdentityProviders.swift": ["CycleID": ["rawValue"], "KeyVersion": ["rawValue"], "LocalDay": ["label"]],

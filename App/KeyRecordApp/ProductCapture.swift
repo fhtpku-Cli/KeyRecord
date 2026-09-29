@@ -13,8 +13,10 @@ actor ProductFlush: LifecycleFlushing {
         self.reduction = reduction; self.scheduler = scheduler
     }
     func stage() async throws {
-        if let aggregate = try reduction.take() {
-            try await scheduler.stage(AggregatePersistence.objects(aggregate))
+        if let batch = try reduction.take({ aggregate, generation in
+            (objects: try AggregatePersistence.objects(aggregate), generation: generation)
+        }) {
+            try await scheduler.stage(batch.objects, generation: batch.generation)
         }
     }
     func pulse() async throws { try await stage(); await scheduler.tick() }

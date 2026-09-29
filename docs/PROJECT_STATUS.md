@@ -3,6 +3,12 @@
 ## Current Apple Silicon MVP status — 2026-09-29
 
 Latest autonomous checkpoint: [MVP closeout](MVP_CLOSEOUT_20260929.md).
+Latest safety repair serializes aggregates under the existing protection scope and
+carries the producing generation into scheduler staging, preventing old batches
+from entering a reopened session. Preference coding after awaits is also fenced.
+All 201 affected package tests, 11 reduction and 57 recovery/quit tests pass; Debug
+and unsigned arm64 Release builds pass, with zero static network audit matches.
+The installed signed trial remains unchanged and no new live round was run.
 Latest offline increment adds Debug process-wide actual decrypt/Keychain, cached
 store and in-memory aggregate read start/completion counts to the privacy journal.
 The product-path closure test verifies all eight counts stay balanced and unchanged

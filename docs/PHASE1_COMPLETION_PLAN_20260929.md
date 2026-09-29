@@ -283,9 +283,31 @@ zero matches. Logs use `/private/tmp/keyrecord-cached-read-` with
 `boundary-test.log`, `final-debug-build.log`, `final-release-build.log` and
 `release-audit.log`.
 
-Remaining work includes plaintext processing after asynchronous reads, aggregate
-serialization after staging, publication coverage and connecting observations to
+Remaining observation work includes plaintext processing, publication coverage and connecting observations to
 the hosted lifecycle controller with its independent lock witness. These counts
 must not yet populate an exhaustive hosted protected-read claim. The installed
 signed App remains `293f25a45`; no new host, permission, lock/sleep or performance
 round was run.
+
+## Preserve authorization through aggregate serialization and staging
+
+The source audit found that ProductFlush took an authorized reducer copy, then
+serialized it after releasing the protection lock. Scheduler staging also adopted
+the scheduler's current generation rather than the generation that produced that
+copy. A closure/reopen between those steps could therefore admit an old batch to
+the new session. Serialization now executes inside the existing reducer/key gate;
+the batch carries that generation into staging, which rejects a mismatched current
+session. Failed serialization or generation invalidation leaves the reducer dirty
+for retry. Preference decode/encode after awaits now also uses the original key
+generation's existing protection scope. No new gate or persisted state was added.
+
+Regression tests verify rejection of a pre-closure batch after scheduler reopen,
+zero resulting writes, acceptance of a fresh batch, and dirty-state retention after
+serialization failure or generation revocation. All 176 Store, 20 interval
+evaluation and 5 read-observer tests pass, as do 11 product reduction and 57
+product recovery/quit tests. Debug test build and unsigned native arm64 Release
+build pass; the latest Release static network audit has zero matches. Logs:
+`/private/tmp/keyrecord-staging-generation-{store-tests,reduction,recovery,build,release,release-audit}.log`.
+This closes the identified staging race in code; it does not extend live evidence
+or declare complete protected-read observation. The next work remains the full
+observer and publication boundary, followed by a separately coordinated host run.

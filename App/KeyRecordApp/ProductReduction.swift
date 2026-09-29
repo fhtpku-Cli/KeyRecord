@@ -110,13 +110,19 @@ final class ProductReduction: @unchecked Sendable {
     }
 
     func take() throws -> AggregationReducer? {
+        try take { aggregate, _ in aggregate }
+    }
+
+    func take<T>(_ transform: (AggregationReducer, CaptureGeneration) throws -> T) throws -> T? {
         try mutex.withLock {
             let generation = try gate.begin()
-            return try gate.use(generation) {
-                guard changed else { return nil }
-                changed = false
-                return aggregate
+            guard changed else { return nil }
+            let result = try gate.use(generation) {
+                guard let aggregate else { return nil as T? }
+                return try transform(aggregate, generation)
             }
+            changed = false
+            return result
         }
     }
 

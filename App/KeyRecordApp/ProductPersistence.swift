@@ -145,7 +145,7 @@ actor ProductPersistence: LifecycleKeyProviding, PreferencesPersisting {
             #if DEBUG
             Self.lastLoadFailure = nil
             #endif
-            return try JSONDecoder().decode(Preferences.self, from: data)
+            return try gate.use(generation) { try JSONDecoder().decode(Preferences.self, from: data) }
         } catch {
             #if DEBUG
             Self.lastLoadFailure = Self.classify(error)
@@ -162,13 +162,17 @@ actor ProductPersistence: LifecycleKeyProviding, PreferencesPersisting {
         let generation = try gate.begin()
         // Privacy closure closes the protected store session; reopen it as `load()` does.
         _ = try await gate.run(generation) { try await self.store.bootstrap() }
-        var objects = [FlushObject(identity: CycleResetObjects.preferences,
-                                   payload: try JSONEncoder().encode(preferences))]
+        var objects = try gate.use(generation) {
+            [FlushObject(identity: CycleResetObjects.preferences,
+                         payload: try JSONEncoder().encode(preferences))]
+        }
         let entries = try await gate.run(generation) { try await self.store.entries() }
         if !entries.contains(where: { $0.identity == CycleResetObjects.currentCycle }) {
-            let cycle = CycleRecord(cycleID: preferences.currentCycleID, index: try Count(1),
-                                    createdDay: ProductClock().day, closedDay: nil, isCurrent: true)
-            objects.append(FlushObject(identity: CycleResetObjects.currentCycle, payload: try JSONEncoder().encode(cycle)))
+            try gate.use(generation) {
+                let cycle = CycleRecord(cycleID: preferences.currentCycleID, index: try Count(1),
+                                        createdDay: ProductClock().day, closedDay: nil, isCurrent: true)
+                objects.append(FlushObject(identity: CycleResetObjects.currentCycle, payload: try JSONEncoder().encode(cycle)))
+            }
         }
         try await writer.write(objects, generation: generation)
     }

@@ -5,6 +5,29 @@ import KeyRecordCore
 import KeyRecordStore
 
 final class ProductReductionTests: XCTestCase {
+    func testFailedOrRevokedSerializationPreservesDirtyAggregateForRetry() throws {
+        let reduction = makeReduction()
+        reduction.open(AggregationReducer(cycleID: CycleID(rawValue: "serialization")),
+                       inputs: inputs(bundleID: "test.app"), generation: CaptureGeneration(rawValue: 12))
+        XCTAssertEqual(reduction.deliver(try bareEvent(generation: 12)), .accepted)
+        XCTAssertThrowsError(try reduction.take { _, _ -> [FlushObject] in
+            throw LifecycleFlushError.failed
+        })
+        XCTAssertTrue(reduction.hasUnflushedChanges())
+        XCTAssertThrowsError(try reduction.take { aggregate, _ in
+            reduction.gate.update(.locked)
+            return try AggregatePersistence.objects(aggregate)
+        })
+        XCTAssertTrue(reduction.hasUnflushedChanges())
+        reduction.gate.update(.unlocked)
+        let batch = try XCTUnwrap(reduction.take { aggregate, generation in
+            (objects: try AggregatePersistence.objects(aggregate), generation: generation)
+        })
+        XCTAssertEqual(batch.generation, try reduction.gate.begin())
+        XCTAssertEqual(batch.objects.count, 2)
+        XCTAssertFalse(reduction.hasUnflushedChanges())
+    }
+
     #if DEBUG
     func testStagingReadsAreObservedAndClosedOrEmptyStateDoesNotReadAggregates() throws {
         let reduction = makeReduction()

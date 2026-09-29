@@ -71,9 +71,12 @@ extension AnalysisFlowTests {
         let full = try AnalysisEngine.analyze(data)
         let empty = try AnalysisEngine.analyze(AnalysisInput(cycleID: data.cycleID,
             shortcuts: [], bareKeys: [], activeDays: []))
+        let shortcutsOnly = try AnalysisEngine.analyze(AnalysisInput(cycleID: data.cycleID,
+            shortcuts: data.shortcuts, bareKeys: [], activeDays: data.activeDays))
         let root = ProcessInfo.processInfo.environment["KEYRECORD_QA_OUTPUT_DIR"]
         for locale in ["en", "zh-Hans"] {
-            for (name, snapshot) in [("populated", Optional(full)), ("empty", Optional(empty)), ("hidden", nil)] {
+            for (name, snapshot) in [("populated", Optional(full)), ("shortcuts-only", Optional(shortcutsOnly)),
+                                     ("empty", Optional(empty)), ("hidden", nil)] {
                 let content = AnalysisDashboardView(snapshot: snapshot,
                     layout: LayoutPreference(), text: NativeText(locale: locale), saveLayout: { _ in })
                     .frame(width: 1000, height: 700)

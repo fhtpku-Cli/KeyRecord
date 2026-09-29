@@ -3,6 +3,15 @@
 ## Current Apple Silicon MVP status — 2026-09-29
 
 Latest autonomous checkpoint: [MVP closeout](MVP_CLOSEOUT_20260929.md).
+Latest owner-assisted paused readback now has an expanded screenshot: two ordinary
+Command+A uses and TextEdit attribution are visible, but exact Command side is
+unknown. Normal Quit completed with no new callbacks, counts or writes; exact PID
+21499 is gone. An offline queue-to-product-to-analysis test preserves known sides,
+so no speculative capture change was made. The original input round's eight
+session starts do not locate a reset between presses; the cause remains unresolved.
+The screenshot's contradictory bare-key empty message is corrected in both
+languages. See [current UI evidence](CURRENT_UI_TRIAL_20260930.md#manual-provenance-readback-completed).
+This adds bounded rendering evidence, not accessibility or Release qualification.
 Latest offline repair also binds each keychain deletion plan to its inventory's
 original generation, preventing lock/reopen from reauthorizing stale work. Overlapping
 adapter operations are rejected and failed finish releases the plan for a fresh

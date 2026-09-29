@@ -1,10 +1,11 @@
 # Current-candidate UI and attribution check
 
-Status: owner-approved round completed with partial evidence on 2026-09-30.
-Current-candidate input, durable-save counters, paused admission and normal exit
-were observed. Native row, attribution, rendering and accessibility inspection
-remain unverified because the Computer Use connection failed. The preparation
-and intended procedure below are retained; this is not a full UI PASS.
+Status: owner-approved input and paused readbacks completed on 2026-09-30.
+The latest owner-supplied screenshot confirms two ordinary Command+A uses,
+TextEdit attribution and an expanded exact variant with Command side unknown.
+Left-side reconstruction is not qualified. Native accessibility and the failed
+Computer Use observer remain unverified. Earlier preparations and checkpoint
+limits below are retained as historical evidence; this is not a full UI PASS.
 
 ## Observed result
 
@@ -227,7 +228,68 @@ diagnostic outputs. It does not access the daily store or intentionally collect
 new input. It cannot complete the independent lock-authority or full hosted
 lifecycle requirements. Preparation alone authorizes no launch.
 
-## Prepared manual provenance readback (not run)
+## Manual provenance readback (completed)
+
+The owner confirmed readiness and requested explicit instructions. The prepared
+controller launched the unchanged installed `346dc26d8` trial as PID `21499`.
+The first journal record confirmed Paused, no live capture and closed queue before
+the owner was asked to open the aggregate tab and expand the modifier detail.
+
+The owner supplied a screenshot of the expanded view. It visibly reports:
+
+- `Command (side unknown) + ANSI position A (code 0)`; two total, two ordinary,
+  zero suspected injection; weighted frequency 2.00.
+- Expanded exact detail: `Command (side unknown) + Key 0`, with the same counts.
+- `文本编辑 (com.apple.TextEdit)`, with two total and two ordinary uses.
+- No bare-key rows. Its empty message incorrectly said no shortcuts or bare keys
+  were recorded, despite the shortcut rows above.
+
+Screenshot supplied in this chat:
+`/var/folders/3h/fv0ztbr93q7_115hvwrhbrnh0000gn/T/codex-clipboard-46a81a41-c4e7-41d7-b235-e176414a3702.png`.
+This is an owner-supplied visible rendering, not an accessibility-tree observation.
+It resolves the previously unconfirmed expanded detail as **unknown**, not left.
+
+After the screenshot, a private quit request ended the trial early. Controller
+session `71447` exited zero with `normalQuitRequested=true` and
+`exited=true quitRequested=true failed=false`; an exact PID check found no `21499`.
+The final summary has two restored shortcuts, zero bare keys, no input callbacks,
+accepted handoffs, aggregate delta, writes or read failures. All five journal
+records have closed admission. Quit reports prior Paused, final Stopped and no
+pending changes. Evidence: `ui-provenance-summary.json`,
+`ui-provenance-privacy.jsonl` and `ui-provenance-quit.request` in the same private
+root. These output names are consumed; do not automatically relaunch.
+
+### Offline follow-up
+
+A new synthetic product test drives the actual capture queue delivery into product
+reduction and analysis variants. With family-only flags and two complete left
+Command+A sequences, the first side remains unknown until an observed release,
+then the second is left. With a release observed before both, both remain left.
+Identical safe policy installation between every event preserves this result.
+The test passes without changing modifier reconstruction or aggregation code.
+Display grouping preserves exact variants. The original input summary records
+eight session starts, but it has no per-event generation/side trace to establish
+whether a reset occurred between those particular presses. The real observation's
+cause remains unresolved; neither historical data nor unknown states are relabeled.
+
+The confirmed empty-state copy defect is corrected with separate shortcut and
+bare-key messages in both catalogs. The existing localization audit initially
+misclassified the performance fixture bundle ID as a translation key; its exact
+nonlocalized-identifier list now includes that ID. Display keys remain audited.
+No corrected product binary was installed and no further capture was started.
+
+Validation: 23 selected hostless product/analysis/control tests pass; the existing
+synthetic dashboard renderer test skips after producing a blank image, so it is
+not visual validation of the corrected copy. The added shortcuts-only render case
+remains unobserved in that skipped run. All 17 selected capture/queue/recovery
+tests and four localization audit tests pass. Debug build-for-testing and unsigned
+native arm64 Release build succeed. Logs are under
+`/private/tmp/keyrecord-modifier-provenance-` with suffixes `pipeline.log`,
+`app-tests.log`, `capture.log`, `localization-verified.log` (initial failure),
+`localization-green.log`, `final-build.log` and `release.log`. The earlier
+`localization.log` selected zero tests and is not counted as a pass.
+
+### Retained preparation
 
 The remaining owner-observable detail is the exact modifier variant under the
 shortcut's disclosure group. The current view source labels this control
@@ -260,4 +322,5 @@ permission, authentication, restart or Keychain prompt. Request normal Quit as
 soon as the report arrives and verify final counters and exact process exit.
 This manual round avoids another failing native-observer attempt; it cannot
 establish accessibility behavior, an independent OS lock witness or full Release
-qualification. No launch has occurred and no result is recorded for this round.
+qualification. Those were the preparation limits; the completed result is recorded
+above and does not authorize another launch.

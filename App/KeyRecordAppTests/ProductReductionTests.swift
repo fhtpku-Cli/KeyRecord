@@ -5,6 +5,43 @@ import KeyRecordCore
 import KeyRecordStore
 
 final class ProductReductionTests: XCTestCase {
+    func testReleasedCommandSequencePreservesSidesThroughQueueReductionAndDisplay() throws {
+        for releasedAtStart in [false, true] {
+            let queue = CaptureQueue()
+            let policy = inputs(bundleID: "com.apple.TextEdit")
+            queue.install(policy, for: queue.generation)
+            let reduction = makeReduction()
+            let cycle = CycleID(rawValue: "modifier-provenance")
+            reduction.open(AggregationReducer(cycleID: cycle), inputs: policy,
+                           generation: queue.generation)
+            var sequence: [(Int, KeyEventKind, ModifierSideState)] = []
+            if releasedAtStart { sequence.append((55, .flagsChanged, .none)) }
+            for _ in 0..<2 {
+                sequence += [(55, .flagsChanged, .activeSideUnknown),
+                             (0, .keyDown, .activeSideUnknown),
+                             (0, .keyUp, .activeSideUnknown), (55, .flagsChanged, .none)]
+            }
+            for (code, kind, command) in sequence {
+                queue.install(policy, for: queue.generation)
+                let event = ObservedKeyEvent(keyCode: try KeyCode(code), kind: kind,
+                    isAutoRepeat: false, modifiers: ModifierSet(command: command,
+                        option: .none, control: .none, shift: .none, fn: .none),
+                    source: .ordinaryObserved, generation: queue.generation)
+                XCTAssertEqual(queue.handoff(event), .accepted)
+                XCTAssertTrue(queue.deliverOne { reduction.deliver($0) })
+            }
+            let snapshot = try XCTUnwrap(reduction.analysis(preferences: Preferences(currentCycleID: cycle)))
+            let variants = AnalysisStatisticGroup.make(snapshot).flatMap(\.variants)
+            XCTAssertEqual(variants.reduce(0) { $0 + $1.sourceCounts.total.value }, 2)
+            XCTAssertEqual(variants.filter { $0.chord.modifiers.command == .left }
+                .reduce(0) { $0 + $1.sourceCounts.total.value }, releasedAtStart ? 2 : 1)
+            XCTAssertEqual(variants.filter { $0.chord.modifiers.command == .activeSideUnknown }
+                .reduce(0) { $0 + $1.sourceCounts.total.value }, releasedAtStart ? 0 : 1)
+            XCTAssertEqual(try XCTUnwrap(reduction.snapshot()).bareKeyTotal, 0)
+            XCTAssertEqual(total(in: try XCTUnwrap(reduction.snapshot()), bundleID: "com.apple.TextEdit"), 2)
+        }
+    }
+
     func testFailedOrRevokedSerializationPreservesDirtyAggregateForRetry() throws {
         let reduction = makeReduction()
         reduction.open(AggregationReducer(cycleID: CycleID(rawValue: "serialization")),

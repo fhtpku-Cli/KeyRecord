@@ -99,6 +99,8 @@
 "phase2.applications" = "Application distribution · shortcuts only";
 "phase2.bare" = "Bare-key intensity";
 "phase2.bareNote" = "Relative counts by key code, not physical keyboard positions. Bare keys have no application attribution, sequence, or exact timestamp.";
+"phase2.shortcutsEmpty" = "No shortcuts recorded in this cycle yet.";
+"phase2.bareEmpty" = "No bare keys recorded in this cycle yet.";
 "phase2.sources" = "%lld total · %lld ordinary · %lld suspected injection";
 "phase2.top5" = "Top 5 recommendations";
 "phase2.all" = "All candidates";

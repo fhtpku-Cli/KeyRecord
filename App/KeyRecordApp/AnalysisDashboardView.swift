@@ -61,7 +61,7 @@ struct AnalysisDashboardView: View {
         VStack(alignment: .leading, spacing: NativeLayout.group) {
             GroupBox {
                 VStack(alignment: .leading, spacing: NativeLayout.compact) {
-                    if snapshot.shortcutStatistics.isEmpty { Text(text("aggregate.emptyState")) }
+                    if snapshot.shortcutStatistics.isEmpty { Text(text("phase2.shortcutsEmpty")) }
                     ForEach(AnalysisStatisticGroup.make(snapshot)) { group in
                         VStack(alignment: .leading, spacing: NativeLayout.compact) {
                             Text(AnalysisLabels.chord(group.representative, text: text)).font(.headline)
@@ -99,7 +99,7 @@ struct AnalysisDashboardView: View {
             GroupBox {
                 VStack(alignment: .leading, spacing: NativeLayout.compact) {
                     Text(text("phase2.bareNote")).font(.caption)
-                    if snapshot.bareKeys.isEmpty { Text(text("aggregate.emptyState")) }
+                    if snapshot.bareKeys.isEmpty { Text(text("phase2.bareEmpty")) }
                     LazyVGrid(columns: [GridItem(.adaptive(minimum: NativeLayout.page * 8))], alignment: .leading, spacing: NativeLayout.group) {
                         ForEach(Array(snapshot.bareKeys.enumerated()), id: \.offset) { _, row in
                             VStack(alignment: .leading, spacing: NativeLayout.compact) {

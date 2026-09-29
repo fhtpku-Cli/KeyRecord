@@ -3,6 +3,80 @@ import KeyRecordCore
 import KeyRecordMeasurement
 
 final class ResourceEvaluationTests: XCTestCase {
+    func testStableRevocationCountsAndUnobservedClosureStayDistinct() throws {
+        let activity = ProtectedReadActivity()
+        let atRevocation = activity.snapshot
+        for observed in [true, false] {
+            let marks = try recorderMarks { recorder in
+                recorder.configureProtectedReadActivity { activity.snapshot }
+                recorder.configureRevocationReadActivity { (observed, observed ? atRevocation : nil) }
+                recorder.beginClosedInterval(cause: "protectedStateClosed")
+                recorder.observeClosedInterval()
+                recorder.endClosedInterval(cause: "protectedStoreReauthorized")
+            }
+            let report = PrivacyIntervalEvaluator.evaluateClosed(marks, journalWriteFailed: false)
+            XCTAssertEqual(report.reason, observed ? nil : "protected-read-revocation-missing")
+            XCTAssertFalse(report.provesEveryProtectedRead)
+        }
+    }
+
+    func testReadsBetweenRevocationAndDelayedBeginAreObserved() throws {
+        let cases: [(ProtectedReadActivity.Kind, String)] = [
+            (.decryption, "closed-interval-decryption-or-keychain-read"),
+            (.keychain, "closed-interval-decryption-or-keychain-read"),
+            (.storeCache, "closed-interval-cached-or-aggregate-read"),
+            (.aggregate, "closed-interval-cached-or-aggregate-read"),
+            (.plaintextProcessing, "closed-interval-plaintext-processing")
+        ]
+        for (kind, reason) in cases {
+            let activity = ProtectedReadActivity()
+            let atRevocation = activity.snapshot
+            let marks = try recorderMarks { recorder in
+                recorder.configureProtectedReadActivity { activity.snapshot }
+                recorder.configureRevocationReadActivity { (true, atRevocation) }
+                activity.observe(kind) {}
+                recorder.beginClosedInterval(cause: "protectedStateClosed")
+                recorder.observeClosedInterval()
+                recorder.endClosedInterval(cause: "protectedStoreReauthorized")
+            }
+            let report = PrivacyIntervalEvaluator.evaluateClosed(marks, journalWriteFailed: false)
+            XCTAssertEqual(report.reason, reason)
+            XCTAssertFalse(report.provesEveryProtectedRead)
+            XCTAssertFalse(report.provesContinuousClosedInterval)
+        }
+    }
+
+    func testRevocationObservationRejectsMissingCoverageAndRetainsInFlightWork() throws {
+        let activity = ProtectedReadActivity()
+        let atRevocation = activity.observe(.plaintextProcessing) { activity.snapshot }
+        let marks = try recorderMarks { recorder in
+            recorder.configureProtectedReadActivity { activity.snapshot }
+            recorder.configureRevocationReadActivity { (true, atRevocation) }
+            recorder.beginClosedInterval(cause: "protectedStateClosed")
+            recorder.observeClosedInterval()
+            recorder.endClosedInterval(cause: "protectedStoreReauthorized")
+        }
+        XCTAssertEqual(PrivacyIntervalEvaluator.evaluateClosed(marks, journalWriteFailed: false).reason,
+                       "protected-read-in-flight")
+        let beginIndex = try XCTUnwrap(marks.firstIndex { $0.role == "begin" })
+        var missing = marks
+        missing[beginIndex].protectedReadRevocationObserved = false
+        XCTAssertEqual(PrivacyIntervalEvaluator.evaluateClosed(missing, journalWriteFailed: false).reason,
+                       "protected-read-revocation-missing")
+        missing[beginIndex].protectedReadRevocationObserved = true
+        missing[beginIndex].protectedReadActivityAtRevocation = nil
+        XCTAssertEqual(PrivacyIntervalEvaluator.evaluateClosed(missing, journalWriteFailed: false).reason,
+                       "protected-read-revocation-missing")
+        var partial = marks
+        partial[beginIndex].protectedReadActivityAtRevocation?.plaintextProcessingStarted = nil
+        XCTAssertEqual(PrivacyIntervalEvaluator.evaluateClosed(partial, journalWriteFailed: false).reason,
+                       "protected-read-coverage-missing")
+        var decreased = marks
+        decreased[beginIndex].protectedReadActivityAtRevocation?.decryptionStarted = 10
+        XCTAssertEqual(PrivacyIntervalEvaluator.evaluateClosed(decreased, journalWriteFailed: false).reason,
+                       "counter-decreased")
+    }
+
     func testPlaintextProcessingAndIncompleteCoverageCannotBeZeroReads() throws {
         let activity = ProtectedReadActivity()
         var marks = try recorderMarks { recorder in

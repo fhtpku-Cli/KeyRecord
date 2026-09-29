@@ -23,6 +23,10 @@ public final class KeyAvailabilityGate: KeyAvailabilityFencing, @unchecked Senda
     #if DEBUG
     private var diagnosticProtectedEntries: Int64 = 0
     private var diagnosticProtectedEntriesExhausted = false
+    private var revocationReadActivity: (observed: Bool, activity: ProtectedReadActivitySnapshot?) = (false, nil)
+    public var diagnosticRevocationReadActivity: (observed: Bool, activity: ProtectedReadActivitySnapshot?) {
+        mutex.withLock { revocationReadActivity }
+    }
     public var diagnosticProtectedEntryCount: Int64? {
         mutex.withLock { diagnosticProtectedEntriesExhausted ? nil : diagnosticProtectedEntries }
     }
@@ -46,6 +50,13 @@ public final class KeyAvailabilityGate: KeyAvailabilityFencing, @unchecked Senda
         #endif
         mutex.withLock {
             guard !exhausted, state != next else { return }
+            #if DEBUG
+            if state == .unlocked {
+                revocationReadActivity = (true, ProtectedReadActivity.process.snapshot)
+            } else if next == .unlocked {
+                revocationReadActivity = (false, nil)
+            }
+            #endif
             let (value, overflow) = generation.rawValue.addingReportingOverflow(1)
             exhausted = overflow
             state = overflow ? .unknown : next

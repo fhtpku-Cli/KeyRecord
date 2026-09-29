@@ -295,6 +295,8 @@ public struct PrivacyIntervalMark: Equatable, Sendable, Decodable {
     public var protectedAnalysisRejected: Int64
     public var protectedGateEntries: Int64?
     public var protectedReadActivity: PrivacyReadActivity?
+    public var protectedReadRevocationObserved: Bool?
+    public var protectedReadActivityAtRevocation: PrivacyReadActivity?
     public var snapshotPublicationCount: Int64
     public var analysisPublicationCount: Int64?
 
@@ -540,9 +542,20 @@ public enum PrivacyIntervalEvaluator {
     }
 
     private static func readActivityProblem(_ marks: [PrivacyIntervalMark]) -> (outcome: String, reason: String)? {
-        let reads = marks.compactMap(\.protectedReadActivity)
+        var reads = marks.compactMap(\.protectedReadActivity)
+        let begin = marks.first
+        let hasRevocationFields = begin?.protectedReadRevocationObserved != nil
+            || begin?.protectedReadActivityAtRevocation != nil
+        if hasRevocationFields && (begin?.protectedReadRevocationObserved != true
+                                  || begin?.protectedReadActivityAtRevocation == nil) {
+            return ("inconclusive", "protected-read-revocation-missing")
+        }
+        if hasRevocationFields && reads.isEmpty {
+            return ("inconclusive", "protected-read-activity-missing")
+        }
         guard !reads.isEmpty else { return nil }
         guard reads.count == marks.count else { return ("inconclusive", "protected-read-activity-missing") }
+        if let atRevocation = begin?.protectedReadActivityAtRevocation { reads.insert(atRevocation, at: 0) }
         let widths = Set(reads.map { $0.values.count })
         guard widths.count == 1, reads.allSatisfy(\.completeCoverage) else {
             return ("inconclusive", "protected-read-coverage-missing")

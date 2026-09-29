@@ -378,9 +378,37 @@ the static network audit has zero matches. Logs use
 `boundaries.log`, `app-tests.log`, `final-store.log`, `final-app-tests.log`,
 `final-app-build.log`, `final-release.log` and `final-release-audit.log`.
 
-Next, verify the observation's starting boundary against synchronous revocation:
-the current journal begins after queued product cleanup, which may omit work
-between key-gate closure and the first journal sample. This is a source-review
-concern to reproduce, not an observed live leak. Finish that boundary and the
-hosted observer/independent-witness connection before claiming complete host
-qualification. No signed trial, lock/sleep or performance round was launched.
+The starting-boundary concern identified here is addressed by the next increment.
+The hosted observer/independent-witness connection remains open. No signed trial,
+lock/sleep or performance round was launched.
+
+## Observe reads from synchronous revocation — 2026-09-30
+
+A failing-first product test closed the existing key gate while the main actor
+still showed Collecting, then deliberately encrypted synthetic bytes before the
+delayed journal begin. The original journal lacked a revocation-time observation,
+so that work could disappear into its initial counters. This is an offline
+diagnostic reproduction, not an observed live leak.
+
+Debug now snapshots the ten process-wide read/processing counters under the
+existing key-gate mutex immediately before changing an open gate to closed.
+Repeated closed-state updates retain that observation; reopening clears it.
+Normal generation renewal leaves no closed observation. The synchronous path
+performs no journal I/O or recorder callback, avoiding a reverse lock order with
+the journal's gate reads. The later begin includes the saved counts separately
+from its current counts; missing or overflowed revocation evidence is inconclusive.
+
+The evaluator includes the saved observation when checking increases, in-flight
+work, coverage and monotonicity. It detects all five instrumented operation kinds
+between revocation and delayed begin. Legacy journals keep their original limited
+meaning. Exhaustive protected-read, continuous closure and rendered-pixel claims
+remain false; these counters do not provide an independent OS lock witness.
+
+Validation: 47 focused package cases pass (6 protected-processing, 25 measurement,
+4 privacy serialization, 12 diagnostic counters), as do all 59 product recovery
+tests, including the initial three boundary regressions. Debug test build and unsigned native arm64 Release build
+pass. Release symbols/strings exclude the new observation and the existing static
+network audit reports zero matches. Logs use
+`/private/tmp/keyrecord-revocation-observation-` with `red-build.log`, `red.log`,
+`final-package.log`, `app-tests.log`, `final-app-build.log`, `final-app-tests.log`,
+`release.log` and `release-audit.log`. The installed signed trial is unchanged.

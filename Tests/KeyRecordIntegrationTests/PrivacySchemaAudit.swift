@@ -78,7 +78,8 @@ enum PrivacySchemaAudit {
                 "aggregateDelta", "handoffAccepted", "handoffClosed",
                 "normalizationOutput", "flushDurable", "flushInvalidated", "protectedSnapshotAttempts",
                 "protectedSnapshotRejected", "protectedAnalysisAttempts", "protectedAnalysisRejected",
-                "protectedGateEntries", "protectedReadActivity", "snapshotPublicationCount", "analysisPublicationCount", "snapshotReadFailureCount"],
+                "protectedGateEntries", "protectedReadActivity", "protectedReadRevocationObserved",
+                "protectedReadActivityAtRevocation", "snapshotPublicationCount", "analysisPublicationCount", "snapshotReadFailureCount"],
             "CapturePrivacyActionDetail": [
                 "invocation", "phaseBefore", "earlyReturn", "prepareOutcome", "prepareLockRead", "permissionStatus",
                 "lifecycleCommandRun", "abortRun", "readinessCalls", "readinessOutcome", "lifecycleFlushCalls",

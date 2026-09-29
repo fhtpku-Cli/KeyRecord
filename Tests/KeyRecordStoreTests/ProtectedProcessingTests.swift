@@ -19,6 +19,38 @@ private struct UnusedProcessingKeys: ObjectStoreKeySource {
 }
 
 final class ProtectedProcessingTests: XCTestCase {
+    func testRevocationRetainsFirstClosureAndRenewalDoesNotLeaveAClosure() throws {
+        let gate = KeyAvailabilityGate()
+        XCTAssertFalse(gate.diagnosticRevocationReadActivity.observed)
+        gate.update(.unlocked)
+        _ = try gate.renewOpenGeneration()
+        XCTAssertFalse(gate.diagnosticRevocationReadActivity.observed)
+        let before = ProtectedReadActivity.process.snapshot
+        gate.update(.locked)
+        XCTAssertTrue(gate.diagnosticRevocationReadActivity.observed)
+        XCTAssertEqual(gate.diagnosticRevocationReadActivity.activity, before)
+        ProtectedProcessing.observe {}
+        gate.update(.unknown)
+        XCTAssertEqual(gate.diagnosticRevocationReadActivity.activity, before)
+        gate.update(.unlocked)
+        XCTAssertFalse(gate.diagnosticRevocationReadActivity.observed)
+        XCTAssertNil(gate.diagnosticRevocationReadActivity.activity)
+        let next = ProtectedReadActivity.process.snapshot
+        gate.update(.unknown)
+        XCTAssertEqual(gate.diagnosticRevocationReadActivity.activity, next)
+        XCTAssertNotEqual(next, before)
+    }
+
+    func testRevocationKeepsProcessingAlreadyInFlight() throws {
+        let gate = KeyAvailabilityGate()
+        gate.update(.unlocked)
+        ProtectedProcessing.observe { gate.update(.locked) }
+        let atRevocation = try XCTUnwrap(gate.diagnosticRevocationReadActivity.activity)
+        let after = try XCTUnwrap(ProtectedReadActivity.process.snapshot)
+        XCTAssertEqual(atRevocation.plaintextProcessingStarted, after.plaintextProcessingStarted)
+        XCTAssertEqual(atRevocation.plaintextProcessingCompleted + 1, after.plaintextProcessingCompleted)
+    }
+
     func testSealingAndKeyDerivationAreObservedWithoutADecryption() throws {
         let before = try XCTUnwrap(ProtectedReadActivity.process.snapshot)
         let sealed = try LocatorCodec.seal(identity: CycleResetObjects.preferences, payload: Data([1]),

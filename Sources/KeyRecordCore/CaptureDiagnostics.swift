@@ -344,6 +344,8 @@ public struct CapturePrivacyIntervalMark: Encodable, Sendable {
     public var protectedAnalysisRejected: Int64
     public var protectedGateEntries: Int64?
     public var protectedReadActivity: ProtectedReadActivitySnapshot?
+    public var protectedReadRevocationObserved: Bool?
+    public var protectedReadActivityAtRevocation: ProtectedReadActivitySnapshot?
     public var snapshotPublicationCount: Int
     public var analysisPublicationCount: Int
     public var snapshotReadFailureCount: Int
@@ -402,6 +404,13 @@ public final class CaptureDiagnosticsRecorder: @unchecked Sendable {
     private let journalWriteLock = NSLock()
     private var protectedGateEntries: (@Sendable () -> Int64?)?
     private var protectedReadActivity: (@Sendable () -> ProtectedReadActivitySnapshot?)?
+    private var revocationReadActivity: (@Sendable () -> (observed: Bool, activity: ProtectedReadActivitySnapshot?))?
+
+    public func configureRevocationReadActivity(
+        _ read: @escaping @Sendable () -> (observed: Bool, activity: ProtectedReadActivitySnapshot?)
+    ) {
+        lock.withLock { revocationReadActivity = read }
+    }
 
     public func configureProtectedReadActivity(
         _ read: @escaping @Sendable () -> ProtectedReadActivitySnapshot?
@@ -620,6 +629,8 @@ public final class CaptureDiagnosticsRecorder: @unchecked Sendable {
         // than the previous line's.
         journalWriteLock.lock()
         defer { journalWriteLock.unlock() }
+        let revocationRead = lock.withLock { role == "begin" ? revocationReadActivity : nil }
+        let revocation = revocationRead?()
         let state = snapshot
         let summary = runSummary
         let reserved = lock.withLock { () -> (path: String, seq: Int, trigger: String?)? in
@@ -650,6 +661,8 @@ public final class CaptureDiagnosticsRecorder: @unchecked Sendable {
             protectedAnalysisRejected: summary.protectedAnalysisRejected,
             protectedGateEntries: summary.protectedGateEntries,
             protectedReadActivity: summary.protectedReadActivity,
+            protectedReadRevocationObserved: revocation?.observed,
+            protectedReadActivityAtRevocation: revocation?.activity,
             snapshotPublicationCount: summary.snapshotPublicationCount,
             analysisPublicationCount: summary.analysisPublicationCount,
             snapshotReadFailureCount: summary.snapshotReadFailureCount)

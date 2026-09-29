@@ -630,6 +630,8 @@ final class ProductRecoveryQuitTests: XCTestCase {
         let end = try XCTUnwrap(marks.first { $0["role"] as? String == "end" && ($0["seq"] as? Int ?? 0) > beginSeq })
         let endSeq = try XCTUnwrap(end["seq"] as? Int)
         XCTAssertEqual(begin["privacyTrigger"] as? String, "screenLockedNotification")
+        XCTAssertEqual(begin["protectedReadRevocationObserved"] as? Bool, true)
+        XCTAssertNotNil(begin["protectedReadActivityAtRevocation"])
         XCTAssertEqual(begin["captureSessionLive"] as? Bool, false)
         XCTAssertEqual(end["boundaryCause"] as? String, "protectedStoreReauthorized",
                        "the interval ends before explicit unlocked recovery reads the store")
@@ -658,6 +660,30 @@ final class ProductRecoveryQuitTests: XCTestCase {
         XCTAssertEqual(product.aggregateDelta, Int64(end["aggregateDelta"] as? Int ?? -1) + 2,
                        "input after reopening is outside the closed interval")
         XCTAssertEqual(try product.actionEnds("start").last?["phaseAfter"] as? String, "collecting")
+    }
+
+    func testRevocationObservationPrecedesDelayedMainActorClosure() async throws {
+        let product = try await collecting()
+        try await product.press(1)
+        try await product.waitDurable()
+        let composition = product.composition!
+        let before = try XCTUnwrap(composition.diagnostics.runSummary.protectedReadActivity)
+
+        composition.gate.update(.locked)
+        XCTAssertEqual(composition.lifecycle.phase, .collecting)
+        // Deliberately encrypt synthetic bytes in the gap before cleanup.
+        // The observer must retain this evidence even though the delayed begin is quiet.
+        _ = try LocatorCodec.seal(identity: CycleResetObjects.preferences, payload: Data([1]),
+                                  keyVersion: 1, material: Data(repeating: 12, count: 32))
+        composition.gate.update(.unknown)
+        composition.diagnostics.beginClosedInterval(cause: "protectedStateClosed")
+        let begin = try XCTUnwrap(product.marks().last { $0["role"] as? String == "begin" })
+        XCTAssertEqual(begin["protectedReadRevocationObserved"] as? Bool, true)
+        let atRevocation = try XCTUnwrap(begin["protectedReadActivityAtRevocation"] as? [String: Int])
+        let atBegin = try XCTUnwrap(begin["protectedReadActivity"] as? [String: Int])
+        XCTAssertEqual(atRevocation["plaintextProcessingStarted"], Int(before.plaintextProcessingStarted))
+        XCTAssertGreaterThan(try XCTUnwrap(atBegin["plaintextProcessingStarted"]),
+                             try XCTUnwrap(atRevocation["plaintextProcessingStarted"]))
     }
 
     func testKeyRevocationHidesCachedPresentationBeforeLifecycleCatchesUp() async throws {

@@ -443,3 +443,7 @@ These observations are sampled state, not continuous closure or an independent
 OS witness. No hosted lifecycle PASS or collecting Release is claimed. The next
 owner-assisted check will inspect the current candidate's actual native aggregate
 rows and status; the completed performance and sleep rounds are not repeated.
+
+The signed `346dc26d8` candidate and a bounded controller are now prepared for the
+[current UI/attribution round](CURRENT_UI_TRIAL_20260930.md). No App installation
+or launch is included in that preparation; wait for owner readiness.

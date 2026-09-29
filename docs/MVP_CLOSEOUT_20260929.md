@@ -1,19 +1,22 @@
 # Apple Silicon MVP closeout checkpoint — 2026-09-29
 
-Performance checkpoint: the first short typing window completed replay/save and
-normal Quit, but the controller marked it invalid. A synthetic fixture reproduced
-an architecture query made too late, after exit. The controller repair builds
-and passes its synthetic self-check; original evidence remains invalid and idle
-has not run. See [the current round](PERFORMANCE_SHORT_ROUND_20260929.md).
+Performance checkpoint: replacement typing and idle on signed `a604ad535` with
+controller `1cf51a056` both completed and exited normally. Host evaluation is
+within-budget: CPU 0.0983% typing / 0.0807% idle, highest footprint mean/peak
+33.93/34.06 MB. Typing saved 2,550 key downs; all 145 writes succeeded durably.
+No process remains. The short native ARM measurement is complete; productPass
+remains false because this is candidate-specific Debug fixed replay, not full
+MVP/Release qualification. The original invalid window is retained separately.
+See [the current round](PERFORMANCE_SHORT_ROUND_20260929.md).
 
 Performance protocol update: formal acceptance now uses one typing and one idle
 window, each 30 seconds warmup plus 120 seconds measurement. The previous
 six-window/hour-long default is superseded at the owner's request; thresholds,
 sample validity, durability and privacy checks remain. Targeted reruns only.
 See [the current protocol](PHASE1_ACCEPTANCE.md#performance-plan); historical
-long-window evidence below retains its original scope. No new live run occurred.
+long-window evidence below retains its original scope.
 
-Latest result: the approved [second sleep/wake round](SLEEP_WAKE_SECOND_ROUND_20260929.md)
+Earlier result: the approved [second sleep/wake round](SLEEP_WAKE_SECOND_ROUND_20260929.md)
 on signed `cf08a07c` observed 32.028 seconds suspended, unchanged sampled closed
 counters through wake, explicit Start restoring Collecting and new post-recovery
 input/save. Normal early Quit at 223.431 seconds left no process. Final totals

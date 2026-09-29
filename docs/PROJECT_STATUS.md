@@ -8,19 +8,21 @@ idle once each, 30 seconds warmup plus 120 seconds measurement per window,
 about five minutes plus startup/exit. Targeted reruns replace automatic repeats;
 budgets and privacy/integrity checks are unchanged. This changes the formal
 default, not merely an exploratory precheck. See [the protocol](PHASE1_ACCEPTANCE.md#performance-plan).
-The first live typing measurement completed replay/save and normal Quit, but
-the controller reported invalid. Idle has not run. An AppKit fixture reproduced
-the controller's architecture query returning unknown when first read after
-exit; the repaired controller captures it while alive and reports failed checks.
-Build and synthetic self-check pass. The original invalid record is preserved;
-replacement typing and idle still require owner readiness.
+The approved replacement typing and idle windows now complete on signed
+`a604ad535` with controller `1cf51a056`. Both report measured, completed replay,
+normal exit and no failed checks. Host evaluation is within-budget: typing CPU
+0.0983%, idle CPU 0.0807%, highest footprint mean/peak 33.93/34.06 MB. Typing
+saved 2,550 key downs in 145 successful durable writes; idle accepted zero events.
+No product process remains. This closes the agreed short native ARM measurement,
+not full MVP/Release or real event-tap overhead qualification (productPass=false).
+The first invalid window and its reproduced post-exit architecture query bug
+remain separately recorded; the repaired controller captures architecture while alive.
 The [dedicated performance package preparation](PERFORMANCE_SHORT_ROUND_20260929.md)
 compiled successfully on `a604ad535`. Its initial missing-profile blocker was
 resolved by one owner-approved Xcode attempt (33.3 seconds, exit 0). The signed
 Performance Trial is installed separately; signature/profile/isolation checks
-passed before launch. The owner enabled Input Monitoring and the first window
-saved 2,550 key downs. Observed CPU was 0.0873%, physical footprint mean/peak
-33.87/33.90 MB; these values do not override the invalid controller outcome.
+passed before launch. The owner enabled Input Monitoring and confirmed Collecting
+separately for the completed replacement windows. See the linked round record.
 The completed [second sleep/wake round](SLEEP_WAKE_SECOND_ROUND_20260929.md) on
 signed `cf08a07c` observed 32.028 seconds suspended, sampled closure through wake
 with unchanged counters, explicit Start back to Collecting, new post-recovery

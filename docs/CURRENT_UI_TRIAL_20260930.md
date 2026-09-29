@@ -167,10 +167,11 @@ Binding that exact App again returned `Sky Computer Use native pipe closed befor
 response`, even after the owner had opened the aggregate page. No native AX tree
 or screenshot was returned. The owner was asked to read the shortcut count,
 TextEdit attribution and modifier-source detail directly, and replied `2次，是的`.
-This is a report of two occurrences; the application/provenance scope of the
-affirmation remains ambiguous. A follow-up asked whether TextEdit was seen and
-whether left-Command detail was checked, without reopening the App. Do not infer
-exact modifier provenance or full UI/accessibility acceptance from that reply.
+The owner subsequently confirmed seeing TextEdit (`是的看到了`) after a follow-up
+without reopening the App. This supports an owner-observed count of two and visible
+TextEdit attribution. The exact left/right Command source detail was not explicitly
+confirmed. Do not infer exact modifier provenance or full UI/accessibility
+acceptance from those replies.
 
 The controller requested normal Quit at its configured deadline and returned
 `exited=true quitRequested=true failed=false` with exit code zero. An exact process

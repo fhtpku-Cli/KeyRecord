@@ -26,8 +26,9 @@ The separately approved/readied paused UI readback completed on the same candida
 two shortcuts restored, zero new callbacks/handoffs/aggregate delta/writes or read
 failures, all five journal records closed, and normal Quit with exact PID gone.
 The owner opened the aggregate tab, but native observation again disconnected.
-The reply `2次，是的` reports two occurrences; TextEdit and modifier-provenance scope
-await clarification. This is bounded readback evidence, not full UI/accessibility
+The owner reported two occurrences and subsequently explicitly confirmed seeing
+TextEdit. Exact left/right modifier provenance remains unconfirmed. This is bounded
+readback and owner-observed attribution evidence, not full UI/accessibility
 acceptance or a repaired helper. Readback output names are consumed; no auto-relaunch.
 The 2026-09-30 increment retains Debug read/processing counts at synchronous
 key revocation, before queued cleanup writes the journal. A failing-first product

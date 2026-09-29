@@ -458,8 +458,9 @@ The separately approved/readied paused readback of the same candidate completed
 without repeated input: two shortcut totals restored, zero callbacks/handoffs/new
 aggregate delta/writes/read failures, closed capture in all five journal records,
 then normal Quit and exact PID gone. The owner opened the aggregate tab; native
-observation still disconnected. The owner replied `2次，是的`; the exact TextEdit and
-modifier-provenance scope is awaiting clarification. No complete rendering or AX
-PASS is claimed. Pure regular/accessory controls worked, while a windowless
+observation still disconnected. The owner reported two occurrences and subsequently
+confirmed seeing TextEdit; exact left/right modifier provenance remains unconfirmed.
+No complete rendering or AX PASS is claimed. Pure regular/accessory controls worked,
+while a windowless
 control timed out without the exact crash; these do not qualify the product UI.
 See the current UI trial record for the consumed output paths and full result.

@@ -155,7 +155,40 @@ hosted Keychain lifecycle, independent system-lock authority and a qualified
 collecting Release remain open. Existing performance and sleep observations are
 retained without rerunning them.
 
-## Prepared paused UI readback (not launched)
+## Completed paused UI readback
+
+The owner explicitly approved this round and confirmed readiness. A fresh
+`--check` passed, then the controller launched the unchanged signed candidate as
+PID `3080`. The first journal record independently showed Paused,
+`expectedCollecting=false`, no live capture, closed queue, open key gate and a
+published aggregate. The owner confirmed opening Settings and the aggregate tab.
+
+Binding that exact App again returned `Sky Computer Use native pipe closed before
+response`, even after the owner had opened the aggregate page. No native AX tree
+or screenshot was returned. The owner was asked to read the shortcut count,
+TextEdit attribution and modifier-source detail directly, and replied `2次，是的`.
+This is a report of two occurrences; the application/provenance scope of the
+affirmation remains ambiguous. A follow-up asked whether TextEdit was seen and
+whether left-Command detail was checked, without reopening the App. Do not infer
+exact modifier provenance or full UI/accessibility acceptance from that reply.
+
+The controller requested normal Quit at its configured deadline and returned
+`exited=true quitRequested=true failed=false` with exit code zero. An exact process
+check confirmed PID `3080` was gone. All five journal records had no live capture
+or open queue. Final summary: zero key-down/up/modifier callbacks, zero accepted
+handoffs, zero aggregate delta, zero issued writes and zero snapshot-read failures;
+published totals were two shortcuts and zero bare keys. It recorded one aggregate
+publication and four analysis-model publications, not four observed screen paints.
+The final Quit action reports prior phase Paused, final Stopped, no unsaved reducer
+or scheduler data and no lifecycle flush required.
+
+This provides current-candidate paused persistence/readback evidence without new
+input. Native rendered row/provenance and accessibility verification remain
+limited as above. Existing trial files remain intact; the readback output names
+are now consumed, and this controller must not automatically relaunch the round.
+The controller's unexpected-collection watchdog was not exercised by this run.
+
+### Retained preparation and procedure
 
 To avoid repeating physical input, a separate one-use controller can reopen the
 unchanged installed candidate against this round's existing isolated store and
@@ -175,7 +208,7 @@ are `ui-readback-privacy.jsonl` and `ui-readback-summary.json`; the separate
 overwritten. Any observed live capture, open queue or Collecting phase in the new
 journal triggers termination and records failure. This watchdog is reactive; it
 is not a replacement for the product's persisted stopped intent. The launch and
-watchdog branches are prepared, not live-verified.
+watchdog branch was prepared; the normal launch/quit path is now observed above.
 
 Wait for the owner's approval and readiness before `--run`. Then:
 

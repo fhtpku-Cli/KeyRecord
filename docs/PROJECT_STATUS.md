@@ -22,11 +22,13 @@ Subsequent pure AppKit regular/accessory control windows both returned native
 accessibility trees. The observation service is usable for these minimal targets;
 accessory shape alone does not reproduce the product failure. The exact product
 hierarchy/helper trigger remains unresolved; no live trial was repeated.
-A one-use paused UI readback controller is compiled and its no-launch check passes.
-It reuses the existing trial aggregates with new diagnostic output names and stops
-on observed unexpected collection. Owner readiness is required to open Settings
-and the aggregate tab; no repeated physical input is planned. This is preparation,
-not native UI acceptance or a repaired observation helper.
+The separately approved/readied paused UI readback completed on the same candidate:
+two shortcuts restored, zero new callbacks/handoffs/aggregate delta/writes or read
+failures, all five journal records closed, and normal Quit with exact PID gone.
+The owner opened the aggregate tab, but native observation again disconnected.
+The reply `2次，是的` reports two occurrences; TextEdit and modifier-provenance scope
+await clarification. This is bounded readback evidence, not full UI/accessibility
+acceptance or a repaired helper. Readback output names are consumed; no auto-relaunch.
 The 2026-09-30 increment retains Debug read/processing counts at synchronous
 key revocation, before queued cleanup writes the journal. A failing-first product
 test reproduced the missing observation; the repaired evaluator detects activity

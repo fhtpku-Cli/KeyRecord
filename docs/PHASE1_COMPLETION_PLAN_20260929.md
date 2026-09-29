@@ -454,11 +454,12 @@ The occupied private root and original artifacts are preserved; no automatic
 repeat is authorized. Resolve the native observation limitation before another
 UI round. Full hosted lifecycle/independent lock authority and Release remain open.
 
-The next UI step is now prepared as paused readback of the existing isolated
-aggregates, avoiding another input round. Its separate controller compiles and
-passes `--check` without launching. The owner must approve/readiness-confirm before
-opening Settings and the aggregate tab. Native tool failure will require a direct
-owner observation of that same window. Pure regular/accessory window controls
-worked; a windowless control timed out but did not reproduce the exact crash.
-These controls do not qualify the product UI. See the current UI trial record for
-the controller, exact scope, output paths and stop conditions.
+The separately approved/readied paused readback of the same candidate completed
+without repeated input: two shortcut totals restored, zero callbacks/handoffs/new
+aggregate delta/writes/read failures, closed capture in all five journal records,
+then normal Quit and exact PID gone. The owner opened the aggregate tab; native
+observation still disconnected. The owner replied `2次，是的`; the exact TextEdit and
+modifier-provenance scope is awaiting clarification. No complete rendering or AX
+PASS is claimed. Pure regular/accessory controls worked, while a windowless
+control timed out without the exact crash; these do not qualify the product UI.
+See the current UI trial record for the consumed output paths and full result.

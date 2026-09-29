@@ -78,6 +78,7 @@ private struct TrialReport: Encodable {
     let kind = "product-performance-trial"
     let productPass = false
     let outcome: String
+    let invalidReasons: [String]
     let mode: String
     let bundleID: String
     let executableSHA256: String
@@ -297,6 +298,8 @@ private enum PerformanceTrialCLI {
             app.terminate()
             throw TrialFailure("launched-identity-mismatch")
         }
+        // AppKit can return an unknown architecture when first queried after exit.
+        let executableArchitecture = app.executableArchitecture
         let output = options.root.appendingPathComponent("resource-\(mode).json")
         let marker = options.root.appendingPathComponent("performance-replay.json")
         let process = Process()
@@ -336,16 +339,25 @@ private enum PerformanceTrialCLI {
         let recomputed = archive.map { ResourceEvaluator.recompute($0) == $0.result } ?? false
         let afterDigest = try sha256(identity.executable)
         let afterCodeDigest = try sha256(identity.productCode)
-        let valid = process.terminationStatus == 0 && result?.outcome == "measured"
-            && archive?.protocolKind == .formalFRS2 && archive?.phase == mode
-            && archive?.architecture == nativeArch
-            && app.executableArchitecture == (nativeArch == "arm64" ? CPU_TYPE_ARM64 : CPU_TYPE_X86_64)
-            && archive?.executablePath == identity.executable.path
-            && result?.productProcessOnly == true && recomputed
-            && afterDigest == identity.executableSHA256
-            && afterCodeDigest == identity.productCodeSHA256
-            && aligned && completed && normalExit
-        return TrialReport(outcome: valid ? "measured" : "invalid", mode: mode,
+        let checks: [(String, Bool)] = [
+            ("sampler-exit", process.terminationStatus == 0),
+            ("sample-outcome", result?.outcome == "measured"),
+            ("sample-protocol", archive?.protocolKind == .formalFRS2),
+            ("sample-phase", archive?.phase == mode),
+            ("sample-architecture", archive?.architecture == nativeArch),
+            ("process-architecture", executableArchitecture == (nativeArch == "arm64" ? CPU_TYPE_ARM64 : CPU_TYPE_X86_64)),
+            ("executable-path", archive?.executablePath == identity.executable.path),
+            ("product-process-only", result?.productProcessOnly == true),
+            ("recomputation", recomputed),
+            ("executable-changed", afterDigest == identity.executableSHA256),
+            ("product-code-changed", afterCodeDigest == identity.productCodeSHA256),
+            ("replay-alignment", aligned),
+            ("replay-incomplete", completed),
+            ("normal-exit", normalExit)
+        ]
+        let invalidReasons = checks.filter { !$0.1 }.map { $0.0 }
+        return TrialReport(outcome: invalidReasons.isEmpty ? "measured" : "invalid",
+            invalidReasons: invalidReasons, mode: mode,
             bundleID: identity.bundleID, executableSHA256: identity.executableSHA256,
             productCodeSHA256: identity.productCodeSHA256,
             architecture: archive?.architecture, macOS: archive?.operatingSystem,
@@ -490,7 +502,7 @@ private enum PerformanceTrialCLI {
                 let archive = ResourceMeasurementArchive(request: request, result: result,
                     architecture: "arm64", operatingSystem: "synthetic", diagnosticsEnabled: true)
                 let expected = phase == "typing" ? Int64(ReplayWorkload.expectedTypingEvents) : 0
-                let report = TrialReport(outcome: "measured", mode: phase,
+                let report = TrialReport(outcome: "measured", invalidReasons: [], mode: phase,
                     bundleID: "com.keyrecord.trial.performance.synthetic", executableSHA256: digest,
                     productCodeSHA256: String(repeating: "b", count: 64),
                     architecture: "arm64", macOS: "synthetic", machineModel: "SyntheticMac",

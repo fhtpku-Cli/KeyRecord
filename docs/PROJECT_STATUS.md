@@ -8,13 +8,19 @@ idle once each, 30 seconds warmup plus 120 seconds measurement per window,
 about five minutes plus startup/exit. Targeted reruns replace automatic repeats;
 budgets and privacy/integrity checks are unchanged. This changes the formal
 default, not merely an exploratory precheck. See [the protocol](PHASE1_ACCEPTANCE.md#performance-plan).
-The new protocol has no live product measurement yet.
+The first live typing measurement completed replay/save and normal Quit, but
+the controller reported invalid. Idle has not run. An AppKit fixture reproduced
+the controller's architecture query returning unknown when first read after
+exit; the repaired controller captures it while alive and reports failed checks.
+Build and synthetic self-check pass. The original invalid record is preserved;
+replacement typing and idle still require owner readiness.
 The [dedicated performance package preparation](PERFORMANCE_SHORT_ROUND_20260929.md)
 compiled successfully on `a604ad535`. Its initial missing-profile blocker was
 resolved by one owner-approved Xcode attempt (33.3 seconds, exit 0). The signed
 Performance Trial is installed separately; signature/profile/isolation checks
-passed without launch. Input Monitoring setup and explicit owner readiness for
-the two short windows are next. No runtime Keychain or performance result exists.
+passed before launch. The owner enabled Input Monitoring and the first window
+saved 2,550 key downs. Observed CPU was 0.0873%, physical footprint mean/peak
+33.87/33.90 MB; these values do not override the invalid controller outcome.
 The completed [second sleep/wake round](SLEEP_WAKE_SECOND_ROUND_20260929.md) on
 signed `cf08a07c` observed 32.028 seconds suspended, sampled closure through wake
 with unchanged counters, explicit Start back to Collecting, new post-recovery

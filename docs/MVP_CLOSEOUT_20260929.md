@@ -1,5 +1,11 @@
 # Apple Silicon MVP closeout checkpoint — 2026-09-29
 
+Performance checkpoint: the first short typing window completed replay/save and
+normal Quit, but the controller marked it invalid. A synthetic fixture reproduced
+an architecture query made too late, after exit. The controller repair builds
+and passes its synthetic self-check; original evidence remains invalid and idle
+has not run. See [the current round](PERFORMANCE_SHORT_ROUND_20260929.md).
+
 Performance protocol update: formal acceptance now uses one typing and one idle
 window, each 30 seconds warmup plus 120 seconds measurement. The previous
 six-window/hour-long default is superseded at the owner's request; thresholds,

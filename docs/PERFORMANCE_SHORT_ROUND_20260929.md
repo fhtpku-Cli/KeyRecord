@@ -1,8 +1,48 @@
-# Short formal performance preparation
+# Short formal performance round
 
 Source `a604ad535` implements the owner-requested formal protocol: typing and
 idle once each, 30 seconds warmup plus 120 seconds measurement per window, with
-a two-second drain tail. No live performance App has been launched.
+a two-second drain tail. The first approved typing window completed its replay
+and save, but the controller marked it invalid; idle has not run.
+
+## First typing window and controller repair
+
+After the owner enabled Input Monitoring and confirmed Collecting, the signed
+`a604ad535` product completed 1,520 ticks in 152.006 seconds, accepted 5,100
+replay events and saved 2,550 key downs. All 145 issued writes succeeded durably;
+no write/read failure was recorded. Normal Quit succeeded and no product process
+remained. The retained resource window reports measured: CPU 0.0873278% of one
+logical core, mean physical footprint 33.8712 MB and sampled peak 33.8996 MB.
+These are observations, not accepted performance results: the controller's
+original `trial-report.json` says invalid and remains unchanged.
+
+Artifacts: `/private/tmp/keyrecord-performance-20260929-a604ad535/typing-1/`
+contains `resource-typing.json`, `performance-replay.json`, `summary.json` and
+`trial-report.json`. The sibling idle directory has not been used.
+
+The controller first queried `NSRunningApplication.executableArchitecture`
+after normal Quit. A synthetic AppKit fixture reproduced a return of -1 when
+first queried after exit, versus arm64 (16777228) when queried while running.
+The latter value remained cached after exit. Full Swift recomputation of the
+retained resource result equals the stored result, ruling out JSON rounding or
+an extra result-field mismatch in this archive. The old report did not persist
+every validation predicate, including the sampler exit code, so the invalid
+record is not retroactively promoted.
+
+The controller now snapshots architecture while the process is alive and keeps
+the same native-architecture requirement. It also emits `invalidReasons` for
+each failing existing check. Product code, signing and installed App are unchanged.
+Controller build and two-window synthetic evaluation self-check passed.
+Diagnostic fixture sources and comparison tool are retained at
+`/private/tmp/keyrecord-performance-controller-diagnosis/`.
+The next step is an owner-readied replacement typing window, followed by idle;
+neither has started. No physical typing is needed.
+
+Replacement session is prepared at
+`/private/tmp/keyrecord-performance-20260929-a604ad535-retry1`, with fresh 0700
+`typing-1` and `idle-1` children and namespaces ending in `.typing2` and `.idle2`.
+Both repaired-controller `--check` calls returned ready, launched=false against
+the unchanged signed product. No new runtime store or Keychain item was created.
 
 ## Approved provisioning result
 
@@ -20,16 +60,14 @@ and is installed separately as
 Strict deep signature verification passed. The performance controller checked
 both fresh window roots against the signed artifact, then checked the installed
 package, reporting ready and launched=false. No KeyRecordApp process remained.
-The MVP Trial was not replaced. Signing/profile readiness is established, not
-runtime Keychain access or performance qualification.
+The MVP Trial was not replaced. At that preparation checkpoint, these checks
+established signing/profile readiness only; the later runtime result is above.
 
-Next owner action is to enable Input Monitoring for this exact new Performance
-Trial, adding the installed App in System Settings if absent. Do not toggle the
-MVP Trial. Confirm readiness after permission setup before starting measurement.
-The planned runs use namespaces
+The owner subsequently enabled Input Monitoring for the exact new Performance
+Trial and confirmed readiness. The original prepared runs used namespaces
 `com.keyrecord.trial.performance.mvp20260929.typing1` and
 `com.keyrecord.trial.performance.mvp20260929.idle1`, respectively, with the fresh
-window directories below. Each run still requires Start/consent; do not open
+window directories below. Each run requires Start/consent; do not open
 the App manually without its isolation controller. Any unexpected prompt during
 measurement requires a stop and a separately prepared continuation.
 
@@ -44,9 +82,10 @@ measurement requires a stop and a separately prepared continuation.
   qualification evidence and will not be used for permission or Keychain trials.
 - Current controller and sampler builds passed; binaries are under the isolated
   worktree's `.build/out/Products/Debug` directory.
-- Fresh empty, owner-only 0700 session directory:
+- Initially fresh, owner-only 0700 session directory:
   `/private/tmp/keyrecord-performance-20260929-a604ad535`, with `typing-1` and
-  `idle-1` children. No store or Keychain item has been created by this preparation.
+  `idle-1` children. Typing now contains the retained runtime artifacts above;
+  idle is still empty. Preparation itself created no store or Keychain item.
 - The existing installed MVP Trial and all sleep-round data are unchanged.
 
 ## Initial signing blocker (resolved above)
@@ -79,8 +118,9 @@ computer unlocked and do not prevent sleep. No physical typing is required.
 ## Evidence limits
 
 The preceding 35 package tests, hostless product replay/store test and two tool
-self-checks passed, but no native performance result exists. Both fresh windows
-must complete and retain accepted-event/durable-total and raw-sample evidence.
+self-checks passed. The first native typing observation above is not a qualified
+window. Replacement typing and idle must complete and retain accepted-event/
+durable-total and raw-sample evidence.
 Current controller/evaluator identity, full endpoint, sleep/session, budget and
 normal-exit checks remain in force. Fixed replay omits actual system event-tap
 cost; five-minute measurement is not a claim about long-term endurance.

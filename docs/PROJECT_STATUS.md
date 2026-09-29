@@ -9,6 +9,11 @@ about five minutes plus startup/exit. Targeted reruns replace automatic repeats;
 budgets and privacy/integrity checks are unchanged. This changes the formal
 default, not merely an exploratory precheck. See [the protocol](PHASE1_ACCEPTANCE.md#performance-plan).
 The new protocol has no live product measurement yet.
+The [dedicated performance package preparation](PERFORMANCE_SHORT_ROUND_20260929.md)
+compiled successfully on `a604ad535`; its actual signed build is blocked by a
+missing development profile for the new performance identifier. Existing local
+assets only authorize the MVP Trial. No performance App was installed/launched;
+one bounded account/provisioning attempt awaits owner authorization.
 The completed [second sleep/wake round](SLEEP_WAKE_SECOND_ROUND_20260929.md) on
 signed `cf08a07c` observed 32.028 seconds suspended, sampled closure through wake
 with unchanged counters, explicit Start back to Collecting, new post-recovery

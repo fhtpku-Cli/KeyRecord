@@ -660,6 +660,48 @@ final class ProductRecoveryQuitTests: XCTestCase {
         XCTAssertEqual(try product.actionEnds("start").last?["phaseAfter"] as? String, "collecting")
     }
 
+    func testKeyRevocationHidesCachedPresentationBeforeLifecycleCatchesUp() async throws {
+        let product = try await collecting()
+        try await product.press(1)
+        try await product.waitDurable()
+        let composition = product.composition!
+        let flow = composition.flow
+        let aggregate = try XCTUnwrap(composition.reduction.snapshot())
+        let preferences = try XCTUnwrap(composition.lifecycle.state.preferences)
+        let analysis = try XCTUnwrap(composition.reduction.analysis(preferences: preferences))
+        flow.snapshot = aggregate
+        flow.publishAnalysis(analysis)
+        XCTAssertNotNil(flow.snapshot)
+        XCTAssertNotNil(flow.analysis)
+        let before = composition.diagnostics.runSummary
+
+        composition.gate.update(.locked)
+        XCTAssertEqual(composition.lifecycle.phase, .collecting)
+        XCTAssertFalse(flow.sensitiveContentVisible)
+        XCTAssertNil(flow.snapshot)
+        XCTAssertNil(flow.analysis)
+        flow.snapshot = aggregate
+        flow.publishAnalysis(analysis)
+        XCTAssertNil(flow.snapshot)
+        XCTAssertNil(flow.analysis)
+        let after = composition.diagnostics.runSummary
+        XCTAssertEqual(after.snapshotPublicationCount, before.snapshotPublicationCount)
+        XCTAssertEqual(after.analysisPublicationCount, before.analysisPublicationCount)
+        XCTAssertEqual(after.protectedReadActivity, before.protectedReadActivity)
+
+        composition.gate.update(.unlocked)
+        XCTAssertNil(flow.snapshot)
+        XCTAssertNil(flow.analysis)
+        flow.snapshot = aggregate
+        flow.publishAnalysis(analysis)
+        XCTAssertNotNil(flow.snapshot)
+        XCTAssertNotNil(flow.analysis)
+        composition.gate.update(.locked)
+        composition.gate.update(.unlocked)
+        XCTAssertNil(flow.snapshot, "reopening alone must not expose the previous generation")
+        XCTAssertNil(flow.analysis)
+    }
+
     func testStartWhileLockIsLockedOrUnknownRefusesEveryTime() async throws {
         let product = try await collecting()
         try await product.lockScreen()

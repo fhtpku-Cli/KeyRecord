@@ -3,6 +3,14 @@
 ## Current Apple Silicon MVP status — 2026-09-29
 
 Latest autonomous checkpoint: [MVP closeout](MVP_CLOSEOUT_20260929.md).
+Latest product regression reproduced cached aggregate/analysis visibility and
+publication after synchronous key revocation but before lifecycle state updated.
+Product flow now uses the existing key gate for presentation access and retains
+the producing generation; reopening alone cannot expose an old presentation.
+All 89 selected hostless product tests pass, with Debug and unsigned arm64 Release
+builds and the zero-match static network audit passing. This covers model reads
+and publication, not rendered pixels or complete hosted observation. No live run
+occurred. Details and failing-first evidence are in the completion plan.
 Latest safety repair serializes aggregates under the existing protection scope and
 carries the producing generation into scheduler staging, preventing old batches
 from entering a reopened session. Preference coding after awaits is also fenced.

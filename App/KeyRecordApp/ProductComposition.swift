@@ -250,7 +250,7 @@ final class ProductComposition: NSObject, NSMenuDelegate {
             afterFailure: { stage in await hooks.fail(stage) },
             afterErase: { hooks.erased() }, clear: { reduction.clear() })
         let flow = AppFlowObservable(flow: Phase1FlowModel(lifecycle: lifecycle,
-            cycleReset: destruction, localDataEraser: destruction))
+            cycleReset: destruction, localDataEraser: destruction), protectedGate: gate)
         #if DEBUG
         // KR-01: the session-lock provider is handed to the initializer, NOT assigned after
         // it returns. The old code ran `if let sessionLock = localSessionLock` inside the

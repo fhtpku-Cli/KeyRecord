@@ -311,3 +311,34 @@ build pass; the latest Release static network audit has zero matches. Logs:
 This closes the identified staging race in code; it does not extend live evidence
 or declare complete protected-read observation. The next work remains the full
 observer and publication boundary, followed by a separately coordinated host run.
+
+## Presentation access during delayed lifecycle updates
+
+A product-composition regression reproduced cached aggregate and analysis reads
+and new publications after the key gate closed while lifecycle state still said
+Collecting. The original test produced seven assertion failures. This is the
+interval between synchronous privacy revocation and the queued main-actor update;
+checking lifecycle visibility alone was insufficient.
+
+Product composition now gives its flow observable the same existing key gate.
+Aggregate and analysis publication/read execute under that protection. Each cached
+presentation retains its producing generation, so closing and reopening the gate
+without a fresh publication cannot expose the previous generation. Clearing state
+remains possible while closed. Debug aggregate-read observations now also cover
+reads at the presentation model boundary; nil returns may conservatively count
+when access is authorized. Rejected closed/stale accesses do not read payloads or
+increment successful publication counts. Fixture-only flow models can continue
+without a store gate; the actual product composition always supplies its gate.
+
+All 89 selected hostless tests pass: 58 recovery/quit, 11 snapshot publication,
+14 flow and 6 paused-startup cases. The new case also verifies fresh publication
+after reauthorization and rejects stale cached data after a later close/reopen.
+Its fixture now waits for its preparation write before taking the before/after
+counter samples; the focused rerun passes. Debug test and unsigned arm64 Release
+builds pass, and the Release static network audit has zero matches. Logs:
+`/private/tmp/keyrecord-presentation-gate-{red,regressions,fixture-test,final-build,fixture-build,release,release-audit}.log`.
+
+These are model access/publication results, not a claim about already rendered
+pixels or a complete hosted lifecycle observer. Full plaintext-processing coverage,
+the hosted controller connection and native UI/attribution checks remain open.
+The installed signed candidate remains `293f25a45`; no new live run occurred.

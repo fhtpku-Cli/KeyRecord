@@ -166,11 +166,11 @@ final class ProductSnapshotPublicationTests: XCTestCase {
     private func fixture() async throws -> (LifecycleHarness, AppFlowObservable, ProductReduction, Preferences) {
         let harness = LifecycleHarness()
         await harness.collectOpen()
-        let flow = AppFlowObservable(flow: Phase1FlowModel(lifecycle: harness.orchestrator))
-        flow.sync(from: harness.orchestrator.state)
         let input = try AnalysisPreview.input()
         let gate = KeyAvailabilityGate()
         gate.update(.unlocked)
+        let flow = AppFlowObservable(flow: Phase1FlowModel(lifecycle: harness.orchestrator), protectedGate: gate)
+        flow.sync(from: harness.orchestrator.state)
         let reduction = ProductReduction(gate: gate)
         reduction.open(try AggregationReducer(cycleID: input.cycleID, shortcuts: input.shortcuts,
                                              bareKeys: input.bareKeys),

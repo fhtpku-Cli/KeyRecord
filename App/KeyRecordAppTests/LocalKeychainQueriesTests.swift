@@ -44,6 +44,18 @@ final class LocalKeychainQueriesTests: XCTestCase {
         XCTAssertEqual(query[kSecAttrAccount as String] as? String, "metadata")
     }
 
+    func testProductOperationsFailInsteadOfOpeningAuthenticationUI() {
+        let identity = LocalKeychainQueries.productIdentity(service: service, account: "master-v1")
+        let queries = [identity,
+            LocalKeychainQueries.queryForReadingData(identity: identity),
+            LocalKeychainQueries.attributesForAdd(identity: identity, data: Data(count: 32),
+                accessible: LocalKeychainQueries.accessibleWhenUnlockedThisDeviceOnly)]
+        for query in queries {
+            XCTAssertEqual(query[kSecUseAuthenticationUI as String] as? String,
+                kSecUseAuthenticationUIFail as String)
+        }
+    }
+
     func testAddAttributesCarryExactMaterialAndDeviceOnlyAccessibility() throws {
         // Given 32 bytes of material (never asserted in body or logged here).
         var bytes = Data(count: 32)

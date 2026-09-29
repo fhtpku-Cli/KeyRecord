@@ -64,3 +64,18 @@ assert the new order object separately from unchanged count assertions. Logs:
 App build and test logs use `/private/tmp/keyrecord-phase1-completion-` with
 `app-build.log`, `product-tests.log` (first run) and `reduction-tests.log` (rerun).
 The installed trial Apps and their candidate-bound host measurements are unchanged.
+
+## Noninteractive Keychain queries
+
+The product backend specification forbids authentication UI, but the product
+SecItem identity omitted `kSecUseAuthenticationUI`. The installed Security SDK
+documents that omission as allowing authentication UI. A new pure query test
+failed for read, add and the shared update/delete identity. Product identities
+now explicitly use `kSecUseAuthenticationUIFail`, retaining exact account/service,
+data-protection Keychain and nonsynchronizable attributes. Interaction-required
+access therefore takes the existing unavailable/locked error path.
+
+All seven LocalKeychainQueries hostless tests and the Debug App test build pass.
+No Security API operation was invoked by these tests. Runtime acceptance of the
+updated query on the signed candidate remains a separate isolated host check.
+Logs: `/private/tmp/keyrecord-keychain-ui-{red,build,tests}.log`.

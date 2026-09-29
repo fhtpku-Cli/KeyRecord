@@ -13,7 +13,9 @@ enum LocalKeychainQueries {
     }
 
     static func productIdentity(service: String, account: String) -> [String: Any] {
-        identityQuery(service: service, account: account, dataProtection: true)
+        var query = identityQuery(service: service, account: account, dataProtection: true)
+        query[kSecUseAuthenticationUI as String] = kSecUseAuthenticationUIFail
+        return query
     }
 
     static func identityQuery(service: String, account: String, dataProtection: Bool) -> [String: Any] {

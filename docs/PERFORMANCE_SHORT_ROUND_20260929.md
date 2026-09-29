@@ -4,6 +4,35 @@ Source `a604ad535` implements the owner-requested formal protocol: typing and
 idle once each, 30 seconds warmup plus 120 seconds measurement per window, with
 a two-second drain tail. No live performance App has been launched.
 
+## Approved provisioning result
+
+The owner authorized one Xcode account/profile attempt. It completed in 33.3
+seconds, exit 0, with BUILD SUCCEEDED and no detected account/payment/build
+error. No second attempt ran. Log:
+`/private/tmp/keyrecord-performance-a604ad535/approved-provisioning-build.log`.
+The watchdog started a dedicated process group, capped the operation at 120
+seconds and would stop on errors or recognized account/payment prompts.
+
+The signed App is at
+`/private/tmp/keyrecord-performance-a604ad535/build/Build/Products/Debug/KeyRecordApp.app`
+and is installed separately as
+`~/Applications/KeyRecord Performance Trial 20260929.app`.
+Strict deep signature verification passed. The performance controller checked
+both fresh window roots against the signed artifact, then checked the installed
+package, reporting ready and launched=false. No KeyRecordApp process remained.
+The MVP Trial was not replaced. Signing/profile readiness is established, not
+runtime Keychain access or performance qualification.
+
+Next owner action is to enable Input Monitoring for this exact new Performance
+Trial, adding the installed App in System Settings if absent. Do not toggle the
+MVP Trial. Confirm readiness after permission setup before starting measurement.
+The planned runs use namespaces
+`com.keyrecord.trial.performance.mvp20260929.typing1` and
+`com.keyrecord.trial.performance.mvp20260929.idle1`, respectively, with the fresh
+window directories below. Each run still requires Start/consent; do not open
+the App manually without its isolation controller. Any unexpected prompt during
+measurement requires a stop and a separately prepared continuation.
+
 ## Prepared artifacts
 
 - Dedicated bundle: `com.keyrecord.trial.performance.mvp20260929`.
@@ -20,7 +49,7 @@ a two-second drain tail. No live performance App has been launched.
   `idle-1` children. No store or Keychain item has been created by this preparation.
 - The existing installed MVP Trial and all sleep-round data are unchanged.
 
-## Actual signing blocker
+## Initial signing blocker (resolved above)
 
 A signed build using existing local assets, with no provisioning updates,
 failed with Xcode exit 65: no Mac App Development profile exists for
@@ -31,7 +60,7 @@ The only local profile inspected authorizes
 An unchanged dedicated-performance identity check prevents substituting the
 MVP App or weakening profile checks to launch an unusable package.
 
-The next account operation needs owner authorization: one Xcode attempt, at
+The requested account operation needed owner authorization: one Xcode attempt, at
 most 120 seconds, using the existing developer account to register the dedicated
 trial identifier if needed and obtain/create its matching development profile,
 then build. Stop on account login, payment/subscription prompts or signing
@@ -40,7 +69,7 @@ of that operation. The earlier one-time account authorization covered the MVP
 identifier only and is not reused here. This is local Debug provisioning, not
 distribution signing or notarization.
 
-After successful signing, verify the package and both empty window directories
+The owner approved that request once, with the result above. After signing, verify the package and both empty window directories
 with `KeyRecordPerformanceTrial --check`. Only then prepare installation and
 the separately approved/readied live sequence: first typing, then idle, each
 starting with owner Start/consent and ending with normal Quit and summary review.

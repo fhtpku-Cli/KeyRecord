@@ -3,6 +3,13 @@
 ## Current Apple Silicon MVP status — 2026-09-29
 
 Latest autonomous checkpoint: [MVP closeout](MVP_CLOSEOUT_20260929.md).
+The subsequent [sleep/wake round](SLEEP_WAKE_ROUND_20260929.md) ran on signed
+`cf08a07c`: 29.793 seconds suspended, sampled closure through wake with unchanged
+counters, explicit Start back to Collecting, and normal Quit at 175.298 seconds
+with no process remaining. The repaired interval evaluator reports observed.
+The owner could not complete post-recovery input before the deadline; that
+input/save step remains unverified. Final isolated totals are 10 shortcuts and
+2 bare keys. This is a bounded partial result, not full sleep acceptance.
 The [collecting lock and explicit recovery round](NEXT_HOST_ROUND_20260929.md)
 has now completed on signed `8e3ca0c55`: locked and unlocked-before-Start
 observations stayed closed with unchanged counters; explicit Start restored
@@ -11,11 +18,10 @@ end marker also included 20 gate admissions during authorized Start recovery,
 so the unmodified evaluator reported `closed-interval-protected-gate-entry`.
 An offline-reproduced Debug journal repair places the end before explicit
 unlocked store reauthorization. All 55 recovery/quit and 15 interval evaluation
-tests pass; this newer diagnostic repair has no live host result yet. It is now
-installed in signed `cf08a07c` for the prepared
-[sleep/wake round](SLEEP_WAKE_ROUND_20260929.md), which awaits owner readiness.
+tests pass; this newer diagnostic repair is installed in signed `cf08a07c` and
+now has the separate sleep/wake observation above.
 The new focused hostless sleep recovery test passed, as did signed build and
-installed-package checks; no App was launched. The original journal and its
+installed-package checks before that live round. The original lock journal and its
 evaluator result remain unchanged. See the
 candidate-specific [lock result](PERMISSION_RECOVERY_TEST.md#bounded-collecting-lock-and-explicit-recovery--2026-09-29).
 Both CI jobs for diagnostic repair `1e3918136` passed; performance-tool

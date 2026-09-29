@@ -18,6 +18,10 @@ Pause closed the actual queue; normal Quit completed and the exact PID is gone.
 Computer Use disconnected before returning a native view, so rows, application
 attribution, rendering and accessibility remain unverified. The round's occupied
 private directory is preserved; no automatic repeat is authorized.
+Subsequent pure AppKit regular/accessory control windows both returned native
+accessibility trees. The observation service is usable for these minimal targets;
+accessory shape alone does not reproduce the product failure. The exact product
+hierarchy/helper trigger remains unresolved; no live trial was repeated.
 The 2026-09-30 increment retains Debug read/processing counts at synchronous
 key revocation, before queued cleanup writes the journal. A failing-first product
 test reproduced the missing observation; the repaired evaluator detects activity

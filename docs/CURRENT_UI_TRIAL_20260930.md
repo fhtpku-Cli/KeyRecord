@@ -45,6 +45,32 @@ This corroborates failure of the native observation helper; it does not establis
 the exact triggering UI element or constitute a KeyRecord crash. No global tool
 configuration was changed and the trial was not relaunched to reproduce it.
 
+### Synthetic observation controls
+
+A subsequent diagnostic used a standalone AppKit fixture with one retained
+titled/closable/resizable window and an `NSTextField` reading `Synthetic window
+only`. It linked no KeyRecord code and used no capture, store or Keychain APIs.
+The same executable was placed in two distinct diagnostic bundles: regular
+activation with `LSUIElement=false`, and accessory activation with
+`LSUIElement=true`. Both explicitly activated the window and scheduled their own
+termination after 90 seconds. Both compiled successfully with Swift 6.4.
+
+After resetting only the Computer Use REPL, `cua.getApp` returned the expected
+window and text accessibility tree for **both** bundles. The regular tree also
+included a menu bar; the accessory tree did not. Thus the current helper can read
+these minimal native windows, and accessory activation alone is insufficient to
+explain the product failure. This is not evidence that SwiftUI or the product's
+full view hierarchy works. No product App was relaunched, no screenshot was
+obtained and no product code or system permissions were changed. The fixture
+source/bundles were temporary diagnostic artifacts and were removed after their
+processes exited; the live trial evidence above is retained.
+
+The exact failing AX element or helper operation remains unknown. Current crash
+metadata identifies helper `26.924.1001281` on macOS `27.0 (26A428)`; both reports
+contain an AX observer thread for the trial PID `90634`. This associates the
+helper with the trial but does not establish which UI request caused the fault.
+Native product row/rendering/accessibility acceptance therefore remains open.
+
 The current candidate therefore has bounded physical-input/save/pause/quit
 evidence. It does not yet have directly observed Command-A rows, TextEdit
 attribution, exact modifier provenance, native rendering or accessibility. The

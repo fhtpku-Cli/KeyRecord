@@ -3,14 +3,21 @@
 ## Current Apple Silicon MVP status — 2026-09-29
 
 Latest autonomous checkpoint: [MVP closeout](MVP_CLOSEOUT_20260929.md).
-Signed arm64 Debug candidate `426969c9f` is staged for the
-[bounded modifier check](CURRENT_MODIFIER_TRIAL_20260930.md). Existing local
-signing assets and the no-launch isolation/profile checks pass; the new observation
-marker is present in the Debug implementation dylib. Its empty private root and
-175/180-second controller are ready. It has not been installed or launched, and
-fresh owner approval/readiness is required. The intended two-chord sequence first
-includes an explicit Command-only press/release to establish an observed release.
-This preparation does not qualify the historical unknown-side result or Release.
+Signed arm64 Debug candidate `426969c9f` was installed and run once after explicit
+owner approval/readiness for the [bounded modifier check](CURRENT_MODIFIER_TRIAL_20260930.md).
+The complete installed bundle matched staging and the old bundle is preserved.
+The owner reported completing Command-alone release, two left Command+A presses
+and Pause. Actual queue closure, five successful durable writes and normal Quit
+were recorded, and exact PID 34309 is gone. However, the two aggregate increments
+were published as **bare keys 2 / shortcuts 0**, with only two flagsChanged
+callbacks rather than the intended six. Modifier acceptance did not pass.
+The 175-second deadline arrived before expanded UI details were observed.
+Preparation marks bracket all six accepted callbacks between attempts three and
+four; they do not show a preparation between the counted inputs. Incoming native
+flag values are not recorded, so the cause remains unresolved. Offline source
+review found no swapped summary fields and no basis for converting a Command-active
+key-down to bare solely because flagsChanged was missing. No speculative capture
+fix or automatic repeat occurred. This is not collecting-Release qualification.
 The latest offline increment adds DEBUG preparation boundaries and the existing
 cumulative `sessionCount` to the opt-in privacy journal. This helps locate future
 capture resets around aggregate increments without persisting event traces.
@@ -19,8 +26,9 @@ The failing-first boundary regression now passes, along with 71 focused cases an
 60 product recovery/quit cases. The 590-case package run found one missing privacy
 inventory registration; after registering only the new integer field, all 46
 integration cases pass. The other 544 cases passed in the full run. Debug/unsigned
-arm64 Release builds and the zero-match static audit pass. The installed trial
-and historical side-unknown evidence are unchanged. See the
+arm64 Release builds and the zero-match static audit pass. That offline increment
+did not replace the trial; the approved installation is recorded above. Historical
+side-unknown evidence remains unchanged. See the
 [completion plan](PHASE1_COMPLETION_PLAN_20260929.md#observe-capture-preparation-boundaries--2026-09-30).
 Latest owner-assisted paused readback now has an expanded screenshot: two ordinary
 Command+A uses and TextEdit attribution are visible, but exact Command side is
@@ -37,7 +45,7 @@ adapter operations are rejected and failed finish releases the plan for a fresh
 explicit retry. All 33 focused deletion/recovery tests and all 589 root-package
 tests pass. Unsigned arm64 Release and its zero-match static network audit pass.
 The preceding stage-fencing repair remains in place. No live deletion or installed
-trial replacement occurred. Atomic cancellation of admitted operations and system
+trial replacement occurred during that offline increment. Atomic cancellation of admitted operations and system
 lock qualification of the full filesystem/login sequence are not claimed.
 Details: [completion plan](PHASE1_COMPLETION_PLAN_20260929.md).
 Debug diagnostics now also read actual queue admission and key-gate state, rather

@@ -572,3 +572,24 @@ symbols. This is neither signed collecting-Release qualification nor a new live
 input result. Logs share `/private/tmp/keyrecord-session-observation-` with
 `red.log`, `focused.log`, `full.log`, `integration-green.log`, `app-build.log`,
 `product-tests.log`, `release.log` and `release-audit.log`.
+
+## Bounded modifier installation and live result — 2026-09-30
+
+With explicit owner approval/readiness, signed source `426969c9f` replaced the
+MVP Trial after preserving the previous bundle. Whole-bundle comparison and
+installed signing/isolation checks passed. One fresh isolated run reached
+Collecting, received two counted inputs, reported five durable writes, closed the
+actual queue on Pause and quit normally at the 175-second controller bound; exact
+PID 34309 is gone. The owner did not reach the expanded details before exit.
+
+The intended Command-only release and two left Command+A presses did **not** meet
+modifier acceptance: last-published totals are shortcuts 0 / bare keys 2, with
+two flagsChanged callbacks instead of the expected six. Preparation markers
+bracket all six accepted callbacks between the third and fourth preparation,
+without a recorded preparation at an intermediate count. They are non-atomic
+snapshots and do not contain native flags or event identities. Source review found
+no swapped summary fields; missing flagsChanged alone cannot erase a Command flag
+present on key-down. All 16 queue tests plus one modifier-recovery test pass, but
+the live classification cause remains unresolved. No speculative capture fix,
+automatic relaunch or Release qualification followed. Full result, preserved
+paths and limits: [bounded modifier trial](CURRENT_MODIFIER_TRIAL_20260930.md).

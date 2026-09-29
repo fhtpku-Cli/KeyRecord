@@ -1,7 +1,82 @@
 # Bounded modifier reconstruction trial
 
-Status: prepared, not installed or run. Fresh owner approval and readiness are
-required before replacing or launching the installed trial.
+Status: installed and run once after explicit owner approval/readiness. Normal
+exit completed. Modifier acceptance did not pass: the two aggregate increments
+were published as bare keys, not shortcuts. Visible details were not inspected
+before the deadline. Preserve this consumed run; no automatic repeat is authorized.
+
+## Completed round and unexpected classification
+
+The owner approved installation and validation after confirming readiness. The
+old installed bundle was moved to
+`/private/tmp/keyrecord-mvp-before-modifier-426969c9f.app`, then the staged bundle
+was installed at `~/Applications/KeyRecord MVP Trial 20260929.app`. Recursive
+`diff -qr` of the entire staged and installed bundles returned zero. Both staged
+and installed no-launch controller checks passed. Performance Trial was untouched.
+
+The retained controller launched exact PID `34309` using the new root/namespace
+below. The owner chose Start/consent and reported started; the journal confirmed
+Collecting with actual capture queue and key gate open. The owner then reported
+completion of Command-alone release, two left Command+A presses and mouse Pause.
+Sequence 63 confirms Paused with capture queue closed. The subsequent request to
+inspect expanded modifier details was not completed: the owner reported that the
+App had exited. The controller requested normal Quit at its 175-second bound and
+returned `exited=true quitRequested=true failed=false`, exit code 0. A read-only
+`ps -p 34309` check found no remaining process. No relaunch occurred.
+
+Final `modifier-summary.json` reports:
+
+| Observation | Result |
+| --- | --- |
+| Aggregate delta | 2 |
+| Last published shortcut / bare-key total | **0 / 2** |
+| Tap key-down / key-up / flags-changed callbacks | 2 / 2 / 2 |
+| Accepted / closed / overflow handoffs | 6 / 0 / 0 |
+| Normalization outputs | 4 |
+| Preparation attempts | 4 |
+| Issued / returned / successful / durable writes | 5 / 5 / 5 / 5 |
+| Failed / timed-out / invalidated writes | 0 / 0 / 0 |
+| Snapshot read failures / tap-disabled events | 0 / 0 |
+| Final capture queue / live session | closed / false |
+
+The earlier conversational statement calling aggregate delta 2 "two shortcuts"
+was corrected after reading the category totals. These are last-published model
+totals plus reported durable writes, not a fresh encrypted-store readback or
+rendered-row proof. Stop retains those last-published diagnostic values while
+hiding sensitive presentation. The input protocol expected six flags callbacks
+and ten handoffs; this run observed only two and six, respectively. Neither the
+missing callbacks nor the input flags can be reconstructed from these totals.
+
+Preparation markers at sequences 31, 37 and 57 have accepted=0/aggregate=0;
+sequence 60 has accepted=6/aggregate=2, equal to final values. No preparation mark
+is recorded at an intermediate accepted count. The markers place the recorded
+input between preparations three and four; they do not support blaming a repeated
+preparation between the two counts. Counters explicitly are non-atomic snapshots,
+and contain no event flag values, exact key identities or physical-event order.
+
+Read-only source review found no swapped category fields from reducer through
+presentation to diagnostic serialization. The relevant implementation matches
+the installed candidate. Each key-down independently decodes its Command flag;
+an active Command family remains a shortcut even when side is unknown or a
+flagsChanged callback is missing. Therefore reset or missing flagsChanged alone
+does not explain a Command-active key-down becoming bare. The live incoming flag
+values remain unknown; no speculative reconstruction change was made. The next
+distinguishing observation would be aggregate category counts at the native decode
+and reduction boundaries, without raw keys or event traces. That diagnostic work
+and any separately approved live round are still pending.
+
+Offline verification after the round: `swift test --filter CaptureQueueTests`
+passes all 16 cases, including Command-active key-down after revoke/reopen without
+a preceding flagsChanged event. `ModifierRecoveryTests` passes its one case for
+unknown-first-press then observed-release/left recovery. The first combined filter
+used a file name (`CaptureDeliveryTests`) rather than its actual extension class
+(`CaptureQueueTests`), so it ran only the recovery case; the corrected class run
+above supplies the remaining 16 results. These synthetic checks cannot establish
+the missing native flag values from this live run.
+
+This round confirms bounded startup, two counted inputs, reported durable saves,
+Pause closure and normal exit. It does not qualify Command+A classification,
+left-side provenance, rendered details, restart retention or collecting Release.
 
 ## Candidate
 
@@ -28,8 +103,8 @@ marker; inspecting the small Debug launcher alone does not inspect that code.
 
 ## Isolation and bound
 
-Fresh private root: `/private/tmp/keyrecord-phase1-modifier-live-20260930`, created
-with mode 0700 and still empty after the no-launch check. Planned Keychain namespace:
+Private root: `/private/tmp/keyrecord-phase1-modifier-live-20260930`, created
+with mode 0700 and empty at the prelaunch checks; now occupied and preserved. Used Keychain namespace:
 `com.keyrecord.trial.mvp20260929.phase1modifier20260930`. Preparing the directory
 does not prove that the Keychain namespace is empty; no Keychain data operation
 was performed during preparation.
@@ -38,7 +113,7 @@ Controller source: `/private/tmp/keyrecord-phase1-modifier-controller-20260930.s
 Executable: the same path without `.swift`, built with `swiftc -parse-as-library`.
 `--check <absolute-app-path>` returned
 `ready=true launched=false normalQuitSeconds=175 stopSeconds=180` against the staged
-candidate. `--run` is reserved for the approved installed bundle. It checks the
+candidate and installed bundle. `--run` was used once for the approved installed bundle. It checks the
 private root's ownership/mode/symlinks, exact bundle ID, absence of a same-ID running
 process, empty root and the existing signing preflight before launch. It retains
 the previous controller's exact-instance identity and launch-date checks.

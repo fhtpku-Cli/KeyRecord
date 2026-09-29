@@ -1,5 +1,12 @@
 # Apple Silicon MVP closeout checkpoint — 2026-09-29
 
+Latest preparation: signed `cf08a07c` is installed for the
+[sleep/wake round](SLEEP_WAKE_ROUND_20260929.md). Its focused hostless sleep
+test, signed build and installed no-launch checks passed. It contains the
+diagnostic interval repair; owner readiness and live sleep validation are still
+pending. The completed lock round remains bound to `8e3ca0c55` and its original
+flagged interval result.
+
 Status: offline validation and provisioned trial preparation passed; collecting
 MVP still awaits product-host qualification. The preparation below did not launch,
 install or register a product App, or operate a real Keychain item, TCC setting,
@@ -382,7 +389,8 @@ reopened the store. A hostless test reproduced this boundary mismatch. The Debug
 journal now ends immediately before the already-authorized store reopening and
 labels it `protectedStoreReauthorized`; actual protection behavior is unchanged.
 All 55 recovery/quit and 15 interval evaluation tests pass after red reproduction.
-The new recording repair is not installed or live-qualified. Original journal,
+The new recording repair is installed in `cf08a07c` for the prepared sleep round
+but is not live-qualified. Original journal,
 summary and flagged evaluation are retained. See [the detailed record](PERMISSION_RECOVERY_TEST.md#bounded-collecting-lock-and-explicit-recovery--2026-09-29).
 
 Still open: current-candidate attribution rows, native consent

@@ -11,10 +11,14 @@ end marker also included 20 gate admissions during authorized Start recovery,
 so the unmodified evaluator reported `closed-interval-protected-gate-entry`.
 An offline-reproduced Debug journal repair places the end before explicit
 unlocked store reauthorization. All 55 recovery/quit and 15 interval evaluation
-tests pass; this newer diagnostic repair has no live host result or installation
-yet. The original journal and its evaluator result remain unchanged. See the
+tests pass; this newer diagnostic repair has no live host result yet. It is now
+installed in signed `cf08a07c` for the prepared
+[sleep/wake round](SLEEP_WAKE_ROUND_20260929.md), which awaits owner readiness.
+The new focused hostless sleep recovery test passed, as did signed build and
+installed-package checks; no App was launched. The original journal and its
+evaluator result remain unchanged. See the
 candidate-specific [lock result](PERMISSION_RECOVERY_TEST.md#bounded-collecting-lock-and-explicit-recovery--2026-09-29).
-Both CI jobs for documentation head `12f2f9a35` passed; performance-tool
+Both CI jobs for diagnostic repair `1e3918136` passed; performance-tool
 self-checks remain synthetic, with no new product resource window.
 The follow-up signed repair `8e3ca0c55` now has a separately approved bounded
 host result: Collecting survived the owner's TextEdit input and return to chat,

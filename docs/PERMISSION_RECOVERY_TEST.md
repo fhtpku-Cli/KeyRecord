@@ -193,7 +193,8 @@ claiming continuous closure or every protected read. Logs:
 
 Original real evidence is preserved and not rewritten as PASS. The observed
 lock/wait/manual-recovery behavior is supported for `8e3ca0c55`; the corrected
-journal has only offline validation and is not installed or live-tested yet.
+journal has only offline validation. It is now installed in `cf08a07c` for the
+[prepared sleep round](SLEEP_WAKE_ROUND_20260929.md), without a live test yet.
 Continuous privacy, full hosted Keychain behavior, paused lock, sleep/wake and
 Release qualification remain separate. Another owner-assisted round requires
 fresh scope/readiness, not automatic replay of this one.

@@ -5,6 +5,8 @@ preparation is retained below; its output paths are consumed and must not be
 reused. See [the result and diagnostic follow-up](PERMISSION_RECOVERY_TEST.md#bounded-collecting-lock-and-explicit-recovery--2026-09-29).
 No new round is authorized by this historical plan.
 
+The next prepared scenario is [sleep/wake and explicit recovery](SLEEP_WAKE_ROUND_20260929.md).
+
 ## Exact candidate and scope
 
 - Installed App: `~/Applications/KeyRecord MVP Trial 20260929.app`.

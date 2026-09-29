@@ -3,6 +3,11 @@
 ## Current Apple Silicon MVP status — 2026-09-29
 
 Latest autonomous checkpoint: [MVP closeout](MVP_CLOSEOUT_20260929.md).
+Next prepared owner-assisted step: [collecting lock and explicit recovery](NEXT_HOST_ROUND_20260929.md).
+Its controller and no-launch checks passed; no lock round has started. Fourteen
+measurement/closed-interval tests and both performance-tool synthetic self-checks
+passed. Both CI jobs for documentation head `12f2f9a35` passed. These preparation
+results do not add host privacy or performance qualification.
 The follow-up signed repair `8e3ca0c55` now has a separately approved bounded
 host result: Collecting survived the owner's TextEdit input and return to chat,
 with three capture sessions, no false Blocked phase, four successful durable

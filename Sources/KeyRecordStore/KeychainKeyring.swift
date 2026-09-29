@@ -140,7 +140,15 @@ public actor KeychainKeyring {
     /// Versions to destroy: metadata-recorded versions (includes retirement-pending)
     /// unioned with backend inventory, so a corrupt/absent manifest cannot strand keys.
     public func destructionInventory() async throws -> [KeyVersion] {
+        try await destructionPlan().versions
+    }
+
+    func destructionPlan() async throws -> (generation: CaptureGeneration, versions: [KeyVersion]) {
         let generation = try gate.begin()
+        return (generation, try await destructionInventory(generation: generation))
+    }
+
+    private func destructionInventory(generation: CaptureGeneration) async throws -> [KeyVersion] {
         let backend = ports.backend, namespace = configuration.namespace
         let inventoried = try await gate.run(generation) { try await backend.versions(in: namespace) }
         let bytes = try await readMetadata(generation)
@@ -157,7 +165,11 @@ public actor KeychainKeyring {
     /// Exact-id deletion of one versioned master key. A pre-missing item maps to
     /// `.missingKeyDuringDeletion` (already destroyed) instead of failing the pass.
     public func deleteOwnedVersionForDestruction(_ version: KeyVersion) async throws -> DeletionOutcome {
-        let generation = try gate.begin()
+        try await deleteOwnedVersionForDestruction(version, generation: gate.begin())
+    }
+
+    func deleteOwnedVersionForDestruction(_ version: KeyVersion,
+                                         generation: CaptureGeneration) async throws -> DeletionOutcome {
         let backend = ports.backend, id = KeychainItemID.key(configuration.namespace, version)
         guard try await gate.run(generation, operation: { try await backend.read(id) }) != nil else {
             return .missingKeyDuringDeletion(version.rawValue)
@@ -168,7 +180,10 @@ public actor KeychainKeyring {
 
     /// Remove the namespace metadata item. Idempotent: an absent item is a no-op.
     public func deleteOwnedMetadataForDestruction() async throws {
-        let generation = try gate.begin()
+        try await deleteOwnedMetadataForDestruction(generation: gate.begin())
+    }
+
+    func deleteOwnedMetadataForDestruction(generation: CaptureGeneration) async throws {
         let backend = ports.backend, id = KeychainItemID.metadata(configuration.namespace)
         if try await gate.run(generation, operation: { try await backend.read(id) }) != nil {
             try await gate.run(generation) { try await backend.delete(id) }
@@ -179,11 +194,12 @@ public actor KeychainKeyring {
     /// Deletes every versioned key (metadata-recorded, retirement-pending, or inventoried),
     /// then the metadata item. Missing items converge; unexpected backend errors throw.
     public func deleteOwnedNamespacesForDestruction() async throws -> [KeyVersion: DeletionOutcome] {
+        let plan = try await destructionPlan()
         var outcomes: [KeyVersion: DeletionOutcome] = [:]
-        for version in try await destructionInventory() {
-            outcomes[version] = try await deleteOwnedVersionForDestruction(version)
+        for version in plan.versions {
+            outcomes[version] = try await deleteOwnedVersionForDestruction(version, generation: plan.generation)
         }
-        try await deleteOwnedMetadataForDestruction()
+        try await deleteOwnedMetadataForDestruction(generation: plan.generation)
         return outcomes
     }
 }

@@ -83,32 +83,49 @@ public struct FileSystemDeletionAdapter: DeletionFileSystem {
 public actor KeychainDeletionAdapter: DeletionKeychain {
     private let keyring: KeychainKeyring
     private var plannedVersions: [String: KeyVersion] = [:]
+    private var plannedGeneration: CaptureGeneration?
+    private var operationInProgress = false
 
     public init(keyring: KeychainKeyring) {
         self.keyring = keyring
     }
 
     public func ownedVersionedItemIDs() async throws -> [String] {
+        guard !operationInProgress, plannedGeneration == nil else { throw KeyringError.busy }
+        operationInProgress = true
+        defer { operationInProgress = false }
         let namespace = keyring.configuration.namespace
-        let versions = try await keyring.destructionInventory()
-        plannedVersions = .init(uniqueKeysWithValues: versions.map {
+        let plan = try await keyring.destructionPlan()
+        plannedGeneration = plan.generation
+        plannedVersions = .init(uniqueKeysWithValues: plan.versions.map {
             (KeychainItemID.key(namespace, $0).account, $0)
         })
-        return versions.map { KeychainItemID.key(namespace, $0).account }
+        return plan.versions.map { KeychainItemID.key(namespace, $0).account }
     }
 
     public func deleteOwnedItem(_ id: String) async throws {
-        guard let version = plannedVersions[id] else {
+        guard !operationInProgress else { throw KeyringError.busy }
+        guard let generation = plannedGeneration, let version = plannedVersions[id] else {
             throw DeletionError.ioFailure("unowned keychain item: \(id)")
         }
+        operationInProgress = true
+        defer { operationInProgress = false }
         plannedVersions[id] = nil
-        let outcome = try await keyring.deleteOwnedVersionForDestruction(version)
+        let outcome = try await keyring.deleteOwnedVersionForDestruction(version, generation: generation)
         if case .missingKeyDuringDeletion = outcome {
             throw DeletionError.missingOwnedKey(id)
         }
     }
 
     public func finishOwnedDestruction() async throws {
-        try await keyring.deleteOwnedMetadataForDestruction()
+        guard !operationInProgress else { throw KeyringError.busy }
+        guard let generation = plannedGeneration else { throw KeyringError.staleGeneration }
+        operationInProgress = true
+        defer {
+            operationInProgress = false
+            plannedGeneration = nil
+            plannedVersions.removeAll()
+        }
+        try await keyring.deleteOwnedMetadataForDestruction(generation: generation)
     }
 }

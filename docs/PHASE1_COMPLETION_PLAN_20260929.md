@@ -496,3 +496,41 @@ individual asynchronous backend operation atomically cancellable or establish on
 generation across separate public destruction helpers. Those limits remain
 distinct from the repaired sequence. Full hosted observation, independent lock
 authority, native accessibility and qualified collecting Release remain open.
+
+## Keep one generation for a keychain deletion plan — 2026-09-30
+
+The next offline reproduction showed that the adapter retained version IDs but
+not their inventory generation. After lock/reopen, its later calls acquired a
+fresh generation and deleted both keys and metadata from the old plan. Empty
+version inventories had the same metadata problem. A suspended-inventory case
+also reproduced two concurrent backend inventories replacing one unfinished plan.
+The repeated red run had four cases and 12 failures, including a secondary retry
+failure after the original implementation had already removed the test items.
+
+The keyring now returns an internal inventory plan with its original generation.
+The adapter uses that generation through every version deletion and terminal
+metadata cleanup. The bulk keyring helper does the same. Existing single-operation
+public methods retain their behavior. A per-adapter operation reservation is set
+before awaits, preventing overlapping inventory/delete/finish calls and replacement
+of an unfinished plan. No new hash, frozen contract or release gate was added.
+
+Per-item errors retain the plan so terminal cleanup cannot acquire fresh authority.
+Finish clears plan state on success or failure, and failed inventory releases its
+reservation. A fresh explicit inventory can therefore retry without letting old
+work resume. Tests preserve missing-key convergence, absent/corrupt metadata
+handling and successful destruction, using only synthetic backend data.
+
+All 33 focused deletion/recovery cases pass, including six new plan regressions
+and retry controls. Unsigned arm64 Release builds successfully and its static
+network audit reports zero matches. All 589 root-package XCTest cases pass
+(193 storage, 32 measurement, 46 integration, 239 core, 67 capture, 12 analysis).
+Read-only review found no scoped defect. Logs share the prefix
+`/private/tmp/keyrecord-deletion-plan-` with `red.log`, `red-repeat.log`, `green.log`,
+`full.log`, and `release.log`.
+
+This closes the preceding increment's plan-generation gap within each keychain
+pass. It does not make an admitted asynchronous backend effect atomically
+cancellable, create a transaction across separate adapters, or qualify the full
+filesystem/login-item deletion sequence against a system lock. No live deletion,
+capture, signed-build replacement or repeated owner test occurred. The existing
+native UI, complete hosted lifecycle and qualified collecting Release gaps remain.

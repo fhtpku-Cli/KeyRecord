@@ -3,6 +3,10 @@ import KeyRecordCore
 
 public enum AggregatePersistence {
     public static func objects(_ reducer: AggregationReducer) throws -> [FlushObject] {
+        try ProtectedProcessing.observe { try encodeObjects(reducer) }
+    }
+
+    private static func encodeObjects(_ reducer: AggregationReducer) throws -> [FlushObject] {
         var objects: [FlushObject] = []
         if !reducer.activeDays.isEmpty {
             objects.append(FlushObject(identity: try AggregateDayOrder.identity(reducer.cycleID),

@@ -1,4 +1,5 @@
 import Foundation
+import KeyRecordCore
 
 public enum ManifestError: Error, Equatable, Sendable {
     case malformed
@@ -107,6 +108,10 @@ public struct EncryptedManifest: Equatable, Sendable {
 
 enum ManifestCoding {
     static func encode(_ manifest: EncryptedManifest) throws -> Data {
+        try ProtectedProcessing.observe { try encodePayload(manifest) }
+    }
+
+    private static func encodePayload(_ manifest: EncryptedManifest) throws -> Data {
         let wire = Wire(current: manifest.currentKeyVersion,
                         entries: manifest.entries.map(Entry.init))
         let encoder = JSONEncoder()
@@ -115,6 +120,10 @@ enum ManifestCoding {
     }
 
     static func decode(_ data: Data) throws -> EncryptedManifest {
+        try ProtectedProcessing.observe { try decodePayload(data) }
+    }
+
+    private static func decodePayload(_ data: Data) throws -> EncryptedManifest {
         guard data.count <= ManifestDiscovery.maximumPayloadBytes else { throw ManifestError.tooLarge }
         let wire: Wire
         do { wire = try JSONDecoder().decode(Wire.self, from: data) }

@@ -1,4 +1,5 @@
 import Foundation
+import KeyRecordCore
 
 /// Failures while building or parsing the canonical authenticated identity.
 public enum LogicalIdentityError: Error, Equatable, Sendable {
@@ -95,6 +96,10 @@ public struct CanonicalLogicalIdentity: Hashable, Sendable {
 
     /// Split an authenticated plaintext into its leading identity tuple and the payload.
     public static func split(_ plaintext: Data) throws -> (identity: CanonicalLogicalIdentity, payload: Data) {
+        try ProtectedProcessing.observe { try splitPayload(plaintext) }
+    }
+
+    private static func splitPayload(_ plaintext: Data) throws -> (identity: CanonicalLogicalIdentity, payload: Data) {
         var reader = LengthPrefixedReader(plaintext)
         let typeBytes = try reader.nextField()
         let versionBytes = try reader.nextField()

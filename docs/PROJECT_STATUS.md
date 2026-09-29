@@ -3,6 +3,15 @@
 ## Current Apple Silicon MVP status — 2026-09-29
 
 Latest autonomous checkpoint: [MVP closeout](MVP_CLOSEOUT_20260929.md).
+Latest observation increment counts plaintext-processing scopes through parsing,
+validation, serialization and key/crypto operations, including in-flight work.
+The evaluator preserves historical coverage limits and rejects missing groups.
+The 570-case package run and 80 selected product tests pass; after the last
+crypto-coverage extension, all 221 affected cases and two product boundary tests
+pass. Final Debug/unsigned arm64 Release builds pass; Release excludes Debug
+observation state and its static network audit has zero matches. Full hosted
+observation remains open, including checking the journal's start against immediate
+key revocation. The signed trial is unchanged; no new live evidence is claimed.
 Latest product regression reproduced cached aggregate/analysis visibility and
 publication after synchronous key revocation but before lifecycle state updated.
 Product flow now uses the existing key gate for presentation access and retains

@@ -3,6 +3,60 @@ import KeyRecordCore
 import KeyRecordMeasurement
 
 final class ResourceEvaluationTests: XCTestCase {
+    func testPlaintextProcessingAndIncompleteCoverageCannotBeZeroReads() throws {
+        let activity = ProtectedReadActivity()
+        var marks = try recorderMarks { recorder in
+            recorder.configureProtectedReadActivity { activity.snapshot }
+            recorder.beginClosedInterval(cause: "protectedStateClosed")
+            activity.observe(.plaintextProcessing) {}
+            recorder.observeClosedInterval()
+            recorder.endClosedInterval(cause: "protectedStoreReauthorized")
+        }
+        let report = PrivacyIntervalEvaluator.evaluateClosed(marks, journalWriteFailed: false)
+        XCTAssertEqual(report.reason, "closed-interval-plaintext-processing")
+        XCTAssertFalse(report.provesEveryProtectedRead)
+        for index in marks.indices {
+            marks[index].protectedReadActivity?.aggregateReadStarted = nil
+            marks[index].protectedReadActivity?.aggregateReadCompleted = nil
+        }
+        XCTAssertEqual(PrivacyIntervalEvaluator.evaluateClosed(marks, journalWriteFailed: false).reason,
+                       "protected-read-coverage-missing")
+    }
+
+    func testInFlightProcessingAndLegacyCounterGroupsRetainTheirLimits() throws {
+        let activity = ProtectedReadActivity()
+        let pending = try recorderMarks { recorder in
+            recorder.configureProtectedReadActivity { activity.snapshot }
+            activity.observe(.plaintextProcessing) {
+                recorder.beginClosedInterval(cause: "protectedStateClosed")
+                recorder.observeClosedInterval()
+            }
+            recorder.endClosedInterval(cause: "protectedStoreReauthorized")
+        }
+        XCTAssertEqual(PrivacyIntervalEvaluator.evaluateClosed(pending, journalWriteFailed: false).reason,
+                       "protected-read-in-flight")
+        var legacy = try recorderMarks { recorder in
+            recorder.configureProtectedReadActivity { activity.snapshot }
+            recorder.beginClosedInterval(cause: "protectedStateClosed")
+            recorder.observeClosedInterval()
+            recorder.endClosedInterval(cause: "protectedStoreReauthorized")
+        }
+        for index in legacy.indices {
+            legacy[index].protectedReadActivity?.plaintextProcessingStarted = nil
+            legacy[index].protectedReadActivity?.plaintextProcessingCompleted = nil
+        }
+        XCTAssertNil(PrivacyIntervalEvaluator.evaluateClosed(legacy, journalWriteFailed: false).reason)
+        for index in legacy.indices {
+            legacy[index].protectedReadActivity?.storeCacheReadStarted = nil
+            legacy[index].protectedReadActivity?.storeCacheReadCompleted = nil
+            legacy[index].protectedReadActivity?.aggregateReadStarted = nil
+            legacy[index].protectedReadActivity?.aggregateReadCompleted = nil
+        }
+        let report = PrivacyIntervalEvaluator.evaluateClosed(legacy, journalWriteFailed: false)
+        XCTAssertNil(report.reason)
+        XCTAssertFalse(report.provesEveryProtectedRead)
+    }
+
     func testCachedAndAggregateReadsAreNotMissedByClosedEvaluation() throws {
         for kind in [ProtectedReadActivity.Kind.storeCache, .aggregate] {
             let activity = ProtectedReadActivity()

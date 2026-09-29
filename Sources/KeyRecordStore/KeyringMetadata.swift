@@ -13,6 +13,10 @@ public struct KeyringMetadata: Equatable, Sendable {
     }
 
     public static func decode(_ data: Data) throws -> Self {
+        try ProtectedProcessing.observe { try decodePayload(data) }
+    }
+
+    private static func decodePayload(_ data: Data) throws -> Self {
         guard data.count <= 65_536 else { throw KeyringError.corruptMetadata }
         do {
             let wire = try JSONDecoder().decode(Wire.self, from: data)
@@ -43,6 +47,10 @@ public struct KeyringMetadata: Equatable, Sendable {
     }
 
     func encoded() throws -> Data {
+        try ProtectedProcessing.observe { try encodedPayload() }
+    }
+
+    private func encodedPayload() throws -> Data {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys]
         return try encoder.encode(Wire(schema: 1, current: current.rawValue,

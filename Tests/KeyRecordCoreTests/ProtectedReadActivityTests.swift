@@ -73,7 +73,8 @@ final class ProtectedReadActivityTests: XCTestCase {
         XCTAssertEqual(Set(after.keys), ["decryptionStarted", "decryptionCompleted",
                                         "keychainReadStarted", "keychainReadCompleted",
                                         "storeCacheReadStarted", "storeCacheReadCompleted",
-                                        "aggregateReadStarted", "aggregateReadCompleted"])
+                                        "aggregateReadStarted", "aggregateReadCompleted",
+                                        "plaintextProcessingStarted", "plaintextProcessingCompleted"])
         XCTAssertTrue(after.values.allSatisfy { $0 is NSNumber })
     }
 }

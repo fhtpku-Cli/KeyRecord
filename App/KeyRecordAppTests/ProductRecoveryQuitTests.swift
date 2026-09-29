@@ -643,7 +643,7 @@ final class ProductRecoveryQuitTests: XCTestCase {
             XCTAssertEqual(end[counter] as? Int, begin[counter] as? Int, "\(counter) moved while closed")
         }
         let readsAtClosure = try XCTUnwrap(begin["protectedReadActivity"] as? [String: Int])
-        let readKinds = ["decryption", "keychainRead", "storeCacheRead", "aggregateRead"]
+        let readKinds = ["decryption", "keychainRead", "storeCacheRead", "aggregateRead", "plaintextProcessing"]
         XCTAssertEqual(readsAtClosure.count, readKinds.count * 2)
         for mark in [begin] + observes + [end] {
             let reads = try XCTUnwrap(mark["protectedReadActivity"] as? [String: Int])

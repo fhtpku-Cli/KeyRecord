@@ -258,10 +258,20 @@ public struct PrivacyReadActivity: Equatable, Sendable, Decodable {
     public var storeCacheReadCompleted: Int64?
     public var aggregateReadStarted: Int64?
     public var aggregateReadCompleted: Int64?
+    public var plaintextProcessingStarted: Int64?
+    public var plaintextProcessingCompleted: Int64?
+
+    fileprivate var completeCoverage: Bool {
+        let cached = [storeCacheReadStarted, storeCacheReadCompleted, aggregateReadStarted, aggregateReadCompleted]
+            .compactMap { $0 }.count
+        let processing = [plaintextProcessingStarted, plaintextProcessingCompleted].compactMap { $0 }.count
+        return (cached == 0 && processing == 0) || (cached == 4 && (processing == 0 || processing == 2))
+    }
 
     fileprivate var values: [Int64] {
         [decryptionStarted, decryptionCompleted, keychainReadStarted, keychainReadCompleted]
-            + [storeCacheReadStarted, storeCacheReadCompleted, aggregateReadStarted, aggregateReadCompleted]
+            + [storeCacheReadStarted, storeCacheReadCompleted, aggregateReadStarted, aggregateReadCompleted,
+               plaintextProcessingStarted, plaintextProcessingCompleted]
                 .compactMap { $0 }
     }
 }
@@ -534,7 +544,7 @@ public enum PrivacyIntervalEvaluator {
         guard !reads.isEmpty else { return nil }
         guard reads.count == marks.count else { return ("inconclusive", "protected-read-activity-missing") }
         let widths = Set(reads.map { $0.values.count })
-        guard widths.count == 1, widths.first == 4 || widths.first == 8 else {
+        guard widths.count == 1, reads.allSatisfy(\.completeCoverage) else {
             return ("inconclusive", "protected-read-coverage-missing")
         }
         guard reads.allSatisfy({
@@ -549,8 +559,11 @@ public enum PrivacyIntervalEvaluator {
         if last.decryptionStarted > first.decryptionStarted || last.keychainReadStarted > first.keychainReadStarted {
             return ("observed", "closed-interval-decryption-or-keychain-read")
         }
-        if first.values.count == 8 && (last.values[4] > first.values[4] || last.values[6] > first.values[6]) {
+        if first.values.count >= 8 && (last.values[4] > first.values[4] || last.values[6] > first.values[6]) {
             return ("observed", "closed-interval-cached-or-aggregate-read")
+        }
+        if first.values.count == 10 && last.values[8] > first.values[8] {
+            return ("observed", "closed-interval-plaintext-processing")
         }
         if reads.contains(where: {
             let values = $0.values

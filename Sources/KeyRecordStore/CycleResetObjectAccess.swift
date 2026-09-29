@@ -131,13 +131,15 @@ extension ObjectStore {
     }
 
     func decodeStrict<T: Decodable>(_ type: T.Type, _ data: Data) throws -> T {
-        try JSONDecoder().decode(T.self, from: data)
+        try ProtectedProcessing.observe { try JSONDecoder().decode(T.self, from: data) }
     }
 
     func encodeJSON<T: Encodable>(_ value: T) throws -> Data {
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.sortedKeys]
-        return try encoder.encode(value)
+        try ProtectedProcessing.observe {
+            let encoder = JSONEncoder()
+            encoder.outputFormatting = [.sortedKeys]
+            return try encoder.encode(value)
+        }
     }
 
     func crashReset(_ point: ResetKillPoint?, _ expected: ResetKillPoint) {

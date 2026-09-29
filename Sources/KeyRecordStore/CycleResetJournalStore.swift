@@ -28,11 +28,13 @@ final class CycleResetJournalStore: StoreJournalRecoverySource, @unchecked Senda
     @discardableResult
     func write(_ payload: ResetJournalPayload, keyVersion: UInt32, material: Data,
                injection: DurabilityInjection = .none) throws -> ObjectLocator {
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.sortedKeys]
-        let sealed = try LocatorCodec.seal(identity: CycleResetObjects.journal,
-                                          payload: try encoder.encode(payload),
-                                          keyVersion: keyVersion, material: material)
+        let sealed = try ProtectedProcessing.observe {
+            let encoder = JSONEncoder()
+            encoder.outputFormatting = [.sortedKeys]
+            return try LocatorCodec.seal(identity: CycleResetObjects.journal,
+                                         payload: try encoder.encode(payload),
+                                         keyVersion: keyVersion, material: material)
+        }
         try fileSystem.commitFile(name: sealed.locator.fileName, in: root, bytes: sealed.envelope,
                                   phase: .data, injection: injection)
         remember(name: sealed.locator.fileName, version: keyVersion)
@@ -195,7 +197,9 @@ final class CycleResetJournalStore: StoreJournalRecoverySource, @unchecked Senda
             throw ObjectStoreError.corruption(.resetJournalUnreadable)
         }
         do {
-            return (try JSONDecoder().decode(ResetJournalPayload.self, from: opened.payload), opened.payload)
+            return try ProtectedProcessing.observe {
+                (try JSONDecoder().decode(ResetJournalPayload.self, from: opened.payload), opened.payload)
+            }
         } catch {
             throw ObjectStoreError.corruption(.resetJournalUnreadable)
         }

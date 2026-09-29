@@ -56,7 +56,8 @@ enum PrivacySchemaAudit {
     static let recordFields: [String: [String: Set<String>]] = [
         "ProtectedReadActivity.swift": ["ProtectedReadActivitySnapshot": [
             "decryptionStarted", "decryptionCompleted", "keychainReadStarted", "keychainReadCompleted",
-            "storeCacheReadStarted", "storeCacheReadCompleted", "aggregateReadStarted", "aggregateReadCompleted"]],
+            "storeCacheReadStarted", "storeCacheReadCompleted", "aggregateReadStarted", "aggregateReadCompleted",
+            "plaintextProcessingStarted", "plaintextProcessingCompleted"]],
         "AppDelegate.swift": ["DebugReplayProgress": [
             "mode", "outcome", "expectedTicks", "ticks", "acceptedEvents", "elapsedSeconds",
             "durableKeyDownTotal", "startedUptimeSeconds", "endedUptimeSeconds"]],

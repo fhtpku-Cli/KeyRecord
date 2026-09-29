@@ -82,7 +82,7 @@ public final class KeyAvailabilityGate: KeyAvailabilityFencing, @unchecked Senda
             #if DEBUG
             recordProtectedEntryLocked()
             #endif
-            let result = try body()
+            let result = try ProtectedProcessing.observe(body)
             try checkLocked(candidate)
             return result
         }

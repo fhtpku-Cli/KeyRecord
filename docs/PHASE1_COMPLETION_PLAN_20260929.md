@@ -342,3 +342,45 @@ These are model access/publication results, not a claim about already rendered
 pixels or a complete hosted lifecycle observer. Full plaintext-processing coverage,
 the hosted controller connection and native UI/attribution checks remain open.
 The installed signed candidate remains `293f25a45`; no new live run occurred.
+
+## Plaintext-processing observation
+
+The Debug read-activity record now has ten fields. The added start/completion pair
+covers synchronous protected work in the existing key gate, aggregate encoding,
+canonical identity parsing, manifest/Keychain metadata coding and validation,
+reset payload/journal coding, object binding, key derivation and encryption.
+`ProtectedProcessing.observe` executes the same closure directly in Release;
+the counter state and diagnostic fields are Debug-only. No gate, cryptographic
+format, key policy or persisted product object was added or changed.
+
+These are conservative processing scopes: they overlap lower-level read counts
+and can include validation or a scope that ultimately has no payload. Do not sum
+them as a count of distinct data reads. They make work spanning a sampled closed
+boundary visible instead of treating completed decryption as completed processing.
+The evaluator identifies processing begun inside a closed interval and reports
+in-flight processing as inconclusive. Complete four/eight-field historical logs
+retain their previous limited interpretation; partial, mixed or missing groups
+cannot masquerade as a complete older format. Exhaustive-read, rendered-pixel
+and continuous-closure flags remain false.
+
+Actual decoder tests observe a pending scope from inside `Decodable.init`, then
+verify balanced completion both on success and failure. Manifest validation and
+encryption tests demonstrate processing without a decryption. Stale key-gate
+scopes do not execute their body. The broad package run passed all 570 cases;
+after extending key-derivation/object-binding coverage and adding one test, all
+221 affected cases passed (180 Store, 22 measurement, 14 integration and 5 Core).
+All 80 selected product tests passed; the final two focused product regressions
+also pass with all ten counters present, balanced and unchanged while closed.
+Final Debug test and unsigned native arm64 Release builds pass. Release symbols
+and strings contain no `ProtectedReadActivity` or processing counter field, and
+the static network audit has zero matches. Logs use
+`/private/tmp/keyrecord-plaintext-observation-` with `package.log`,
+`boundaries.log`, `app-tests.log`, `final-store.log`, `final-app-tests.log`,
+`final-app-build.log`, `final-release.log` and `final-release-audit.log`.
+
+Next, verify the observation's starting boundary against synchronous revocation:
+the current journal begins after queued product cleanup, which may omit work
+between key-gate closure and the first journal sample. This is a source-review
+concern to reproduce, not an observed live leak. Finish that boundary and the
+hosted observer/independent-witness connection before claiming complete host
+qualification. No signed trial, lock/sleep or performance round was launched.

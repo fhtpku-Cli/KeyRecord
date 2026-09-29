@@ -10,13 +10,15 @@ public struct ProtectedReadActivitySnapshot: Encodable, Equatable, Sendable {
     public var storeCacheReadCompleted: Int64 = 0
     public var aggregateReadStarted: Int64 = 0
     public var aggregateReadCompleted: Int64 = 0
+    public var plaintextProcessingStarted: Int64 = 0
+    public var plaintextProcessingCompleted: Int64 = 0
 }
 
 /// Process-wide counts include all stores, so another store cannot hide a read during
 /// a closed interval. Completion is separate because a read can cross its boundary.
 public final class ProtectedReadActivity: @unchecked Sendable {
     public static let process = ProtectedReadActivity()
-    public enum Kind: Sendable { case decryption, keychain, storeCache, aggregate }
+    public enum Kind: Sendable { case decryption, keychain, storeCache, aggregate, plaintextProcessing }
 
     private let lock = NSLock()
     private var counts: ProtectedReadActivitySnapshot
@@ -48,6 +50,8 @@ public final class ProtectedReadActivity: @unchecked Sendable {
             case (.storeCache, true): key = \.storeCacheReadCompleted
             case (.aggregate, false): key = \.aggregateReadStarted
             case (.aggregate, true): key = \.aggregateReadCompleted
+            case (.plaintextProcessing, false): key = \.plaintextProcessingStarted
+            case (.plaintextProcessing, true): key = \.plaintextProcessingCompleted
             }
             let (value, overflow) = counts[keyPath: key].addingReportingOverflow(1)
             overflowed = overflow

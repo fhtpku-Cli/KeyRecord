@@ -1,5 +1,6 @@
 import CryptoKit
 import Foundation
+import KeyRecordCore
 
 /// Errors specific to authenticated object binding (distinct from raw wire parse errors).
 public enum LocatorCodecError: Error, Equatable, Sendable {
@@ -68,6 +69,13 @@ public enum LocatorCodec {
         keyVersion: UInt32,
         material: Data
     ) throws -> SealedObject {
+        try ProtectedProcessing.observe {
+            try sealPayload(identity: identity, payload: payload, keyVersion: keyVersion, material: material)
+        }
+    }
+
+    private static func sealPayload(identity: CanonicalLogicalIdentity, payload: Data,
+                                    keyVersion: UInt32, material: Data) throws -> SealedObject {
         let inner = identity.canonicalBytes + payload
         guard !payload.isEmpty,
               inner.count <= AuthenticatedStorageEnvelope.maximumCiphertextBytes
@@ -89,6 +97,10 @@ public enum LocatorCodec {
         envelope: Data,
         materialByVersion: [UInt32: Data]
     ) throws -> OpenedObject {
+        try ProtectedProcessing.observe { try authenticatePayload(envelope: envelope, materialByVersion: materialByVersion) }
+    }
+
+    private static func authenticatePayload(envelope: Data, materialByVersion: [UInt32: Data]) throws -> OpenedObject {
         let parsed = try AuthenticatedStorageEnvelope.parse(envelope)
         let keyVersion = parsed.header.keyVersion
         guard let material = materialByVersion[keyVersion] else {
@@ -115,6 +127,13 @@ public enum LocatorCodec {
         requested identity: CanonicalLogicalIdentity,
         materialByVersion: [UInt32: Data]
     ) throws -> OpenedObject {
+        try ProtectedProcessing.observe {
+            try openPayload(envelope: envelope, requested: identity, materialByVersion: materialByVersion)
+        }
+    }
+
+    private static func openPayload(envelope: Data, requested identity: CanonicalLogicalIdentity,
+                                    materialByVersion: [UInt32: Data]) throws -> OpenedObject {
         let parsed = try AuthenticatedStorageEnvelope.parse(envelope)
         let keyVersion = parsed.header.keyVersion
         guard let material = materialByVersion[keyVersion] else {

@@ -1,8 +1,6 @@
 import CryptoKit
 import Foundation
-#if DEBUG
 import KeyRecordCore
-#endif
 
 public enum StorageEnvelopeError: Error, Equatable, Sendable {
     case invalidAlgorithm, invalidFormat, invalidKeyVersion, invalidLength
@@ -31,16 +29,22 @@ public enum StorageKeySchedule {
     public static let encryptionInfo = Data("KeyRecord/SP-6A/object-encryption/v1".utf8)
     public static let locatorInfo = Data("KeyRecord/SP-6A/opaque-locator/v1".utf8)
 
-    public static func key(_ material: Data) -> SymmetricKey { SymmetricKey(data: material) }
+    public static func key(_ material: Data) -> SymmetricKey {
+        ProtectedProcessing.observe { SymmetricKey(data: material) }
+    }
     public static func encryptionKey(material: Data) -> SymmetricKey { encryptionKey(masterKey: key(material)) }
     public static func locatorKey(material: Data) -> SymmetricKey { locatorKey(masterKey: key(material)) }
 
     public static func encryptionKey(masterKey: SymmetricKey) -> SymmetricKey {
-        HKDF<SHA256>.deriveKey(inputKeyMaterial: masterKey, salt: salt, info: encryptionInfo, outputByteCount: 32)
+        ProtectedProcessing.observe {
+            HKDF<SHA256>.deriveKey(inputKeyMaterial: masterKey, salt: salt, info: encryptionInfo, outputByteCount: 32)
+        }
     }
 
     public static func locatorKey(masterKey: SymmetricKey) -> SymmetricKey {
-        HKDF<SHA256>.deriveKey(inputKeyMaterial: masterKey, salt: salt, info: locatorInfo, outputByteCount: 32)
+        ProtectedProcessing.observe {
+            HKDF<SHA256>.deriveKey(inputKeyMaterial: masterKey, salt: salt, info: locatorInfo, outputByteCount: 32)
+        }
     }
 
     public static func locator(material: Data, objectID: Data) -> Data {
@@ -48,7 +52,9 @@ public enum StorageKeySchedule {
     }
 
     public static func locator(masterKey: SymmetricKey, objectID: Data) -> Data {
-        Data(HMAC<SHA256>.authenticationCode(for: objectID, using: locatorKey(masterKey: masterKey)))
+        ProtectedProcessing.observe {
+            Data(HMAC<SHA256>.authenticationCode(for: objectID, using: locatorKey(masterKey: masterKey)))
+        }
     }
 }
 
@@ -81,9 +87,10 @@ public enum AuthenticatedStorageEnvelope {
         guard nonceData.count == 12 else { throw StorageEnvelopeError.invalidLength }
         let header = encodedHeader(keyVersion: keyVersion, locator: locator, nonce: nonceData,
                                    ciphertextLength: UInt64(plaintext.count))
-        let box = try AES.GCM.seal(plaintext,
-                                   using: StorageKeySchedule.encryptionKey(masterKey: masterKey),
-                                   nonce: selectedNonce, authenticating: header)
+        let box = try ProtectedProcessing.observe {
+            try AES.GCM.seal(plaintext, using: StorageKeySchedule.encryptionKey(masterKey: masterKey),
+                             nonce: selectedNonce, authenticating: header)
+        }
         return header + box.ciphertext + box.tag
     }
 

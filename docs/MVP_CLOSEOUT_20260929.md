@@ -364,6 +364,27 @@ The narrow permission regrant/isolated-restart and false foreground-rebuild
 block task is complete for this candidate. The owner needs no further action
 for this round; this does not expand the acceptance scope to the items below.
 
+## Bounded lock round and diagnostic interval repair
+
+One separately approved/readied lock round on signed `8e3ca0c55` observed capture
+closed and hidden state across 52 locked and 42 unlocked-before-Start samples.
+All sampled gate/input/read/publication/write counters were unchanged from the
+closed begin at seq 13 to explicit Start at seq 109. Start verified unlocked and
+granted conditions, restored Collecting, and the owner confirmed new input.
+Normal Quit at 175 seconds completed within the 180-second bound; no process
+remained. The final totals are 9 shortcuts and 2 bare keys, with 9 successful
+durable writes and no write/read failure. The two bare increments occurred
+before closure and are not independently attributed.
+
+The unmodified evaluator nevertheless reports 20 gate admissions in its span:
+its old `captureSessionStarting` endpoint occurs after the manual action has
+reopened the store. A hostless test reproduced this boundary mismatch. The Debug
+journal now ends immediately before the already-authorized store reopening and
+labels it `protectedStoreReauthorized`; actual protection behavior is unchanged.
+All 55 recovery/quit and 15 interval evaluation tests pass after red reproduction.
+The new recording repair is not installed or live-qualified. Original journal,
+summary and flagged evaluation are retained. See [the detailed record](PERMISSION_RECOVERY_TEST.md#bounded-collecting-lock-and-explicit-recovery--2026-09-29).
+
 Still open: current-candidate attribution rows, native consent
 and accessibility, permission revoke/regrant, continuous lock/sleep closure and
 recovery, exhaustive live product observation for the hosted Keychain controller,

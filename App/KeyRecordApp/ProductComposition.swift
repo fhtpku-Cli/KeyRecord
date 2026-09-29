@@ -477,6 +477,7 @@ final class ProductComposition: NSObject, NSMenuDelegate {
             await handlePrivacyInvalidation(reason: .sessionLocked)
             return false
         }
+        diagnostics.endClosedInterval(cause: "protectedStoreReauthorized")
         gate.update(.unlocked)
         let permission = await capture.requestInputMonitoringPermission()
         trace.detail.permissionStatus = String(describing: permission)

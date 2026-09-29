@@ -400,9 +400,11 @@ public enum PrivacyIntervalEvaluator {
             provesRendering: false, provesEveryProtectedRead: false)
     }
 
-    /// End causes recorded at the product step that re-authorizes input or display, before
+    /// End causes recorded when input, store access or display is re-authorized, before
     /// that step can move a counter. Other causes mean the boundary position is unknown.
-    public static let reliableEndCauses: Set<String> = ["captureSessionStarting", "protectedDisplayReauthorized"]
+    public static let reliableEndCauses: Set<String> = [
+        "captureSessionStarting", "protectedDisplayReauthorized", "protectedStoreReauthorized"
+    ]
 
     /// Evaluates the last closed interval opened by `beginCause` (nil accepts any cause).
     /// Requires begin, at least one observe and the first end after that begin. Deltas are

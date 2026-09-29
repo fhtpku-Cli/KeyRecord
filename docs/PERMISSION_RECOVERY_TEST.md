@@ -132,6 +132,72 @@ This completes the narrow isolated regrant/restart and foreground-rebuild
 regression check for this signed candidate. Same-process revoke/regrant,
 continuous closed-interval privacy, lock/sleep and full Release remain separate.
 
+## Bounded collecting lock and explicit recovery — 2026-09-29
+
+After approving the prepared three-minute scope and confirming readiness, the
+owner completed one input, lock/unlock and explicit Start/input round on signed
+`8e3ca0c55`. Identity, installed path, private store and namespace were unchanged.
+The controller's `--lock` mode wrote new `privacy-lock.jsonl` / `summary-lock.json`
+files. The owner performed the lock, ordinary unlock and menu actions; the agent
+did not change permissions or operate authentication. No sleep was requested.
+
+The 129-record journal opens `protectedStateClosed` at seq 13. From there to
+the explicit Start action at seq 109, all 97 recorded snapshots have capture
+closed and sensitive state hidden. There are 52 locked and 42 unlocked observe
+records. Gate entries remain 179, aggregate delta 3, accepted handoffs 8,
+normalization 6, durable writes 4, snapshot attempts/publications 37 and analysis
+attempts/publications 40. Thus the sampled locked interval and unlocked wait
+before Start show no new protected access, input or publication.
+
+The Start action reports a fresh unlocked read, granted permission, readiness
+`lock=unlocked,secure=disabled,foreground=attributable`, and live Collecting.
+The owner confirmed the second agreed input. Final shortcut total is 9 (from 7)
+and bare total 2 (from 0); the two bare increments already existed before the
+closed boundary and cannot be attributed from aggregate-only evidence.
+Total delta is 4, with 4 down/4 up/4 modifier callbacks, 12 accepted handoffs,
+10 capture sessions and 9 issued/returned/succeeded/durable writes. Failures,
+timeouts, invalidations, overflow and snapshot read failures are zero.
+
+The controller requested normal Quit at 175 seconds, exited 0 before its
+180-second stop deadline, and a process check found no remaining App. The
+subsequent explicit termination helper found no matching process because the
+controller had already quit it. Quit action details report Stopped, no live
+session, saved and terminate; the summary's cached live flag is not teardown
+evidence. Controller log:
+`/private/tmp/keyrecord-mvp-lock-controller-20260929.log`.
+
+### Diagnostic interval boundary follow-up
+
+The unchanged evaluator reports `observed` with reason
+`closed-interval-protected-gate-entry`, not a clean closed-interval result:
+the old end at `captureSessionStarting` (seq 110) sees 199 gate entries, 20 more
+than at the explicit Start action (seq 109). No other closed-span input/read/
+publication/write counter increases. Product code reauthorizes the store after
+the explicit action's fresh unlocked read, before restoring preferences and
+starting capture; the marker was too late for measuring that gate's closure.
+
+The hostless product-boundary test reproduces this before repair: gate entries
+move from 32 to 44 before the old end. The Debug journal now ends with
+`protectedStoreReauthorized` immediately before `gate.update(.unlocked)`, after
+the current manual-recovery attempt and unlocked read have been verified. The
+evaluator recognizes that precise cause separately from capture-session start.
+This changes recording only, not permission checks, store authorization, capture
+behavior or protection. Locked/unknown rejected Start attempts must not emit the
+new end. Genuine gate entries before an end still fail the same evaluation.
+
+Debug build-for-testing, all 55 `ProductRecoveryQuitTests`, and all 15
+`ResourceEvaluationTests` pass. The new classifier test failed before the change;
+it now places post-authorization reads outside the closed interval without
+claiming continuous closure or every protected read. Logs:
+`/private/tmp/keyrecord-lock-boundary-{build-red,red,build-green,green,evaluator-red,evaluator-green}.log`.
+
+Original real evidence is preserved and not rewritten as PASS. The observed
+lock/wait/manual-recovery behavior is supported for `8e3ca0c55`; the corrected
+journal has only offline validation and is not installed or live-tested yet.
+Continuous privacy, full hosted Keychain behavior, paused lock, sleep/wake and
+Release qualification remain separate. Another owner-assisted round requires
+fresh scope/readiness, not automatic replay of this one.
+
 ## Permission polling fallback — 2026-09-28 candidate
 
 ### Follow-up: generic closure reason repair — 2026-09-29

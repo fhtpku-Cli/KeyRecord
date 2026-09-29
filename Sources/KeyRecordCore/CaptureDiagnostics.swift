@@ -552,7 +552,7 @@ public final class CaptureDiagnosticsRecorder: @unchecked Sendable {
                lockComponents: lockComponents)
     }
 
-    /// Ends the interval at the product step that re-authorizes input or protected display,
+    /// Ends the interval when input, store access or protected display is re-authorized,
     /// before that step can move any counter. Causes are fixed call-site names.
     public func endClosedInterval(cause: String) {
         let open = lock.withLock { () -> Bool in

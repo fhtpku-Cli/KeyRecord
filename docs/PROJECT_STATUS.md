@@ -3,11 +3,19 @@
 ## Current Apple Silicon MVP status — 2026-09-29
 
 Latest autonomous checkpoint: [MVP closeout](MVP_CLOSEOUT_20260929.md).
-Next prepared owner-assisted step: [collecting lock and explicit recovery](NEXT_HOST_ROUND_20260929.md).
-Its controller and no-launch checks passed; no lock round has started. Fourteen
-measurement/closed-interval tests and both performance-tool synthetic self-checks
-passed. Both CI jobs for documentation head `12f2f9a35` passed. These preparation
-results do not add host privacy or performance qualification.
+The [collecting lock and explicit recovery round](NEXT_HOST_ROUND_20260929.md)
+has now completed on signed `8e3ca0c55`: locked and unlocked-before-Start
+observations stayed closed with unchanged counters; explicit Start restored
+collection and saved new input; normal Quit left no process. The old interval
+end marker also included 20 gate admissions during authorized Start recovery,
+so the unmodified evaluator reported `closed-interval-protected-gate-entry`.
+An offline-reproduced Debug journal repair places the end before explicit
+unlocked store reauthorization. All 55 recovery/quit and 15 interval evaluation
+tests pass; this newer diagnostic repair has no live host result or installation
+yet. The original journal and its evaluator result remain unchanged. See the
+candidate-specific [lock result](PERMISSION_RECOVERY_TEST.md#bounded-collecting-lock-and-explicit-recovery--2026-09-29).
+Both CI jobs for documentation head `12f2f9a35` passed; performance-tool
+self-checks remain synthetic, with no new product resource window.
 The follow-up signed repair `8e3ca0c55` now has a separately approved bounded
 host result: Collecting survived the owner's TextEdit input and return to chat,
 with three capture sessions, no false Blocked phase, four successful durable

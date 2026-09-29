@@ -631,14 +631,15 @@ final class ProductRecoveryQuitTests: XCTestCase {
         let endSeq = try XCTUnwrap(end["seq"] as? Int)
         XCTAssertEqual(begin["privacyTrigger"] as? String, "screenLockedNotification")
         XCTAssertEqual(begin["captureSessionLive"] as? Bool, false)
-        XCTAssertEqual(end["boundaryCause"] as? String, "captureSessionStarting",
-                       "the interval ends before the new session can accept input")
+        XCTAssertEqual(end["boundaryCause"] as? String, "protectedStoreReauthorized",
+                       "the interval ends before explicit unlocked recovery reads the store")
         let observes = marks.filter {
             $0["role"] as? String == "observe" && (beginSeq..<endSeq).contains($0["seq"] as? Int ?? -1)
         }
         XCTAssertFalse(observes.isEmpty)
         XCTAssertTrue(observes.allSatisfy { $0["lockReadStatus"] as? String != "notChecked" })
-        for counter in ["aggregateDelta", "normalizationOutput", "handoffAccepted", "flushDurable"] {
+        for counter in ["aggregateDelta", "normalizationOutput", "handoffAccepted", "flushDurable",
+                        "protectedGateEntries", "snapshotPublicationCount", "analysisPublicationCount"] {
             XCTAssertEqual(end[counter] as? Int, begin[counter] as? Int, "\(counter) moved while closed")
         }
         XCTAssertEqual(product.aggregateDelta, Int64(end["aggregateDelta"] as? Int ?? -1) + 2,
@@ -667,6 +668,11 @@ final class ProductRecoveryQuitTests: XCTestCase {
         XCTAssertEqual(ends.suffix(3).map { $0["lifecycleCommandRun"] as? Bool }, [nil, nil, nil])
         XCTAssertEqual(ends.suffix(3).map { $0["abortRun"] as? Bool }, [true, true, true])
         XCTAssertEqual(Set(begins.suffix(3).compactMap { $0["actionSeq"] as? Int }).count, 3)
+        let firstRejectedStart = try XCTUnwrap(begins.suffix(3).first?["seq"] as? Int)
+        XCTAssertFalse(try product.marks().contains {
+            $0["role"] as? String == "end" && $0["boundaryCause"] as? String == "protectedStoreReauthorized"
+                && ($0["seq"] as? Int ?? 0) > firstRejectedStart
+        }, "a rejected locked or unknown Start must not end the protected interval")
     }
 
     func testLockReturningDuringRecoveryKeepsCaptureClosed() async throws {

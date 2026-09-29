@@ -319,6 +319,24 @@ final class ResourceEvaluationTests: XCTestCase {
                        "observed")
     }
 
+    func testExplicitStoreReauthorizationSeparatesRecoveryReadsFromClosure() throws {
+        let marks = try recorderMarks { recorder in
+            recorder.beginClosedInterval(cause: "protectedStateClosed")
+            recorder.observeClosedInterval(lockReadStatus: "locked")
+            recorder.observeClosedInterval(lockReadStatus: "unlocked")
+            recorder.endClosedInterval(cause: "protectedStoreReauthorized")
+            recorder.recordProtectedSnapshot(rejected: false)
+            recorder.beginAction("recovery-finished")
+        }
+        let report = PrivacyIntervalEvaluator.evaluateClosed(marks, journalWriteFailed: false)
+        XCTAssertEqual(report.outcome, "observed")
+        XCTAssertNil(report.reason)
+        XCTAssertEqual(report.spans.first?.protectedSnapshotAttempts, 0)
+        XCTAssertEqual(report.spans.last?.protectedSnapshotAttempts, 1)
+        XCTAssertFalse(report.provesContinuousClosedInterval)
+        XCTAssertFalse(report.provesEveryProtectedRead)
+    }
+
     func testSavedSamplesRecomputeToTheSameResult() {
         let request = request(samples: series())
         let result = ResourceEvaluator.evaluate(request)

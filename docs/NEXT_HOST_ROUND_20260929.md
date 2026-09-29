@@ -1,8 +1,9 @@
 # Next owner-assisted round: collecting lock and explicit recovery
 
-Preparation only, 2026-09-29. No new product process, permission toggle, Keychain
-operation, lock/sleep action or long resource window ran during this preparation.
-Wait for approval and an explicit ready response for this concrete round.
+This round completed on 2026-09-29 after explicit owner readiness. The original
+preparation is retained below; its output paths are consumed and must not be
+reused. See [the result and diagnostic follow-up](PERMISSION_RECOVERY_TEST.md#bounded-collecting-lock-and-explicit-recovery--2026-09-29).
+No new round is authorized by this historical plan.
 
 ## Exact candidate and scope
 

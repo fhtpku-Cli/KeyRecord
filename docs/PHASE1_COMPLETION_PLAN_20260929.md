@@ -227,3 +227,40 @@ evaluation tests pass; Debug build-for-testing succeeds. Logs:
 The installed signed candidate and original host artifacts remain unchanged at
 `293f25a45`; this diagnostic change is not retroactive live evidence. No repeat
 physical round has been started or newly authorized.
+
+## Protected-read observation: first executable coverage increment
+
+Debug product composition now attaches process-wide low-level read activity to
+its existing journal and run summary. `AuthenticatedStorageEnvelope.open` records
+entry to and completion of the actual AES-GCM open operation, including an
+authentication failure. `LocalKeychainBackend.read` records the real
+`SecItemCopyMatching` call, including a failed/not-found response. Metadata and
+version probes use that same exact-item read method. No key, plaintext, object
+identity, event or timestamp is recorded. Four monotonically increasing counts
+are read under one lock; overflow makes the observation absent. They cover all
+stores in the process, rather than quietly excluding another store's activity.
+
+The existing offline closed-interval evaluator consumes these counts when present.
+New operations within the interval are violations. A read begun before closure
+and still in flight at a sampled boundary is inconclusive, not zero activity.
+Partially missing, inconsistent or decreasing observations cannot pass that check.
+Old journals retain their original limited interpretation; no old result acquires
+every-read, rendering or continuous-closure claims.
+
+Validation: all 562 SwiftPM XCTest cases and 57 hostless product recovery/quit
+tests pass; Debug App test build and native arm64 unsigned Release build succeed.
+Tests cover actual successful and failed decryption, concurrent counter updates,
+pending reads, overflow, journal encoding and interval evaluation. The actual
+Security operation is instrumented in source but has not been rerun on a signed
+host candidate. The fresh Release executable excludes `ProtectedReadActivity`
+symbols/strings and passes the existing static network-capability audit with zero
+matches. This is build/audit evidence, not a collecting Release or signed launch.
+Logs: `/private/tmp/keyrecord-protected-read-{package-tests,app-build,app-tests,release-build,release-audit}.log`.
+
+This is an intermediate implementation, not the complete hosted observer. The
+source audit still identifies cached manifest/material reads and aggregate staging
+as paths needing explicit coverage beyond decryption and snapshot/analysis calls.
+The next implementation step is to cover those read boundaries, then connect
+observations to the hosted lifecycle controller with its independent lock witness.
+Native rendering is a separate check. The installed signed App remains `293f25a45`;
+no new host, permission, lock/sleep or performance round was run.

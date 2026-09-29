@@ -1,5 +1,6 @@
 import Foundation
 import XCTest
+import KeyRecordCore
 @testable import KeyRecordStore
 
 /// Contract 6 (plan §fixed-implementation-contracts): the v1 envelope, HKDF labels, header
@@ -8,6 +9,20 @@ import XCTest
 /// the product package never imports or links Spikes, so equality here is cross-implement
 /// compatibility evidence rather than shared-code reuse.
 final class StorageCryptoVectorTests: XCTestCase {
+    #if DEBUG
+    func testActualDecryptionAndAuthenticationFailureAreBothObserved() throws {
+        var envelope = try makeEnvelope()
+        let before = try XCTUnwrap(ProtectedReadActivity.process.snapshot)
+        XCTAssertEqual(try AuthenticatedStorageEnvelope.open(envelope, materials: [7: masterMaterial]), plaintext)
+        envelope[envelope.count - 1] ^= 1
+        XCTAssertThrowsError(try AuthenticatedStorageEnvelope.open(envelope, materials: [7: masterMaterial]))
+        let after = try XCTUnwrap(ProtectedReadActivity.process.snapshot)
+        XCTAssertEqual(after.decryptionStarted - before.decryptionStarted, 2)
+        XCTAssertEqual(after.decryptionCompleted - before.decryptionCompleted, 2)
+        XCTAssertEqual(after.keychainReadStarted, before.keychainReadStarted)
+    }
+    #endif
+
     private let plaintext = Data("KR-SP6A-PLAINTEXT-CANARY-7f4c".utf8)
     private let objectID = Data("synthetic-object-42".utf8)
     private let masterMaterial = Data(0..<32)

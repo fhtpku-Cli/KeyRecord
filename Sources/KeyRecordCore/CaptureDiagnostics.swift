@@ -296,6 +296,7 @@ public struct CaptureRunSummary: Encodable, Sendable {
     public var protectedAnalysisAttempts: Int64 = 0
     public var protectedAnalysisRejected: Int64 = 0
     public var protectedGateEntries: Int64?
+    public var protectedReadActivity: ProtectedReadActivitySnapshot?
     public var privacyJournalWriteFailed = false
 }
 
@@ -342,6 +343,7 @@ public struct CapturePrivacyIntervalMark: Encodable, Sendable {
     public var protectedAnalysisAttempts: Int64
     public var protectedAnalysisRejected: Int64
     public var protectedGateEntries: Int64?
+    public var protectedReadActivity: ProtectedReadActivitySnapshot?
     public var snapshotPublicationCount: Int
     public var analysisPublicationCount: Int
     public var snapshotReadFailureCount: Int
@@ -399,6 +401,13 @@ public final class CaptureDiagnosticsRecorder: @unchecked Sendable {
     private var journalWriteFailed = false
     private let journalWriteLock = NSLock()
     private var protectedGateEntries: (@Sendable () -> Int64?)?
+    private var protectedReadActivity: (@Sendable () -> ProtectedReadActivitySnapshot?)?
+
+    public func configureProtectedReadActivity(
+        _ read: @escaping @Sendable () -> ProtectedReadActivitySnapshot?
+    ) {
+        lock.withLock { protectedReadActivity = read }
+    }
 
     public init() {
         counterBaseline = atomicCounters.snapshot()
@@ -442,6 +451,8 @@ public final class CaptureDiagnosticsRecorder: @unchecked Sendable {
         }
         var result = base
         result.protectedGateEntries = gateEntries?()
+        let readActivity = lock.withLock { protectedReadActivity }
+        result.protectedReadActivity = readActivity?()
         let values = atomicCounters.snapshot()
         result.tapCallbackKeyDown = values[CaptureDiagnosticCounter.tapCallbackKeyDown.rawValue]
         result.tapCallbackKeyUp = values[CaptureDiagnosticCounter.tapCallbackKeyUp.rawValue]
@@ -638,6 +649,7 @@ public final class CaptureDiagnosticsRecorder: @unchecked Sendable {
             protectedAnalysisAttempts: summary.protectedAnalysisAttempts,
             protectedAnalysisRejected: summary.protectedAnalysisRejected,
             protectedGateEntries: summary.protectedGateEntries,
+            protectedReadActivity: summary.protectedReadActivity,
             snapshotPublicationCount: summary.snapshotPublicationCount,
             analysisPublicationCount: summary.analysisPublicationCount,
             snapshotReadFailureCount: summary.snapshotReadFailureCount)

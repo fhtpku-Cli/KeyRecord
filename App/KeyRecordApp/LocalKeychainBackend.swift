@@ -15,8 +15,10 @@ struct LocalKeychainBackend: KeychainBackend {
     func read(_ id: KeychainItemID) async throws -> Data? {
         let identity = Self.identity(id)
         var result: CFTypeRef?
-        let status = SecItemCopyMatching(LocalKeychainQueries.queryForReadingData(identity: identity) as CFDictionary,
-                                         &result)
+        let status = ProtectedReadActivity.process.observe(.keychain) {
+            SecItemCopyMatching(LocalKeychainQueries.queryForReadingData(identity: identity) as CFDictionary,
+                                &result)
+        }
         if status == errSecItemNotFound { return nil }
         guard status == errSecSuccess else { throw Self.statusError(status) }
         guard let bytes = result as? Data else { throw Self.contentError(for: id) }

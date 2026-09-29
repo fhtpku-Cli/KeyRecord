@@ -249,6 +249,17 @@ public struct ResourceMeasurementArchive: Equatable, Sendable, Codable {
     }
 }
 
+public struct PrivacyReadActivity: Equatable, Sendable, Decodable {
+    public var decryptionStarted: Int64
+    public var decryptionCompleted: Int64
+    public var keychainReadStarted: Int64
+    public var keychainReadCompleted: Int64
+
+    fileprivate var values: [Int64] {
+        [decryptionStarted, decryptionCompleted, keychainReadStarted, keychainReadCompleted]
+    }
+}
+
 public struct PrivacyIntervalMark: Equatable, Sendable, Decodable {
     public var seq: Int
     public var role: String
@@ -267,6 +278,7 @@ public struct PrivacyIntervalMark: Equatable, Sendable, Decodable {
     public var protectedAnalysisAttempts: Int64
     public var protectedAnalysisRejected: Int64
     public var protectedGateEntries: Int64?
+    public var protectedReadActivity: PrivacyReadActivity?
     public var snapshotPublicationCount: Int64
     public var analysisPublicationCount: Int64?
 
@@ -311,6 +323,7 @@ public struct PrivacyIntervalMark: Equatable, Sendable, Decodable {
         self.protectedAnalysisAttempts = protectedAnalysisAttempts
         self.protectedAnalysisRejected = protectedAnalysisRejected
         self.protectedGateEntries = protectedGateEntries
+        self.protectedReadActivity = nil
         self.snapshotPublicationCount = snapshotPublicationCount
         self.analysisPublicationCount = analysisPublicationCount
     }
@@ -440,6 +453,9 @@ public enum PrivacyIntervalEvaluator {
             return report("inconclusive", "analysis-publication-counter-missing", begin: begin, end: end)
         }
         let intervalMarks = [begin] + during + [end]
+        if let problem = readActivityProblem(marks.filter { $0.seq >= begin.seq && $0.seq <= end.seq }) {
+            return report(problem.outcome, problem.reason, begin: begin, end: end)
+        }
         guard intervalMarks.allSatisfy({ $0.protectedGateEntries != nil }) else {
             return report("inconclusive", "protected-gate-counter-missing", begin: begin, end: end)
         }
@@ -505,5 +521,26 @@ public enum PrivacyIntervalEvaluator {
                           inFlight: inFlight)
         }
         return report("observed", nil, spans: spans, begin: begin, end: end, inFlight: inFlight)
+    }
+
+    private static func readActivityProblem(_ marks: [PrivacyIntervalMark]) -> (outcome: String, reason: String)? {
+        let reads = marks.compactMap(\.protectedReadActivity)
+        guard !reads.isEmpty else { return nil }
+        guard reads.count == marks.count else { return ("inconclusive", "protected-read-activity-missing") }
+        guard reads.allSatisfy({
+            $0.values.allSatisfy { $0 >= 0 } && $0.decryptionCompleted <= $0.decryptionStarted
+                && $0.keychainReadCompleted <= $0.keychainReadStarted
+        }) else { return ("invalid", "protected-read-activity-inconsistent") }
+        if zip(reads, reads.dropFirst()).contains(where: { before, after in
+            zip(before.values, after.values).contains { $1 < $0 }
+        }) { return ("invalid", "counter-decreased") }
+        guard let first = reads.first, let last = reads.last else { return nil }
+        if last.decryptionStarted > first.decryptionStarted || last.keychainReadStarted > first.keychainReadStarted {
+            return ("observed", "closed-interval-decryption-or-keychain-read")
+        }
+        if reads.contains(where: {
+            $0.decryptionStarted != $0.decryptionCompleted || $0.keychainReadStarted != $0.keychainReadCompleted
+        }) { return ("inconclusive", "protected-read-in-flight") }
+        return nil
     }
 }

@@ -3,6 +3,62 @@ import KeyRecordCore
 import KeyRecordMeasurement
 
 final class ResourceEvaluationTests: XCTestCase {
+    func testClosedIntervalDetectsActualBoundaryReads() throws {
+        for kind in [ProtectedReadActivity.Kind.decryption, .keychain] {
+            let activity = ProtectedReadActivity()
+            let marks = try recorderMarks { recorder in
+                recorder.configureProtectedReadActivity { activity.snapshot }
+                recorder.beginClosedInterval(cause: "protectedStateClosed")
+                activity.observe(kind) {}
+                recorder.observeClosedInterval()
+                recorder.endClosedInterval(cause: "protectedStoreReauthorized")
+            }
+            let report = PrivacyIntervalEvaluator.evaluateClosed(marks, journalWriteFailed: false)
+            XCTAssertEqual(report.reason, "closed-interval-decryption-or-keychain-read")
+            XCTAssertFalse(report.provesEveryProtectedRead)
+        }
+    }
+
+    func testReadStartedBeforeClosureCannotDisappearFromObservation() throws {
+        let activity = ProtectedReadActivity()
+        let marks = try recorderMarks { recorder in
+            recorder.configureProtectedReadActivity { activity.snapshot }
+            activity.observe(.keychain) {
+                recorder.beginClosedInterval(cause: "protectedStateClosed")
+                recorder.observeClosedInterval()
+            }
+            recorder.endClosedInterval(cause: "protectedStoreReauthorized")
+        }
+        let report = PrivacyIntervalEvaluator.evaluateClosed(marks, journalWriteFailed: false)
+        XCTAssertEqual(report.outcome, "inconclusive")
+        XCTAssertEqual(report.reason, "protected-read-in-flight")
+    }
+
+    func testReadActivityRejectsMissingMalformedAndDecreasingCounters() throws {
+        let activity = ProtectedReadActivity()
+        activity.observe(.decryption) {}
+        let marks = try recorderMarks { recorder in
+            recorder.configureProtectedReadActivity { activity.snapshot }
+            recorder.beginClosedInterval(cause: "protectedStateClosed")
+            recorder.observeClosedInterval()
+            recorder.endClosedInterval(cause: "protectedStoreReauthorized")
+        }
+        XCTAssertNil(PrivacyIntervalEvaluator.evaluateClosed(marks, journalWriteFailed: false).reason)
+        var missing = marks
+        missing[1].protectedReadActivity = nil
+        XCTAssertEqual(PrivacyIntervalEvaluator.evaluateClosed(missing, journalWriteFailed: false).reason,
+                       "protected-read-activity-missing")
+        var malformed = marks
+        malformed[1].protectedReadActivity?.decryptionCompleted = 2
+        XCTAssertEqual(PrivacyIntervalEvaluator.evaluateClosed(malformed, journalWriteFailed: false).reason,
+                       "protected-read-activity-inconsistent")
+        var decreased = marks
+        decreased[2].protectedReadActivity?.decryptionStarted = 0
+        decreased[2].protectedReadActivity?.decryptionCompleted = 0
+        XCTAssertEqual(PrivacyIntervalEvaluator.evaluateClosed(decreased, journalWriteFailed: false).reason,
+                       "counter-decreased")
+    }
+
     func testExploratoryWindowReportsMeanAndSampledPeakWithoutPass() {
         let result = ResourceEvaluator.evaluate(request(samples: series()))
         XCTAssertEqual(result.outcome, "measured")

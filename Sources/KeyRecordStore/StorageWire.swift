@@ -1,5 +1,8 @@
 import CryptoKit
 import Foundation
+#if DEBUG
+import KeyRecordCore
+#endif
 
 public enum StorageEnvelopeError: Error, Equatable, Sendable {
     case invalidAlgorithm, invalidFormat, invalidKeyVersion, invalidLength
@@ -118,9 +121,17 @@ public enum AuthenticatedStorageEnvelope {
         }
         let nonce = try AES.GCM.Nonce(data: parsed.header.nonce)
         let box = try AES.GCM.SealedBox(nonce: nonce, ciphertext: parsed.ciphertext, tag: parsed.tag)
+        #if DEBUG
+        return try ProtectedReadActivity.process.observe(.decryption) {
+            try AES.GCM.open(box,
+                            using: StorageKeySchedule.encryptionKey(masterKey: masterKey),
+                            authenticating: parsed.authenticatedHeader)
+        }
+        #else
         return try AES.GCM.open(box,
                                 using: StorageKeySchedule.encryptionKey(masterKey: masterKey),
                                 authenticating: parsed.authenticatedHeader)
+        #endif
     }
 
     static func encodedHeader(keyVersion: UInt32, locator: Data, nonce: Data, ciphertextLength: UInt64) -> Data {

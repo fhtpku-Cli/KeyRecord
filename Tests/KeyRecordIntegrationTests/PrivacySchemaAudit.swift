@@ -26,6 +26,7 @@ enum PrivacySchemaAudit {
     // File-qualified registration also covers private Wire DTOs and extensions adding conformance.
     static let serializableTypes: [String: Set<String>] = [
         "AggregateDayOrder.swift": ["AggregateDayOrder"],
+        "ProtectedReadActivity.swift": ["ProtectedReadActivitySnapshot"],
         "AppDelegate.swift": ["DebugReplayProgress"],
         "CaptureDiagnostics.swift": ["CaptureRunSummary", "CapturePrivacyIntervalMark", "CapturePrivacyActionDetail"],
         "Counts.swift": ["Count", "SourceCounts", "ActiveDayOrdinal"],
@@ -53,6 +54,8 @@ enum PrivacySchemaAudit {
     }
 
     static let recordFields: [String: [String: Set<String>]] = [
+        "ProtectedReadActivity.swift": ["ProtectedReadActivitySnapshot": [
+            "decryptionStarted", "decryptionCompleted", "keychainReadStarted", "keychainReadCompleted"]],
         "AppDelegate.swift": ["DebugReplayProgress": [
             "mode", "outcome", "expectedTicks", "ticks", "acceptedEvents", "elapsedSeconds",
             "durableKeyDownTotal", "startedUptimeSeconds", "endedUptimeSeconds"]],
@@ -64,7 +67,7 @@ enum PrivacySchemaAudit {
             "snapshotPublicationCount", "analysisPublicationCount", "snapshotReadFailureCount", "lastPublishedShortcutTotal",
             "lastPublishedBareKeyTotal", "countersInstrumented", "captureSessionLive", "sensitiveContentVisible",
             "protectedSnapshotAttempts", "protectedSnapshotRejected", "protectedAnalysisAttempts", "protectedAnalysisRejected",
-            "protectedGateEntries", "privacyJournalWriteFailed"],
+            "protectedGateEntries", "protectedReadActivity", "privacyJournalWriteFailed"],
             "CapturePrivacyIntervalMark": [
                 "seq", "role", "phase", "blockedReason", "privacyTrigger", "boundaryCause", "captureSessionLive",
                 "sensitiveContentVisible", "expectedCollecting", "currentLockState", "lockReadStatus",
@@ -73,7 +76,7 @@ enum PrivacySchemaAudit {
                 "aggregateDelta", "handoffAccepted", "handoffClosed",
                 "normalizationOutput", "flushDurable", "flushInvalidated", "protectedSnapshotAttempts",
                 "protectedSnapshotRejected", "protectedAnalysisAttempts", "protectedAnalysisRejected",
-                "protectedGateEntries", "snapshotPublicationCount", "analysisPublicationCount", "snapshotReadFailureCount"],
+                "protectedGateEntries", "protectedReadActivity", "snapshotPublicationCount", "analysisPublicationCount", "snapshotReadFailureCount"],
             "CapturePrivacyActionDetail": [
                 "invocation", "phaseBefore", "earlyReturn", "prepareOutcome", "prepareLockRead", "permissionStatus",
                 "lifecycleCommandRun", "abortRun", "readinessCalls", "readinessOutcome", "lifecycleFlushCalls",

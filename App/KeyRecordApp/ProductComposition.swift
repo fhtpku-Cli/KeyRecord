@@ -270,6 +270,7 @@ final class ProductComposition: NSObject, NSMenuDelegate {
         composition.completeRecoveredReset = { try await destruction.completeRecoveredReset() }
         #if DEBUG
         composition.diagnostics.configureProtectedGateEntries { gate.diagnosticProtectedEntryCount }
+        composition.diagnostics.configureProtectedReadActivity { ProtectedReadActivity.process.snapshot }
         reduction.configureDiagnostics(composition.diagnostics)
         flow.configureDiagnostics(composition.diagnostics)
         await scheduler.setDiagnostics(composition.diagnostics)

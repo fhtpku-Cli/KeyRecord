@@ -79,3 +79,39 @@ All seven LocalKeychainQueries hostless tests and the Debug App test build pass.
 No Security API operation was invoked by these tests. Runtime acceptance of the
 updated query on the signed candidate remains a separate isolated host check.
 Logs: `/private/tmp/keyrecord-keychain-ui-{red,build,tests}.log`.
+
+## Prepared input and restart check (not launched)
+
+The signed arm64 Debug candidate at `293f25a45` includes both repairs above.
+The build used existing local signing assets without provisioning updates;
+signature, profile and isolation checks pass. The candidate is staged at
+`/private/tmp/keyrecord-phase1-next-candidate-20260929/build/Build/Products/Debug/KeyRecordApp.app`.
+Build log: `/private/tmp/keyrecord-phase1-next-candidate-build.log`.
+Neither installed trial App has been replaced or launched by this preparation.
+
+The next owner-assisted check uses **KeyRecord MVP Trial 20260929**, bundle
+`com.keyrecord.trial.mvp20260929`, with fresh private root
+`/private/tmp/keyrecord-phase1-closeout-live-20260929` and Keychain namespace
+`com.keyrecord.trial.mvp20260929.phase1closeout1`. After owner readiness, preserve
+the old installed MVP bundle privately and install this candidate. The owner
+presses Start, accepts consent, waits for Collecting, then presses Command-A once
+in blank TextEdit. Inspect aggregate change and durable save, quit normally, then
+restart to check aggregate readback without further input. This checks the new
+Keychain query and persistence path; it does not reproduce a clock rollback on
+the real machine or provide exhaustive protected-read observation.
+
+Controller source and compiled executable are under
+`/private/tmp/keyrecord-phase1-closeout-controller/Phase1Trial.swift` and
+`/private/tmp/keyrecord-phase1-closeout-controller/Phase1Trial`.
+`--check-input` passes without launch; `--check-readback` correctly rejects the
+fresh root before input artifacts exist. The input stage requests normal Quit at
+85 seconds with a 90-second exact-instance stop limit; readback uses 15/20 seconds.
+Either stage can request early normal Quit via its private quit-request file.
+Stop on any permission, restart or Keychain prompt; do not change permissions.
+No lock/sleep, network observation or daily-data access is part of this check.
+
+Owner readiness is pending. This preparation is not live acceptance. The complete
+hosted protected-read/publication observer, actual permission revoke/regrant,
+native UI/attribution checks and qualified collecting Release composition remain
+open. Earlier sleep and performance evidence remains bound to its recorded
+candidates and does not automatically qualify `293f25a45`.

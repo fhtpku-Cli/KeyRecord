@@ -12,6 +12,12 @@ and removes it during cycle reset; 52 focused tests and all 553 SwiftPM XCTest
 cases pass. The App test build and all 69 selected hostless product recovery,
 reduction and startup cases pass. Installed trial Apps are unchanged;
 their earlier live evidence does not automatically qualify this storage change.
+Product Keychain queries now explicitly forbid authentication UI; all seven
+hostless query tests pass after reproducing the omitted-policy failure.
+Signed candidate `293f25a45` includes both repairs and passes build/profile/isolation
+checks. It is staged only. A fresh isolated input/save/restart-readback check is
+prepared with 90/20-second stop limits, pending owner readiness; see the completion
+plan. Full hosted observation and collecting Release qualification remain open.
 Formal performance acceptance was shortened at the owner's request: typing and
 idle once each, 30 seconds warmup plus 120 seconds measurement per window,
 about five minutes plus startup/exit. Targeted reruns replace automatic repeats;

@@ -226,3 +226,38 @@ This round may read the existing trial Keychain/encrypted store and write new
 diagnostic outputs. It does not access the daily store or intentionally collect
 new input. It cannot complete the independent lock-authority or full hosted
 lifecycle requirements. Preparation alone authorizes no launch.
+
+## Prepared manual provenance readback (not run)
+
+The remaining owner-observable detail is the exact modifier variant under the
+shortcut's disclosure group. The current view source labels this control
+`精确修饰键侧别与键码` / `Exact modifier sides and key code`; each expanded variant
+shows its exact chord and source counts. The preceding replies confirm two
+occurrences and TextEdit, but do not confirm this expanded detail.
+
+A separate controller is prepared at
+`/private/tmp/keyrecord-phase1-ui-provenance-controller-20260930.swift`, compiled
+with `swiftc -parse-as-library` to the same path without `.swift`. Its `--check`
+completed with `ready=true launched=false priorPaused=true`. It retains the
+175-second normal Quit / 180-second exact-instance stop bound, the same installed
+signed `346dc26d8` candidate, private root and Keychain namespace. A byte comparison
+confirmed the installed executable still matches the retained signed candidate.
+The later deletion fixes are not installed by this procedure.
+
+This controller requires the completed readback's final paused Quit record and
+summary: two published shortcuts, no new input/handoffs/aggregate delta/writes,
+no snapshot-read failure and no privacy-journal write failure. It refuses occupied
+new outputs (`ui-provenance-privacy.jsonl`, `ui-provenance-summary.json`,
+`ui-provenance-quit.request`) and retains the existing reactive unexpected-capture
+watchdog. Compilation and the no-launch check do not verify that watchdog's
+runtime stop branch. All earlier evidence remains untouched.
+
+After fresh approval and readiness, launch once, confirm paused/closed admission,
+then ask the owner to open Settings > Aggregates and expand the shortcut's exact
+modifier detail. Record the displayed modifier side and count, or the actual
+different/missing text. Do not ask for test input or Start/Resume. Stop on any
+permission, authentication, restart or Keychain prompt. Request normal Quit as
+soon as the report arrives and verify final counters and exact process exit.
+This manual round avoids another failing native-observer attempt; it cannot
+establish accessibility behavior, an independent OS lock witness or full Release
+qualification. No launch has occurred and no result is recorded for this round.

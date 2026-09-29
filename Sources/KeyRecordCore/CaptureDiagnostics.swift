@@ -290,6 +290,8 @@ public struct CaptureRunSummary: Encodable, Sendable {
     public var lastPublishedBareKeyTotal: Int64?
     public var countersInstrumented = false
     public var captureSessionLive = false
+    public var captureQueueOpen: Bool?
+    public var keyGateOpen: Bool?
     public var sensitiveContentVisible = false
     public var protectedSnapshotAttempts: Int64 = 0
     public var protectedSnapshotRejected: Int64 = 0
@@ -319,6 +321,8 @@ public struct CapturePrivacyIntervalMark: Encodable, Sendable {
     public var privacyTrigger: String?
     public var boundaryCause: String?
     public var captureSessionLive: Bool
+    public var captureQueueOpen: Bool?
+    public var keyGateOpen: Bool?
     public var sensitiveContentVisible: Bool
     public var expectedCollecting: Bool?
     public var currentLockState: String?
@@ -405,6 +409,11 @@ public final class CaptureDiagnosticsRecorder: @unchecked Sendable {
     private var protectedGateEntries: (@Sendable () -> Int64?)?
     private var protectedReadActivity: (@Sendable () -> ProtectedReadActivitySnapshot?)?
     private var revocationReadActivity: (@Sendable () -> (observed: Bool, activity: ProtectedReadActivitySnapshot?))?
+    private var admissionState: (@Sendable () -> (queueOpen: Bool, keyGateOpen: Bool))?
+
+    public func configureAdmissionState(_ read: @escaping @Sendable () -> (queueOpen: Bool, keyGateOpen: Bool)) {
+        lock.withLock { admissionState = read }
+    }
 
     public func configureRevocationReadActivity(
         _ read: @escaping @Sendable () -> (observed: Bool, activity: ProtectedReadActivitySnapshot?)
@@ -462,6 +471,10 @@ public final class CaptureDiagnosticsRecorder: @unchecked Sendable {
         result.protectedGateEntries = gateEntries?()
         let readActivity = lock.withLock { protectedReadActivity }
         result.protectedReadActivity = readActivity?()
+        let readAdmission = lock.withLock { admissionState }
+        let admission = readAdmission?()
+        result.captureQueueOpen = admission?.queueOpen
+        result.keyGateOpen = admission?.keyGateOpen
         let values = atomicCounters.snapshot()
         result.tapCallbackKeyDown = values[CaptureDiagnosticCounter.tapCallbackKeyDown.rawValue]
         result.tapCallbackKeyUp = values[CaptureDiagnosticCounter.tapCallbackKeyUp.rawValue]
@@ -645,6 +658,7 @@ public final class CaptureDiagnosticsRecorder: @unchecked Sendable {
             blockedReason: state.blockedReason.map { String(describing: $0) },
             privacyTrigger: reserved.trigger, boundaryCause: boundaryCause,
             captureSessionLive: state.captureSessionLive,
+            captureQueueOpen: summary.captureQueueOpen, keyGateOpen: summary.keyGateOpen,
             sensitiveContentVisible: state.sensitiveContentVisible,
             expectedCollecting: state.loadedExpectedCollecting,
             currentLockState: freshLock ? lockReadStatus : nil,

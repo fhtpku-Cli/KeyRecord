@@ -281,6 +281,8 @@ public struct PrivacyIntervalMark: Equatable, Sendable, Decodable {
     public var role: String
     public var phase: String
     public var captureSessionLive: Bool
+    public var captureQueueOpen: Bool?
+    public var keyGateOpen: Bool?
     public var sensitiveContentVisible: Bool
     public var expectedCollecting: Bool?
     public var aggregateDelta: Int64
@@ -471,7 +473,19 @@ public enum PrivacyIntervalEvaluator {
             return report("inconclusive", "analysis-publication-counter-missing", begin: begin, end: end)
         }
         let intervalMarks = [begin] + during + [end]
-        if let problem = readActivityProblem(marks.filter { $0.seq >= begin.seq && $0.seq <= end.seq }) {
+        let allIntervalMarks = marks.filter { $0.seq >= begin.seq && $0.seq <= end.seq }
+        if allIntervalMarks.contains(where: { $0.captureQueueOpen != nil || $0.keyGateOpen != nil }) {
+            guard allIntervalMarks.allSatisfy({ $0.captureQueueOpen != nil && $0.keyGateOpen != nil }) else {
+                return report("inconclusive", "admission-state-missing", begin: begin, end: end)
+            }
+            if allIntervalMarks.contains(where: { $0.captureQueueOpen == true }) {
+                return report("observed", "closed-interval-capture-queue-open", begin: begin, end: end)
+            }
+            if allIntervalMarks.contains(where: { $0.keyGateOpen == true }) {
+                return report("observed", "closed-interval-key-gate-open", begin: begin, end: end)
+            }
+        }
+        if let problem = readActivityProblem(allIntervalMarks) {
             return report(problem.outcome, problem.reason, begin: begin, end: end)
         }
         guard intervalMarks.allSatisfy({ $0.protectedGateEntries != nil }) else {

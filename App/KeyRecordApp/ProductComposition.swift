@@ -272,6 +272,7 @@ final class ProductComposition: NSObject, NSMenuDelegate {
         composition.diagnostics.configureProtectedGateEntries { gate.diagnosticProtectedEntryCount }
         composition.diagnostics.configureProtectedReadActivity { ProtectedReadActivity.process.snapshot }
         composition.diagnostics.configureRevocationReadActivity { gate.diagnosticRevocationReadActivity }
+        composition.diagnostics.configureAdmissionState { (queue.isOpen, (try? gate.begin()) != nil) }
         reduction.configureDiagnostics(composition.diagnostics)
         flow.configureDiagnostics(composition.diagnostics)
         await scheduler.setDiagnostics(composition.diagnostics)

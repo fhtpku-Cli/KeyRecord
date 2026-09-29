@@ -3,6 +3,37 @@ import KeyRecordCore
 import KeyRecordMeasurement
 
 final class ResourceEvaluationTests: XCTestCase {
+    func testClosedEvaluationUsesActualAdmissionDespiteCachedStoppedState() throws {
+        let marks = try recorderMarks { recorder in
+            recorder.configureAdmissionState { (false, false) }
+            recorder.beginClosedInterval(cause: "protectedStateClosed")
+            recorder.observeClosedInterval()
+            recorder.endClosedInterval(cause: "protectedStoreReauthorized")
+        }
+        XCTAssertNil(PrivacyIntervalEvaluator.evaluateClosed(marks, journalWriteFailed: false).reason)
+        let index = try XCTUnwrap(marks.firstIndex { $0.role == "observe" })
+        XCTAssertFalse(marks[index].captureSessionLive)
+        var openQueue = marks
+        openQueue[index].captureQueueOpen = true
+        XCTAssertEqual(PrivacyIntervalEvaluator.evaluateClosed(openQueue, journalWriteFailed: false).reason,
+                       "closed-interval-capture-queue-open")
+        var openKey = marks
+        openKey[index].keyGateOpen = true
+        XCTAssertEqual(PrivacyIntervalEvaluator.evaluateClosed(openKey, journalWriteFailed: false).reason,
+                       "closed-interval-key-gate-open")
+        var missing = marks
+        missing[index].keyGateOpen = nil
+        XCTAssertEqual(PrivacyIntervalEvaluator.evaluateClosed(missing, journalWriteFailed: false).reason,
+                       "admission-state-missing")
+        for index in missing.indices {
+            missing[index].captureQueueOpen = nil
+            missing[index].keyGateOpen = nil
+        }
+        let legacy = PrivacyIntervalEvaluator.evaluateClosed(missing, journalWriteFailed: false)
+        XCTAssertNil(legacy.reason)
+        XCTAssertFalse(legacy.provesContinuousClosedInterval)
+    }
+
     func testStableRevocationCountsAndUnobservedClosureStayDistinct() throws {
         let activity = ProtectedReadActivity()
         let atRevocation = activity.snapshot

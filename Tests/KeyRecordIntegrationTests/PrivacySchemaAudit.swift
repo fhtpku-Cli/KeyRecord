@@ -67,11 +67,11 @@ enum PrivacySchemaAudit {
             "flushIssued", "flushDurable", "flushFailed", "flushTimedOut",
             "flushWriteReturned", "flushWriteSucceeded", "flushInvalidated", "sessionCount",
             "snapshotPublicationCount", "analysisPublicationCount", "snapshotReadFailureCount", "lastPublishedShortcutTotal",
-            "lastPublishedBareKeyTotal", "countersInstrumented", "captureSessionLive", "sensitiveContentVisible",
+            "lastPublishedBareKeyTotal", "countersInstrumented", "captureSessionLive", "captureQueueOpen", "keyGateOpen", "sensitiveContentVisible",
             "protectedSnapshotAttempts", "protectedSnapshotRejected", "protectedAnalysisAttempts", "protectedAnalysisRejected",
             "protectedGateEntries", "protectedReadActivity", "privacyJournalWriteFailed"],
             "CapturePrivacyIntervalMark": [
-                "seq", "role", "phase", "blockedReason", "privacyTrigger", "boundaryCause", "captureSessionLive",
+                "seq", "role", "phase", "blockedReason", "privacyTrigger", "boundaryCause", "captureSessionLive", "captureQueueOpen", "keyGateOpen",
                 "sensitiveContentVisible", "expectedCollecting", "currentLockState", "lockReadStatus",
                 "secureInputReadStatus", "lockComponents", "cachedLockState", "cachedSecureInputState", "action", "actionSeq",
                 "actionDetail", "countersAreAtomicSnapshot",

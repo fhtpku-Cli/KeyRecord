@@ -3,6 +3,14 @@
 ## Current Apple Silicon MVP status — 2026-09-29
 
 Latest autonomous checkpoint: [MVP closeout](MVP_CLOSEOUT_20260929.md).
+Debug diagnostics now also read actual queue admission and key-gate state, rather
+than relying on the delayed lifecycle live flag. A failing-first product test
+reproduced the missing observation; both targeted product tests and all 43 focused
+package tests pass. Debug/unsigned arm64 Release builds and the existing static
+network audit pass, with observation code absent from Release. These are sampled
+product states; the real hosted observer and independent lock authority remain
+unimplemented. Native current-candidate row/status inspection is the next bounded
+owner-assisted acceptance step; completed performance/sleep evidence is retained.
 The 2026-09-30 increment retains Debug read/processing counts at synchronous
 key revocation, before queued cleanup writes the journal. A failing-first product
 test reproduced the missing observation; the repaired evaluator detects activity

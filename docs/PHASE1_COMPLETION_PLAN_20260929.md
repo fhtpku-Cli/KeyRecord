@@ -412,3 +412,34 @@ network audit reports zero matches. Logs use
 `/private/tmp/keyrecord-revocation-observation-` with `red-build.log`, `red.log`,
 `final-package.log`, `app-tests.log`, `final-app-build.log`, `final-app-tests.log`,
 `release.log` and `release-audit.log`. The installed signed trial is unchanged.
+
+## Observe actual capture admission — 2026-09-30
+
+The hosted controller still has no real product-observer implementation or
+independent system-lock authority. While checking that integration, a product
+regression reproduced another missing input: `captureSessionLive` is a lifecycle
+mirror that can remain true after synchronous revocation. It cannot establish
+the actual event queue or key gate state for a host observation.
+
+The Debug recorder now reads `captureQueueOpen` directly from the product queue
+and `keyGateOpen` through the existing key gate's non-reading availability check.
+These optional booleans accompany run summaries and privacy journal samples.
+The callbacks execute outside the recorder mutex. Unconfigured observations remain
+absent, and the existing non-atomic sample designation remains unchanged.
+Closed-interval evaluation detects an observed open queue or key gate and rejects
+partial state coverage. Historical logs retain their narrower original meaning.
+
+The failing-first product test produced six missing-field assertions. After the
+repair, it observes queue-open/key-closed before queue revocation and both closed
+afterward, while the lifecycle mirror still says live. The existing product
+closure/recovery test now checks both actual states at begin, during and end.
+Both product tests and 43 focused package tests pass (26 measurement, four privacy
+serialization, 13 diagnostic counters). Debug and unsigned arm64 Release builds
+pass, Release contains neither the recorder nor new field strings, and the
+existing static network audit reports zero matches. Logs:
+`/private/tmp/keyrecord-admission-observation-{red,red-build,package,app-build,app-tests,release,release-audit}.log`.
+
+These observations are sampled state, not continuous closure or an independent
+OS witness. No hosted lifecycle PASS or collecting Release is claimed. The next
+owner-assisted check will inspect the current candidate's actual native aggregate
+rows and status; the completed performance and sleep rounds are not repeated.

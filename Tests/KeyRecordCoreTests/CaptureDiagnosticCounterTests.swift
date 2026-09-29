@@ -3,6 +3,19 @@ import KeyRecordCore
 
 final class CaptureDiagnosticCounterTests: XCTestCase {
 
+    func testUnconfiguredAdmissionRemainsUnknownAndProviderCanReenterRecorder() {
+        let recorder = CaptureDiagnosticsRecorder()
+        XCTAssertNil(recorder.runSummary.captureQueueOpen)
+        XCTAssertNil(recorder.runSummary.keyGateOpen)
+        recorder.configureAdmissionState { [weak recorder] in
+            recorder?.record { $0.captureSessionLive = true }
+            return (true, false)
+        }
+        let observed = recorder.runSummary
+        XCTAssertEqual(observed.captureQueueOpen, true)
+        XCTAssertEqual(observed.keyGateOpen, false)
+    }
+
     func testSecureInputIntervalEndsBeforeNewSessionCounters() throws {
         let path = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: path) }

@@ -648,6 +648,8 @@ final class ProductRecoveryQuitTests: XCTestCase {
         let readKinds = ["decryption", "keychainRead", "storeCacheRead", "aggregateRead", "plaintextProcessing"]
         XCTAssertEqual(readsAtClosure.count, readKinds.count * 2)
         for mark in [begin] + observes + [end] {
+            XCTAssertEqual(mark["captureQueueOpen"] as? Bool, false)
+            XCTAssertEqual(mark["keyGateOpen"] as? Bool, false)
             let reads = try XCTUnwrap(mark["protectedReadActivity"] as? [String: Int])
             for kind in readKinds {
                 let started = try XCTUnwrap(reads[kind + "Started"])
@@ -660,6 +662,25 @@ final class ProductRecoveryQuitTests: XCTestCase {
         XCTAssertEqual(product.aggregateDelta, Int64(end["aggregateDelta"] as? Int ?? -1) + 2,
                        "input after reopening is outside the closed interval")
         XCTAssertEqual(try product.actionEnds("start").last?["phaseAfter"] as? String, "collecting")
+    }
+
+    func testAdmissionObservationDoesNotReuseDelayedLifecycleState() async throws {
+        let product = try await collecting()
+        let composition = product.composition!
+        func observation() throws -> [String: Any] {
+            let data = try JSONEncoder().encode(composition.diagnostics.runSummary)
+            return try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        }
+        XCTAssertEqual(try observation()["captureQueueOpen"] as? Bool, true)
+        XCTAssertEqual(try observation()["keyGateOpen"] as? Bool, true)
+        composition.gate.update(.locked)
+        XCTAssertTrue(composition.diagnostics.runSummary.captureSessionLive)
+        XCTAssertEqual(try observation()["captureQueueOpen"] as? Bool, true)
+        XCTAssertEqual(try observation()["keyGateOpen"] as? Bool, false)
+        composition.capture.queue.revoke()
+        XCTAssertTrue(composition.diagnostics.runSummary.captureSessionLive)
+        XCTAssertEqual(try observation()["captureQueueOpen"] as? Bool, false)
+        XCTAssertEqual(try observation()["keyGateOpen"] as? Bool, false)
     }
 
     func testRevocationObservationPrecedesDelayedMainActorClosure() async throws {

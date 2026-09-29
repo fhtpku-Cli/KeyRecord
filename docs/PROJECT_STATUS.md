@@ -3,13 +3,16 @@
 ## Current Apple Silicon MVP status — 2026-09-29
 
 Latest autonomous checkpoint: [MVP closeout](MVP_CLOSEOUT_20260929.md).
-The subsequent [sleep/wake round](SLEEP_WAKE_ROUND_20260929.md) ran on signed
-`cf08a07c`: 29.793 seconds suspended, sampled closure through wake with unchanged
-counters, explicit Start back to Collecting, and normal Quit at 175.298 seconds
-with no process remaining. The repaired interval evaluator reports observed.
-The owner could not complete post-recovery input before the deadline; that
-input/save step remains unverified. Final isolated totals are 10 shortcuts and
-2 bare keys. This is a bounded partial result, not full sleep acceptance.
+The completed [second sleep/wake round](SLEEP_WAKE_SECOND_ROUND_20260929.md) on
+signed `cf08a07c` observed 32.028 seconds suspended, sampled closure through wake
+with unchanged counters, explicit Start back to Collecting, new post-recovery
+input and successful save. Normal early Quit at 223.431 seconds left no process.
+Final totals are 12 shortcuts/2 bare keys, with 12 successful durable writes and
+zero write/read failures. The repaired interval evaluator reports observed.
+This completes the narrow collecting sleep/wake/manual recovery/input/save
+scenario, not continuous privacy or full hosted lifecycle qualification. The
+[first partial round](SLEEP_WAKE_ROUND_20260929.md), which ended before final
+input, remains separately recorded and unchanged.
 The [collecting lock and explicit recovery round](NEXT_HOST_ROUND_20260929.md)
 has now completed on signed `8e3ca0c55`: locked and unlocked-before-Start
 observations stayed closed with unchanged counters; explicit Start restored
@@ -112,8 +115,9 @@ with either package. See [permission evidence](PERMISSION_RECOVERY_TEST.md) and
 
 The provisioned isolated Apple Silicon candidate now reaches Collecting through
 its explicit wrapper and has retained the agreed small shortcut total across
-restart. It still needs actual permission and lock/sleep closure and
-recovery, and native Apple Silicon typing/idle resource windows. Offline
+restart. Bounded collecting lock and sleep/manual recovery now have the scoped
+observations above. Actual permission revoke/regrant, continuous lock/sleep
+protection and native Apple Silicon typing/idle resource windows remain open. Offline
 KeychainLifecycle scenario tests have passed, but no live product observer is
 wired into the hosted controller; its missing closed-interval counters cannot
 count as zero. Current Release composition still uses `BlockedLiveKeychain` and

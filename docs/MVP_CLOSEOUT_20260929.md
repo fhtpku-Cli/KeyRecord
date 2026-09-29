@@ -1,12 +1,13 @@
 # Apple Silicon MVP closeout checkpoint — 2026-09-29
 
-Latest result: the approved [sleep/wake round](SLEEP_WAKE_ROUND_20260929.md) on
-signed `cf08a07c` observed 29.793 seconds suspended, unchanged closed-interval
-counters through wake, explicit Start restoring Collecting and normal Quit with
-no remaining process. The repaired diagnostic boundary reports observed. The
-deadline expired before the owner's final input; post-wake input/save remains
-unverified. Final totals are 10 shortcuts/2 bare keys. The completed lock round
-remains bound to `8e3ca0c55` and its original flagged interval result.
+Latest result: the approved [second sleep/wake round](SLEEP_WAKE_SECOND_ROUND_20260929.md)
+on signed `cf08a07c` observed 32.028 seconds suspended, unchanged sampled closed
+counters through wake, explicit Start restoring Collecting and new post-recovery
+input/save. Normal early Quit at 223.431 seconds left no process. Final totals
+are 12 shortcuts/2 bare keys; all 12 writes succeeded durably. The repaired
+diagnostic boundary reports observed. This closes the narrow bounded scenario,
+not full continuous privacy/Keychain/Release qualification. The first partial
+sleep round and lock round on `8e3ca0c55` retain their original results.
 
 Status: offline validation and provisioned trial preparation passed; collecting
 MVP still awaits product-host qualification. The preparation below did not launch,
@@ -390,8 +391,8 @@ reopened the store. A hostless test reproduced this boundary mismatch. The Debug
 journal now ends immediately before the already-authorized store reopening and
 labels it `protectedStoreReauthorized`; actual protection behavior is unchanged.
 All 55 recovery/quit and 15 interval evaluation tests pass after red reproduction.
-The new recording repair has a separate bounded observation on `cf08a07c` in
-the sleep round above; post-wake input/save remains incomplete. Original lock journal,
+The new recording repair has separate bounded observations on `cf08a07c`; the
+second sleep round above also verifies post-wake input/save. Original lock journal,
 summary and flagged evaluation are retained. See [the detailed record](PERMISSION_RECOVERY_TEST.md#bounded-collecting-lock-and-explicit-recovery--2026-09-29).
 
 Still open: current-candidate attribution rows, native consent

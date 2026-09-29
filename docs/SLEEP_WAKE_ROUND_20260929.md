@@ -4,6 +4,9 @@ This round ran after explicit owner readiness on 2026-09-29. Its output paths
 are consumed. The original preparation below is retained as history; do not
 relaunch it. Closure and explicit Start recovery were observed, but the deadline
 expired before the owner could perform the post-recovery input step.
+The separately approved [second round](SLEEP_WAKE_SECOND_ROUND_20260929.md)
+completed that bounded scenario on the same candidate. This first result and
+its original evidence remain unchanged.
 
 ## Observed result on signed cf08a07c
 

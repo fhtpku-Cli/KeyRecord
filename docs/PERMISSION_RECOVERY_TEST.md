@@ -196,8 +196,11 @@ lock/wait/manual-recovery behavior is supported for `8e3ca0c55`; the corrected
 journal now has a separate real observation in the
 [sleep round on cf08a07c](SLEEP_WAKE_ROUND_20260929.md): closed counters remain
 unchanged through explicit store reauthorization. The owner missed the final
-input before its deadline, so post-wake input/save remains unverified.
-Continuous privacy, full hosted Keychain behavior, paused lock, sleep/wake and
+input before its deadline. A separately approved/readied
+[second sleep round](SLEEP_WAKE_SECOND_ROUND_20260929.md) on the same signed
+candidate subsequently completed sleep/wake, explicit Start, new input/save and
+normal early Quit; the first round remains partial and unchanged.
+Continuous privacy, full hosted Keychain behavior, paused lock/sleep and
 Release qualification remain separate. Another owner-assisted round requires
 fresh scope/readiness, not automatic replay of this one.
 

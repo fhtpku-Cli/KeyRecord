@@ -137,3 +137,37 @@ hosted protected-read/publication observer, actual permission revoke/regrant,
 native UI/attribution checks and qualified collecting Release composition remain
 open. Earlier sleep and performance evidence remains bound to its recorded
 candidates and does not automatically qualify `293f25a45`.
+
+## Next segmented permission check (prepared, not launched)
+
+Use the same installed `293f25a45` MVP trial, private root and namespace above.
+The local controller now has separate `--permission` and `--recovery` modes;
+each requires its predecessor's summary and refuses existing output names.
+Check variants never launch. No product source changed after the input/readback
+round. Preserve that round's artifacts.
+
+1. Wait for explicit owner readiness before launching the permission segment.
+   Confirm Collecting and granted permission. Ask the owner to open Input
+   Monitoring and turn off only the exact MVP Trial entry, leaving the Performance
+   Trial alone. Observe actual denied permission plus capture closure and hidden
+   state; a generic source stop alone is insufficient.
+2. If macOS requests Quit and Reopen, the owner leaves the dialog alone and reports
+   it. Request normal Quit through the isolated controller before any relaunch;
+   never use the system's environment-free reopen as product acceptance. Any
+   authentication or unexpected Keychain prompt ends the segment. The permission
+   segment requests normal Quit at 175 seconds, exact-instance stop at 180 seconds.
+3. With the trial confirmed stopped, ask the owner to re-enable only that entry.
+   Wait for a fresh readiness confirmation. Launch `--recovery` with explicit
+   isolation (normal Quit at 85 seconds, exact-instance stop at 90 seconds).
+   Verify fresh permission and protected-store readiness, then Collecting after
+   any required Start/consent. Request one Command-A in blank TextEdit, check new
+   aggregate/save, and request normal Quit early.
+
+New outputs are `permission-{summary.json,privacy.jsonl}` and
+`recovery-{summary.json,privacy.jsonl}` in the existing private root. No sleep,
+lock, packet observation, daily data or signing-account changes are included.
+No deadline is extended; an incomplete segment remains incomplete. This tests
+revocation and explicit isolated recovery across processes, not same-process
+regrant or full hosted Keychain lifecycle. Native rendered row attribution and
+the full observer still need separate evidence. This record alone authorizes no
+new live launch or permission change.

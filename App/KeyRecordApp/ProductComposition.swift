@@ -1228,6 +1228,9 @@ final class ProductComposition: NSObject, NSMenuDelegate {
                 do { try await Task.sleep(for: .seconds(1)) } catch { return }
                 guard let self, !Task.isCancelled, self.diagnostics.hasOpenClosedInterval else { return }
                 let witness = await self.capture.diagnosticInputWitness()
+                let permission = await self.capture.inputMonitoringStatus()
+                guard !Task.isCancelled, self.diagnostics.hasOpenClosedInterval else { return }
+                self.diagnostics.recordInputMonitoringPreflightWitness(granted: permission == .granted)
                 self.diagnostics.observeClosedInterval(lockReadStatus: witness.lock,
                                                        secureInputReadStatus: witness.secure,
                                                        lockComponents: witness.lockComponents)

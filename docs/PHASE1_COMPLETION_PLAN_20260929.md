@@ -138,7 +138,7 @@ native UI/attribution checks and qualified collecting Release composition remain
 open. Earlier sleep and performance evidence remains bound to its recorded
 candidates and does not automatically qualify `293f25a45`.
 
-## Next segmented permission check (prepared, not launched)
+## Segmented permission check (both segments completed; evidence limits remain)
 
 Use the same installed `293f25a45` MVP trial, private root and namespace above.
 The local controller now has separate `--permission` and `--recovery` modes;
@@ -171,3 +171,59 @@ revocation and explicit isolated recovery across processes, not same-process
 regrant or full hosted Keychain lifecycle. Native rendered row attribution and
 the full observer still need separate evidence. This record alone authorizes no
 new live launch or permission change.
+
+The owner subsequently confirmed this round and reported Quit and Reopen after
+turning off the exact trial entry. The isolated process (88564) had reached
+Collecting with granted preflight. It then closed with `privacyCheckRequired` /
+`tapUnavailable`; all 19 closed observations kept capture stopped and sensitive
+state hidden, with unchanged aggregate, handoff, normalization, durable-write,
+protected gate-entry and snapshot/analysis attempt/publication counters. Shortcut
+total remained one. One write succeeded before closure, with no read/write failure.
+Normal early Quit exited zero, and an exact PID check confirmed termination.
+Artifacts: `permission-summary.json` and `permission-privacy.jsonl` in the private
+root, plus `/private/tmp/keyrecord-phase1-closeout-permission-controller.log`.
+
+No product preflight-denied witness was recorded before source closure. A narrowly
+scoped read-only system TCC query was denied access; no permissions were changed
+to obtain it. Thus this is observed fail-closed behavior following the owner's
+reported toggle, not independent proof of a denied TCC state or completed formal
+permission acceptance.
+
+The owner then re-enabled the same entry and explicitly confirmed readiness.
+The isolated recovery process (89284) observed granted permission and reached
+Collecting. One confirmed Command-A produced one key-down/up and two modifier
+callbacks, aggregate delta one, and shortcut total two (previously one), with zero
+bare keys. Both issued writes succeeded durably; there were no write/read failures,
+timeouts or invalidations. Early normal Quit exited zero, final action details
+reported Stopped/no live session, and an exact PID check confirmed termination.
+Artifacts: `recovery-summary.json`, `recovery-privacy.jsonl`, and
+`/private/tmp/keyrecord-phase1-closeout-recovery-controller.log`.
+Permission was restored and freshly checked as granted in this new process.
+No automatic system reopen, lock/sleep or daily-data operation was performed.
+
+The bounded user-toggle/closure and separately readied regrant/restart/input/save
+flow is complete on `293f25a45`. It is not same-process regrant evidence, an
+independent denied-state witness, continuous protection or full hosted lifecycle
+qualification.
+
+## Closed-interval permission diagnostic repair
+
+A hostless regression reproduced the journal gap: disable the event tap while
+permission is granted, wait for capture/protected state to close, then change the
+injected permission to denied. The collecting-only monitor has already stopped,
+so no not-granted witness arrived and the test failed. The existing explicitly
+enabled Debug closed-interval sampler now also calls the noninteractive permission
+preflight and records its existing granted/not-granted witness. It rechecks task
+cancellation and interval state after the asynchronous provider reads. This neither
+requests permission nor restarts capture, accesses protected data or changes
+Release behavior. Not-granted includes unknown; it must not be labeled denied
+without stronger evidence.
+
+The regression now verifies denied then granted observations while remaining
+Blocked, with capture/key gate closed, sensitive state hidden and no aggregate
+change. All 57 hostless product recovery/quit tests and 16 resource-interval
+evaluation tests pass; Debug build-for-testing succeeds. Logs:
+`/private/tmp/keyrecord-closed-permission-{red,red-build,build,tests,interval-tests}.log`.
+The installed signed candidate and original host artifacts remain unchanged at
+`293f25a45`; this diagnostic change is not retroactive live evidence. No repeat
+physical round has been started or newly authorized.

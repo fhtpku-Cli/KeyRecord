@@ -1182,6 +1182,36 @@ final class ProductRecoveryQuitTests: XCTestCase {
         try await product.press(1)
     }
 
+    func testClosedJournalReadsPermissionAfterTapFailureWithoutReopening() async throws {
+        let product = try await collecting()
+        product.tap?.disableWithoutCallback()
+        try await waitUntil("tap failure closes before permission changes") {
+            let live = await product.live
+            return product.phase == .blocked && !live && !product.keyGateOpen
+        }
+        product.host.setPermission(.denied)
+        try await waitUntil("closed journal observes denied permission") {
+            (try? product.marks().contains {
+                $0["boundaryCause"] as? String == "inputMonitoringPreflightNotGranted"
+                    && $0["phase"] as? String == "blocked"
+            }) == true
+        }
+        let deniedSeq = try XCTUnwrap(product.marks().last?["seq"] as? Int)
+        product.host.setPermission(.granted)
+        try await waitUntil("closed journal observes regrant without reopening") {
+            (try? product.marks().contains {
+                ($0["seq"] as? Int ?? 0) > deniedSeq
+                    && $0["boundaryCause"] as? String == "inputMonitoringPreflightGranted"
+                    && $0["phase"] as? String == "blocked"
+            }) == true
+        }
+        let live = await product.live
+        XCTAssertFalse(live)
+        XCTAssertFalse(product.keyGateOpen)
+        XCTAssertFalse(product.composition.flow.sensitiveContentVisible)
+        XCTAssertEqual(product.aggregateDelta, 0)
+    }
+
     func testStoppedSourceWithoutCallbackStopsCollectingUntilExplicitStart() async throws {
         let product = try await collecting()
         let oldTap = try XCTUnwrap(product.tap)

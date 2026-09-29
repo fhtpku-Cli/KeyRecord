@@ -21,8 +21,20 @@ successful durable writes, then the same shortcut total one after restart with n
 new input, writes or read failures. Both launches quit normally with no remaining
 App process. The MVP trial is updated with the old bundle preserved; the Performance
 Trial is unchanged. Both CI builds at `e808d6483` pass. See the completion plan for
-artifacts and limits. Full hosted observation and collecting Release qualification
-remain open.
+artifacts and limits. A subsequent separately readied permission-toggle round
+observed fail-closed capture/hidden state with 19 unchanged closed samples, then
+normal Quit. After the owner restored permission and confirmed readiness, an
+isolated restart freshly observed granted permission and saved one further
+shortcut (total two), with two successful durable writes and normal Quit.
+Both exact App processes are gone. The closure trigger was `tapUnavailable`,
+without a denied-permission witness, so this remains bounded toggle/closure and
+restart recovery evidence, not full permission qualification. Full hosted
+observation and collecting Release qualification remain open. A failing-first
+hostless regression reproduced the diagnostic gap when an unavailable tap closes
+the product before permission changes. Debug closed-interval observation now
+records noninteractive granted/not-granted preflight witnesses, without reopening
+capture. All 57 recovery/quit and 16 interval-evaluation tests pass; Debug test
+build succeeds. The installed `293f25a45` trial and its host evidence are unchanged.
 Formal performance acceptance was shortened at the owner's request: typing and
 idle once each, 30 seconds warmup plus 120 seconds measurement per window,
 about five minutes plus startup/exit. Targeted reruns replace automatic repeats;

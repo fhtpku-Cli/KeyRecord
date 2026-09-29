@@ -268,7 +268,8 @@ then the second is left. With a release observed before both, both remain left.
 Identical safe policy installation between every event preserves this result.
 The test passes without changing modifier reconstruction or aggregation code.
 Display grouping preserves exact variants. The original input summary records
-eight session starts, but it has no per-event generation/side trace to establish
+eight session preparation attempts (counted before activation, not proven starts),
+but it has no per-event generation/side trace to establish
 whether a reset occurred between those particular presses. The real observation's
 cause remains unresolved; neither historical data nor unknown states are relabeled.
 

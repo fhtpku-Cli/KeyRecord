@@ -74,7 +74,7 @@ enum PrivacySchemaAudit {
                 "seq", "role", "phase", "blockedReason", "privacyTrigger", "boundaryCause", "captureSessionLive", "captureQueueOpen", "keyGateOpen",
                 "sensitiveContentVisible", "expectedCollecting", "currentLockState", "lockReadStatus",
                 "secureInputReadStatus", "lockComponents", "cachedLockState", "cachedSecureInputState", "action", "actionSeq",
-                "actionDetail", "countersAreAtomicSnapshot",
+                "actionDetail", "countersAreAtomicSnapshot", "sessionCount",
                 "aggregateDelta", "handoffAccepted", "handoffClosed",
                 "normalizationOutput", "flushDurable", "flushInvalidated", "protectedSnapshotAttempts",
                 "protectedSnapshotRejected", "protectedAnalysisAttempts", "protectedAnalysisRejected",

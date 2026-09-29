@@ -3,12 +3,23 @@
 ## Current Apple Silicon MVP status — 2026-09-29
 
 Latest autonomous checkpoint: [MVP closeout](MVP_CLOSEOUT_20260929.md).
+The latest offline increment adds DEBUG preparation boundaries and the existing
+cumulative `sessionCount` to the opt-in privacy journal. This helps locate future
+capture resets around aggregate increments without persisting event traces.
+The count records preparation attempts before activation, not proven tap starts.
+The failing-first boundary regression now passes, along with 71 focused cases and
+60 product recovery/quit cases. The 590-case package run found one missing privacy
+inventory registration; after registering only the new integer field, all 46
+integration cases pass. The other 544 cases passed in the full run. Debug/unsigned
+arm64 Release builds and the zero-match static audit pass. The installed trial
+and historical side-unknown evidence are unchanged. See the
+[completion plan](PHASE1_COMPLETION_PLAN_20260929.md#observe-capture-preparation-boundaries--2026-09-30).
 Latest owner-assisted paused readback now has an expanded screenshot: two ordinary
 Command+A uses and TextEdit attribution are visible, but exact Command side is
 unknown. Normal Quit completed with no new callbacks, counts or writes; exact PID
 21499 is gone. An offline queue-to-product-to-analysis test preserves known sides,
 so no speculative capture change was made. The original input round's eight
-session starts do not locate a reset between presses; the cause remains unresolved.
+session preparation attempts do not locate a reset between presses; the cause remains unresolved.
 The screenshot's contradictory bare-key empty message is corrected in both
 languages. See [current UI evidence](CURRENT_UI_TRIAL_20260930.md#manual-provenance-readback-completed).
 This adds bounded rendering evidence, not accessibility or Release qualification.

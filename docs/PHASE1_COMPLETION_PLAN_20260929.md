@@ -534,3 +534,41 @@ cancellable, create a transaction across separate adapters, or qualify the full
 filesystem/login-item deletion sequence against a system lock. No live deletion,
 capture, signed-build replacement or repeated owner test occurred. The existing
 native UI, complete hosted lifecycle and qualified collecting Release gaps remain.
+
+## Observe capture preparation boundaries — 2026-09-30
+
+The owner-supplied expanded aggregate screenshot records two Command+A uses with
+unknown Command side. A full synthetic queue-to-product-to-analysis sequence
+preserves left sides once release is observed, so the reconstruction code was not
+changed speculatively. The original run summary's `sessionCount=8` counts
+preparation attempts before activation, including attempts that might subsequently
+fail; it does not prove eight successful tap starts. The earlier UI/status wording
+has been corrected accordingly.
+
+A failing-first test exposed the missing diagnostic distinction: two preparations
+with unchanged lifecycle state produced no preparation boundaries, and sampled
+journal marks omitted the cumulative preparation count. DEBUG diagnostics now
+write a fixed `captureSessionPrepared` change marker after each preparation and
+include `sessionCount` in every journal mark. The already-existing opt-in journal
+and lifetime aggregate counters are reused. No key, event sequence, per-event
+timestamp, new collection authority or new release gate is introduced.
+
+The regression observes two synthetic preparations around aggregate increments and
+checks their cumulative counts and the existing non-atomic snapshot flag. It failed
+with four assertions before the change, then passed. These markers distinguish
+preparation boundaries in future diagnostic runs; they do not retroactively locate
+the historical resets, prove successful activation or supply an independent lock
+witness. No installed trial or actual capture behavior was changed.
+
+Validation: 71 focused diagnostic/read-observation/interval cases pass. The full
+root-package run executed 590 cases with one failure: the existing privacy schema
+inventory correctly rejected the new integer field until explicitly registered.
+Only `sessionCount` was added to that type's exact inventory; all 46 integration
+cases then passed on rerun. The other 544 cases passed in the original full run.
+All 60 hostless product recovery/quit cases pass. Debug build-for-testing and
+unsigned native arm64 Release build succeed; the existing Release static audit
+reports zero matches, and `nm` finds no CaptureDiagnostics/CapturePrivacyIntervalMark
+symbols. This is neither signed collecting-Release qualification nor a new live
+input result. Logs share `/private/tmp/keyrecord-session-observation-` with
+`red.log`, `focused.log`, `full.log`, `integration-green.log`, `app-build.log`,
+`product-tests.log`, `release.log` and `release-audit.log`.

@@ -46,6 +46,30 @@ final class CaptureDiagnosticCounterTests: XCTestCase {
         XCTAssertEqual(recorder.runSummary.sessionCount, 2)
     }
 
+    func testSessionPreparationBoundariesRemainVisibleWhenLifecycleStateDoesNotChange() throws {
+        let path = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: path) }
+        let recorder = CaptureDiagnosticsRecorder()
+        recorder.enablePrivacyIntervalJournal(path: path.path)
+        recorder.record { $0.phase = .collecting; $0.captureSessionLive = true }
+        recorder.notePrivacyInterval()
+        recorder.beginSession(generation: 11)
+        recorder.increment(.aggregateDelta)
+        recorder.beginSession(generation: 13)
+        recorder.increment(.aggregateDelta)
+        recorder.recordInputMonitoringPreflightWitness(granted: true)
+        let marks = try String(contentsOf: path, encoding: .utf8).split(separator: "\n").map {
+            try XCTUnwrap(JSONSerialization.jsonObject(with: Data($0.utf8)) as? [String: Any])
+        }
+        let preparations = marks.filter { $0["boundaryCause"] as? String == "captureSessionPrepared" }
+        XCTAssertEqual(preparations.count, 2)
+        XCTAssertEqual(preparations.compactMap { $0["sessionCount"] as? Int }, [1, 2])
+        XCTAssertEqual(preparations.compactMap { $0["aggregateDelta"] as? Int }, [0, 1])
+        XCTAssertEqual(marks.last?["sessionCount"] as? Int, 2)
+        XCTAssertEqual(marks.last?["aggregateDelta"] as? Int, 2)
+        XCTAssertTrue(marks.allSatisfy { $0["countersAreAtomicSnapshot"] as? Bool == false })
+    }
+
     func testProtectedGateCountIsOptionalAndRecordedInPrivateJournal() throws {
         let recorder = CaptureDiagnosticsRecorder()
         XCTAssertNil(recorder.runSummary.protectedGateEntries)

@@ -282,6 +282,7 @@ public struct CaptureRunSummary: Encodable, Sendable {
     public var flushWriteSucceeded: Int64 = 0
     /// Revoked logical outcomes, disjoint from durable, failed and timed out.
     public var flushInvalidated: Int64 = 0
+    /// Preparation attempts counted before tap activation, including attempts that later fail.
     public var sessionCount = 0
     public var snapshotPublicationCount = 0
     public var analysisPublicationCount = 0
@@ -336,6 +337,8 @@ public struct CapturePrivacyIntervalMark: Encodable, Sendable {
     public var actionSeq: Int?
     public var actionDetail: CapturePrivacyActionDetail?
     public var countersAreAtomicSnapshot: Bool
+    /// Cumulative preparation count; neither a successful-start count nor a lock witness.
+    public var sessionCount: Int
     public var aggregateDelta: Int64
     public var handoffAccepted: Int64
     public var handoffClosed: Int64
@@ -665,7 +668,7 @@ public final class CaptureDiagnosticsRecorder: @unchecked Sendable {
             lockReadStatus: lockReadStatus, secureInputReadStatus: secureInputReadStatus,
             lockComponents: lockComponents, cachedLockState: cachedLockState, cachedSecureInputState: cachedSecureInputState,
             action: action, actionSeq: actionSeq, actionDetail: actionDetail,
-            countersAreAtomicSnapshot: false,
+            countersAreAtomicSnapshot: false, sessionCount: summary.sessionCount,
             aggregateDelta: summary.aggregateDelta, handoffAccepted: summary.handoffAccepted,
             handoffClosed: summary.handoffClosed, normalizationOutput: summary.normalizationOutput,
             flushDurable: summary.flushDurable, flushInvalidated: summary.flushInvalidated,
@@ -752,6 +755,9 @@ public final class CaptureDiagnosticsRecorder: @unchecked Sendable {
             counters.flushInvalidated = 0
             counters.sessionGeneration = generation
             counterBaseline = baseline
+        }
+        if privacyJournalEnabled {
+            append(role: "change", boundaryCause: "captureSessionPrepared")
         }
     }
 }

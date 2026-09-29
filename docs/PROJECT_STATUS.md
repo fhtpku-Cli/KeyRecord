@@ -3,6 +3,14 @@
 ## Current Apple Silicon MVP status — 2026-09-29
 
 Latest autonomous checkpoint: [MVP closeout](MVP_CLOSEOUT_20260929.md).
+Signed arm64 Debug candidate `426969c9f` is staged for the
+[bounded modifier check](CURRENT_MODIFIER_TRIAL_20260930.md). Existing local
+signing assets and the no-launch isolation/profile checks pass; the new observation
+marker is present in the Debug implementation dylib. Its empty private root and
+175/180-second controller are ready. It has not been installed or launched, and
+fresh owner approval/readiness is required. The intended two-chord sequence first
+includes an explicit Command-only press/release to establish an observed release.
+This preparation does not qualify the historical unknown-side result or Release.
 The latest offline increment adds DEBUG preparation boundaries and the existing
 cumulative `sessionCount` to the opt-in privacy journal. This helps locate future
 capture resets around aggregate increments without persisting event traces.

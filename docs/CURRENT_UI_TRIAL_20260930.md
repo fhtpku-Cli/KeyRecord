@@ -71,6 +71,14 @@ contain an AX observer thread for the trial PID `90634`. This associates the
 helper with the trial but does not establish which UI request caused the fault.
 Native product row/rendering/accessibility acceptance therefore remains open.
 
+A second pure AppKit control supplied only an accessory status item/menu and no
+standard window. `cua.getApp` returned `-10005: timeoutReached`; it did not return
+the trial's pipe-closed error. No new matching helper crash report appeared in the
+bounded report check. This does not establish the original cause: product Start
+itself calls `showWindow()`, and the original trial's actual window state was not
+observed. The windowless fixture exited and was removed. Do not infer that opening
+a window has already repaired the product observation path.
+
 The current candidate therefore has bounded physical-input/save/pause/quit
 evidence. It does not yet have directly observed Command-A rows, TextEdit
 attribution, exact modifier provenance, native rendering or accessibility. The
@@ -146,3 +154,41 @@ This round addresses current-candidate UI/attribution requirements. Complete
 hosted Keychain lifecycle, independent system-lock authority and a qualified
 collecting Release remain open. Existing performance and sleep observations are
 retained without rerunning them.
+
+## Prepared paused UI readback (not launched)
+
+To avoid repeating physical input, a separate one-use controller can reopen the
+unchanged installed candidate against this round's existing isolated store and
+Keychain namespace. The installed executable compares equal to the staged signed
+candidate. The preceding final Quit record has `expectedCollecting=false`, closed
+queue, prior phase Paused and normal termination decision. The new controller
+requires those facts and unused output names, then repeats the existing bundle,
+private-root, symlink, same-ID-process and signature checks. Its compiled `--check`
+returned `ready=true launched=false priorPaused=true`.
+
+Source: `/private/tmp/keyrecord-phase1-ui-readback-controller-20260930.swift`;
+executable: the same path without `.swift`. Compilation uses `-parse-as-library`.
+`--check` and `--run` both require the exact installed App path as their second
+argument. The normal Quit/deadline remain 175/180 seconds. New evidence filenames
+are `ui-readback-privacy.jsonl` and `ui-readback-summary.json`; the separate
+`ui-readback-quit.request` can end the round early. Original evidence is not
+overwritten. Any observed live capture, open queue or Collecting phase in the new
+journal triggers termination and records failure. This watchdog is reactive; it
+is not a replacement for the product's persisted stopped intent. The launch and
+watchdog branches are prepared, not live-verified.
+
+Wait for the owner's approval and readiness before `--run`. Then:
+
+1. Verify the restarted trial stays stopped/paused and does not collect.
+2. Ask the owner to open the trial menu, choose Settings, then select the aggregate
+   tab in its main window. Do not choose Start/Resume or type test input.
+3. Inspect the current aggregate rows, TextEdit attribution and modifier provenance
+   using native observation. If the helper fails again, request the owner's direct
+   description or a screenshot limited to this trial window; do not relaunch.
+4. Stop immediately on permission, authentication, restart or Keychain prompts.
+   Finish with normal Quit and check for no remaining exact trial process.
+
+This round may read the existing trial Keychain/encrypted store and write new
+diagnostic outputs. It does not access the daily store or intentionally collect
+new input. It cannot complete the independent lock-authority or full hosted
+lifecycle requirements. Preparation alone authorizes no launch.

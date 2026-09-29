@@ -22,6 +22,11 @@ Subsequent pure AppKit regular/accessory control windows both returned native
 accessibility trees. The observation service is usable for these minimal targets;
 accessory shape alone does not reproduce the product failure. The exact product
 hierarchy/helper trigger remains unresolved; no live trial was repeated.
+A one-use paused UI readback controller is compiled and its no-launch check passes.
+It reuses the existing trial aggregates with new diagnostic output names and stops
+on observed unexpected collection. Owner readiness is required to open Settings
+and the aggregate tab; no repeated physical input is planned. This is preparation,
+not native UI acceptance or a repaired observation helper.
 The 2026-09-30 increment retains Debug read/processing counts at synchronous
 key revocation, before queued cleanup writes the journal. A failing-first product
 test reproduced the missing observation; the repaired evaluator detects activity

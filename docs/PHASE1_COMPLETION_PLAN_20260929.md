@@ -453,3 +453,12 @@ so actual rows, attribution, rendering and accessibility remain unverified.
 The occupied private root and original artifacts are preserved; no automatic
 repeat is authorized. Resolve the native observation limitation before another
 UI round. Full hosted lifecycle/independent lock authority and Release remain open.
+
+The next UI step is now prepared as paused readback of the existing isolated
+aggregates, avoiding another input round. Its separate controller compiles and
+passes `--check` without launching. The owner must approve/readiness-confirm before
+opening Settings and the aggregate tab. Native tool failure will require a direct
+owner observation of that same window. Pure regular/accessory window controls
+worked; a windowless control timed out but did not reproduce the exact crash.
+These controls do not qualify the product UI. See the current UI trial record for
+the controller, exact scope, output paths and stop conditions.

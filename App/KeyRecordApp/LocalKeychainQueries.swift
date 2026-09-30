@@ -1,4 +1,3 @@
-#if DEBUG || KEYRECORD_SIGNED_HOSTED_TESTS
 import Foundation
 import Security
 
@@ -57,4 +56,3 @@ enum LocalKeychainQueries {
         ]
     }
 }
-#endif

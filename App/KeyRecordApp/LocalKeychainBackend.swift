@@ -1,4 +1,3 @@
-#if DEBUG
 import Foundation
 import Security
 import KeyRecordCore
@@ -36,13 +35,11 @@ struct SystemLocalKeychainClient: LocalKeychainClient {
     }
 }
 
-// REAL Security.framework backend, compiled only into DEBUG builds and selected only
-// when KEYRECORD_LOCAL_CAPTURE=1 arms the local developer capture path. Security
-// invariants: exact service+account generic-password items in the data-protection
+// Security invariants: exact service+account generic-password items in the data-protection
 // keychain, kSecAttrSynchronizable false (no iCloud), this-device-only accessibility,
 // kSecMatchLimitOne reads, no enumeration or prefix deletion, and key bytes are never
-// logged. An unavailable data-protection keychain fails closed. Release and
-// non-armed Debug builds keep BlockedLiveKeychain.
+// logged. An unavailable data-protection keychain fails closed. Selection is
+// controlled by the product's platform qualification or DEBUG developer armament.
 struct LocalKeychainBackend: KeychainBackend {
     private let client: any LocalKeychainClient
 
@@ -52,9 +49,13 @@ struct LocalKeychainBackend: KeychainBackend {
 
     func read(_ id: KeychainItemID) async throws -> Data? {
         let identity = Self.identity(id)
+        #if DEBUG
         let result = try ProtectedReadActivity.process.observe(.keychain) {
             try client.copyMatching(LocalKeychainQueries.queryForReadingData(identity: identity))
         }
+        #else
+        let result = try client.copyMatching(LocalKeychainQueries.queryForReadingData(identity: identity))
+        #endif
         if result.status == errSecItemNotFound { return nil }
         guard result.status == errSecSuccess else { throw Self.statusError(result.status) }
         guard let bytes = result.value as? Data else { throw Self.contentError(for: id) }
@@ -138,4 +139,3 @@ struct LocalKeychainBackend: KeychainBackend {
         id.version.map(KeyringError.corruptKey) ?? .corruptMetadata
     }
 }
-#endif

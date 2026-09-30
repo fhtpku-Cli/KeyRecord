@@ -39,6 +39,12 @@ struct ObservedLockPlatform {
 
 }
 
+struct ObservedPlatformCaptureQualification: CaptureQualification {
+    private let supported: Bool
+    init(platform: ObservedLockPlatform) { supported = platform.isObservedCandidate }
+    func liveCaptureQualified() async -> Bool { supported }
+}
+
 final class ObservedSessionLockProvider: SessionLockProvider, @unchecked Sendable {
     typealias SessionDictionaryQuery = () -> NSDictionary?
     typealias ConsoleLockQuery = () -> CFTypeRef?

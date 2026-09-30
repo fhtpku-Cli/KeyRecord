@@ -31,16 +31,24 @@ recovery remain evidence for their stated candidates; no routine repeat is plann
 
 ## Current state
 
+- [Release dependencies](RELEASE_CANDIDATE_20261001.md) now select the measured
+  backend only on the exact observed platform, with Bundle ID storage isolation
+  and fixed daily-root trial exclusion. Both unsigned builds, 127 App regressions,
+  six core isolation tests and static Release audits pass. Finish the Phase 1
+  aggregate surface, native checks and isolated signed candidate; then coordinate
+  only the remaining short real-input/UI check.
+
 - Shared Debug/Release privacy wiring is implemented: startup priming, synchronous
   lock closure and manual-entry checks. A reproduced stale startup-lock reply is
   now rejected using the existing recovery fence, including atomic gate reopen.
   Debug/Release arm64 builds, 114 App regressions, seven core recovery tests and
   Release capability/network static audits pass. Release remains unqualified and
-  uses the blocked backend. The [signed FR-P7 scenario](PRODUCT_KEY_INTEGRITY_20261001.md)
+  used the blocked backend at that extraction checkpoint. The subsequent dependency
+  integration is described above. The [signed FR-P7 scenario](PRODUCT_KEY_INTEGRITY_20261001.md)
   now passes both real missing/corrupt-key preservation branches, recovery of two
   counts and full product store/key deletion in 12.154 seconds, with no runtime
-  warnings or remaining host. Continue with production backend/qualification
-  wiring and the remaining native UI/accessibility check. Do not repeat completed physical
+  warnings or remaining host. Continue with the remaining candidate/native
+  UI/accessibility checks. Do not repeat completed physical
   lock/sleep or short performance rounds solely for this extraction.
 
 - The [raw locked Keychain measurement](RAW_KEYCHAIN_LOCK_PREP_20261001.md) passes

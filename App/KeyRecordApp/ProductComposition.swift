@@ -124,13 +124,35 @@ final class ProductComposition: NSObject, NSMenuDelegate {
             appropriateFor: nil, create: false).appendingPathComponent("com.keyrecord.app/store", isDirectory: true)
     }
 
+    static func installation(bundleIdentifier: String?, applicationSupport: URL? = nil) throws
+        -> (namespace: KeychainNamespace, storeRoot: URL) {
+        guard let bundleIdentifier,
+              bundleIdentifier.split(separator: ".", omittingEmptySubsequences: false).count >= 2,
+              bundleIdentifier.split(separator: ".", omittingEmptySubsequences: false).allSatisfy({ !$0.isEmpty }) else {
+            throw KeyringError.invalidNamespace
+        }
+        let namespace = try KeychainNamespace(bundleIdentifier)
+        let support = try applicationSupport ?? FileManager.default.url(for: .applicationSupportDirectory,
+            in: .userDomainMask, appropriateFor: nil, create: false)
+        return (namespace, support.appendingPathComponent(namespace.service, isDirectory: true)
+            .appendingPathComponent("store", isDirectory: true))
+    }
+
+    static func productionBoundaries(platform: ObservedLockPlatform = .current,
+        bundleIdentifier: String? = Bundle.main.bundleIdentifier, applicationSupport: URL? = nil) throws -> ProductHostBoundaries {
+        let identity = try installation(bundleIdentifier: bundleIdentifier, applicationSupport: applicationSupport)
+        let backend: any KeychainBackend = platform.isObservedCandidate ? LocalKeychainBackend() : BlockedLiveKeychain()
+        return ProductHostBoundaries(storeRoot: identity.storeRoot, namespace: identity.namespace,
+            backend: backend, login: ProductLogin.make(),
+            qualification: ObservedPlatformCaptureQualification(platform: platform),
+            sessionLock: ObservedSessionLockProvider(platform: platform))
+    }
+
     static func make() async throws -> ProductComposition {
         #if DEBUG
         try await assemble(try systemBoundaries(storeRoot: nil, namespace: nil))
         #else
-        try await assemble(ProductHostBoundaries(storeRoot: try productionStoreRoot(),
-            namespace: try KeychainNamespace("com.keyrecord.app"), backend: BlockedLiveKeychain(),
-            login: ProductLogin.make(), qualification: UnqualifiedCapture()))
+        try await assemble(try productionBoundaries())
         #endif
     }
 
@@ -184,17 +206,14 @@ final class ProductComposition: NSObject, NSMenuDelegate {
     }
 
     private static func systemBoundaries(storeRoot: URL?, namespace name: String?) throws -> ProductHostBoundaries {
-        // T7 has no qualified system-lock witness. Never replace this boundary with
-        // an environment switch, cached unlocked assumption, or fake-success backend.
         // DEBUG self-use: armed by the persistent Developer menu toggle (UserDefaults)
-        // or the KEYRECORD_LOCAL_CAPTURE=1 automation env. Non-armed Debug and all
-        // Release builds stay Blocked.
+        // or the KEYRECORD_LOCAL_CAPTURE=1 automation env. Non-armed Debug stays blocked.
         let localCapture: LocalDevelopmentCapture? = LocalDevelopmentCaptureArmament.isArmed
             ? LocalDevelopmentCapture() : nil
         let backend: any KeychainBackend = localCapture != nil ? LocalKeychainBackend() : BlockedLiveKeychain()
         return ProductHostBoundaries(
-            storeRoot: try storeRoot ?? productionStoreRoot(),
-            namespace: try KeychainNamespace(name ?? "com.keyrecord.app"),
+            storeRoot: try storeRoot ?? installation(bundleIdentifier: Bundle.main.bundleIdentifier).storeRoot,
+            namespace: try name.map(KeychainNamespace.init) ?? installation(bundleIdentifier: Bundle.main.bundleIdentifier).namespace,
             backend: backend, login: ProductLogin.make(),
             localCapture: localCapture,
             sessionLock: localCapture == nil ? UnqualifiedSessionLockProvider() : SystemSessionLockProvider(),

@@ -3,6 +3,13 @@
 ## Current Apple Silicon MVP status — 2026-09-29
 
 Latest autonomous checkpoint: [MVP closeout](MVP_CLOSEOUT_20260929.md).
+The [Release dependency integration](RELEASE_CANDIDATE_20261001.md) now compiles
+the measured exact-item Keychain implementation into the product, qualifies only
+the observed platform and derives isolated defaults from the validated Bundle ID.
+127 App regressions, six core isolation tests and actual Release static audits pass.
+The integrated Release still needs final MVP surface/native checks, signing and
+the short coordinated input/UI check; it is not yet a qualified collecting Release.
+
 Current integration increment (2026-10-01): Debug and Release now share lock
 notification closure, startup key-gate priming and explicit capture-entry checks.
 A suspended startup lock read previously reopened the key gate after a lock
@@ -10,13 +17,14 @@ notification; the new regression reproduced both gate reopening and a backend
 query. Reusing the existing recovery fence now rejects that stale result and
 serializes gate reopening with notification invalidation. The shared path passes
 114 App regressions and seven core recovery tests; native arm64 Debug/Release
-builds and Release capability/network static audits pass. Release selection still
-uses `UnqualifiedCapture` and `BlockedLiveKeychain`. The [real key integrity and
+builds and Release capability/network static audits pass. That extraction retained
+blocked Release selection; the subsequent dependency integration is described above.
+The [real key integrity and
 product deletion scenario](PRODUCT_KEY_INTEGRITY_20261001.md) now passes on signed
 `1b82d7cd`: both missing/corrupt branches preserve data, original key restoration
 reads two counts, and the product removes its store and both owned items. One case
 passes with no runtime warnings; normal full-round exit takes 12.154 seconds and
-leaves no host. Next are production Keychain selection and the remaining native
+leaves no host. Next are the integrated candidate's signing and remaining native
 UI/accessibility check. Earlier lock/sleep/performance rounds
 are not scheduled for routine repetition.
 

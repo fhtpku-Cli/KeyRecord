@@ -6,6 +6,12 @@ Current status: [PROJECT_STATUS.md](PROJECT_STATUS.md). Requirements: [PHASE1_CO
 
 ## Evidence and remaining work
 
+The [integrated Release dependencies](RELEASE_CANDIDATE_20261001.md) now build
+with the measured Keychain implementation and exact observed-platform qualification.
+127 App tests, six core isolation tests and actual Release static audits pass.
+Release default storage is Bundle-ID-specific; the fixed daily-root trial exclusion
+remains enforced. Final native surface/signing/real-input validation remains open.
+
 The [real key integrity/deletion round](PRODUCT_KEY_INTEGRITY_20261001.md) passes
 on signed `1b82d7cd`: one case, zero failures/skips/runtime warnings, normal exit
 in 12.154 seconds without a remaining host. Missing and corrupt keys preserve
@@ -23,9 +29,9 @@ reopening. All 114 selected App tests and seven core recovery tests pass. App
 recovery fixtures exercise `ProductHostBoundaries.qualification` without developer
 armament; a separate negative case confirms unqualified assembly makes no Keychain
 queries or capture admission. Debug/Release arm64 builds and actual Release static
-capability/network audits pass. These are offline integration results; the Release
-factory remains blocked pending real backend integration and the remaining scoped
-privacy/UI checks.
+capability/network audits pass. These are offline integration results; the factory
+was blocked at that extraction checkpoint. The subsequent dependency selection
+above still awaits the remaining integrated candidate checks.
 
 The [raw Keychain lock measurement](RAW_KEYCHAIN_LOCK_PREP_20261001.md) completed
 with owner-confirmed screen lock: one real case passed, raw read returned 0 and

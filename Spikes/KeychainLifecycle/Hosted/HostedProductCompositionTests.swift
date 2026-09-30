@@ -47,7 +47,13 @@ private final class CompositionOwnedClient: LocalKeychainClient, @unchecked Send
     private var created: [String] = []
     private var firstFailure: String?
     private var attemptedOperations = 0
-    init(_ client: AuthorizedProductKeychainClient) { self.client = client }
+    private let recordOwnership: @Sendable ([String]) throws -> Void
+    init(_ client: AuthorizedProductKeychainClient, adopting accounts: [String] = [],
+         recordOwnership: @escaping @Sendable ([String]) throws -> Void = { _ in }) {
+        self.client = client
+        self.created = accounts
+        self.recordOwnership = recordOwnership
+    }
     var ownedAccounts: [String] { mutex.withLock { created } }
     var failureSummary: String { mutex.withLock { firstFailure ?? "none" } }
     var operationCount: Int { mutex.withLock { attemptedOperations } }
@@ -73,6 +79,7 @@ private final class CompositionOwnedClient: LocalKeychainClient, @unchecked Send
         let status = try operation("add") { let status = try client.add(attributes); return (status, status) }
         if status == errSecSuccess, let account = attributes[kSecAttrAccount as String] as? String {
             mutex.withLock { if !created.contains(account) { created.append(account) } }
+            try recordOwnership(ownedAccounts)
         }
         return status
     }
@@ -97,6 +104,47 @@ private final class CompositionOwnedClient: LocalKeychainClient, @unchecked Send
             } catch { if firstFailure == nil { firstFailure = error } }
         }
         if let firstFailure { throw firstFailure }
+    }
+}
+
+private struct CompositionRestartRecord: Codable, Sendable {
+    let attempt: String
+    let seed: UUID
+    let seedPID: Int32
+    var accounts: [String] = []
+    var savedTotal: Int64?
+
+    static let name = "product-restart.json"
+    static func read(at root: URL, currentPID: Int32) throws -> Self {
+        let url = root.appendingPathComponent(name)
+        let attributes = try FileManager.default.attributesOfItem(atPath: url.path)
+        guard attributes[.type] as? FileAttributeType == .typeRegular,
+              (attributes[.posixPermissions] as? NSNumber)?.intValue == 0o600,
+              ((attributes[.size] as? NSNumber)?.intValue ?? Int.max) < 4096 else {
+            throw CompositionTrialError.stateMismatch("restart-record-file")
+        }
+        let record = try JSONDecoder().decode(Self.self, from: Data(contentsOf: url))
+        guard record.attempt == root.lastPathComponent, record.seedPID > 0,
+              record.seedPID != currentPID, record.savedTotal == 2,
+              record.accounts.count == 2, Set(record.accounts) == ["metadata", "master-v1"] else {
+            throw CompositionTrialError.stateMismatch("restart-record-content")
+        }
+        return record
+    }
+
+    func write(at root: URL, initial: Bool = false) throws {
+        let url = root.appendingPathComponent(Self.name)
+        let data = try JSONEncoder().encode(self)
+        if initial {
+            try data.write(to: url, options: .withoutOverwriting)
+        } else {
+            let attributes = try FileManager.default.attributesOfItem(atPath: url.path)
+            guard attributes[.type] as? FileAttributeType == .typeRegular else {
+                throw CompositionTrialError.stateMismatch("restart-record-file")
+            }
+            try data.write(to: url, options: .atomic)
+        }
+        try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: url.path)
     }
 }
 
@@ -283,6 +331,246 @@ final class HostedProductCompositionTests: XCTestCase {
                 }
                 throw CompositionTrialError.timeout("waiting-for-owner-unlock")
             })
+    }
+
+    func testAuthorizedProductRestartSeed() async throws {
+        let root = try restartAttempt()
+        let record = CompositionRestartRecord(attempt: root.lastPathComponent, seed: UUID(), seedPID: getpid())
+        let namespace = ProbeNamespace(attempt: record.attempt, seed: record.seed)
+        try authorizeRestart(at: root, namespace: namespace)
+        guard await SystemSessionLockProvider().sessionLockState() == .unlocked else {
+            throw CompositionTrialError.stateMismatch("seed-requires-unlocked")
+        }
+        let store = root.appendingPathComponent("restart-store")
+        guard !FileManager.default.fileExists(atPath: store.path) else {
+            throw CompositionTrialError.stateMismatch("restart-store-already-exists")
+        }
+        try record.write(at: root, initial: true)
+        let client = CompositionOwnedClient(AuthorizedProductKeychainClient(attempt: root,
+            namespace: namespace, accounts: ["metadata", "master-v1", "master-v2"]), recordOwnership: { accounts in
+                var updated = record
+                updated.accounts = accounts
+                try updated.write(at: root)
+            })
+        do {
+            let backend = LocalKeychainBackend(client: client)
+            let productNamespace = try KeychainNamespace(namespace.service)
+            for id in [KeychainItemID.metadata(productNamespace), .key(productNamespace, .init(rawValue: 1)),
+                       .key(productNamespace, .init(rawValue: 2))] {
+                guard try await backend.read(id) == nil else { throw KeyringError.duplicateItem }
+            }
+            try await Self.seedRestart(root: store, namespace: productNamespace, backend: backend,
+                provider: SystemSessionLockProvider(), notifications: DistributedLockNotifications())
+            guard Set(client.ownedAccounts) == ["metadata", "master-v1"], client.ownedAccounts.count == 2 else {
+                throw CompositionTrialError.stateMismatch("seed-ownership")
+            }
+            var completed = record
+            completed.accounts = client.ownedAccounts
+            completed.savedTotal = 2
+            try completed.write(at: root)
+            print("LOCKED_RESTART seeded=2 pid=\(getpid()) retainedItems=2")
+        } catch {
+            var retained = record
+            retained.accounts = client.ownedAccounts
+            do { try retained.write(at: root) }
+            catch { print("LOCKED_RESTART ownershipRecordWriteFailed=true") }
+            print("LOCKED_RESTART seedFailed service=\(namespace.service) ownedAccounts=\(client.ownedAccounts.joined(separator: ","))")
+            if await SystemSessionLockProvider().sessionLockState() == .unlocked {
+                try client.cleanup()
+                print("LOCKED_RESTART seedFailureCleanupVerified=\(client.ownedAccounts.count)")
+            } else {
+                print("LOCKED_RESTART cleanupDeferred=true")
+            }
+            throw error
+        }
+    }
+
+    @MainActor
+    func testExistingStoreLockedReconstructionWithMemoryKeychain() async throws {
+        let fixture = try SignedEffectFixture()
+        let evidence = fixture.evidence
+        let memory = MemoryLocalKeychainClient()
+        let authorized = AuthorizedProductKeychainClient(namespace: fixture.namespace,
+            accounts: ["metadata", "master-v1", "master-v2"], client: memory, evidence: { evidence })
+        let seedClient = CompositionOwnedClient(authorized)
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("keyrecord-restart-\(UUID())")
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: false,
+                                                attributes: [.posixPermissions: 0o700])
+        defer { try? FileManager.default.removeItem(at: root) }
+        let signals = CompositionSignals()
+        let notifications = CompositionNotifications()
+        try await Self.seedRestart(root: root, namespace: KeychainNamespace(fixture.namespace.service),
+            backend: LocalKeychainBackend(client: seedClient), provider: signals, notifications: notifications)
+        let restartedClient = CompositionOwnedClient(authorized, adopting: seedClient.ownedAccounts)
+        signals.setLocked(true)
+        try await Self.restoreRestart(root: root, namespace: fixture.namespace, client: restartedClient,
+            provider: signals, notifications: notifications, unlock: {
+                signals.setLocked(false)
+                notifications.post(ProductComposition.screenUnlockedNotification)
+            })
+        XCTAssertEqual(Set(restartedClient.ownedAccounts), ["metadata", "master-v1"])
+        try restartedClient.cleanup()
+    }
+
+    func testRestartRecordRejectsIncompleteWrongProcessAndUnownedAccounts() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("keyrecord-record-\(UUID())")
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: false,
+                                                attributes: [.posixPermissions: 0o700])
+        defer { try? FileManager.default.removeItem(at: root) }
+        var record = CompositionRestartRecord(attempt: root.lastPathComponent, seed: UUID(), seedPID: 123)
+        try record.write(at: root, initial: true)
+        XCTAssertThrowsError(try record.write(at: root, initial: true))
+        XCTAssertThrowsError(try CompositionRestartRecord.read(at: root, currentPID: 124))
+        record.accounts = ["metadata", "master-v1"]
+        record.savedTotal = 2
+        try record.write(at: root)
+        XCTAssertThrowsError(try CompositionRestartRecord.read(at: root, currentPID: 123))
+        XCTAssertEqual(try CompositionRestartRecord.read(at: root, currentPID: 124).seed, record.seed)
+        record.accounts = ["metadata", "unowned"]
+        try record.write(at: root)
+        XCTAssertThrowsError(try CompositionRestartRecord.read(at: root, currentPID: 124))
+        record.accounts = ["metadata", "master-v1"]
+        try record.write(at: root)
+        let recordURL = root.appendingPathComponent(CompositionRestartRecord.name)
+        let moved = root.appendingPathComponent("moved.json")
+        try FileManager.default.moveItem(at: recordURL, to: moved)
+        try FileManager.default.createSymbolicLink(at: recordURL, withDestinationURL: moved)
+        XCTAssertThrowsError(try CompositionRestartRecord.read(at: root, currentPID: 124))
+    }
+
+    func testOwnershipJournalFailureStillCleansOnlySuccessfulAdds() throws {
+        let fixture = try SignedEffectFixture()
+        let evidence = fixture.evidence
+        let memory = MemoryLocalKeychainClient()
+        let client = CompositionOwnedClient(AuthorizedProductKeychainClient(namespace: fixture.namespace,
+            accounts: ["metadata"], client: memory, evidence: { evidence }), recordOwnership: { _ in
+                throw CocoaError(.fileWriteUnknown)
+            })
+        let identity = LocalKeychainQueries.productIdentity(service: fixture.namespace.service, account: "metadata")
+        let attributes = LocalKeychainQueries.attributesForAdd(identity: identity, data: Data([1]),
+            accessible: kSecAttrAccessibleWhenUnlockedThisDeviceOnly)
+        XCTAssertThrowsError(try client.add(attributes))
+        XCTAssertEqual(client.ownedAccounts, ["metadata"])
+        try client.cleanup()
+        XCTAssertEqual(memory.copyMatching(LocalKeychainQueries.queryForReadingData(identity: identity)).status,
+                       errSecItemNotFound)
+    }
+
+    func testAuthorizedProductRestartWhileLocked() async throws {
+        let root = try restartAttempt()
+        let record = try CompositionRestartRecord.read(at: root, currentPID: getpid())
+        let namespace = ProbeNamespace(attempt: record.attempt, seed: record.seed)
+        try authorizeRestart(at: root, namespace: namespace)
+        let client = CompositionOwnedClient(AuthorizedProductKeychainClient(attempt: root,
+            namespace: namespace, accounts: ["metadata", "master-v1", "master-v2"]), adopting: record.accounts)
+        var failure: (any Error)?
+        do {
+            try await Self.restoreRestart(root: root.appendingPathComponent("restart-store"), namespace: namespace,
+                client: client, provider: SystemSessionLockProvider(), notifications: DistributedLockNotifications(),
+                unlock: {
+                    print("LOCKED_RESTART readyForUnlock")
+                    let observer = SystemSessionLockProvider()
+                    let deadline = ContinuousClock.now.advanced(by: .seconds(60))
+                    while ContinuousClock.now < deadline {
+                        if await observer.sessionLockState() == .unlocked { return }
+                        try await Task.sleep(for: .milliseconds(100))
+                    }
+                    throw CompositionTrialError.timeout("restart-waiting-for-unlock")
+                })
+        } catch { failure = error }
+        guard await SystemSessionLockProvider().sessionLockState() == .unlocked else {
+            throw failure ?? CompositionTrialError.stateMismatch("cleanup-retained-until-unlocked")
+        }
+        try client.cleanup()
+        print("LOCKED_RESTART cleanupVerified=2 seedPID=\(record.seedPID) restartPID=\(getpid())")
+        if let failure { throw failure }
+    }
+
+    private func restartAttempt() throws -> URL {
+        let environment = ProcessInfo.processInfo.environment
+        guard environment["KEYRECORD_HOSTED_LOCKED_RESTART_TRIAL"] == "1" else {
+            throw XCTSkip("No authorized separate-process restart trial requested")
+        }
+        let path = try XCTUnwrap(environment["PHASE1_QA_ATTEMPT"])
+        guard path.hasPrefix("/") else { throw PreflightBlock.scratchRootMismatch }
+        return URL(fileURLWithPath: path).standardizedFileURL
+    }
+
+    func testAuthorizedProductRestartCleanup() async throws {
+        let root = try restartAttempt()
+        let record = try CompositionRestartRecord.read(at: root, currentPID: getpid())
+        let namespace = ProbeNamespace(attempt: record.attempt, seed: record.seed)
+        try authorizeRestart(at: root, namespace: namespace)
+        guard await SystemSessionLockProvider().sessionLockState() == .unlocked else {
+            throw CompositionTrialError.stateMismatch("cleanup-retained-until-unlocked")
+        }
+        let client = CompositionOwnedClient(AuthorizedProductKeychainClient(attempt: root,
+            namespace: namespace, accounts: Set(record.accounts)), adopting: record.accounts)
+        try client.cleanup()
+        print("LOCKED_RESTART cleanupOnlyVerified=2")
+    }
+
+    private func authorizeRestart(at root: URL, namespace: ProbeNamespace) throws {
+        let evidence = SignedCandidateBackend.evidence(attempt: root)
+        guard case .ready = SignedEffectGate.authorizeKeychain(namespace: namespace, evidence: evidence,
+                                                               expectedNamespace: namespace),
+              case .success(let manifest) = evidence.manifest,
+              Set(manifest.operations) == [.keychain, .screen, .restart], manifest.operations.count == 3 else {
+            throw PreflightBlock.operationAllowlistMismatch
+        }
+    }
+
+    @MainActor
+    private static func seedRestart(root: URL, namespace: KeychainNamespace, backend: LocalKeychainBackend,
+        provider: any SessionLockProvider, notifications: any LockNotificationCentering) async throws {
+        let product = try await CompositionFixture(root: root, namespace: namespace, backend: backend,
+            lockProvider: provider, lockNotifications: notifications)
+        var failure: (any Error)?
+        do {
+            try await product.start(fresh: true)
+            try await product.emitOne()
+            try await product.emitOne()
+            guard try await product.total() == 2 else { throw CompositionTrialError.stateMismatch("seed-total") }
+        } catch { failure = error }
+        await product.stop()
+        if let failure { throw failure }
+    }
+
+    @MainActor
+    private static func restoreRestart(root: URL, namespace: ProbeNamespace, client: CompositionOwnedClient,
+        provider: any SessionLockProvider, notifications: any LockNotificationCentering,
+        unlock: () async throws -> Void) async throws {
+        guard await provider.sessionLockState() == .locked, client.operationCount == 0 else {
+            throw CompositionTrialError.stateMismatch("restart-requires-locked")
+        }
+        let product = try await CompositionFixture(root: root, namespace: KeychainNamespace(namespace.service),
+            backend: LocalKeychainBackend(client: client), lockProvider: provider, lockNotifications: notifications)
+        var failure: (any Error)?
+        do {
+            try await product.waitForClosed()
+            XCTAssertEqual(product.replay.emit(tick: 1), 0)
+            let observer = try XCTUnwrap(CounterWindowProductObserver(recorder: product.product.diagnostics, interval: 0.05))
+            var window = SessionLockQualification(supported: true)
+            let transition = try window.advance(.init(challenge: window.challenge, unlocked: false),
+                                                expectedUnlocked: false).get()
+            let closed = await Task.detached { observer.observe(step: .lockBackground, transition: transition) }.value
+            assertClosed(closed)
+            guard await provider.sessionLockState() == .locked, client.operationCount == 0 else {
+                throw CompositionTrialError.stateMismatch("restart-locked-keychain-attempt")
+            }
+            print("LOCKED_RESTART closed keychainAttempts=0")
+            try await unlock()
+            guard await provider.sessionLockState() == .unlocked, client.operationCount == 0 else {
+                throw CompositionTrialError.stateMismatch("restart-unlock-keychain-attempt")
+            }
+            try await product.start(fresh: false)
+            guard try await product.total() == 2 else { throw CompositionTrialError.stateMismatch("restart-restored-total") }
+            try await product.emitOne()
+            guard try await product.total() == 3 else { throw CompositionTrialError.stateMismatch("restart-final-total") }
+            print("LOCKED_RESTART restored=2 final=3")
+        } catch { failure = error }
+        await product.stop()
+        if let failure { throw failure }
     }
 
     private func authorizedResources(optIn: String, recordName: String,

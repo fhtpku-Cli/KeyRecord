@@ -6,6 +6,11 @@ Current status: [PROJECT_STATUS.md](PROJECT_STATUS.md). Requirements: [PHASE1_CO
 
 ## Evidence and remaining work
 
+The [existing-store locked-restart preparation](PRODUCT_LOCKED_RESTART_PREP_20261001.md)
+adds separate seed/restart entry points with exact ownership and a cleanup-only
+fallback. Twenty-one offline tests pass and six real opt-ins skip. This prepares
+the missing process-restart proof; it does not yet supply that proof.
+
 The [coordinated lock-source observation](LOCK_STATE_SOURCE_PREP_20260930.md)
 recorded 58 fresh processes across unlocked/locked/unlocked with owner confirmation.
 The [product locked-startup fixture](PRODUCT_LOCKED_STARTUP_PREP_20260930.md) passes

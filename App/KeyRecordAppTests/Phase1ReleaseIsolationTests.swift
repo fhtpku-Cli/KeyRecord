@@ -75,6 +75,37 @@ final class Phase1ReleaseIsolationTests: XCTestCase {
         assertSessionLockState(state, is: .unknown)
     }
 
+    func testObservedPlatformRequiresExactNativeVersionAndBuild() async {
+        let supported = ObservedLockPlatform(version: .init(majorVersion: 27, minorVersion: 0, patchVersion: 0),
+                                             build: "26A428", architecture: "arm64")
+        XCTAssertTrue(supported.isObservedCandidate)
+        let unsupported = [
+            ObservedLockPlatform(version: supported.version, build: "26A429", architecture: "arm64"),
+            ObservedLockPlatform(version: supported.version, build: "", architecture: "arm64"),
+            ObservedLockPlatform(version: supported.version, build: "26A428", architecture: "x86_64"),
+            ObservedLockPlatform(version: .init(majorVersion: 26, minorVersion: 0, patchVersion: 0),
+                                 build: "26A428", architecture: "arm64"),
+            ObservedLockPlatform(version: .init(majorVersion: 27, minorVersion: 1, patchVersion: 0),
+                                 build: "26A428", architecture: "arm64"),
+            ObservedLockPlatform(version: .init(majorVersion: 27, minorVersion: 0, patchVersion: 1),
+                                 build: "26A428", architecture: "arm64"),
+        ]
+        for platform in unsupported {
+            XCTAssertFalse(platform.isObservedCandidate)
+            let provider = ObservedSessionLockProvider(platform: platform)
+            assertSessionLockState(await provider.sessionLockState(), is: .unknown)
+        }
+    }
+
+    func testReleaseObservedProviderHasNoArmingOrDiagnosticsSurface() throws {
+        let code = try releasePreprocessed(root.appendingPathComponent(
+            "App/KeyRecordApp/ObservedSessionLockProvider.swift"))
+        XCTAssertFalse(code.contains("diagnosticLockComponents"))
+        XCTAssertFalse(code.contains("SessionLockDiagnosing"))
+        XCTAssertFalse(code.contains("environment["))
+        XCTAssertFalse(code.contains("UserDefaults"))
+    }
+
     func testSystemSessionLockProviderReturnsUnknownForMalformedSessionLockValue() async {
         // Given a session dictionary whose lock field is not a number.
         let provider = SystemSessionLockProvider(sessionDictionaryQuery: {

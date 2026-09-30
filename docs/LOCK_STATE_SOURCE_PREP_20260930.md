@@ -1,5 +1,11 @@
 # Lock-state source investigation and next observation
 
+Current engineering follow-up: [shared provider preparation](OBSERVED_LOCK_PROVIDER_20261001.md)
+extracts the existing algorithm for both build configurations and bounds its
+default live queries to native arm64 macOS 27.0 build 26A428. The original
+contract permits version-scoped observed signals. The historical public API
+limitations below remain true; they do not add a public-only prerequisite.
+
 ## Coordinated observation completed
 
 Subsequent product evidence now includes the

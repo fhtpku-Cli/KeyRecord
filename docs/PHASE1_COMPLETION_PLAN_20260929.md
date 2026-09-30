@@ -31,6 +31,12 @@ recovery remain evidence for their stated candidates; no routine repeat is plann
 
 ## Current state
 
+- [Version-scoped lock provider extraction](OBSERVED_LOCK_PROVIDER_20261001.md)
+  prepares production compilation on observed native arm64 macOS 27.0 build
+  26A428, with unknown/unsupported systems closed. Contract section 4 permits
+  observed signals; no public-only API requirement is added. Release remains
+  blocked pending the remaining real-path evidence and integration.
+
 - Existing-store separate-process restart now passes on signed `0766c515`:
   two real cases, zero failures/skips/runtime warnings, distinct seed/restart PIDs,
   zero locked Keychain attempts, restored two then saved three, cleanup two and

@@ -6,9 +6,14 @@ final class ProductReleaseBoundaryTests: XCTestCase {
         .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
 
     private func check(_ mode: String, path: URL) throws -> Int32 {
+        let scope = ProcessInfo.processInfo.environment["T23_RELEASE_SCOPE"]
+        guard scope == nil || scope == "apple-silicon-mvp" else {
+            throw NSError(domain: "Unsupported release test scope", code: 1)
+        }
+        let selectedMode = mode == "bundle" && scope == "apple-silicon-mvp" ? "bundle-arm64" : mode
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/ruby")
-        process.arguments = [root.appendingPathComponent("Scripts/release-boundary.rb").path, mode, path.path]
+        process.arguments = [root.appendingPathComponent("Scripts/release-boundary.rb").path, selectedMode, path.path]
         try process.run()
         process.waitUntilExit()
         return process.terminationStatus
@@ -18,8 +23,8 @@ final class ProductReleaseBoundaryTests: XCTestCase {
         URL(fileURLWithPath: try XCTUnwrap(ProcessInfo.processInfo.environment["T23_RELEASE_APP"]))
     }
 
-    func testUnsignedUniversalBuildCapabilityIsNotSignatureEvidence() throws {
-        // Given: wrapper built Release with CODE_SIGNING_ALLOWED=NO, both architectures.
+    func testUnsignedBuildCapabilityIsNotSignatureEvidence() throws {
+        // Given: an unsigned Release built for the explicitly selected architecture scope.
         let product = try app()
         // When: inspect actual lipo, nm, strings, plist and bundle structure.
         let status = try check("bundle", path: product)

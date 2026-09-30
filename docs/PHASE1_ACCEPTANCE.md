@@ -6,6 +6,12 @@ Current status: [PROJECT_STATUS.md](PROJECT_STATUS.md). Requirements: [PHASE1_CO
 
 ## Evidence and remaining work
 
+Current preparation: the [version-scoped provider](OBSERVED_LOCK_PROVIDER_20261001.md)
+is shared with Release compilation, restricted to the observed native arm64
+macOS 27.0 build 26A428. The original contract permits this observed candidate;
+a public-only replacement API is not an added prerequisite. Full lifecycle and
+collecting Release qualification are still incomplete.
+
 The [existing-store locked-restart round](PRODUCT_LOCKED_RESTART_PREP_20261001.md)
 now passes on signed `0766c515`: two real cases pass with zero failures/skips and
 no recorded runtime warnings. Different seed/restart PIDs save two, start locked

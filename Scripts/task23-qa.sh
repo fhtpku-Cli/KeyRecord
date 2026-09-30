@@ -3,7 +3,7 @@ set -euo pipefail
 [[ "$#" -eq 2 ]] || exit 1
 attempt="$1"
 case "$2" in
-  happy) filters='KeyRecordAppTests.ProductReleaseBoundaryTests/testUnsignedUniversalBuildCapabilityIsNotSignatureEvidence,KeyRecordAppTests.ProductReleaseBoundaryTests/testReleaseProjectHasOneProductAndRestrictedCapabilities' ;;
+  happy) filters='KeyRecordAppTests.ProductReleaseBoundaryTests/testUnsignedBuildCapabilityIsNotSignatureEvidence,KeyRecordAppTests.ProductReleaseBoundaryTests/testReleaseProjectHasOneProductAndRestrictedCapabilities' ;;
   failure) filters='KeyRecordAppTests.ProductReleaseBoundaryTests' ;;
   *) exit 1 ;;
 esac

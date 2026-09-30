@@ -3,6 +3,11 @@
 ## Current Apple Silicon MVP status — 2026-09-29
 
 Latest autonomous checkpoint: [MVP closeout](MVP_CLOSEOUT_20260929.md).
+The [version-scoped lock provider](OBSERVED_LOCK_PROVIDER_20261001.md) is now
+shared with Release compilation for native arm64 macOS 27.0 build 26A428 only.
+Other platforms remain unknown. This prepares integration using the completed
+observations permitted by contract section 4; Release capture remains blocked.
+The dated entries below retain their original evidence boundaries.
 The [existing-store locked-restart round](PRODUCT_LOCKED_RESTART_PREP_20261001.md)
 now passes on signed `0766c515`: two real XCTest cases passed, zero failures/skips
 and no recorded runtime warnings. Seed PID 40935 saved two simulated counts and

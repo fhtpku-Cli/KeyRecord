@@ -1,8 +1,9 @@
 # Current project status
 
-## Current Apple Silicon MVP status — 2026-09-29
+## Current Apple Silicon MVP status — 2026-10-01
 
-Latest autonomous checkpoint: [MVP closeout](MVP_CLOSEOUT_20260929.md).
+Current acceptance: [Phase 1 evidence](PHASE1_ACCEPTANCE.md).
+Earlier autonomous checkpoint: [MVP closeout](MVP_CLOSEOUT_20260929.md).
 The [Release dependency integration](RELEASE_CANDIDATE_20261001.md) now compiles
 the measured exact-item Keychain implementation into the product, qualifies only
 the observed platform and derives isolated defaults from the validated Bundle ID.
@@ -18,8 +19,14 @@ The subsequent fresh-process readback recovered the same two TextEdit records;
 the owner reported that it opened directly as Paused. It exited normally in 81.534
 seconds. This establishes readback and the reported state, not a Pause-button action
 or the reason for that startup state. Both CI jobs on documentation follow-up
-`2b2d365d` also pass. Only the existing [T23 signed-host accessibility/appearance
-walkthrough](RELEASE_NATIVE_UI_PREP_20261001.md) remains for Phase 1 acceptance.
+`2b2d365d` also pass. The existing [T23 signed-host accessibility/appearance
+walkthrough](RELEASE_NATIVE_UI_PREP_20261001.md) now passes within its owner-assisted
+scope: Paused, intact native menu, clear focus, normal speech and no reported issues.
+Normal exit took 175.366 seconds with no remaining instance; the owner confirmed
+all changed system settings restored to their original disabled states. Both CI
+jobs on documentation follow-up `a518f34b` pass. The Apple Silicon Phase 1 objective
+is complete with the measured platform and candidate boundaries below; PR #17
+remains draft and unmerged.
 Public distribution is outside scope. Completed lock/sleep/performance/Keychain
 rounds are not reopened.
 
@@ -37,8 +44,8 @@ product deletion scenario](PRODUCT_KEY_INTEGRITY_20261001.md) now passes on sign
 `1b82d7cd`: both missing/corrupt branches preserve data, original key restoration
 reads two counts, and the product removes its store and both owned items. One case
 passes with no runtime warnings; normal full-round exit takes 12.154 seconds and
-leaves no host. Next are the integrated candidate's signing and remaining native
-UI/accessibility check. Earlier lock/sleep/performance rounds
+leaves no host. The subsequently completed candidate signing and native
+UI/accessibility checks are recorded above. Earlier lock/sleep/performance rounds
 are not scheduled for routine repetition.
 
 The [raw Keychain lock measurement](RAW_KEYCHAIN_LOCK_PREP_20261001.md) now passes
@@ -49,8 +56,9 @@ with no remaining host or runtime warnings. This measures the scoped raw behavio
 product lock protection and remaining Release/privacy qualification still apply.
 The [version-scoped lock provider](OBSERVED_LOCK_PROVIDER_20261001.md) is now
 shared with Release compilation for native arm64 macOS 27.0 build 26A428 only.
-Other platforms remain unknown. This prepares integration using the completed
-observations permitted by contract section 4; Release capture remains blocked.
+Other platforms remain unknown. This prepared integration using the completed
+observations permitted by contract section 4; Release capture was still blocked
+at that intermediate checkpoint and is qualified within the scope above.
 The dated entries below retain their original evidence boundaries.
 The [existing-store locked-restart round](PRODUCT_LOCKED_RESTART_PREP_20261001.md)
 now passes on signed `0766c515`: two real XCTest cases passed, zero failures/skips

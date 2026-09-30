@@ -6,8 +6,10 @@ The owner screenshot shows two TextEdit shortcuts, zero bare keys and one unknow
 one left Command side. The product exited normally in 141.014 seconds; no instance
 remains. A subsequent fresh process recovered the same two records, opened directly
 as Paused according to the owner and exited normally in 81.534 seconds. Two-left
-and a Pause-button action are not claimed. Only the existing
-[T23 native walkthrough](RELEASE_NATIVE_UI_PREP_20261001.md) remains for Phase 1.
+and a Pause-button action are not claimed. The existing
+[T23 native walkthrough](RELEASE_NATIVE_UI_PREP_20261001.md) subsequently passed
+within its owner-assisted scope, with normal exit and all settings restored.
+This completes the approved Apple Silicon Phase 1 objective on the measured host.
 The preparation details below retain their prelaunch scope. Public distribution and PR merge remain
 outside this work.
 

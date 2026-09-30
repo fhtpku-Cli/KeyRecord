@@ -1,10 +1,18 @@
-# Phase 1 remaining acceptance
+# Phase 1 acceptance
 
 Current status: [PROJECT_STATUS.md](PROJECT_STATUS.md). Requirements: [PHASE1_CONTRACT.md](PHASE1_CONTRACT.md) and architecture §12.4/15. This matrix separates executable regression coverage from host qualification; it is not a new gate or acceptance receipt.
 
-**Current MVP scope (2026-09-29):** The first usable capture MVP may target native Apple Silicon only. Intel compatibility and Intel performance are later complete G1/v1 work, not reasons to block this MVP. A provisioned Debug trial has initialized protected storage, recorded 3 physical shortcuts with 4 issued/4 durable writes and read back the same total after restart with no new input or read failure. The signed `a604ad535` Debug fixed-replay candidate now completes the agreed short native ARM typing/idle performance measurement within budget ([result](PERFORMANCE_SHORT_ROUND_20260929.md)); this does not qualify event-tap overhead or Release. Complete Keychain lifecycle, full privacy recovery and a qualified collecting Release remain unverified. The historical full G1 requirements and prior candidate-specific results below retain their stated scope; this decision does not turn a missing measurement into PASS.
+**Historical MVP scope checkpoint (2026-09-29):** The first usable capture MVP may target native Apple Silicon only. Intel compatibility and Intel performance are later complete G1/v1 work, not reasons to block this MVP. A provisioned Debug trial has initialized protected storage, recorded 3 physical shortcuts with 4 issued/4 durable writes and read back the same total after restart with no new input or read failure. The signed `a604ad535` Debug fixed-replay candidate now completes the agreed short native ARM typing/idle performance measurement within budget ([result](PERFORMANCE_SHORT_ROUND_20260929.md)); this does not qualify event-tap overhead or Release. At that checkpoint, complete Keychain lifecycle, full privacy recovery and a qualified collecting Release remained unverified; current results follow below. The historical full G1 requirements and prior candidate-specific results retain their stated scope; this decision does not turn a missing measurement into PASS.
 
-## Evidence and remaining work
+## Current acceptance — 2026-10-01
+
+The Apple Silicon Phase 1 objective is complete within the approved MVP scope.
+The September 29 paragraph above is a historical checkpoint; its then-open
+Keychain/privacy/Release items are superseded by the observed results below.
+The signed product source is `ea90753feab2358166ee39384bb6a5501dc4ce64`;
+later commits change tests or documentation. PR #17 remains draft and unmerged.
+This is a usable isolated development candidate for the measured native arm64
+macOS 27.0 build 26A428 host, not public distribution or general-platform qualification.
 
 The [integrated Release dependencies](RELEASE_CANDIDATE_20261001.md) now build
 with the measured Keychain implementation and exact observed-platform qualification.
@@ -18,9 +26,13 @@ tests and both remote CI jobs on `c337c684` pass. A subsequent fresh process rec
 the same two TextEdit records, opened directly as Paused according to the owner,
 and exited normally in 81.534 seconds. This is not evidence of clicking Pause or
 of why startup was Paused. Both CI jobs on documentation follow-up `2b2d365d` pass.
-Only [T23's real Tab/Shift-Tab, VoiceOver, system
-Increase Contrast/Reduce Motion and native status-menu positioning checks](RELEASE_NATIVE_UI_PREP_20261001.md) remain. The ten
-focused native tests are not a complete T23 result; no repeated input priming,
+The owner-assisted [T23 Tab/Shift-Tab, VoiceOver, system
+Increase Contrast/Reduce Motion and native status-menu check](RELEASE_NATIVE_UI_PREP_20261001.md)
+now passes within the observed walkthrough scope. The owner confirmed Paused,
+an intact menu, clear focus, normal speech and no issues; normal exit took 175.366
+seconds and all changed settings were confirmed restored. Both remote jobs on
+`a518f34b` pass. This does not claim instrumented enumeration of every control or
+universal monitor/assistive-technology compatibility. No repeated input priming,
 lock/sleep/performance or Keychain destruction round is required.
 
 The [real key integrity/deletion round](PRODUCT_KEY_INTEGRITY_20261001.md) passes

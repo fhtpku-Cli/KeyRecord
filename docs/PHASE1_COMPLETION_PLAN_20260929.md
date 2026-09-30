@@ -42,9 +42,12 @@ recovery remain evidence for their stated candidates; no routine repeat is plann
   on `c337c684` pass. A subsequent fresh process recovered the same two records,
   with startup Paused reported by the owner, and exited normally in 81.534 seconds.
   This proves readback, not a Pause-button action or its startup cause. Both CI
-  jobs on documentation follow-up `2b2d365d` pass. Only the existing
-  [T23 signed-host accessibility/appearance walkthrough](RELEASE_NATIVE_UI_PREP_20261001.md) remains.
-  Native ten-test evidence does not replace that walkthrough. Do not repeat input
+  jobs on documentation follow-up `2b2d365d` pass. The existing
+  [T23 signed-host accessibility/appearance walkthrough](RELEASE_NATIVE_UI_PREP_20261001.md)
+  now passes as an owner-assisted observation, with normal exit and confirmed
+  restoration of all changed settings. Both CI jobs on `a518f34b` pass. The scoped
+  Apple Silicon Phase 1 objective is complete; PR #17 remains draft and unmerged.
+  Native ten-test evidence retains its distinct scope. Do not repeat input
   just to relabel unknown as left, or repeat completed lock/sleep/performance/Keychain work.
 
 - Shared Debug/Release privacy wiring is implemented: startup priming, synchronous

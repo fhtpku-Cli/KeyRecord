@@ -99,8 +99,9 @@ The fresh-process persisted aggregate readback passes. Normal Quit was requested
 after inspection; the controller exited 0 in 81.534 seconds with `forced: false`
 and no stop reason. A subsequent native query found zero same-identity instances.
 No additional input or restart is needed to repair the difference from the planned
-procedure. Only the [existing T23 walkthrough](RELEASE_NATIVE_UI_PREP_20261001.md)
-remains before full Phase 1 acceptance.
+procedure. The then-remaining [T23 walkthrough](RELEASE_NATIVE_UI_PREP_20261001.md)
+subsequently completed with owner-confirmed focus/speech/display observations,
+normal exit and restoration of the changed system settings.
 
 Readback record: `/private/tmp/keyrecord-release-readback-round-20261001/result.json`.
 Screenshot: `/var/folders/3h/fv0ztbr93q7_115hvwrhbrnh0000gn/T/codex-clipboard-a5a33eb3-9b89-44da-b3be-c36a613e1063.png`.

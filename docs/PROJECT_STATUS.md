@@ -5,9 +5,12 @@
 Latest autonomous checkpoint: [MVP closeout](MVP_CLOSEOUT_20260929.md).
 The [existing-store locked-restart fixture](PRODUCT_LOCKED_RESTART_PREP_20261001.md)
 now builds and passes its memory-backed reconstruction/ownership failure checks.
-Twenty-one offline cases pass; six real opt-ins skip. The actual separate-process
-round is not yet run and still needs signed/controller preparation and physical
-readiness. Both CI checks for the preceding `2288fbf27` closeout passed.
+Twenty-one offline cases pass; six real opt-ins skip. Signed source `0766c515`
+builds with existing profiles in 22.030 seconds, with no launch. The controller's
+static check and synthetic sequencing/termination tests pass. The actual
+separate-process round is not yet run. Final controller/permission review passes;
+the next step needs physical readiness. Both CI checks for the preceding
+`2288fbf27` closeout passed.
 Latest result: the [unlocked full-product round](PRODUCT_COMPOSITION_ROUND_20260930.md)
 passed on unchanged signed `fee7d4aef` after owner unlock and independent review.
 One real Keychain/product-composition test passed with no failures/skips or runtime

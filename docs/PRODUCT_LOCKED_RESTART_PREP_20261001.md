@@ -73,7 +73,45 @@ Logs in `/private/tmp`: `keyrecord-locked-restart-build-20261001.log`,
 `keyrecord-locked-restart-final-tests-20261001.log`.
 Independent review: `/private/tmp/.omo/evidence/locked-restart-ownership-rereview-code-review.md`.
 
-Signing and a reviewed bounded controller must precede physical readiness.
+## Signed preparation
+
+Source `0766c515b51e21aedd96f6dab32377eb8bdfcf3d` was built using existing signing
+profiles/certificate in `/private/tmp/keyrecord-product-locked-restart-20261001`.
+The reviewed signer finished in 22.030 seconds, exit 0, without forced stop,
+remaining build process group, installation or App launch. It did not request
+new signing material. Its synthetic timeout/error/cancellation tests pass.
+
+Controller: `/private/tmp/keyrecord-product-locked-restart-round.py`.
+Exact-path helper: `/private/tmp/KeyRecordLockedRestartControl`.
+The preparation-only `--check` passes for the exact source and three selected
+entry points, with no host launch, manifest write or real Keychain calls.
+The presence helper reports no exact or foreign probe. Sandbox trust inspection
+returned `CSSMERR_TP_NOT_TRUSTED`; the same strict inspection passed in the normal
+system environment. This was not a failed signed execution or an entitlement fix.
+
+Independent review caught insufficient worst-case termination time in the first
+controller draft. The stage force deadline is now at most 120 seconds from the
+start of the whole round, retaining up to 60 seconds for slow termination helpers,
+confirmation and result inspection. Cancellation is checked before each host
+launch; cleanup is forbidden while locked/unknown or after cancellation. The
+synthetic suite covers failed seed, readiness failure with unlocked cleanup,
+locked deferred cleanup, cancellation, skipped seed results and a helper consuming
+five seconds per call. Its sequencing and termination tests pass. Actual source
+and observer tests use fixed synthetic inputs; these controller tests call no
+real Keychain operations.
+
+Independent re-review and its repeated synthetic/actual preparation checks pass:
+`/private/tmp/.omo/evidence/locked-restart-controller-rereview-code-review.md`.
+The exact host and plugin signing permissions were also checked. No real host or
+Keychain operation ran during that review.
+
+The next step requires owner readiness, not another
+signing approval. Start unlocked; the controller first saves two simulated counts
+and exits the seed host. Only after the explicit lock instruction should the owner
+lock, wait about 20 seconds, then unlock. No ordinary test keys, permission toggles,
+App consent clicks or sleep are involved. Keep the entire coordinated round within
+three minutes; stop and retain evidence if either stage or cleanup is unresolved.
+
 The real two-process scenario has not run. Even a pass will not establish raw
 locked-state Keychain accessibility, public lock-API support, exhaustive privacy
 coverage, rendered UI or a qualified collecting Release.

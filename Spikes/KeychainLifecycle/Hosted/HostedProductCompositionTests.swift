@@ -28,6 +28,10 @@ private struct CompositionLogin: LoginItemBackend {
     func unregister() async throws {}
 }
 
+private struct CompositionQualification: CaptureQualification {
+    func liveCaptureQualified() async -> Bool { true }
+}
+
 @MainActor
 private final class CompositionNotifications: LockNotificationCentering {
     private var handlers: [Notification.Name: [@Sendable () -> Void]] = [:]
@@ -47,6 +51,7 @@ private final class CompositionOwnedClient: LocalKeychainClient, @unchecked Send
     private var created: [String] = []
     private var firstFailure: String?
     private var attemptedOperations = 0
+    private var attemptedMutations = 0
     private let recordOwnership: @Sendable ([String]) throws -> Void
     init(_ client: AuthorizedProductKeychainClient, adopting accounts: [String] = [],
          recordOwnership: @escaping @Sendable ([String]) throws -> Void = { _ in }) {
@@ -57,9 +62,13 @@ private final class CompositionOwnedClient: LocalKeychainClient, @unchecked Send
     var ownedAccounts: [String] { mutex.withLock { created } }
     var failureSummary: String { mutex.withLock { firstFailure ?? "none" } }
     var operationCount: Int { mutex.withLock { attemptedOperations } }
+    var mutationCount: Int { mutex.withLock { attemptedMutations } }
     func retryOwnershipRecord() throws { try recordOwnership(ownedAccounts) }
     private func operation<T>(_ name: String, _ body: () throws -> (T, OSStatus)) throws -> T {
-        mutex.withLock { attemptedOperations += 1 }
+        mutex.withLock {
+            attemptedOperations += 1
+            if name != "read" { attemptedMutations += 1 }
+        }
         do {
             let (value, status) = try body()
             let allowedAbsence = status == errSecItemNotFound && (name == "read" || name == "delete")
@@ -258,7 +267,7 @@ private final class CompositionFixture {
          lockNotifications: (any LockNotificationCentering)? = nil) async throws {
         let signals = signals, replay = replay
         var boundaries = ProductHostBoundaries(storeRoot: root, namespace: namespace,
-            backend: backend, login: CompositionLogin(), localCapture: LocalDevelopmentCapture(armed: true),
+            backend: backend, login: CompositionLogin(), qualification: CompositionQualification(),
             eventSource: { queue, qualification, sessionLock in
                 ListenOnlyEventSource.fixedReplay(queue: queue, qualification: qualification,
                     providers: CaptureProviderSet(foreground: signals, secureInput: signals, sessionLock: sessionLock),
@@ -337,6 +346,172 @@ private final class CompositionFixture {
 }
 
 final class HostedProductCompositionTests: XCTestCase {
+    @MainActor
+    func testMissingAndCorruptKeyPreserveDataBeforeFullProductDeletion() async throws {
+        let fixture = try SignedEffectFixture()
+        let evidence = fixture.evidence
+        let client = CompositionOwnedClient(AuthorizedProductKeychainClient(namespace: fixture.namespace,
+            accounts: ["metadata", "master-v1", "master-v2"], client: MemoryLocalKeychainClient(),
+            evidence: { evidence }))
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("keyrecord-integrity-\(UUID())")
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: false,
+                                                attributes: [.posixPermissions: 0o700])
+        defer { try? FileManager.default.removeItem(at: root) }
+        try await Self.runIntegrity(root: root, namespace: fixture.namespace, client: client)
+    }
+
+    func testAuthorizedProductKeyIntegrityAndDeletion() async throws {
+        let (root, namespace, client) = try authorizedResources(
+            optIn: "KEYRECORD_HOSTED_PRODUCT_INTEGRITY_TRIAL",
+            recordName: "product-integrity-service.txt", operations: [.keychain],
+            ownershipRecordName: "product-integrity-accounts.json")
+        guard await SystemSessionLockProvider().sessionLockState() == .unlocked else {
+            throw CompositionTrialError.stateMismatch("integrity-requires-unlocked")
+        }
+        try await Self.runIntegrity(root: root, namespace: namespace, client: client,
+            provider: { SystemSessionLockProvider() }, notifications: { DistributedLockNotifications() })
+    }
+
+    @MainActor
+    private static func runIntegrity(root: URL, namespace: ProbeNamespace, client: CompositionOwnedClient,
+        provider: () -> any SessionLockProvider = { CompositionSignals() },
+        notifications: () -> any LockNotificationCentering = { CompositionNotifications() }) async throws {
+        let storeRoot = root.appendingPathComponent("store")
+        let productNamespace = try KeychainNamespace(namespace.service)
+        let backend = LocalKeychainBackend(client: client)
+        let key = KeychainItemID.key(productNamespace, .init(rawValue: 1))
+        let metadata = KeychainItemID.metadata(productNamespace)
+        let sessionLock = provider()
+        var products: [CompositionFixture] = []
+        var failure: (any Error)?
+        func requireUnlocked() async throws {
+            guard await sessionLock.sessionLockState() == .unlocked else {
+                throw CompositionTrialError.stateMismatch("integrity-requires-unlocked")
+            }
+        }
+        func makeProduct() async throws -> CompositionFixture {
+            try await CompositionFixture(root: storeRoot, namespace: productNamespace, backend: backend,
+                lockProvider: sessionLock, lockNotifications: notifications())
+        }
+        func files() throws -> [String: Data] {
+            var result: [String: Data] = [:]
+            for name in try FileManager.default.subpathsOfDirectory(atPath: storeRoot.path) {
+                let file = storeRoot.appendingPathComponent(name)
+                if try file.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile == true {
+                    result[name] = try Data(contentsOf: file)
+                }
+            }
+            return result
+        }
+        do {
+            try await requireUnlocked()
+            for id in [key, metadata, .key(productNamespace, .init(rawValue: 2))] {
+                guard try await backend.read(id) == nil else { throw KeyringError.duplicateItem }
+            }
+            let seed = try await makeProduct()
+            products.append(seed)
+            try await seed.start(fresh: true)
+            try await seed.emitOne()
+            try await seed.emitOne()
+            guard try await seed.total() == 2 else { throw CompositionTrialError.stateMismatch("integrity-seed") }
+            await seed.stop()
+            let savedKey = try await backend.read(key)
+            let savedMetadata = try await backend.read(metadata)
+            let originalKey = try XCTUnwrap(savedKey)
+            let originalMetadata = try XCTUnwrap(savedMetadata)
+            let before = try files()
+            guard !before.isEmpty, Set(client.ownedAccounts) == ["master-v1", "metadata"] else {
+                throw CompositionTrialError.stateMismatch("integrity-ownership")
+            }
+            for corrupt in [false, true] {
+                try await requireUnlocked()
+                if corrupt {
+                    let status = try await Task.detached {
+                        let identity = LocalKeychainQueries.productIdentity(service: namespace.service, account: key.account)
+                        let attributes = LocalKeychainQueries.attributesForUpdate(data: Data([0]),
+                            accessible: kSecAttrAccessibleWhenUnlockedThisDeviceOnly)
+                        return try client.update(identity, attributes: attributes)
+                    }.value
+                    guard status == errSecSuccess else {
+                        throw CompositionTrialError.stateMismatch("integrity-corrupt")
+                    }
+                } else { try await backend.delete(key) }
+                let mutations = client.mutationCount
+                let reopened = try await makeProduct()
+                products.append(reopened)
+                await reopened.product.startOrRetry()
+                try await requireUnlocked()
+                guard reopened.product.lifecycle.phase == .failed,
+                      ProductPersistence.lastLoadGateOpen == true,
+                      !reopened.product.captureSessionLive,
+                      !reopened.product.capture.queue.isOpen,
+                      !reopened.product.flow.sensitiveContentVisible,
+                      (try? reopened.product.gate.begin()) == nil,
+                      client.mutationCount == mutations, try files() == before,
+                      try await backend.read(metadata) == originalMetadata,
+                      try await backend.read(key) == (corrupt ? Data([0]) : nil) else {
+                    throw CompositionTrialError.stateMismatch("integrity-preservation")
+                }
+                await reopened.stop()
+                guard client.mutationCount == mutations, try files() == before else {
+                    throw CompositionTrialError.stateMismatch("integrity-stop-preservation")
+                }
+                try await requireUnlocked()
+                if corrupt {
+                    let status = try await Task.detached {
+                        let identity = LocalKeychainQueries.productIdentity(service: namespace.service, account: key.account)
+                        let attributes = LocalKeychainQueries.attributesForUpdate(data: originalKey,
+                            accessible: kSecAttrAccessibleWhenUnlockedThisDeviceOnly)
+                        return try client.update(identity, attributes: attributes)
+                    }.value
+                    guard status == errSecSuccess else {
+                        throw CompositionTrialError.stateMismatch("integrity-restore")
+                    }
+                } else {
+                    let status = try await Task.detached {
+                        let identity = LocalKeychainQueries.productIdentity(service: namespace.service, account: key.account)
+                        let attributes = LocalKeychainQueries.attributesForAdd(identity: identity, data: originalKey,
+                            accessible: kSecAttrAccessibleWhenUnlockedThisDeviceOnly)
+                        return try client.add(attributes)
+                    }.value
+                    guard status == errSecSuccess else {
+                        throw CompositionTrialError.stateMismatch("integrity-restore")
+                    }
+                }
+                print("PRODUCT_INTEGRITY mode=\(corrupt ? "corrupt" : "missing") closed=true filesUnchanged=true mutations=0")
+            }
+            let recovered = try await makeProduct()
+            products.append(recovered)
+            try await recovered.start(fresh: false)
+            guard try await recovered.total() == 2 else { throw CompositionTrialError.stateMismatch("integrity-recovery") }
+            recovered.product.flow.requestDeleteLocalData()
+            await recovered.product.flow.choose(.confirm)
+            guard recovered.product.lifecycle.phase == .unstarted,
+                  !recovered.product.capture.queue.isOpen,
+                  !recovered.product.flow.sensitiveContentVisible,
+                  !FileManager.default.fileExists(atPath: storeRoot.path),
+                  try await backend.read(key) == nil, try await backend.read(metadata) == nil else {
+                throw CompositionTrialError.stateMismatch("integrity-product-deletion")
+            }
+            print("PRODUCT_INTEGRITY restored=2 productDeleted=true storeAbsent=true keyItemsAbsent=2")
+        } catch { failure = error }
+        for product in products.reversed() { await product.stop() }
+        do { try client.retryOwnershipRecord() }
+        catch {
+            print("PRODUCT_INTEGRITY ownershipRecordFailed service=\(namespace.service) accounts=\(client.ownedAccounts.joined(separator: ","))")
+            if failure == nil { failure = error }
+        }
+        do {
+            try await requireUnlocked()
+            try await Task.detached { try client.cleanup() }.value
+            print("PRODUCT_INTEGRITY cleanupVerified=\(client.ownedAccounts.count)")
+        } catch {
+            XCTFail("Integrity cleanup blocked; inspect retained ownership record")
+            if failure == nil { failure = error }
+        }
+        if let failure { throw failure }
+    }
+
     @MainActor
     func testRawReadSuccessWhileLockedDoesNotOpenProduct() async throws {
         try await exerciseRawLockMemory(status: nil)

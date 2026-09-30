@@ -11,10 +11,16 @@ It also [distinguishes denied and unknown permission witnesses](PERMISSION_WITNE
 in the opt-in Debug journal. All 590 package cases and the final 63 product
 recovery/quit cases pass. The initial intermittent failure was deterministically
 reproduced before repair, not dismissed after a quiet rerun. These are offline
-results; the installed chord trial remains source `426969c9f`. A newly signed
-candidate `fde8c8886` and segmented permission/recovery controller are
-[prepared and checked without launch](PERMISSION_TRIAL_PREPARATION_20260930.md),
-with installation and each live segment awaiting explicit approval/readiness.
+results. Signed candidate `fde8c8886` is now
+[installed and exercised in two approved/readied segments](CURRENT_PERMISSION_TRIAL_20260930.md).
+The owner-reported permission toggle led to closed capture/key protection and 32
+stable blocked samples, followed by normal Quit. All permission witnesses still
+reported granted, so explicit denial remains unobserved. Restart preserved two
+shortcuts and saved one additional chord (total three, bare zero, three durable
+writes), then Pause and normal Quit completed. Startup restored Collecting without
+a traced manual entry; manual recovery is not claimed. Both exact processes are
+gone, output names consumed, and no repeat is authorized. Both CI jobs at
+`80061ab1f` passed. Full hosted qualification and collecting Release remain open.
 An [explicit hold-Command/press-A trial](CURRENT_COMMAND_CHORD_TRIAL_20260930.md)
 completed on unchanged signed source `426969c9f` after explicit approval/readiness.
 It received two key-downs, two key-ups and six modifier callbacks, accepted ten

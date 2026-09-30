@@ -1,4 +1,8 @@
-# Permission and recovery candidate prepared, not launched
+# Permission and recovery preparation and completed execution
+
+Both approved/readied segments are now consumed. See the
+[observed result and unresolved limits](CURRENT_PERMISSION_TRIAL_20260930.md).
+The procedure below is the recorded plan, not authorization to run it again.
 
 Signed arm64 Debug source `fde8c888684b0b13c6e23f4081a94ecc10fa1915` contains the
 failed-recovery settlement and tri-state permission witness repairs. The build
@@ -8,9 +12,12 @@ used only existing local signing assets for team `P3W62C39TN` and bundle
 Candidate: `/private/tmp/keyrecord-phase1-permission-candidate-20260930/build/Build/Products/Debug/KeyRecordApp.app`.
 Log: `/private/tmp/keyrecord-phase1-permission-candidate-build.log`.
 The build script and controller's no-launch permission checks both succeed.
-The installed `KeyRecord MVP Trial 20260929.app` remains source `426969c9f`;
-installation must preserve that bundle before replacement. Performance Trial is
-outside this operation.
+After the owner's explicit approval, `KeyRecord MVP Trial 20260929.app` was
+replaced with this candidate. The prior `426969c9f` bundle is preserved at
+`/private/tmp/keyrecord-mvp-before-permission-fde8c8886.app`. The complete installed
+bundle matches staging; signature verification and the installed controller's
+permission check passed before launch. The subsequent separately readied runs
+and normal exits are recorded in the result above. Performance Trial was not changed.
 
 Controller source/executable:
 `/private/tmp/keyrecord-phase1-permission-controller-20260930.swift` and the same
@@ -26,9 +33,9 @@ missing permission summary, as intended. No artifact was invented to bypass it.
 
 ## Proposed owner-assisted procedure
 
-Fresh approval covers installation, reuse of this trial-only encrypted store and
-Keychain namespace, and the following two separately readied segments. It does
-not authorize a launch before readiness or a repeat of either consumed segment.
+The received approval covers installation, reuse of this trial-only encrypted
+store and Keychain namespace, and the following two separately readied segments.
+It does not authorize a launch before readiness or a repeat of a consumed segment.
 
 1. Prepare blank TextEdit. After installation and isolated launch, use Resume if
    the persisted state is Paused; otherwise use the actual Start action and consent.

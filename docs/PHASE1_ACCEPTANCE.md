@@ -6,6 +6,13 @@ Current status: [PROJECT_STATUS.md](PROJECT_STATUS.md). Requirements: [PHASE1_CO
 
 ## Evidence and remaining work
 
+Latest [approved permission/restarted-recovery round](CURRENT_PERMISSION_TRIAL_20260930.md)
+on signed `fde8c8886` observed 32 stable closed samples, normal exit, retained two
+shortcuts after restart and one new saved chord (total three). The running process
+still reported granted after the setting toggle, and restart restored Collecting
+without a traced manual entry. Explicit denied permission and manual restarted
+recovery are therefore not qualified. Both segments exited normally and are consumed.
+
 Latest offline preparation distinguishes explicit denied/unknown permission
 witnesses and fixes a failed-recovery settlement race that could lose retained
 counts. The deterministic failing-first reproduction now passes, together with

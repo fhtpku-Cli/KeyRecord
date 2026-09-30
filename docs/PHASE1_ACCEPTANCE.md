@@ -6,6 +6,15 @@ Current status: [PROJECT_STATUS.md](PROJECT_STATUS.md). Requirements: [PHASE1_CO
 
 ## Evidence and remaining work
 
+The [real key integrity/deletion round](PRODUCT_KEY_INTEGRITY_20261001.md) passes
+on signed `1b82d7cd`: one case, zero failures/skips/runtime warnings, normal exit
+in 12.154 seconds without a remaining host. Missing and corrupt keys preserve
+encrypted files and prevent capture/replacement mutations; original-key recovery
+reads two counts. The product deletion flow removes store and both items before
+fallback cleanup. This closes the bounded FR-P7 real-backend composition case;
+login-item effects and input were simulated, so native controls and system login
+unregistration are not established by this result.
+
 Shared product safety wiring (2026-10-01): lock notifications, startup protection
 and manual-entry checks now compile through one Debug/Release path. The suspended
 startup-read regression failed before repair (gate open and backend query), then

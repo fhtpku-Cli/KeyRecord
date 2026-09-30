@@ -1,6 +1,31 @@
 # Product key integrity and deletion
 
-Status: offline fixture passes; real Keychain execution is not yet performed.
+Status: the bounded real Keychain scenario passes on signed
+`1b82d7cd6684ec2d23aade709cbc64d176651494`.
+
+## Observed result
+
+The authorized automatic round completed one XCTest case in 7.330 seconds, with
+zero failures, skips or runtime warnings. The controller exited normally in
+11.102 seconds; the entire round took 12.154 seconds, with no forced termination,
+control errors or remaining host. An independent exact-path process check also
+returned no target or foreign probe.
+
+Both missing-key and one-byte corrupt-key reconstruction preserved all encrypted
+files, left capture/presentation closed and made zero replacement mutations.
+Restoring the original material allowed two counts to be read back. The actual
+product deletion flow then removed the store and both exact items, verified before
+fallback cleanup. Two owned items were confirmed absent. Input and login-item
+effects were simulated; the Keychain, encrypted store and product flow were real.
+
+Artifacts are in `/private/tmp/keyrecord-product-integrity-20261001`:
+`round.json`, `main-run.json`, `main-run.log`, `main.xcresult` and the exact ownership
+record. This attempt is consumed and must not be rerun. The existing-certificate
+signed build took 19.601 seconds, and strict host/plugin signature checks passed.
+No signing material was requested. Collecting Release and native UI/accessibility
+verification remain separate.
+
+## Scenario and preparation
 
 The shared product composition now has one bounded scenario for FR-P7. A fresh
 private store and UUID test namespace save two simulated counts. Only the
@@ -32,7 +57,6 @@ product deletion, absent store/items and owned cleanup. Logs:
 `/private/tmp/keyrecord-product-integrity-offline-tests.log`.
 
 The existing standing authorization covers reviewer-checked signing and automatic
-isolated verification. The next bounded build reuses the existing certificate and
-profiles; no new signing material or account interaction is requested. The live
-round will be measured separately with a fresh attempt root and an explicit
-Keychain-only operation allowlist. No daily store or unrelated item is targeted.
+isolated verification. The bounded build reused the existing certificate and
+profiles. The live round used a fresh attempt root and an explicit Keychain-only
+operation allowlist. No daily store or unrelated item was targeted.

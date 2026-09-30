@@ -11,9 +11,13 @@ query. Reusing the existing recovery fence now rejects that stale result and
 serializes gate reopening with notification invalidation. The shared path passes
 114 App regressions and seven core recovery tests; native arm64 Debug/Release
 builds and Release capability/network static audits pass. Release selection still
-uses `UnqualifiedCapture` and `BlockedLiveKeychain`. Next are production Keychain
-selection, isolated real missing/corrupt-key and complete-deletion checks, then
-the remaining native UI/accessibility check. Earlier lock/sleep/performance rounds
+uses `UnqualifiedCapture` and `BlockedLiveKeychain`. The [real key integrity and
+product deletion scenario](PRODUCT_KEY_INTEGRITY_20261001.md) now passes on signed
+`1b82d7cd`: both missing/corrupt branches preserve data, original key restoration
+reads two counts, and the product removes its store and both owned items. One case
+passes with no runtime warnings; normal full-round exit takes 12.154 seconds and
+leaves no host. Next are production Keychain selection and the remaining native
+UI/accessibility check. Earlier lock/sleep/performance rounds
 are not scheduled for routine repetition.
 
 The [raw Keychain lock measurement](RAW_KEYCHAIN_LOCK_PREP_20261001.md) now passes

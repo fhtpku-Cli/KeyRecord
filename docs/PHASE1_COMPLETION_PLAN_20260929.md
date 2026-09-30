@@ -36,9 +36,11 @@ recovery remain evidence for their stated candidates; no routine repeat is plann
   now rejected using the existing recovery fence, including atomic gate reopen.
   Debug/Release arm64 builds, 114 App regressions, seven core recovery tests and
   Release capability/network static audits pass. Release remains unqualified and
-  uses the blocked backend. Continue with production backend/qualification wiring,
-  isolated real missing/corrupt-key startup and full product deletion, and the
-  remaining native UI/accessibility check. Do not repeat completed physical
+  uses the blocked backend. The [signed FR-P7 scenario](PRODUCT_KEY_INTEGRITY_20261001.md)
+  now passes both real missing/corrupt-key preservation branches, recovery of two
+  counts and full product store/key deletion in 12.154 seconds, with no runtime
+  warnings or remaining host. Continue with production backend/qualification
+  wiring and the remaining native UI/accessibility check. Do not repeat completed physical
   lock/sleep or short performance rounds solely for this extraction.
 
 - The [raw locked Keychain measurement](RAW_KEYCHAIN_LOCK_PREP_20261001.md) passes

@@ -736,8 +736,7 @@ final class ProductComposition: NSObject, NSMenuDelegate {
             } else {
                 Task { @MainActor in
                     guard let self else { return }
-                    let outcome = await self.reconcileCapture(.invalidated(reason), using: coordinator)
-                    await self.settleFailedRecovery(outcome)
+                    await self.reconcileCapture(.invalidated(reason), using: coordinator)
                 }
             }
         }
@@ -748,7 +747,9 @@ final class ProductComposition: NSObject, NSMenuDelegate {
                                   using coordinator: CaptureRuntimeCoordinator) async -> CaptureRuntimeOutcome {
         runtimeReconciliations += 1
         defer { runtimeReconciliations -= 1 }
-        return await coordinator.handle(trigger)
+        let outcome = await coordinator.handle(trigger)
+        await settleFailedRecovery(outcome)
+        return outcome
     }
 
     /// A failed automatic rebuild leaves no session and no trigger that would retry it, so
@@ -834,7 +835,7 @@ final class ProductComposition: NSObject, NSMenuDelegate {
         if let runtimeCoordinator {
             // Same serial entry point as every invalidation (KR-02), so an exclusion change
             // cannot race a concurrent foreground/tap recovery.
-            await settleFailedRecovery(await reconcileCapture(.exclusionsChanged, using: runtimeCoordinator))
+            await reconcileCapture(.exclusionsChanged, using: runtimeCoordinator)
         } else if let preferences = lifecycle.state.preferences {
             await capture.reapplyPolicy(preferences: preferences)
         }
@@ -943,9 +944,7 @@ final class ProductComposition: NSObject, NSMenuDelegate {
                 } else if state == .disabled,
                           (previous != .disabled && !live) || self.lifecycle.state.conditions.secureInput != .disabled {
                     if !live, let coordinator = self.runtimeCoordinator {
-                        let outcome = await self.reconcileCapture(.invalidated(.secureInputChanged), using: coordinator)
-                        guard self.monitorIsCurrent(generation) else { break }
-                        await self.settleFailedRecovery(outcome)
+                        await self.reconcileCapture(.invalidated(.secureInputChanged), using: coordinator)
                         guard self.monitorIsCurrent(generation) else { break }
                     }
                     let resumed = await self.capture.hasLiveSession()

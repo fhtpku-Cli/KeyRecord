@@ -77,6 +77,8 @@ private final class SyntheticHost: FrontmostAppProvider, SecureInputProvider, Se
     private var secure: SecureInputState = .disabled
     private var secureAfterNextTapStart: SecureInputState?
     private var secureInputReadsToHold = 0
+    private var scriptedSecureInputReads: [SecureInputState?] = []
+    private var secureReadCount = 0
     private var heldSecureInputReads: [CheckedContinuation<SecureInputState, Never>] = []
     private var foreground: ForegroundState = .attributable(bundleID: "synthetic.editor")
     private var scriptedForegroundReads: [ForegroundState] = []
@@ -101,6 +103,11 @@ private final class SyntheticHost: FrontmostAppProvider, SecureInputProvider, Se
     /// Parks the next `count` Secure Input reads so a stale poller can finish after replacement
     /// without also blocking Start/Resume readiness reads.
     func holdNextSecureInputReads(_ count: Int) { mutex.withLock { secureInputReadsToHold = count } }
+    /// A nil entry parks that read; other entries return the supplied state.
+    func scriptSecureInputReads(_ states: [SecureInputState?]) {
+        mutex.withLock { scriptedSecureInputReads = states }
+    }
+    var secureInputReadCount: Int { mutex.withLock { secureReadCount } }
     var parkedSecureInputReads: Int { mutex.withLock { heldSecureInputReads.count } }
     func completeNextSecureInputRead(_ state: SecureInputState) {
         let continuation: CheckedContinuation<SecureInputState, Never>? = mutex.withLock {
@@ -132,9 +139,16 @@ private final class SyntheticHost: FrontmostAppProvider, SecureInputProvider, Se
     func secureInputState() async -> SecureInputState {
         await withCheckedContinuation { continuation in
             mutex.withLock {
+                secureReadCount += 1
                 if secureInputReadsToHold > 0 {
                     secureInputReadsToHold -= 1
                     heldSecureInputReads.append(continuation)
+                } else if !scriptedSecureInputReads.isEmpty {
+                    if let state = scriptedSecureInputReads.removeFirst() {
+                        continuation.resume(returning: state)
+                    } else {
+                        heldSecureInputReads.append(continuation)
+                    }
                 } else {
                     continuation.resume(returning: secure)
                 }
@@ -454,10 +468,10 @@ final class ProductRecoveryQuitTests: XCTestCase {
         products.removeAll()
     }
 
-    private func collecting() async throws -> SyntheticProduct {
+    private func collecting(journal: Bool = true) async throws -> SyntheticProduct {
         let product = try SyntheticProduct.fresh()
         products.append(product)
-        try await product.boot()
+        try await product.boot(journal: journal)
         // Fresh install: Start opens consent, then the consent screen's Accept starts capture.
         await product.composition.startOrRetry()
         XCTAssertEqual(product.phase, .consent)
@@ -1040,6 +1054,66 @@ final class ProductRecoveryQuitTests: XCTestCase {
 
         await product.composition.requestQuit()
         XCTAssertEqual(product.terminateRequests, 1)
+    }
+
+    func testHealthPollDoesNotRevokeWhileFailedRecoveryIsSettling() async throws {
+        let product = try await collecting(journal: false)
+        try await product.press(1)
+        product.host.holdNextSecureInputReads(1)
+        defer { product.host.releaseSecureInputReads() }
+        try await waitUntil("monitor read parked") { product.host.parkedSecureInputReads == 1 }
+        // Recovery reads: fresh conditions, policy refresh, resume readiness, then settlement.
+        product.host.scriptSecureInputReads([.disabled, .disabled, .disabled, nil])
+        product.host.scriptForegroundReads(Array(repeating: .attributable(bundleID: "synthetic.browser"), count: 3))
+        product.host.setForeground(.attributable(bundleID: "synthetic.editor2"))
+        XCTAssertEqual(product.tap?.report(.foregroundChanged), true)
+        try await waitUntil("failed recovery settlement parked") { product.host.parkedSecureInputReads == 2 }
+        let liveDuringSettlement = await product.live
+        XCTAssertFalse(liveDuringSettlement)
+        let readsBeforeMonitor = product.host.secureInputReadCount
+        product.host.completeNextSecureInputRead(.disabled)
+        // Observe another poll (or premature closure), rather than assuming a sleep is enough.
+        try await waitUntil("health poll crossed settlement") {
+            product.host.secureInputReadCount > readsBeforeMonitor || product.phase == .blocked
+        }
+        XCTAssertEqual(product.phase, .collecting)
+        XCTAssertTrue(product.keyGateOpen, "a known recovery stop must not revoke retained counts")
+        product.host.completeNextSecureInputRead(.disabled)
+        try await waitUntil("settlement hands over to Start") { product.phase == .blocked }
+        XCTAssertEqual(product.composition.lifecycle.state.blockedReason, .keyUnavailable)
+        await product.composition.startOrRetry()
+        XCTAssertEqual(product.phase, .collecting)
+        try await product.press(1)
+        try await product.waitDurable()
+        let total = try await product.diskBareTotal()
+        XCTAssertEqual(total, 2)
+        await product.composition.requestQuit()
+    }
+
+    func testPermissionLossStillClosesWhileFailedRecoveryIsSettling() async throws {
+        let product = try await collecting(journal: false)
+        product.host.holdNextSecureInputReads(1)
+        defer { product.host.releaseSecureInputReads() }
+        try await waitUntil("monitor read parked") { product.host.parkedSecureInputReads == 1 }
+        product.host.scriptSecureInputReads([.disabled, .disabled, .disabled, nil])
+        product.host.scriptForegroundReads(Array(repeating: .attributable(bundleID: "synthetic.browser"), count: 3))
+        product.host.setForeground(.attributable(bundleID: "synthetic.editor2"))
+        XCTAssertEqual(product.tap?.report(.foregroundChanged), true)
+        try await waitUntil("failed recovery settlement parked") { product.host.parkedSecureInputReads == 2 }
+        product.host.setPermission(.denied)
+        product.host.completeNextSecureInputRead(.disabled)
+        try await waitUntil("permission loss takes priority over settlement") {
+            product.phase == .blocked && !product.keyGateOpen
+        }
+        XCTAssertEqual(product.composition.lifecycle.state.blockedReason, .privacyCheckRequired)
+        product.host.completeNextSecureInputRead(.disabled)
+        await product.composition.startOrRetry()
+        XCTAssertEqual(product.phase, .failed)
+        XCTAssertFalse(product.keyGateOpen)
+        let live = await product.live
+        XCTAssertFalse(live)
+        XCTAssertFalse(product.composition.flow.sensitiveContentVisible)
+        await product.composition.requestQuit()
     }
 
     // MARK: - Quit

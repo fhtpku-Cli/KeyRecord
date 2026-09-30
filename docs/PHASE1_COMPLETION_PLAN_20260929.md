@@ -43,7 +43,15 @@ recovery remain evidence for their stated candidates; no routine repeat is plann
   qualification. Next work is to identify and exercise the independent initial
   lock-state witness before enabling any collecting Release path. The
   [source investigation and bounded observation](LOCK_STATE_SOURCE_PREP_20260930.md)
-  are prepared; the physical lock/unlock interval awaits owner readiness.
+  now include a completed owner-coordinated window: 58 fresh-process samples,
+  unlocked/locked/unlocked, and normal exit. The next product locked-startup
+  preparation must avoid Keychain pre-reads while locked; no Release promotion
+  follows from these diagnostic observations.
+- The [locked-startup fixture](PRODUCT_LOCKED_STARTUP_PREP_20260930.md) now does so:
+  its guarded memory-client scenario passes zero locked attempts, Retry/Start,
+  save two, same-process reload two and save three. Eighteen offline cases pass,
+  three real opt-ins skip. Complete reviewed signing/controller preparation before
+  requesting the next physical readiness window.
 - The [first signed full-product round](PRODUCT_COMPOSITION_ROUND_20260930.md)
   failed during the scenario after a successful signed build. No host remained.
   Diagnose its startup failure before claiming real recovery. The owner now

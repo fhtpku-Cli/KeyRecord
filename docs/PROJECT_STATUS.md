@@ -10,9 +10,16 @@ warnings. Simulated input saved two, recovery and same-process reconstruction re
 two, then saved three. Both owned Keychain items were cleaned up; the controller
 exited normally in 12.236 seconds with no remaining host. No new signing occurred.
 Actual OS lock authority, startup/restart under lock and collecting Release remain
-open. [Lock-state source investigation](LOCK_STATE_SOURCE_PREP_20260930.md) identifies
-the current inputs as private implementation properties and prepares a bounded
-read-only process-start observation; it does not enable Release collection.
+open. The [coordinated lock-state observation](LOCK_STATE_SOURCE_PREP_20260930.md)
+completed 58 fresh-process samples: 36 unlocked, 13 locked, 9 unlocked, with owner
+confirmation of the visible lock screen and normal exit. This supports bounded
+process-start observations on this host; the input fields remain private
+implementation properties. Product locked startup and Release remain unqualified.
+The [product locked-startup fixture](PRODUCT_LOCKED_STARTUP_PREP_20260930.md) now
+passes offline with the memory Keychain: locked startup makes zero client calls;
+explicit Retry then Start/consent saves two, restores two and saves three. Eighteen
+selected offline cases pass and all three real opt-ins skip. Signing and the
+coordinated real product-host round remain pending.
 The earlier diagnostic add `-25308` failure and later locked-host readiness
 observation remain recorded; neither alone establishes failure-time lock state.
 The following entries preserve earlier preparation and failed-round checkpoints.

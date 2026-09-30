@@ -8,7 +8,7 @@ import KeyRecordStore
 import LifecyclePreflight
 
 private enum CompositionTrialError: Error {
-    case timeout(String), unexpectedState, cleanupIncomplete
+    case timeout(String), unexpectedState, stateMismatch(String), cleanupIncomplete
 }
 
 private final class CompositionSignals: FrontmostAppProvider, SecureInputProvider,
@@ -46,10 +46,13 @@ private final class CompositionOwnedClient: LocalKeychainClient, @unchecked Send
     private let mutex = NSLock()
     private var created: [String] = []
     private var firstFailure: String?
+    private var attemptedOperations = 0
     init(_ client: AuthorizedProductKeychainClient) { self.client = client }
     var ownedAccounts: [String] { mutex.withLock { created } }
     var failureSummary: String { mutex.withLock { firstFailure ?? "none" } }
+    var operationCount: Int { mutex.withLock { attemptedOperations } }
     private func operation<T>(_ name: String, _ body: () throws -> (T, OSStatus)) throws -> T {
+        mutex.withLock { attemptedOperations += 1 }
         do {
             let (value, status) = try body()
             let allowedAbsence = status == errSecItemNotFound && (name == "read" || name == "delete")
@@ -104,19 +107,21 @@ private final class CompositionFixture {
     let replay = FixedReplayController()
     let product: ProductComposition
 
-    init(root: URL, namespace: KeychainNamespace, backend: LocalKeychainBackend) async throws {
+    init(root: URL, namespace: KeychainNamespace, backend: LocalKeychainBackend,
+         lockProvider: (any SessionLockProvider)? = nil,
+         lockNotifications: (any LockNotificationCentering)? = nil) async throws {
         let signals = signals, replay = replay
         var boundaries = ProductHostBoundaries(storeRoot: root, namespace: namespace,
             backend: backend, login: CompositionLogin(), localCapture: LocalDevelopmentCapture(armed: true),
-            eventSource: { queue, qualification, _ in
+            eventSource: { queue, qualification, sessionLock in
                 ListenOnlyEventSource.fixedReplay(queue: queue, qualification: qualification,
-                    providers: CaptureProviderSet(foreground: signals, secureInput: signals, sessionLock: signals),
+                    providers: CaptureProviderSet(foreground: signals, secureInput: signals, sessionLock: sessionLock),
                     controller: replay, permission: signals)
             })
-        boundaries.sessionLock = signals
+        boundaries.sessionLock = lockProvider ?? signals
         boundaries.foreground = signals
         boundaries.secureInput = signals
-        boundaries.lockNotifications = notifications
+        boundaries.lockNotifications = lockNotifications ?? notifications
         boundaries.terminate = {}
         product = try await ProductComposition.makeSynthetic(boundaries)
         await product.restoreRuntime()
@@ -125,7 +130,11 @@ private final class CompositionFixture {
     func start(fresh: Bool) async throws {
         await product.startOrRetry()
         if fresh {
-            guard product.lifecycle.phase == .consent else { throw CompositionTrialError.unexpectedState }
+            guard product.lifecycle.phase == .consent else {
+                throw CompositionTrialError.stateMismatch("fresh-consent phase=\(product.lifecycle.phase) "
+                    + "reason=\(String(describing: product.lifecycle.state.blockedReason)) "
+                    + "failure=\(String(describing: product.lifecycle.state.failure))")
+            }
             await product.flow.accept()
         }
         try await wait("start") { self.product.lifecycle.phase == .collecting && self.product.captureSessionLive }
@@ -149,9 +158,14 @@ private final class CompositionFixture {
     func closeForSimulatedLock() async throws {
         signals.setLocked(true)
         notifications.post(ProductComposition.screenLockedNotification)
-        try await wait("simulated-lock") {
+        try await waitForClosed()
+        try await wait("simulated-lock") { self.product.lifecycle.phase == .blocked }
+    }
+
+    func waitForClosed() async throws {
+        try await wait("closed") {
             let state = self.product.diagnostics.runSummary
-            return self.product.lifecycle.phase == .blocked && state.captureQueueOpen == false
+            return self.product.lifecycle.phase != .collecting && state.captureQueueOpen == false
                 && state.keyGateOpen == false && !state.captureSessionLive && !state.sensitiveContentVisible
         }
     }
@@ -226,8 +240,57 @@ final class HostedProductCompositionTests: XCTestCase {
     }
 
     func testAuthorizedProductCompositionWithRealKeychainAndSimulatedInput() async throws {
+        let (root, namespace, client) = try authorizedResources(
+            optIn: "KEYRECORD_HOSTED_PRODUCT_COMPOSITION_TRIAL",
+            recordName: "product-composition-service.txt", operations: [.keychain])
+        try await run(root: root, namespace: namespace, client: client)
+    }
+
+    @MainActor
+    func testLockedStartupWithGuardedMemoryKeychain() async throws {
+        let fixture = try SignedEffectFixture()
+        let evidence = fixture.evidence
+        let memory = MemoryLocalKeychainClient()
+        let client = CompositionOwnedClient(AuthorizedProductKeychainClient(namespace: fixture.namespace,
+            accounts: ["metadata", "master-v1", "master-v2"], client: memory, evidence: { evidence }))
+        let signals = CompositionSignals()
+        signals.setLocked(true)
+        let notifications = CompositionNotifications()
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("keyrecord-locked-startup-\(UUID())")
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: false,
+                                                attributes: [.posixPermissions: 0o700])
+        defer { try? FileManager.default.removeItem(at: root) }
+        try await Self.runLockedStartup(root: root, namespace: fixture.namespace, client: client,
+            provider: { signals }, notifications: { notifications }, unlock: {
+                signals.setLocked(false)
+                notifications.post(ProductComposition.screenUnlockedNotification)
+            })
+    }
+
+    @MainActor
+    func testAuthorizedProductStartupWhileLocked() async throws {
+        let (root, namespace, client) = try authorizedResources(
+            optIn: "KEYRECORD_HOSTED_LOCKED_STARTUP_TRIAL",
+            recordName: "product-locked-startup-service.txt", operations: [.keychain, .screen])
+        try await Self.runLockedStartup(root: root, namespace: namespace, client: client,
+            provider: { SystemSessionLockProvider() }, notifications: { DistributedLockNotifications() },
+            unlock: {
+                print("LOCKED_STARTUP readyForUnlock")
+                let observer = SystemSessionLockProvider()
+                let deadline = ContinuousClock.now.advanced(by: .seconds(60))
+                while ContinuousClock.now < deadline {
+                    if await observer.sessionLockState() == .unlocked { return }
+                    try await Task.sleep(for: .milliseconds(100))
+                }
+                throw CompositionTrialError.timeout("waiting-for-owner-unlock")
+            })
+    }
+
+    private func authorizedResources(optIn: String, recordName: String,
+                                     operations: Set<HostOperation>) throws
+        -> (URL, ProbeNamespace, CompositionOwnedClient) {
         let environment = ProcessInfo.processInfo.environment
-        guard environment["KEYRECORD_HOSTED_PRODUCT_COMPOSITION_TRIAL"] == "1" else {
+        guard environment[optIn] == "1" else {
             throw XCTSkip("No authorized full product composition trial requested")
         }
         let path = try XCTUnwrap(environment["PHASE1_QA_ATTEMPT"])
@@ -237,10 +300,11 @@ final class HostedProductCompositionTests: XCTestCase {
         let evidence = SignedCandidateBackend.evidence(attempt: attempt)
         guard case .ready = SignedEffectGate.authorizeKeychain(namespace: namespace, evidence: evidence,
                                                                expectedNamespace: namespace),
-              case .success(let manifest) = evidence.manifest, manifest.operations == [.keychain] else {
+              case .success(let manifest) = evidence.manifest,
+              Set(manifest.operations) == operations, manifest.operations.count == operations.count else {
             throw PreflightBlock.operationAllowlistMismatch
         }
-        let record = attempt.appendingPathComponent("product-composition-service.txt")
+        let record = attempt.appendingPathComponent(recordName)
         guard !FileManager.default.fileExists(atPath: record.path),
               FileManager.default.createFile(atPath: record.path, contents: Data(namespace.service.utf8),
                                              attributes: [.posixPermissions: 0o600]) else {
@@ -251,7 +315,82 @@ final class HostedProductCompositionTests: XCTestCase {
                                                 attributes: [.posixPermissions: 0o700])
         let client = CompositionOwnedClient(AuthorizedProductKeychainClient(attempt: attempt,
             namespace: namespace, accounts: ["metadata", "master-v1", "master-v2"]))
-        try await run(root: root, namespace: namespace, client: client)
+        return (root, namespace, client)
+    }
+
+    @MainActor
+    private static func runLockedStartup(root: URL, namespace: ProbeNamespace,
+        client: CompositionOwnedClient, provider: () -> any SessionLockProvider,
+        notifications: () -> any LockNotificationCentering,
+        unlock: () async throws -> Void) async throws {
+        var products: [CompositionFixture] = []
+        var failure: (any Error)?
+        do {
+            let lock = provider()
+            guard await lock.sessionLockState() == .locked, client.operationCount == 0 else {
+                throw CompositionTrialError.unexpectedState
+            }
+            let backend = LocalKeychainBackend(client: client)
+            let productNamespace = try KeychainNamespace(namespace.service)
+            let storeRoot = root.appendingPathComponent("store")
+            let first = try await CompositionFixture(root: storeRoot, namespace: productNamespace,
+                backend: backend, lockProvider: lock, lockNotifications: notifications())
+            products.append(first)
+            try await first.waitForClosed()
+            XCTAssertEqual(first.replay.emit(tick: 1), 0)
+            let observer = try XCTUnwrap(CounterWindowProductObserver(recorder: first.product.diagnostics, interval: 0.05))
+            var window = SessionLockQualification(supported: true)
+            let transition = try window.advance(.init(challenge: window.challenge, unlocked: false),
+                                                expectedUnlocked: false).get()
+            let closed = await Task.detached { observer.observe(step: .lockBackground, transition: transition) }.value
+            assertClosed(closed)
+            guard await lock.sessionLockState() == .locked, client.operationCount == 0 else {
+                throw CompositionTrialError.unexpectedState
+            }
+            print("LOCKED_STARTUP closed keychainAttempts=0")
+            try await unlock()
+            guard await lock.sessionLockState() == .unlocked, client.operationCount == 0 else {
+                throw CompositionTrialError.stateMismatch("unlock keychainAttempts=\(client.operationCount)")
+            }
+            // Namespace absence is checked only after unlock, outside the zero-read window.
+            for id in [KeychainItemID.metadata(productNamespace), .key(productNamespace, .init(rawValue: 1)),
+                       .key(productNamespace, .init(rawValue: 2))] {
+                guard try await backend.read(id) == nil else { throw KeyringError.duplicateItem }
+            }
+            await first.product.startOrRetry()
+            guard first.product.lifecycle.phase == .unstarted,
+                  first.product.lifecycle.state.preferences == nil,
+                  first.product.lifecycle.state.failure == nil,
+                  ProductPersistence.lastLoadFailure == .freshInstall,
+                  client.ownedAccounts.isEmpty else {
+                throw CompositionTrialError.stateMismatch("retry-did-not-restore-fresh-install")
+            }
+            try await first.start(fresh: true)
+            try await first.emitOne()
+            try await first.emitOne()
+            let saved = try await first.total()
+            XCTAssertEqual(saved, 2)
+            await first.stop()
+            let reopened = try await CompositionFixture(root: storeRoot, namespace: productNamespace,
+                backend: backend, lockProvider: provider(), lockNotifications: notifications())
+            products.append(reopened)
+            try await reopened.start(fresh: false)
+            let restored = try await reopened.total()
+            XCTAssertEqual(restored, 2)
+            try await reopened.emitOne()
+            let final = try await reopened.total()
+            XCTAssertEqual(final, 3)
+            print("LOCKED_STARTUP recovered saved=2 restored=2 final=3")
+        } catch { failure = error }
+        for product in products.reversed() { await product.stop() }
+        do {
+            try await Task.detached { try client.cleanup() }.value
+            print("LOCKED_STARTUP cleanupVerified=\(client.ownedAccounts.count)")
+        } catch {
+            XCTFail("Locked-startup cleanup blocked; inspect retained service record")
+            if failure == nil { failure = error }
+        }
+        if let failure { throw failure }
     }
 
     private func run(root: URL, namespace: ProbeNamespace, client: CompositionOwnedClient) async throws {

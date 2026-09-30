@@ -1,5 +1,34 @@
 # Lock-state source investigation and next observation
 
+## Coordinated observation completed
+
+The owner confirmed readiness, then explicitly confirmed seeing the lock screen
+and normally unlocking. The reviewed 60-second observer completed with shell exit
+0 in 60.005 seconds. Its 58 fresh diagnostic processes recorded:
+
+| Interval (seconds after start) | Samples | Console lock | Session lock, before/after |
+| --- | ---: | --- | --- |
+| 0.098-36.389 | 36 | false | unknown / unknown |
+| 37.412-49.875 | 13 | true | true / true |
+| 50.898-59.138 | 9 | false | unknown / unknown |
+
+All samples reported an available session, on-console true and current-user match
+both before and after the console query. The interval endpoints are sample times,
+not exact transition times. The host is native arm64 macOS 27.0. Output:
+`/private/tmp/keyrecord-lock-source-20260930/manual-round-1.jsonl`.
+The sub-agent independently checked all rows and the bounded scope in
+`/private/tmp/.omo/evidence/lock-startup-manual-result-code-review.md`.
+
+This establishes a bounded observed sequence including processes first launched
+while the owner-reported lock screen was active. It does not establish an atomic
+lock-state API, product restart safety, real locked Keychain protection or Release
+qualification. No App, Keychain, input capture or system-setting operation ran.
+The next preparation is a product locked-startup test using actual lock inputs,
+with no Keychain pre-read during the locked interval. Do not repeat this source
+observation solely to obtain another passing sequence.
+
+## Original preparation and scope
+
 The unlocked full-product Keychain scenario has passed. The next unresolved
 question is whether a newly started process can observe an already locked console
 without having received the earlier lock notification. Repeating the completed

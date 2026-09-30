@@ -2,6 +2,12 @@
 
 ## Coordinated observation completed
 
+Subsequent product evidence now includes the
+[fresh-install locked startup](PRODUCT_LOCKED_STARTUP_PREP_20260930.md) and
+[existing-store separate-process restart](PRODUCT_LOCKED_RESTART_PREP_20261001.md).
+Both bounded scenarios pass on their stated signed candidates. The source
+observation and API support limits below retain their independent scope.
+
 The owner confirmed readiness, then explicitly confirmed seeing the lock screen
 and normally unlocking. The reviewed 60-second observer completed with shell exit
 0 in 60.005 seconds. Its 58 fresh diagnostic processes recorded:

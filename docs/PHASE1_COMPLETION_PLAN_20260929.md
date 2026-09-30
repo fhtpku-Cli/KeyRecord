@@ -31,11 +31,13 @@ recovery remain evidence for their stated candidates; no routine repeat is plann
 
 ## Current state
 
-- Existing-store separate-process restart now has signed preparation at `0766c515`:
-  21 offline passes, six real opt-in skips, reviewed 22.030-second build, exact
-  artifact inspection and synthetic controller checks. Independent final review
-  passes. The coordinated physical round awaits readiness; no process-restart
-  PASS is claimed. [Scope and recovery](PRODUCT_LOCKED_RESTART_PREP_20261001.md).
+- Existing-store separate-process restart now passes on signed `0766c515`:
+  two real cases, zero failures/skips/runtime warnings, distinct seed/restart PIDs,
+  zero locked Keychain attempts, restored two then saved three, cleanup two and
+  no remaining host. The owner confirmed the visible lock screen; the whole
+  controller round took 53.383 seconds. Production lock authority, raw locked
+  Keychain semantics and Release remain open.
+  [Scope and recovery](PRODUCT_LOCKED_RESTART_PREP_20261001.md).
 
 - The unlocked full-product round passed on reused signed `fee7d4aef`, after
   owner readiness and independent review: one passed, zero failed/skipped, no

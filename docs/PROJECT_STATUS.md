@@ -3,13 +3,15 @@
 ## Current Apple Silicon MVP status — 2026-09-29
 
 Latest autonomous checkpoint: [MVP closeout](MVP_CLOSEOUT_20260929.md).
-The [existing-store locked-restart fixture](PRODUCT_LOCKED_RESTART_PREP_20261001.md)
-now builds and passes its memory-backed reconstruction/ownership failure checks.
-Twenty-one offline cases pass; six real opt-ins skip. Signed source `0766c515`
-builds with existing profiles in 22.030 seconds, with no launch. The controller's
-static check and synthetic sequencing/termination tests pass. The actual
-separate-process round is not yet run. Final controller/permission review passes;
-the next step needs physical readiness. Both CI checks for the preceding
+The [existing-store locked-restart round](PRODUCT_LOCKED_RESTART_PREP_20261001.md)
+now passes on signed `0766c515`: two real XCTest cases passed, zero failures/skips
+and no recorded runtime warnings. Seed PID 40935 saved two simulated counts and
+exited; locked-started PID 41230 made zero guarded Keychain attempts, then restored
+two and saved three after unlock. Both created items were cleaned up. The whole
+round took 53.383 seconds with normal exits and no remaining probe. This closes
+bounded existing-store separate-process recovery, not production lock authority,
+raw locked Keychain semantics or collecting Release. The fixture also has 21
+offline passes and six real opt-in skips. Both CI checks for the preceding
 `2288fbf27` closeout passed.
 Latest result: the [unlocked full-product round](PRODUCT_COMPOSITION_ROUND_20260930.md)
 passed on unchanged signed `fee7d4aef` after owner unlock and independent review.
@@ -17,7 +19,7 @@ One real Keychain/product-composition test passed with no failures/skips or runt
 warnings. Simulated input saved two, recovery and same-process reconstruction read
 two, then saved three. Both owned Keychain items were cleaned up; the controller
 exited normally in 12.236 seconds with no remaining host. No new signing occurred.
-Production OS lock authority, existing-store restart under lock and collecting Release remain
+Production OS lock authority and collecting Release remain
 open. The [coordinated lock-state observation](LOCK_STATE_SOURCE_PREP_20260930.md)
 completed 58 fresh-process samples: 36 unlocked, 13 locked, 9 unlocked, with owner
 confirmation of the visible lock screen and normal exit. This supports bounded
@@ -34,8 +36,8 @@ Keychain attempts while locked, counts 2/2/3 after unlock and two items cleaned 
 One case passed in 26.905 seconds, with a retained Security main-thread runtime
 warning. The controller exited normally in 31.281 seconds (49.889 including
 readiness), with no remaining host. The test-entry actor repair is separate from
-that signed result. Existing-store process restart under lock and Release remain
-open; this result covers fresh-install startup with fixed simulated input only.
+that signed result. This earlier result covers fresh-install startup with fixed
+simulated input only; the separate-process result is recorded above. Release remains open.
 The earlier diagnostic add `-25308` failure and later locked-host readiness
 observation remain recorded; neither alone establishes failure-time lock state.
 The following entries preserve earlier preparation and failed-round checkpoints.

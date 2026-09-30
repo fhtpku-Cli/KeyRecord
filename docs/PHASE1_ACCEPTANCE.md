@@ -6,10 +6,14 @@ Current status: [PROJECT_STATUS.md](PROJECT_STATUS.md). Requirements: [PHASE1_CO
 
 ## Evidence and remaining work
 
-The [existing-store locked-restart preparation](PRODUCT_LOCKED_RESTART_PREP_20261001.md)
-adds separate seed/restart entry points with exact ownership and a cleanup-only
-fallback. Twenty-one offline tests pass and six real opt-ins skip. This prepares
-the missing process-restart proof; it does not yet supply that proof.
+The [existing-store locked-restart round](PRODUCT_LOCKED_RESTART_PREP_20261001.md)
+now passes on signed `0766c515`: two real cases pass with zero failures/skips and
+no recorded runtime warnings. Different seed/restart PIDs save two, start locked
+with zero guarded Keychain attempts, restore two after unlock and save three.
+Both owned items are cleaned up; total controller time is 53.383 seconds with
+normal exits and no probe. This supplies the bounded separate-process proof,
+while production lock authority, raw locked Keychain semantics and Release remain
+open. The fixture also has 21 offline passes and six real opt-in skips.
 
 The [coordinated lock-source observation](LOCK_STATE_SOURCE_PREP_20260930.md)
 recorded 58 fresh processes across unlocked/locked/unlocked with owner confirmation.

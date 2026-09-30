@@ -1,4 +1,35 @@
-# Existing-store process restart under lock: preparation
+# Existing-store process restart under lock: bounded signed result
+
+## Current result: PASS
+
+The coordinated real round on signed `0766c515b51e21aedd96f6dab32377eb8bdfcf3d`
+completed on 2026-10-01. The owner confirmed seeing the lock screen and unlocking.
+Both selected XCTest cases passed with zero failures/skips and empty xcresult
+runtime-warning arrays. The seed case took 3.109 seconds; the restart case took
+27.200 seconds. Controller stage durations were 7.729 and 28.892 seconds, with
+53.383 seconds for the whole round including the lock readiness wait.
+
+Seed PID 40935 saved two fixed simulated counts and exited. The controller then
+recorded consistent eligible/locked session and console witnesses before starting
+PID 41230 against the same encrypted store. The new process made zero guarded
+product Keychain attempts while locked; after observed unlock it restored two
+committed counts and saved a third. Both owned Keychain items were deleted with
+verified absence. Both hosts exited normally, no forced stop or control error was
+reported, and a later presence check found neither an exact nor foreign probe.
+
+Evidence in `/private/tmp/keyrecord-product-locked-restart-20261001` includes
+`round.json`, `launch-lock-state.json`, the private ownership record,
+`seed-run.json`, `restart-run.json`, both logs and both `.xcresult` bundles.
+This closes the bounded actual separate-process existing-store recovery scenario
+on this signed Debug host. Input is synthetic; permission/foreground/Secure Input
+are fixed providers. The lock inputs and Keychain/store are real. It does not
+promote private lock fields to a production support guarantee or qualify Release.
+The earlier startup case's runtime warning remains in its historical result;
+this round's two cases have no recorded runtime warnings.
+Independent actual-result review is
+`/private/tmp/.omo/evidence/locked-restart-live-result-code-review.md` (PASS).
+
+## Original preparation
 
 The preceding [fresh-install locked-startup round](PRODUCT_LOCKED_STARTUP_PREP_20260930.md)
 passed on its signed source, with a retained runtime warning. Its same-process
@@ -112,6 +143,6 @@ lock, wait about 20 seconds, then unlock. No ordinary test keys, permission togg
 App consent clicks or sleep are involved. Keep the entire coordinated round within
 three minutes; stop and retain evidence if either stage or cleanup is unresolved.
 
-The real two-process scenario has not run. Even a pass will not establish raw
+The preparation above preceded the passing round recorded at the top. It does not establish raw
 locked-state Keychain accessibility, public lock-API support, exhaustive privacy
 coverage, rendered UI or a qualified collecting Release.

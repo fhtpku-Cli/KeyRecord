@@ -1,24 +1,21 @@
 # Task 11: versioned local keyring
 
-## Qualification boundary
+## Current implementation and historical test boundary
 
-Root `KeyRecordStore` has a protocol-injected keyring, not an activated live Keychain implementation.
-`BlockedLiveKeychain` always returns `liveQualificationBlocked`, including reads. There is no runtime
-flag that fake success can use to activate it. Task 7 must provide signed, environment-bound lifecycle
-and independent initial-unlocked/lock-signal qualification before a live adapter can be introduced.
-No root source calls SecItem APIs; `SystemMasterMaterial.swift` imports Security only for
-`SecRandomCopyBytes` (32 bytes). No true Keychain write or signing command is part of Q11.
+As of 2026-10-01, KeyRecordStore's protocol-injected keyring is composed with the
+real App-layer `LocalKeychainBackend` on native arm64 macOS 27.0 build 26A428.
+`BlockedLiveKeychain` remains closed for unsupported platforms and negative tests.
+See [acceptance](PHASE1_ACCEPTANCE.md) and [integrity/deletion](PRODUCT_KEY_INTEGRITY_20261001.md).
 
-The injected accessibility policy defaults to **candidate** WhenUnlockedThisDeviceOnly,
-data-protection Keychain, synchronizable=false. This is not a frozen product promise. There is no
-AfterFirstUnlock or other weaker fallback. An eventual hosted adapter must allow only the authorized
-test namespace, disable authentication UI and validate task 7 authorization before every effect.
+The actual policy is non-synchronizable data-protection Keychain
+WhenUnlockedThisDeviceOnly, exact owned-account queries and authentication-UI refusal.
+Raw reads succeeded during observed screen lock; the independent software lock
+boundary remains essential. No AfterFirstUnlock fallback or guaranteed Swift/CryptoKit
+copy zeroization is claimed. SecItem calls reside in the App adapter.
 
-`KeyringLifecycleHostTests` tests the explicit BLOCKED boundary and emits
-`outcome=BLOCKED ... code=task7QualificationMissing ... liveLifecycleExecuted=false`.
-It is excluded from both Q11 PASS filters. Its root assertion success does not mean live success.
-The existing Q host `sp6a` preflight channel records the missing-host/authorization BLOCKED receipt;
-no host manifest is fabricated. Production capture/read remains disabled pending task 7.
+Original Q11 fake tests and `KeyringLifecycleHostTests` did not operate real
+Keychain items. Their blocked-boundary receipts remain historical results, not the
+verdict on later signed product cases. No historical receipt is regenerated.
 
 ## Port obligations
 
@@ -47,7 +44,8 @@ no host manifest is fabricated. Production capture/read remains disabled pending
   temporary/orphan envelopes. Unknown/unreadable or incomplete coverage blocks retirement.
   The provider is responsible for authenticated recovery/reconciliation, not merely listing headers.
 
-ObjectStore, manifest implementation, and reset/rotation journal bodies remain tasks 12/16.
+ObjectStore, manifest and reset/rotation journals were subsequently implemented in
+KeyRecordStore. The task 11 matrix below records original fake-test boundaries.
 
 ## Crash/recovery matrix (deterministic fake)
 
@@ -66,7 +64,8 @@ ObjectStore, manifest implementation, and reset/rotation journal bodies remain t
 
 Pending-candidate cleanup requires authenticated reconciliation and complete unreferenced proof,
 and deletes only the exact candidate item. It does not delete a current/historical key or any other
-namespace. Full product deletion is not implemented by this task.
+namespace. Full product deletion was outside task 11; its later real product-flow result is
+recorded in [the integrity/deletion round](PRODUCT_KEY_INTEGRITY_20261001.md).
 
 ## QA
 

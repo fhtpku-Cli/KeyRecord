@@ -1,6 +1,11 @@
 # Phase 2 validation
 
 This is a read-only Debug prototype, not Phase 1 acceptance or Release qualification.
+Status reconciliation (2026-10-01): [Phase 1 is complete](../PHASE1_ACCEPTANCE.md),
+but its native walkthrough does not qualify this separate dashboard or full G2.
+The instructions below describe prototype reproduction and remaining coverage,
+not authorization to start another host round. See [implementation scope](IMPLEMENTATION.md)
+and the [current roadmap](../ROADMAP.md).
 
 ## Synthetic-only reproduction
 

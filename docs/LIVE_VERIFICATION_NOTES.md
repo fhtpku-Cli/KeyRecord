@@ -2,38 +2,44 @@
 
 Constraints and environment facts for running KeyRecord on a real Mac. These are not status
 claims and grant no acceptance: they exist so a host run measures what it claims to measure.
-The remaining executable and owner-assisted work is in [PHASE1_ACCEPTANCE.md](PHASE1_ACCEPTANCE.md).
+Completed MVP evidence and limits are in [PHASE1_ACCEPTANCE.md](PHASE1_ACCEPTANCE.md); no repeat host round is pending.
 Current status is in [PROJECT_STATUS.md](PROJECT_STATUS.md); behavioral requirements are in
 [PHASE1_CONTRACT.md](PHASE1_CONTRACT.md).
 
-**2026-09-29 applicability:** The first capture MVP targets Apple Silicon.
-The current PR #17 trial has not passed effective data-protection Keychain
-access or reached a qualified Collecting run. Do not use the older
-traditional-file-Keychain launch advice below as its setup, or interpret the
-historical universal-build instructions as an Intel MVP prerequisite. Prepare
-and verify the exact current candidate before a separately approved host round.
+**Applicability — 2026-10-01:** PR #17 is merged and the scoped Apple Silicon
+Phase 1 objective is complete. Release uses the real exact-item Keychain backend
+on native arm64 macOS 27.0 build 26A428; other platforms fail closed.
+See [the signed candidate](RELEASE_CANDIDATE_20261001.md). Historical Debug home,
+store and namespace instructions must not be copied into the Release launch.
 
 ## What a bounded run may do
 
 Capture is keyboard monitoring, so a host run is bounded by construction, not by convention:
 
-- Fixed duration, normally 30-60 seconds, with an unconditional self-stop. Owner-approved
-  multi-step lifecycle trials used a 170-second normal quit request and a 180-second
-  forced-stop limit. This runner uses uptime, so system sleep can extend wall-clock duration.
+- Agree a duration appropriate to the steps before launch. Recent Release rounds use a
+  continuous clock: normal Quit at 175 seconds and exact-instance force at 180 seconds.
+  Older uptime-based controllers can extend across sleep; do not describe them as
+  wall-clock bounds or reuse consumed output paths.
 - Record **layered counts and coarse state only**. Never input text, never raw key
   sequences, never per-event timestamps.
 - Never modify TCC, disable Karabiner, write to the real keychain, lock the screen or
   restart the machine without explicit owner authorization for that specific run.
-- Verify exactly one instance is running (`pgrep -x KeyRecordApp`) before launching. Two
-  instances sharing one bundle id and one store violates the single-writer rule, and a stale
-  instance also means the menu being read may belong to an older build.
-- Hash the real store before and after, and compare. A run that intends to touch nothing
-  must be able to prove it touched nothing.
+- Verify that the exact trial instance is absent before launch and exactly one exists
+  afterward. Match the bundle/executable path as well as the process name; similarly
+  named trials are not interchangeable. Two instances sharing an identity/store violate
+  the single-writer rule, and a stale instance can expose the wrong build's menu.
+- Limit observations to the approved isolated store and scenario. Use existing counts,
+  transaction results and targeted tests; do not access the daily store or add new
+  hashes/baselines merely to document a read-only or UI round.
 
 ## Isolation
 
-Current opt-in Debug trials use **both** `KEYRECORD_TRIAL_STORE` and
-`KEYRECORD_TRIAL_NAMESPACE`; see [the current protocol](PRIVACY_RESOURCE_PREP.md).
+The Release candidate derives native App Support and exact Keychain service from its
+validated Bundle ID. It uses no developer arming variables or HOME/CFFIXED_USER_HOME
+override. Preserve the isolated identity across planned updates.
+
+Historical opt-in Debug trials used **both** `KEYRECORD_TRIAL_STORE` and
+`KEYRECORD_TRIAL_NAMESPACE`; see [the historical protocol](PRIVACY_RESOURCE_PREP.md).
 The store path is explicit and the exact Keychain service/account namespace is test-only.
 Do not point at production statistics or reuse a production namespace.
 
@@ -48,8 +54,8 @@ provisioned Keychain setup. It does not guarantee every SecItem operation return
 item-not-found. Namespace isolation is not a separate Keychain file; use only the
 approved test identity, and never infer permission to change user Keychain settings.
 
-Every directory in the isolated path must be `0700`. `preparePrivateRoot` rejects anything
-looser, and the app then falls back to its minimal error menu.
+Keep the owned trial root private (0700) and store files 0600. Follow that candidate's
+path validation; do not change permissions on shared ancestors such as /private/tmp.
 
 ## Measurement traps
 
@@ -85,10 +91,13 @@ then a fresh press in the same foreground session when testing side reconstructi
 infer side identity from which physical key the tester intended to press or preserve old
 side state across a privacy/session boundary.
 
-**Unlock and wake do not automatically resume collection.** The current explicit recovery
-entry is the menu-bar KeyRecord **Start** action. The consent page has no retry button.
-After recovery, record the existing counts before entering another test shortcut. A hidden
-aggregate panel alone does not identify which privacy condition closed it.
+**Recovery is state-dependent.** Fresh privacy/key checks and persisted collecting
+intent govern restart/recovery; never override user pause. Completed lock/sleep
+rounds observed stopped states followed by explicit Start. Release readback opened
+Paused; its cause was not established. Neither proves all unlocks/wakes/restarts
+always pause or always resume. Record the actual menu state and use its available
+Start/Resume only within the approved scenario. A hidden panel alone does not
+identify the closing privacy condition.
 
 **A dark screen does not prove system sleep.** Compare the trial interval with system
 sleep/wake records. Leave sleep-prevention settings unchanged unless separately authorized.
@@ -107,8 +116,9 @@ that has since been released still reads `locked`.
 
 ## Tooling facts specific to this project
 
-- Xcode places the code in `KeyRecordApp.debug.dylib`; the main binary is a loader. Scanning
-  only the main binary makes a current build look like a stale one.
+- The Debug builds described here put product code in `KeyRecordApp.debug.dylib`;
+  their main executable is a loader. Inspect the actual build layout. The signed
+  Release has one main executable; do not assume it has a Debug dylib.
 - `strings` not finding a symbol name proves nothing; use `nm` against the symbol table.
 - `pgrep -f` matches its own command line and inflates counts. Use `pgrep -x`.
 - `sample` showing no event-tap frame does not mean there is no tap; an idle tap does not
@@ -123,8 +133,9 @@ that has since been released still reads `locked`.
   (PBXFileReference, PBXBuildFile, sources phase, group children); validate with
   `plutil -lint`. The project uses explicit file references, not synchronized groups.
 - The App test bundle does not link `KeyRecordTestSupport`.
-- Adding `ProductComposition.swift` to a test target pulls in the whole composition graph and
-  fails to compile. Extract pure functions into Core instead.
+- App XCTest now includes product composition and its dependencies. Earlier missing-
+  dependency failures do not prohibit these tests; preserve target wiring and separate
+  pure model checks from authorized live-host tests.
 
 ## Release isolation
 
@@ -149,11 +160,11 @@ and later bounded trials are recorded in [PROJECT_STATUS.md](PROJECT_STATUS.md).
 - `CGPreflightListenEventAccess()` reports granted, unchanged across runs. TCC.db is
   SIP-protected and cannot be read.
 
-## Remaining host qualification
+## Qualification limits after Phase 1
 
-A→B foreground transitions, Local Capture Off, permission changes, user switching, continuous
-privacy-boundary evidence, signed collecting Release acceptance, real data-protection
-Keychain access and native Apple Silicon product performance still need current-candidate
-qualification. Intel runtime/performance belongs to later complete G1/v1, outside the
-Apple Silicon MVP. Older bounded exclusion and sleep/wake observations exist; they do
-not qualify the full matrix or the current candidate. G1 remains **BLOCKED**.
+The scoped MVP is complete; dated observations above are not a new follow-up queue.
+See [current acceptance](PHASE1_ACCEPTANCE.md) for measured candidates and retained
+limits. General macOS/Intel support, exhaustive user-switch/assistive-technology
+matrices, actual system login-unregistration measurement, public distribution and
+FR-P6 are not newly established by these rounds. Do not repeat completed
+lock/sleep/performance/Keychain cases or claim full G1/v1 completion.

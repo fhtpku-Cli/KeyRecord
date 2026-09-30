@@ -1,5 +1,7 @@
 # Execution checkpoint
 
+> Status reconciliation (2026-10-01): this is a dated record for the candidates and rounds named below. “Current”, “next”, “pending” and BLOCKED refer to that checkpoint, not today's work queue. The approved Apple Silicon Phase 1 MVP is complete and merged; see [current acceptance](PHASE1_ACCEPTANCE.md) and [roadmap](ROADMAP.md). Original observations and failures retain their scope; these instructions do not authorize another host round.
+
 Historical handoff for the repository-status-next-step milestone at `22cb8e9`. Its present-tense statements below apply only to that checkpoint, not later merged repairs. Current measured status is [PROJECT_STATUS.md](PROJECT_STATUS.md); remaining work is [PHASE1_ACCEPTANCE.md](PHASE1_ACCEPTANCE.md). This is documentation only: not approval, not a code change, not a candidate freeze and not a test rerun.
 
 ## Status at a glance

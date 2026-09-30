@@ -2,7 +2,9 @@
 
 KeyRecord is an in-development native macOS menu-bar app for local, aggregate keyboard-use statistics. It aims to count shortcuts by application and bare keys without storing typed text or event sequences. The codebase uses Swift 6, macOS 14+, and Apple system frameworks.
 
-**Current stage: Apple Silicon capture MVP qualification on draft PR #17.** The owner has deferred Intel compatibility for this MVP. Earlier signed Debug runs observed bounded physical input, attribution, restart retention and some privacy recovery on older candidates. The provisioned trial at `de8b9c526` completed first-consent key provisioning, encrypted preferences initialization and isolated startup recovery. A separately coordinated input round recorded 3 shortcuts, 0 bare keys and 4 issued/4 durable writes, then quit normally at the controller deadline. A subsequent approved restart read back the same totals with no new input, writes or snapshot read failures and quit normally. Release still uses blocked capture and Keychain composition, so no collecting Release or usable MVP is claimed. Current product source and an unsigned Release executable passed static network-capability checks; no repeat packet-capture round is required for FR-P1. See [current status](docs/PROJECT_STATUS.md) and [remaining acceptance](docs/PHASE1_ACCEPTANCE.md).
+**Current stage (2026-10-01): scoped Apple Silicon Phase 1 complete and merged.** [PR #17](https://github.com/fhtpku-Cli/KeyRecord/pull/17) merged into main as `8bb99e81a6ea411c5e167e156a548372e961c44d`; merge-commit CI passed. The development-signed Release candidate completed real shortcut capture, encrypted save/reopen readback and a bounded native UI walkthrough. Keychain, lock/startup/recovery and short ARM performance results retain their documented candidate scopes. This is not full G1/v1, Intel, general macOS support or public distribution qualification.
+
+Capture permits only measured native arm64 macOS 27.0 build `26A428`; other platforms remain closed. The trial uses `com.keyrecord.phase1.probe.host`, separate from daily data; its development profile expires on 2026-10-07 at 17:39:57 Asia/Shanghai. Phase 2 has a logical-analysis prototype but is incomplete; the product UI currently exposes Phase 1 aggregates. See [current status](docs/PROJECT_STATUS.md), [roadmap](docs/ROADMAP.md), [acceptance evidence](docs/PHASE1_ACCEPTANCE.md) and [document index](docs/STATUS_INDEX.md).
 
 ## Build and test
 
@@ -35,18 +37,18 @@ This still runs SwiftPM tests and both App builds, but deliberately skips App XC
 For a provisioned Apple Silicon Debug trial, use
 `bash Scripts/build-isolated-debug-trial.sh --help`. This builds a separately
 identified, isolation-required App without installing or launching it. The
-[latest checkpoint](docs/MVP_CLOSEOUT_20260929.md) records the tested candidate,
+[historical September 29 checkpoint](docs/MVP_CLOSEOUT_20260929.md) records the tested candidate,
 offline results, and the resolved local provisioning issue; a build or signature
 check alone does not establish effective Keychain access.
 
-The [Phase 1 acceptance matrix](docs/PHASE1_ACCEPTANCE.md) lists current evidence, remaining
-gaps, safe automated checks and the minimum owner-assisted follow-up.
+The [Phase 1 acceptance record](docs/PHASE1_ACCEPTANCE.md) separates completed MVP evidence
+from historical gaps and later requirements. No additional Phase 1 owner round is scheduled.
 
 The portable implementation specification is [PHASE1_CONTRACT.md](docs/PHASE1_CONTRACT.md), with [PRD](docs/PRD.md) and [technical architecture](docs/TECHNICAL_ARCHITECTURE.md). No local `.omo` plan is needed to understand the behavioral contract or run ordinary verification. Historical evidence and its existing qualification procedures remain separate from these developer checks.
 
-A human-assisted live run must identify the exact Debug App, ensure only one instance, use an explicitly approved store and small set of test shortcuts, and stop automatically after 30–60 seconds. Observe only aggregate counters and closed states. Check A→B attribution with unflushed counts, exclusion/unexclude, pause/resume, Off→On, durable completion and process restart. Lock/unlock, sleep/wake, permission changes and key unavailability require their explicit host-operation scope and existing prerequisites; do not reset TCC, remove real keys or infer authorization from a successful build. Unknown privacy/lock state must stay closed, and waking must respect user pause.
+Any newly justified host run must identify the exact build configuration, App, identity, permitted store/Keychain namespace, actions and approved duration. Coordinate readiness before launch; use normal termination with an exact-instance forced-stop fallback. Historical 30–60 second and multi-minute controllers are candidate-specific, not a universal timer or instructions to repeat completed checks. New privacy, signing, Keychain or capture effects need applicable authorization; a successful build supplies none. Do not reset TCC, operate daily data or infer permission for a live run from build approval.
 
-No runtime result is claimed by these instructions. Harness results cannot substitute for the real product pipeline. Lock or crash can lose all statistics since the last completed durable save; the one-second flush cadence is a scheduling target, not a bounded-loss guarantee. Macro recommendations/mapping, FR-P6 full password backup and public release remain later, independently qualified work.
+No runtime result is claimed by these instructions. Harness results cannot substitute for the real product pipeline. Lock or crash can lose all statistics since the last completed durable save; the one-second flush cadence is a scheduling target, not a bounded-loss guarantee. Production recommendation integration, mapping, FR-P6 full password backup and public release remain later work. The logical-analysis prototype does not qualify these features.
 
 ## Repository layout
 

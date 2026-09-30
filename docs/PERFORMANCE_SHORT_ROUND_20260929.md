@@ -1,5 +1,7 @@
 # Short formal performance round
 
+> Status reconciliation (2026-10-01): this is a dated record for the candidates and rounds named below. “Current”, “next”, “pending” and BLOCKED refer to that checkpoint, not today's work queue. The approved Apple Silicon Phase 1 MVP is complete and merged; see [current acceptance](PHASE1_ACCEPTANCE.md) and [roadmap](ROADMAP.md). Original observations and failures retain their scope; these instructions do not authorize another host round.
+
 Source `a604ad535` implements the owner-requested formal protocol: typing and
 idle once each, 30 seconds warmup plus 120 seconds measurement per window, with
 a two-second drain tail. The approved replacement typing and idle windows both

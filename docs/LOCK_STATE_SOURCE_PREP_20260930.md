@@ -1,5 +1,7 @@
 # Lock-state source investigation and next observation
 
+> Status reconciliation (2026-10-01): this is a dated record for the candidates and rounds named below. “Current”, “next”, “pending” and BLOCKED refer to that checkpoint, not today's work queue. The approved Apple Silicon Phase 1 MVP is complete and merged; see [current acceptance](PHASE1_ACCEPTANCE.md) and [roadmap](ROADMAP.md). Original observations and failures retain their scope; these instructions do not authorize another host round. The [shared provider](OBSERVED_LOCK_PROVIDER_20261001.md) was subsequently integrated into the [qualified Release candidate](RELEASE_CANDIDATE_20261001.md); other platforms remain closed.
+
 Current engineering follow-up: [shared provider preparation](OBSERVED_LOCK_PROVIDER_20261001.md)
 extracts the existing algorithm for both build configurations and bounds its
 default live queries to native arm64 macOS 27.0 build 26A428. The original

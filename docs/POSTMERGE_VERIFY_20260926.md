@@ -1,5 +1,7 @@
 # Post-merge verification — 2026-09-26
 
+> Status reconciliation (2026-10-01): this is a dated record for the candidates and rounds named below. “Current”, “next”, “pending” and BLOCKED refer to that checkpoint, not today's work queue. The approved Apple Silicon Phase 1 MVP is complete and merged; see [current acceptance](PHASE1_ACCEPTANCE.md) and [roadmap](ROADMAP.md). Original observations and failures retain their scope; these instructions do not authorize another host round.
+
 Later status: PR #10 merged at `64590a0e9b57a55af9a23921983f2c16bb59c62e`.
 The [separate main-build Secure Input report](PR10_SINGLEPAGE_REGRESSION.md) records
 the later owner-operated round; none of the historical measurements below are relabeled.

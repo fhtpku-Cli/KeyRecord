@@ -1,11 +1,13 @@
 # Product Keychain backend hosted preparation
 
-Status: the separately approved signed rebuild of `25ef0f117` succeeded and its
-read-only signature/role inspection passes. The original `b889640b4` artifact and
-its reproduced check failure remain preserved. Actual Keychain execution is still
-pending; signing approval does not authorize a system test round.
+Status: the separately approved [real Keychain round](PRODUCT_KEYCHAIN_ROUND_20260930.md)
+on signed `25ef0f117` passed one actual test with no failures/skips, including exact
+test-item cleanup; the host exited normally. Full product privacy/recovery and
+locked-state qualification remain open. Preparation and signing history follow.
 
 ## Bounded execution preparation
+
+This section records preparation before the subsequent approved round linked above.
 
 The private controller `/private/tmp/keyrecord-product-keychain-round.py` and
 AppKit helper `/private/tmp/KeyRecordProbeControl` are prepared for the existing

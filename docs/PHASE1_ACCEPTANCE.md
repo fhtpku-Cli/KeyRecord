@@ -6,6 +6,12 @@ Current status: [PROJECT_STATUS.md](PROJECT_STATUS.md). Requirements: [PHASE1_CO
 
 ## Evidence and remaining work
 
+The subsequent owner-approved [real Keychain round](PRODUCT_KEYCHAIN_ROUND_20260930.md)
+passed the actual App backend's isolated unlocked CRUD, policy-attribute and cleanup
+case on signed `25ef0f117`: one passed, zero failed/skipped, normal host exit.
+This supersedes the earlier unrun status below only for that bounded case.
+Locked-state behavior, full product recovery and collecting Release remain open.
+
 The latest [hosted backend integration](PRODUCT_KEYCHAIN_HOST_PREP_20260930.md)
 executes the real App backend against an injected in-memory Security client in
 offline tests. Per-operation authorization, exact namespace/policy constraints,

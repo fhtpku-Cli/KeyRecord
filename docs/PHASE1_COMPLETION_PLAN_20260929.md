@@ -31,6 +31,11 @@ recovery remain evidence for their stated candidates; no routine repeat is plann
 
 ## Current state
 
+- The owner-approved [real Keychain round](PRODUCT_KEYCHAIN_ROUND_20260930.md) now
+  passes on signed `25ef0f117`: one executed case, no failures/skips, exact cleanup
+  and normal host exit within 10.327 seconds. This supersedes the preparation-only
+  state below for unlocked backend CRUD. Full product assembly, lock authority,
+  protected recovery and collecting Release still need work.
 - Actual App Keychain backend is now compiled into the Debug hosted test target;
   [offline verification and signing prerequisite](PRODUCT_KEYCHAIN_HOST_PREP_20260930.md)
   are recorded. One separately approved signing attempt built `b889640b4` with

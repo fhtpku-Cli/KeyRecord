@@ -3,6 +3,13 @@
 ## Current Apple Silicon MVP status — 2026-09-29
 
 Latest autonomous checkpoint: [MVP closeout](MVP_CLOSEOUT_20260929.md).
+The separately approved [real product Keychain backend round](PRODUCT_KEYCHAIN_ROUND_20260930.md)
+on signed `25ef0f117` passed: one executed case, no failures/skips, exact item
+cleanup, normal exit and no remaining host. Total controller duration was 10.327
+seconds. This closes unlocked backend CRUD on this candidate, not lock-state
+protection, full product recovery or collecting Release. A main-thread warning
+in the test harness is retained and addressed separately in source.
+The following entries preserve the preceding preparation/signing history.
 The owner separately approved the repaired probe's signed rebuild at
 `25ef0f117`. It completed in 16.86 seconds using the same profiles/certificate,
 without provisioning updates or host launch. Both strict disk signatures and

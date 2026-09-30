@@ -96,7 +96,7 @@ final class HostedProductKeychainBackendTests: XCTestCase {
         XCTAssertEqual(memory.queries.count, 3)
     }
 
-    func testAuthorizedIsolatedProductKeychainLifecycle() async throws {
+    nonisolated func testAuthorizedIsolatedProductKeychainLifecycle() async throws {
         let environment = ProcessInfo.processInfo.environment
         guard environment["KEYRECORD_HOSTED_PRODUCT_KEYCHAIN_TRIAL"] == "1" else {
             throw XCTSkip("No authorized product Keychain trial requested")

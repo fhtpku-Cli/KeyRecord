@@ -73,6 +73,31 @@ App build and test logs use `/private/tmp/keyrecord-phase1-completion-` with
 `app-build.log`, `product-tests.log` (first run) and `reduction-tests.log` (rerun).
 The earlier host measurements retain their original candidate bounds.
 
+## Shared product queries in the hosted probe - 2026-09-30
+
+The hosted Security adapter now compiles `App/KeyRecordApp/LocalKeychainQueries.swift`
+directly and uses its builders. Existing signed-effect authorization still precedes
+every operation. A query mismatch throws before Security dispatch. The probe no
+longer filters reads, attributes or deletion by expected accessibility: doing so
+could hide an exact test item whose accessibility was wrong. Add still sets
+WhenUnlockedThisDeviceOnly; attributes remain independently checked.
+
+Before the fix, the focused eight-case suite failed six assertions, including all
+three non-add operations retaining the accessibility filter. After the fix the
+complete offline lifecycle suites pass (40 scenario + 83 preflight cases). The
+App query suite passes eight cases. Both Xcode test targets build, and the compiled
+hosted parity test executes successfully without Keychain effects. A direct
+XCTest invocation with the built host's dynamic-library path is required for that
+one hostless parity test; the initial xcrun invocation failed to load the library.
+
+The Release source preprocessor now explicitly undefines the hosted-test flag as
+well as DEBUG. All 22 isolation cases pass, including scanning the freshly built
+unsigned arm64 Release executable, with no skips. No installed app was changed,
+no collection started, and no real Keychain operation occurred. Full live product
+observation and lock-authority integration remain open.
+
+Logs are `/private/tmp/keyrecord-keychain-query-{red,green,host-build,host-test,app-build,app-test,isolation,release}.log`.
+
 ## Noninteractive Keychain queries
 
 The product backend specification forbids authentication UI, but the product

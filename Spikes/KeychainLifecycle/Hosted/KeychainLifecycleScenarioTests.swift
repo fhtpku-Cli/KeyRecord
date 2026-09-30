@@ -220,6 +220,22 @@ final class KeychainLifecycleScenarioTests: XCTestCase {
     }
 
     #if KEYRECORD_SIGNED_HOSTED_TESTS
+    func testHostedQueriesUseProductBuildersWithoutKeychainEffects() throws {
+        let fixture = try SignedEffectFixture()
+        let recorder = CandidateEffectRecorder()
+        let executor = SignedEffectExecutor(namespace: fixture.expectedNamespace, store: recorder) { fixture.evidence }
+        for operation in CandidateOperation.allCases {
+            _ = try executor.perform(operation, namespace: fixture.namespace)
+        }
+        for request in recorder.requests {
+            let query = try HostedProductKeychainQuery.make(request)
+            XCTAssertEqual(query as NSDictionary, request.foundationQuery as NSDictionary)
+            if request.operation != .add {
+                XCTAssertNil(query[kSecAttrAccessible as String])
+            }
+        }
+    }
+
     func testAuthorizedIsolatedKeychainCRUD() throws {
         let environment = ProcessInfo.processInfo.environment
         guard environment["KEYRECORD_HOSTED_KEYCHAIN_TRIAL"] == "1" else {

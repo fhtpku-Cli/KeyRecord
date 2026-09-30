@@ -3,6 +3,12 @@
 ## Current Apple Silicon MVP status — 2026-09-29
 
 Latest autonomous checkpoint: [MVP closeout](MVP_CLOSEOUT_20260929.md).
+The Keychain hosted probe now compiles and uses the App's exact-item query builders.
+Read, attribute inspection and deletion no longer filter by expected accessibility,
+which could hide an incorrectly configured item. The offline lifecycle suites
+(40 + 83), eight App query tests, one compiled hosted-query parity test and 22
+Release isolation tests pass. This connects query construction, not the complete
+live product observer; no system Keychain effects were run for this increment.
 The 2026-09-30 offline continuation repaired a reproducible
 [failed-recovery settlement race](RECOVERY_SETTLEMENT_REPAIR_20260930.md) that could
 discard a retained count. The existing reconciliation lifetime now includes the

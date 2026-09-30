@@ -25,10 +25,12 @@ public struct CandidateEffectRequest: Sendable {
         // Security wire keys stay pure data here; unsigned tests compare every key/value against SDK constants.
         var query: [String: CandidateQueryValue] = [
             "class": .string("genp"), "svce": .string(intent.namespace.service), "acct": .string("when-unlocked"),
-            "pdmn": .string("aku"), "sync": .bool(false), "nleg": .bool(true), "u_AuthUI": .string("u_AuthUIF"),
+            "sync": .bool(false), "nleg": .bool(true), "u_AuthUI": .string("u_AuthUIF"),
         ]
         switch operation {
-        case .add: query["v_Data"] = .data(value)
+        case .add:
+            query["pdmn"] = .string("aku")
+            query["v_Data"] = .data(value)
         case .read:
             query["r_Data"] = .bool(true)
             query["m_Limit"] = .string("m_LimitOne")

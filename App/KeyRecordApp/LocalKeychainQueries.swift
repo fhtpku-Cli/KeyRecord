@@ -1,4 +1,4 @@
-#if DEBUG
+#if DEBUG || KEYRECORD_SIGNED_HOSTED_TESTS
 import Foundation
 import Security
 
@@ -39,6 +39,13 @@ enum LocalKeychainQueries {
     static func queryForReadingData(identity: [String: Any]) -> [String: Any] {
         var query = identity
         query[kSecReturnData as String] = kCFBooleanTrue
+        query[kSecMatchLimit as String] = kSecMatchLimitOne
+        return query
+    }
+
+    static func queryForReadingAttributes(identity: [String: Any]) -> [String: Any] {
+        var query = identity
+        query[kSecReturnAttributes as String] = kCFBooleanTrue
         query[kSecMatchLimit as String] = kSecMatchLimitOne
         return query
     }

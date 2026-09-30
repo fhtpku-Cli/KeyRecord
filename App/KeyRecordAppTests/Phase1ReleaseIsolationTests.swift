@@ -338,7 +338,7 @@ final class Phase1ReleaseIsolationTests: XCTestCase {
     }
 
     private func releasePreprocessed(_ file: URL) throws -> String {
-        let result = try run("/usr/bin/unifdef", ["-UDEBUG", file.path])
+        let result = try run("/usr/bin/unifdef", ["-UDEBUG", "-UKEYRECORD_SIGNED_HOSTED_TESTS", file.path])
         XCTAssertTrue([0, 1].contains(result.status), "\(file.lastPathComponent): \(result.error)")
         return result.output
     }

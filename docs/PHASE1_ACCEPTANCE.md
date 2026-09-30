@@ -72,6 +72,13 @@ Starting source: `31b65c523db3ec40c06f0877395da52b7c026935` (merged PR #3/#4). E
 
 The local historical evidence remains read-only in the primary checkout under `.omo/repair-20260921/` and `.omo/repair-20260922/{modifier-investigation,roadmap-review}/`. Earlier live trials used a signed Debug candidate before merged main's diagnostic-path change. They are not current-main or Release qualification. See current status for the precise partial lock trial and durable-counter limitations.
 
+The hosted Keychain Security adapter now uses the App's `LocalKeychainQueries`
+source for exact-item add/read/attribute/delete queries. A compiled, effect-free
+test verifies equivalence to the authorized probe request. Accessibility is set
+on add and inspected afterward, not used to hide mismatched items from reads or
+deletion. This is shared query execution preparation; it does not run the full
+product backend or establish real Keychain lifecycle behavior.
+
 The hosted Keychain scenario controller requires a separate product observation
 for lock-transition results. Without it, those steps return BLOCKED; the fake
 observer in offline tests establishes only that the controller handles supplied

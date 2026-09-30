@@ -48,12 +48,24 @@ final class LocalKeychainQueriesTests: XCTestCase {
         let identity = LocalKeychainQueries.productIdentity(service: service, account: "master-v1")
         let queries = [identity,
             LocalKeychainQueries.queryForReadingData(identity: identity),
+            LocalKeychainQueries.queryForReadingAttributes(identity: identity),
             LocalKeychainQueries.attributesForAdd(identity: identity, data: Data(count: 32),
                 accessible: LocalKeychainQueries.accessibleWhenUnlockedThisDeviceOnly)]
         for query in queries {
             XCTAssertEqual(query[kSecUseAuthenticationUI as String] as? String,
                 kSecUseAuthenticationUIFail as String)
         }
+    }
+
+    func testAttributeInspectionDoesNotFilterOutIncorrectAccessibilityOrReadMaterial() {
+        let identity = LocalKeychainQueries.productIdentity(service: service, account: "metadata")
+        let query = LocalKeychainQueries.queryForReadingAttributes(identity: identity)
+        XCTAssertEqual(query[kSecReturnAttributes as String] as? Bool, true)
+        XCTAssertEqual(query[kSecMatchLimit as String] as? String, kSecMatchLimitOne as String)
+        XCTAssertNil(query[kSecAttrAccessible as String])
+        XCTAssertNil(query[kSecReturnData as String])
+        XCTAssertEqual(query[kSecAttrService as String] as? String, service)
+        XCTAssertEqual(query[kSecAttrAccount as String] as? String, "metadata")
     }
 
     func testAddAttributesCarryExactMaterialAndDeviceOnlyAccessibility() throws {

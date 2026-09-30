@@ -6,6 +6,17 @@ Current status: [PROJECT_STATUS.md](PROJECT_STATUS.md). Requirements: [PHASE1_CO
 
 ## Evidence and remaining work
 
+Latest bounded modifier/UI result: unchanged signed Debug source `426969c9f`
+received two explicitly coordinated left Command+A presses after an observed
+Command-only release. It recorded shortcuts 2 / bare keys 0, ten accepted
+handoffs and five successful durable writes. While Paused with the actual queue
+closed, the owner confirmed expanded left Command 2 and TextEdit 2; normal early
+Quit left no process. This supplies current-candidate bounded attribution and
+modifier detail evidence, not broad keyboard/OS coverage, native accessibility,
+restart readback or Release qualification. The earlier standalone-A round is
+preserved under the owner's clarified interpretation.
+See [exact chord round](CURRENT_COMMAND_CHORD_TRIAL_20260930.md).
+
 The [2026-09-29 closeout checkpoint](MVP_CLOSEOUT_20260929.md) records fresh
 offline results at `ba57ea711` and the reproducible arm64 trial build command.
 The initial missing-profile error was resolved by one owner-approved Xcode
@@ -33,7 +44,7 @@ Starting source: `31b65c523db3ec40c06f0877395da52b7c026935` (merged PR #3/#4). E
 
 | Requirement | Evidence / version | Gap | Safe autonomous work | Human / host prerequisite |
 |---|---|---|---|---|
-| FR-C normalization, sided modifiers, repeats, event origin | Package Core/Capture regressions; `de8b9c526` recorded the coordinated 3 shortcuts with zero bare keys; older signed Debug counted bounded TextEdit input | Current-candidate attribution rows and broader keyboard/OS coverage; unknown first modifier side is supported | Queue, normalization and synthetic provenance tests | On identified current Debug candidate, release modifiers then press a small agreed shortcut set; compare all matching rows |
+| FR-C normalization, sided modifiers, repeats, event origin | Package Core/Capture regressions; `426969c9f` recorded two coordinated shortcuts with zero bare keys and owner-confirmed left Command 2 / TextEdit 2; older candidate results remain dated | Broader keyboard/OS coverage; unknown first modifier side after reset is supported | Queue, normalization and synthetic provenance tests | The bounded current-candidate chord and row check above is complete; additional keyboard/OS cases require separately agreed input |
 | FR-P privacy gate and zero metadata while closed | Synthetic privacy, overflow/generation, queued protection tests; bounded Secure Input closure/recovery on `64590a0e` ([report](PR10_SINGLEPAGE_REGRESSION.md)); older exclusion observation | Synthetic product permission revoke/explicit recovery is covered ([test](PERMISSION_RECOVERY_TEST.md)); actual OS permission delivery, broader continuous/hardware coverage and user switching remain open; one Debug Secure Input round is not full qualification | Inject false/unknown conditions with nonzero pending events; assert zero deltas and stale completions discarded | Separately approved short trials with coarse state/counters only, known permitted input before/after; no password text or per-event stream |
 | Lock/sleep, user pause, recovery | Older signed Debug observed manual Start after lock and actual sleep | Not continuous locked-interval proof; current binary and OS support not qualified | Lifecycle/restart/flush race tests with delayed writes and synthetic lock providers | Owner operates lock/sleep; record closed state, retained durable counts, fresh-check recovery and paused-state behavior; no automatic unlock/wake |
 | Encrypted persistence, missing key, corruption, reset/delete | Real temporary-file AES-GCM, crash subprocess, rotation/reset/recovery tests with injected keys | Real Keychain accessibility and current-candidate lifecycle qualification | Replay existing Store/Integration regressions, canary/serialization scans | Isolated explicitly approved test namespace and authorized controller; never remove user keys or use real statistics as fixtures |

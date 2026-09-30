@@ -1,9 +1,59 @@
 # Explicit Command chord check
 
-Status: prepared, not launched. Fresh owner approval and readiness are required.
+Status: completed after explicit owner approval and a separate readiness reply.
+The bounded two-chord check matches expected counts and the owner confirmed
+left Command twice and TextEdit twice in the expanded paused UI. Normal early
+Quit completed; exact PID 27425 is gone. No automatic repeat is authorized.
 The preceding [modifier round](CURRENT_MODIFIER_TRIAL_20260930.md) is preserved.
 Its two bare-key counts match the owner's clarified standalone A procedure; it
 does not establish a classification defect or complete Command+A acceptance.
+
+## Completed result
+
+The owner approved this round, then explicitly confirmed blank TextEdit was ready.
+Before launch, whole-bundle comparison again matched source `426969c9f` staging,
+and the installed controller `--check` passed. No installation or product source
+change occurred. The retained foreground controller launched PID `27425` with
+the root and namespace below. The owner chose Start/consent and replied started;
+the journal confirmed Collecting, open actual queue and open key gate before the
+explicit hold-Command/press-A instruction was sent.
+
+The owner followed the instructed sequence, chose Pause, opened Aggregates and
+expanded exact modifier details. The owner reported verbatim:
+`left 两次 文本编辑两次`. This is owner-observed rendered side/count and application
+evidence; no new screenshot or accessibility-tree inspection was performed.
+Sequence 59 confirms Paused with the actual queue closed before that reply.
+
+The assistant then created `modifier-quit.request`. The controller returned
+`normalQuitRequested=true` and `exited=true quitRequested=true failed=false`, exit
+code 0, before its automatic deadline. A read-only exact-PID check found no
+remaining process. Quit action details show Paused to Stopped, no live session,
+and no unsaved reduction or scheduler work.
+
+| Final observation | Result |
+| --- | --- |
+| Key-down / key-up / flagsChanged callbacks | 2 / 2 / 6 |
+| Accepted / closed / overflow handoffs | 10 / 0 / 0 |
+| Aggregate delta | 2 |
+| Last published shortcut / bare-key totals | 2 / 0 |
+| Owner-reported expanded side / application counts | left Command 2 / TextEdit 2 |
+| Issued / returned / successful / durable writes | 5 / 5 / 5 / 5 |
+| Failed / timed-out / invalidated writes | 0 / 0 / 0 |
+| Snapshot read failures / tap-disabled events | 0 / 0 |
+| Final actual queue / live session | closed / false |
+
+Preparation markers at sequences 35, 40 and 52 have accepted=0 and aggregate=0;
+sequence 55 has accepted=10 and aggregate=2. The input falls between preparations
+three and four without a recorded preparation at an intermediate count. These
+remain non-atomic cumulative observations, not a physical-event trace. The initial
+Command-only press/release adds no aggregate increment within this bounded result.
+
+This completes the narrow current-candidate Command+A, left-side reconstruction,
+TextEdit attribution, paused-row inspection and reported durable-save check.
+It does not change the historical unknown-side or standalone-A results, and it
+does not establish restart readback, native accessibility, exhaustive protected
+reads, independent OS lock authority, complete hosted lifecycle or collecting
+Release qualification. Preserve the occupied root and all three output files.
 
 ## Candidate and isolation
 
@@ -13,10 +63,10 @@ or provisioning update is needed. Whole-bundle `diff -qr` against its signed sta
 passes, including the Debug implementation dylib. Performance Trial is untouched.
 
 The new private root `/private/tmp/keyrecord-phase1-chords-live-20260930` is mode
-0700 and empty at the no-launch check. The proposed trial Keychain namespace is
+0700 and empty at the no-launch check; it is now occupied and preserved. The used trial Keychain namespace is
 `com.keyrecord.trial.mvp20260929.phase1chords20260930`; preparation performed no
 Keychain data operation and does not independently prove namespace emptiness.
-The approved run would create/read its isolated encrypted store and Keychain only.
+The approved run used only its isolated encrypted store and Keychain namespace.
 
 Controller source: `/private/tmp/keyrecord-phase1-chords-controller-20260930.swift`.
 Executable: the same path without `.swift`. It reuses the previous controller,
@@ -61,7 +111,7 @@ Chinese input instruction to send after Collecting is confirmed:
 > 用鼠标点试验菜单的 Pause，接着立即打开 Settings → Aggregates，展开
 > Exact modifier sides and key code，告诉我侧别、次数及 TextEdit 次数。
 
-## Expected evidence, not a recorded result
+## Expected controls and evidence limits
 
 Expected controls are two key-downs, two key-ups, six modifier callbacks and ten
 accepted handoffs. Command alone must add no count. Expected aggregate delta is

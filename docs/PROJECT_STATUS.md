@@ -4,10 +4,15 @@
 
 Latest autonomous checkpoint: [MVP closeout](MVP_CLOSEOUT_20260929.md).
 An [explicit hold-Command/press-A trial](CURRENT_COMMAND_CHORD_TRIAL_20260930.md)
-is prepared on the unchanged installed candidate, with a new empty isolated root
-and compiled 175/180-second controller. Whole-bundle comparison and installed
-no-launch checks pass. It has not launched; fresh owner approval/readiness is
-required. The complete input and paused-page steps will be explained before launch.
+completed on unchanged signed source `426969c9f` after explicit approval/readiness.
+It received two key-downs, two key-ups and six modifier callbacks, accepted ten
+handoffs and counted two shortcuts with zero bare keys. The owner confirmed
+expanded left Command count two and TextEdit count two while Paused; actual queue
+closure was observed. All five issued writes succeeded durably with zero write/read
+failures. Normal early Quit completed and exact PID 27425 is gone. This closes
+the bounded current-candidate chord/left-side/attribution check, not accessibility,
+restart readback, full hosted lifecycle or collecting Release. The root is consumed;
+no repeat is authorized. Earlier corrected evidence below remains unchanged.
 Signed arm64 Debug candidate `426969c9f` was installed and run once after explicit
 owner approval/readiness for the [bounded modifier check](CURRENT_MODIFIER_TRIAL_20260930.md).
 The complete installed bundle matched staging and the old bundle is preserved.
@@ -26,7 +31,7 @@ review found no swapped summary fields and no basis for converting a Command-act
 key-down to bare solely because flagsChanged was missing. No speculative capture
 fix or automatic repeat occurred. Additional classification instrumentation is
 not warranted by this round. This is not collecting-Release qualification.
-The owner is resting; no new live round is authorized. Push and PR CI at
+At the preceding resting checkpoint, push and PR CI at
 `aa124243c` both succeeded (runs
 [36632563667](https://github.com/fhtpku-Cli/KeyRecord/actions/runs/36632563667) and
 [36632570428](https://github.com/fhtpku-Cli/KeyRecord/actions/runs/36632570428)).
@@ -34,7 +39,8 @@ Those jobs run package tests, the offline capture harness, SwiftPM Release,
 unsigned universal App Release and native Debug test compilation; they do not
 run App XCTest or establish live host qualification. Product source remains
 `426969c9f`; this correction/preparation changes documentation and a local controller
-only. The next owner action is the explicit chord and paused-row check above.
+only. Both CI runs for `f77dd3045` subsequently passed as well; the approved chord
+round above used that unchanged product source. No further live round is authorized.
 The latest offline increment adds DEBUG preparation boundaries and the existing
 cumulative `sessionCount` to the opt-in privacy journal. This helps locate future
 capture resets around aggregate increments without persisting event traces.

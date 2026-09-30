@@ -595,3 +595,21 @@ present on key-down. All 16 queue tests plus one modifier-recovery test pass.
 No new classification instrumentation is justified by this round. No speculative capture fix,
 automatic relaunch or Release qualification followed. Full result, preserved
 paths and limits: [bounded modifier trial](CURRENT_MODIFIER_TRIAL_20260930.md).
+
+## Explicit chord and modifier detail check completed — 2026-09-30
+
+On unchanged signed source `426969c9f`, a separately approved/readied round used
+the explicit instruction to hold left Command while pressing A and then release
+both keys, twice, after a Command-only press/release. Final observations match:
+two key-downs, two key-ups, six flagsChanged callbacks, ten accepted handoffs,
+aggregate delta two, shortcuts two and bare keys zero. All five writes returned
+successfully and were reported durable, without write or read failure.
+
+The owner confirmed `left 两次 文本编辑两次` in expanded Aggregates after Pause.
+The journal confirms actual queue closure before this report. Early normal Quit
+completed with no unsaved work reported and exact PID 27425 gone. This supplies
+bounded current-candidate chord/side/attribution and owner-observed presentation
+evidence. It does not establish native accessibility, restart retention, exhaustive
+hosted observation, independent lock authority or collecting Release. The earlier
+standalone-A result remains consistent with its clarified operation and is not
+rewritten as a chord test. [Exact round](CURRENT_COMMAND_CHORD_TRIAL_20260930.md).

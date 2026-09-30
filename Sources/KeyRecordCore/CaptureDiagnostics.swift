@@ -389,6 +389,10 @@ public struct CapturePrivacyActionDetail: Encodable, Sendable, Equatable {
     public init() {}
 }
 
+public enum CaptureInputMonitoringObservation: Sendable {
+    case granted, denied, unknown
+}
+
 /// Thread-safe collector. DEBUG-only by construction: the product wires it in `#if DEBUG`
 /// blocks, and `Phase1ReleaseIsolationTests` asserts Release cannot reach a control entry.
 ///
@@ -629,10 +633,14 @@ public final class CaptureDiagnosticsRecorder: @unchecked Sendable {
                cachedLockState: cachedLockState, cachedSecureInputState: cachedSecureInputState)
     }
 
-    public func recordInputMonitoringPreflightWitness(granted: Bool) {
+    public func recordInputMonitoringPreflightWitness(status: CaptureInputMonitoringObservation) {
         guard lock.withLock({ intervalPath }) != nil else { return }
-        append(role: "witness", boundaryCause: granted
-               ? "inputMonitoringPreflightGranted" : "inputMonitoringPreflightNotGranted")
+        let cause: String = switch status {
+        case .granted: "inputMonitoringPreflightGranted"
+        case .denied: "inputMonitoringPreflightDenied"
+        case .unknown: "inputMonitoringPreflightUnknown"
+        }
+        append(role: "witness", boundaryCause: cause)
     }
 
     private func append(role: String, boundaryCause: String? = nil,

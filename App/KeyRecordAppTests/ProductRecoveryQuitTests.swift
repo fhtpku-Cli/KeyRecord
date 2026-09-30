@@ -890,6 +890,10 @@ final class ProductRecoveryQuitTests: XCTestCase {
         }
         XCTAssertEqual(product.composition.lifecycle.state.blockedReason, .privacyCheckRequired,
                        "Permission loss on an unlocked host must not be reported as a session lock")
+        XCTAssertTrue(try product.marks().contains {
+            $0["boundaryCause"] as? String == "inputMonitoringPreflightDenied"
+                && $0["phase"] as? String == "collecting"
+        })
         XCTAssertEqual(try oldTap.press(), .closed)
 
         product.host.setPermission(.granted)
@@ -1368,7 +1372,7 @@ final class ProductRecoveryQuitTests: XCTestCase {
         product.host.setPermission(.denied)
         try await waitUntil("closed journal observes denied permission") {
             (try? product.marks().contains {
-                $0["boundaryCause"] as? String == "inputMonitoringPreflightNotGranted"
+                $0["boundaryCause"] as? String == "inputMonitoringPreflightDenied"
                     && $0["phase"] as? String == "blocked"
             }) == true
         }
@@ -1381,6 +1385,30 @@ final class ProductRecoveryQuitTests: XCTestCase {
                     && $0["phase"] as? String == "blocked"
             }) == true
         }
+        let live = await product.live
+        XCTAssertFalse(live)
+        XCTAssertFalse(product.keyGateOpen)
+        XCTAssertFalse(product.composition.flow.sensitiveContentVisible)
+        XCTAssertEqual(product.aggregateDelta, 0)
+    }
+
+    func testClosedJournalKeepsUnknownPermissionDistinctFromDenial() async throws {
+        let product = try await collecting()
+        product.tap?.disableWithoutCallback()
+        try await waitUntil("tap failure closes before unknown permission") {
+            let live = await product.live
+            return product.phase == .blocked && !live && !product.keyGateOpen
+        }
+        product.host.setPermission(.unknown)
+        try await waitUntil("closed journal retains unknown permission") {
+            (try? product.marks().contains {
+                $0["boundaryCause"] as? String == "inputMonitoringPreflightUnknown"
+                    && $0["phase"] as? String == "blocked"
+            }) == true
+        }
+        XCTAssertFalse(try product.marks().contains {
+            $0["boundaryCause"] as? String == "inputMonitoringPreflightDenied"
+        })
         let live = await product.live
         XCTAssertFalse(live)
         XCTAssertFalse(product.keyGateOpen)

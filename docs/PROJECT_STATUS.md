@@ -3,6 +3,17 @@
 ## Current Apple Silicon MVP status — 2026-09-29
 
 Latest autonomous checkpoint: [MVP closeout](MVP_CLOSEOUT_20260929.md).
+The 2026-09-30 offline continuation repaired a reproducible
+[failed-recovery settlement race](RECOVERY_SETTLEMENT_REPAIR_20260930.md) that could
+discard a retained count. The existing reconciliation lifetime now includes the
+save and lifecycle handover; genuine permission loss still closes protected state.
+It also [distinguishes denied and unknown permission witnesses](PERMISSION_WITNESS_REPAIR_20260930.md)
+in the opt-in Debug journal. All 590 package cases and the final 63 product
+recovery/quit cases pass. The initial intermittent failure was deterministically
+reproduced before repair, not dismissed after a quiet rerun. These are offline
+results; the installed chord trial remains source `426969c9f`. A newly signed
+candidate and segmented permission/recovery controller are being prepared, with
+installation and each live segment awaiting explicit approval/readiness.
 An [explicit hold-Command/press-A trial](CURRENT_COMMAND_CHORD_TRIAL_20260930.md)
 completed on unchanged signed source `426969c9f` after explicit approval/readiness.
 It received two key-downs, two key-ups and six modifier callbacks, accepted ten

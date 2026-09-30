@@ -57,7 +57,7 @@ final class CaptureDiagnosticCounterTests: XCTestCase {
         recorder.increment(.aggregateDelta)
         recorder.beginSession(generation: 13)
         recorder.increment(.aggregateDelta)
-        recorder.recordInputMonitoringPreflightWitness(granted: true)
+        recorder.recordInputMonitoringPreflightWitness(status: .granted)
         let marks = try String(contentsOf: path, encoding: .utf8).split(separator: "\n").map {
             try XCTUnwrap(JSONSerialization.jsonObject(with: Data($0.utf8)) as? [String: Any])
         }
@@ -256,15 +256,17 @@ final class CaptureDiagnosticCounterTests: XCTestCase {
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: root) }
         let path = root.appendingPathComponent("intervals.jsonl").path
-        recorder.recordInputMonitoringPreflightWitness(granted: true)
+        recorder.recordInputMonitoringPreflightWitness(status: .granted)
         XCTAssertFalse(FileManager.default.fileExists(atPath: path))
 
         recorder.enablePrivacyIntervalJournal(path: path)
-        recorder.recordInputMonitoringPreflightWitness(granted: true)
-        recorder.recordInputMonitoringPreflightWitness(granted: false)
+        recorder.recordInputMonitoringPreflightWitness(status: .granted)
+        recorder.recordInputMonitoringPreflightWitness(status: .denied)
+        recorder.recordInputMonitoringPreflightWitness(status: .unknown)
         let marks = try String(contentsOfFile: path, encoding: .utf8).split(separator: "\n")
-        XCTAssertEqual(marks.count, 2)
+        XCTAssertEqual(marks.count, 3)
         XCTAssertTrue(marks[0].contains("\"boundaryCause\":\"inputMonitoringPreflightGranted\""))
-        XCTAssertTrue(marks[1].contains("\"boundaryCause\":\"inputMonitoringPreflightNotGranted\""))
+        XCTAssertTrue(marks[1].contains("\"boundaryCause\":\"inputMonitoringPreflightDenied\""))
+        XCTAssertTrue(marks[2].contains("\"boundaryCause\":\"inputMonitoringPreflightUnknown\""))
     }
 }

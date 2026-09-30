@@ -6,6 +6,15 @@ Current status: [PROJECT_STATUS.md](PROJECT_STATUS.md). Requirements: [PHASE1_CO
 
 ## Evidence and remaining work
 
+Latest offline preparation distinguishes explicit denied/unknown permission
+witnesses and fixes a failed-recovery settlement race that could lose retained
+counts. The deterministic failing-first reproduction now passes, together with
+the permission-priority case and all 63 product recovery/quit tests. All 590 package
+cases pass. See [permission recording](PERMISSION_WITNESS_REPAIR_20260930.md) and
+[recovery settlement](RECOVERY_SETTLEMENT_REPAIR_20260930.md). Historical
+`inputMonitoringPreflightNotGranted` remains ambiguous. No new live round or
+collecting Release qualification follows from these offline results.
+
 Latest bounded modifier/UI result: unchanged signed Debug source `426969c9f`
 received two explicitly coordinated left Command+A presses after an observed
 Command-only release. It recorded shortcuts 2 / bare keys 0, ten accepted

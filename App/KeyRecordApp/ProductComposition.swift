@@ -884,7 +884,7 @@ final class ProductComposition: NSObject, NSMenuDelegate {
                 guard !Task.isCancelled, self.monitorIsCurrent(generation) else { break }
                 #if DEBUG
                 if completedPermissionPolls.isMultiple(of: 16) || permission != .granted {
-                    self.diagnostics.recordInputMonitoringPreflightWitness(granted: permission == .granted)
+                    self.recordPermissionWitness(permission)
                 }
                 completedPermissionPolls += 1
                 #endif
@@ -1213,6 +1213,15 @@ final class ProductComposition: NSObject, NSMenuDelegate {
     }
 
     #if DEBUG
+    private func recordPermissionWitness(_ permission: InputMonitoringStatus) {
+        let observation: CaptureInputMonitoringObservation = switch permission {
+        case .granted: .granted
+        case .denied: .denied
+        case .unknown: .unknown
+        }
+        diagnostics.recordInputMonitoringPreflightWitness(status: observation)
+    }
+
     func enablePrivacyIntervalJournal(path: String) {
         diagnostics.enablePrivacyIntervalJournal(path: path)
     }
@@ -1232,7 +1241,7 @@ final class ProductComposition: NSObject, NSMenuDelegate {
                 let witness = await self.capture.diagnosticInputWitness()
                 let permission = await self.capture.inputMonitoringStatus()
                 guard !Task.isCancelled, self.diagnostics.hasOpenClosedInterval else { return }
-                self.diagnostics.recordInputMonitoringPreflightWitness(granted: permission == .granted)
+                self.recordPermissionWitness(permission)
                 self.diagnostics.observeClosedInterval(lockReadStatus: witness.lock,
                                                        secureInputReadStatus: witness.secure,
                                                        lockComponents: witness.lockComponents)

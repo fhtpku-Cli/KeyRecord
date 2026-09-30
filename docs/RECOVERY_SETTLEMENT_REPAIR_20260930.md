@@ -29,6 +29,9 @@ Failed. Only that new assertion was corrected; closure assertions remain.
 Final Debug build-for-testing succeeds and all 63 product recovery/quit tests pass
 (65.599 seconds), including both new interleaving cases and the permission witness
 cases. Log: `/private/tmp/keyrecord-recovery-settlement-product-final.log`.
+The final unsigned arm64 Release rebuild also succeeds, and the existing static
+product network audit reports PASS with zero matches. This does not enable Release
+collection. Build log: `/private/tmp/keyrecord-recovery-settlement-release.log`.
 
 These tests use fake host providers, an in-memory Keychain and private synthetic
 encrypted stores. They establish the product recovery behavior under controlled

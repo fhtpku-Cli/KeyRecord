@@ -61,10 +61,24 @@ Build/test logs are `/private/tmp/keyrecord-raw-lock-fixture-build-final.log` an
 `/private/tmp/keyrecord-raw-lock-fixture-tests-final.log`; independent review is
 `/private/tmp/.omo/evidence/raw-lock-fixture-code-review.md`.
 
-Next: finish offline checks and review, make a bounded signed build using existing
-profiles under the owner's standing authorization, and prepare/review the bounded
-controller. Request fresh owner readiness only when that preparation is complete.
+Next: prepare and independently review the bounded runtime controller for the
+signed artifact below. Request fresh owner readiness only when that preparation
+is complete.
 The owner will only need to lock, wait about 20 seconds and unlock after the explicit
 ready signal. No TextEdit input, permission change, sleep or ordinary capture is
 needed. This fixture alone does not qualify collecting Release or every privacy/UI
 boundary, and no actual raw locked Keychain result is claimed by this document.
+
+## Signed artifact
+
+Source `a2de4ec6f483127b97c4ae5b0be7b202c67f01ce` was built using the existing
+profiles/certificate under the owner's standing signing authorization, after
+independent review. The bounded signer completed in 19.962 seconds with exit 0,
+no forced stop or remaining build process group, and no installation or App launch.
+Output: `/private/tmp/keyrecord-product-raw-lock-20261001`; signer:
+`/private/tmp/keyrecord-bounded-raw-lock-signing-20261001.py`. Synthetic signer
+failure/timeout/cancellation checks pass. This is a build result, not a raw lock
+measurement. Runtime-controller preparation and fresh owner readiness remain.
+Read-only strict verification passes for both host and test plug-in; the exact-path
+helper reports matching team/certificate, expected bundle IDs and zero exact or
+foreign probe instances. The helper is `/private/tmp/KeyRecordRawLockControl`.

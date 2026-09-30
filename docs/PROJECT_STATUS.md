@@ -3,6 +3,19 @@
 ## Current Apple Silicon MVP status — 2026-09-29
 
 Latest autonomous checkpoint: [MVP closeout](MVP_CLOSEOUT_20260929.md).
+Current integration increment (2026-10-01): Debug and Release now share lock
+notification closure, startup key-gate priming and explicit capture-entry checks.
+A suspended startup lock read previously reopened the key gate after a lock
+notification; the new regression reproduced both gate reopening and a backend
+query. Reusing the existing recovery fence now rejects that stale result and
+serializes gate reopening with notification invalidation. The shared path passes
+114 App regressions and seven core recovery tests; native arm64 Debug/Release
+builds and Release capability/network static audits pass. Release selection still
+uses `UnqualifiedCapture` and `BlockedLiveKeychain`. Next are production Keychain
+selection, isolated real missing/corrupt-key and complete-deletion checks, then
+the remaining native UI/accessibility check. Earlier lock/sleep/performance rounds
+are not scheduled for routine repetition.
+
 The [raw Keychain lock measurement](RAW_KEYCHAIN_LOCK_PREP_20261001.md) now passes
 on signed `a2de4ec6`, with owner-confirmed screen lock. Raw read status was 0 with
 the expected fixed value, while instrumented product reads/publications/counts

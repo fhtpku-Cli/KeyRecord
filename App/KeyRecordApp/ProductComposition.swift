@@ -12,7 +12,6 @@ final class ProductMaintenanceHooks {
     var erased: () -> Void = {}
 }
 
-#if DEBUG
 /// Injectable seam over the distributed notification centre so lock/unlock observer
 /// registration is testable without touching the real system session (KR-01).
 @MainActor
@@ -29,7 +28,6 @@ struct DistributedLockNotifications: LockNotificationCentering {
         }
     }
 }
-#endif
 
 /// What one manual capture entry decided. Carries nothing in Release.
 @MainActor
@@ -49,14 +47,17 @@ struct ProductHostBoundaries {
     let login: any LoginItemBackend
     #if DEBUG
     var localCapture: LocalDevelopmentCapture?
+    var terminate: @MainActor () -> Void = { NSApp.terminate(nil) }
+    #endif
+    var qualification: any CaptureQualification = UnqualifiedCapture()
     var sessionLock: any SessionLockProvider = UnqualifiedSessionLockProvider()
     var foreground: any FrontmostAppProvider = SystemForegroundProvider()
     var secureInput: any SecureInputProvider = SystemSecureInputProvider()
     var eventSource: @MainActor (CaptureQueue, any CaptureQualification, any SessionLockProvider) async
-        -> ListenOnlyEventSource
+        -> ListenOnlyEventSource = { queue, qualification, sessionLock in
+            await ListenOnlyEventSource.system(queue: queue, qualification: qualification, sessionLock: sessionLock)
+        }
     var lockNotifications: any LockNotificationCentering = DistributedLockNotifications()
-    var terminate: @MainActor () -> Void = { NSApp.terminate(nil) }
-    #endif
 }
 
 @MainActor
@@ -71,10 +72,11 @@ final class ProductComposition: NSObject, NSMenuDelegate {
     let store: ObjectStore
     #if DEBUG
     private(set) var localCapture: LocalDevelopmentCapture?
-    private(set) var localSessionLock: (any SessionLockProvider)?
-    private var lockNotifications: any LockNotificationCentering = DistributedLockNotifications()
     private var developerMenu: LocalDevelopmentCaptureMenu?
     #endif
+    private let qualification: any CaptureQualification
+    private(set) var localSessionLock: (any SessionLockProvider)?
+    private var lockNotifications: any LockNotificationCentering = DistributedLockNotifications()
     private var exclusionCandidates: any ExclusionCandidateSource = WorkspaceExclusionCandidates()
     private var runtimeCoordinator: CaptureRuntimeCoordinator?
     private var runtimeReconciliations = 0
@@ -128,7 +130,7 @@ final class ProductComposition: NSObject, NSMenuDelegate {
         #else
         try await assemble(ProductHostBoundaries(storeRoot: try productionStoreRoot(),
             namespace: try KeychainNamespace("com.keyrecord.app"), backend: BlockedLiveKeychain(),
-            login: ProductLogin.make()))
+            login: ProductLogin.make(), qualification: UnqualifiedCapture()))
         #endif
     }
 
@@ -226,17 +228,15 @@ final class ProductComposition: NSObject, NSMenuDelegate {
         let queue = CaptureQueue()
         #if DEBUG
         let localCapture = host.localCapture
-        let qualification: any CaptureQualification = localCapture ?? UnqualifiedCapture()
+        let qualification: any CaptureQualification = localCapture ?? host.qualification
+        #else
+        let qualification = host.qualification
+        #endif
         let sessionLock = host.sessionLock
         let eventSource = await host.eventSource(queue, qualification, sessionLock)
         let capture = ProductCapture(source: eventSource, queue: queue, reduction: reduction,
             persistence: persistence, scheduler: scheduler, foreground: host.foreground,
             secureInput: host.secureInput, qualification: qualification, sessionLock: sessionLock)
-        #else
-        let eventSource = await ListenOnlyEventSource.system(queue: queue, qualification: UnqualifiedCapture())
-        let capture = ProductCapture(source: eventSource, queue: queue, reduction: reduction,
-            persistence: persistence, scheduler: scheduler, foreground: SystemForegroundProvider())
-        #endif
         let flush = ProductFlush(reduction: reduction, scheduler: scheduler)
         let login = host.login
         let deletion = LocalDeletionCoordinator(ownedRoot: root.path, fileSystem: FileSystemDeletionAdapter(),
@@ -251,20 +251,13 @@ final class ProductComposition: NSObject, NSMenuDelegate {
             afterErase: { hooks.erased() }, clear: { reduction.clear() })
         let flow = AppFlowObservable(flow: Phase1FlowModel(lifecycle: lifecycle,
             cycleReset: destruction, localDataEraser: destruction), protectedGate: gate)
-        #if DEBUG
-        // KR-01: the session-lock provider is handed to the initializer, NOT assigned after
-        // it returns. The old code ran `if let sessionLock = localSessionLock` inside the
-        // initializer while the property was still nil, so the screenIsLocked /
-        // screenIsUnlocked observers were never registered at all.
         let composition = ProductComposition(lifecycle: lifecycle, flow: flow, gate: gate, reduction: reduction,
                                   scheduler: scheduler, flush: flush, capture: capture, store: store, hooks: hooks,
-                                  localCapture: localCapture,
-                                  localSessionLock: localCapture == nil ? nil : sessionLock,
+                                  qualification: qualification, sessionLock: sessionLock,
                                   notifications: host.lockNotifications)
+        #if DEBUG
+        composition.localCapture = localCapture
         composition.terminateApplication = host.terminate
-        #else
-        let composition = ProductComposition(lifecycle: lifecycle, flow: flow, gate: gate, reduction: reduction,
-                                  scheduler: scheduler, flush: flush, capture: capture, store: store, hooks: hooks)
         #endif
         composition.resumeSuspendedWriter = { try await destruction.resumeWriterIfIdle() }
         composition.completeRecoveredReset = { try await destruction.completeRecoveredReset() }
@@ -282,37 +275,22 @@ final class ProductComposition: NSObject, NSMenuDelegate {
         return composition
     }
 
-    #if DEBUG
     private init(lifecycle: LifecycleOrchestrator, flow: AppFlowObservable, gate: KeyAvailabilityGate,
                  reduction: ProductReduction, scheduler: FlushScheduler, flush: ProductFlush,
                  capture: ProductCapture, store: ObjectStore, hooks: ProductMaintenanceHooks,
-                 localCapture: LocalDevelopmentCapture?, localSessionLock: (any SessionLockProvider)?,
+                 qualification: any CaptureQualification, sessionLock: any SessionLockProvider,
                  notifications: any LockNotificationCentering = DistributedLockNotifications()) {
         self.lifecycle = lifecycle; self.flow = flow; self.gate = gate; self.reduction = reduction
         self.scheduler = scheduler; self.flush = flush; self.capture = capture; self.store = store
         // Assigned BEFORE super.init()/observer registration so the lock wiring below sees them.
-        self.localCapture = localCapture
-        self.localSessionLock = localSessionLock
+        self.qualification = qualification
+        self.localSessionLock = sessionLock
         self.lockNotifications = notifications
         super.init()
         installActions(hooks: hooks)
         registerLifecycleObservers(hooks: hooks)
         sync()
     }
-    #endif
-
-    #if !DEBUG
-    private init(lifecycle: LifecycleOrchestrator, flow: AppFlowObservable, gate: KeyAvailabilityGate,
-                 reduction: ProductReduction, scheduler: FlushScheduler, flush: ProductFlush,
-                 capture: ProductCapture, store: ObjectStore, hooks: ProductMaintenanceHooks) {
-        self.lifecycle = lifecycle; self.flow = flow; self.gate = gate; self.reduction = reduction
-        self.scheduler = scheduler; self.flush = flush; self.capture = capture; self.store = store
-        super.init()
-        installActions(hooks: hooks)
-        registerLifecycleObservers(hooks: hooks)
-        sync()
-    }
-    #endif
 
     private func installActions(hooks: ProductMaintenanceHooks) {
         let lifecycle = self.lifecycle
@@ -383,7 +361,6 @@ final class ProductComposition: NSObject, NSMenuDelegate {
             forName: NSWorkspace.didWakeNotification, object: nil, queue: nil) { [weak self] _ in
                 Task { @MainActor in self?.handleRuntimeAvailable() }
             })
-        #if DEBUG
         // KR-01: registration now happens with a non-nil provider, because it was injected
         // into the initializer instead of assigned after the initializer returned.
         guard localSessionLock != nil else { return }
@@ -395,10 +372,8 @@ final class ProductComposition: NSObject, NSMenuDelegate {
         observers.append(lockNotifications.addObserver(for: Self.screenUnlockedNotification) { [weak self] in
             Task { @MainActor in await self?.handleSessionUnlocked() }
         })
-        #endif
     }
 
-    #if DEBUG
     static let screenLockedNotification = Notification.Name("com.apple.screenIsLocked")
     static let screenUnlockedNotification = Notification.Name("com.apple.screenIsUnlocked")
 
@@ -414,7 +389,6 @@ final class ProductComposition: NSObject, NSMenuDelegate {
     func handleSessionUnlocked() async {
         handleRuntimeAvailable()
     }
-    #endif
 
     private func closeForSessionLock(trigger: String) async {
         #if DEBUG
@@ -461,43 +435,54 @@ final class ProductComposition: NSObject, NSMenuDelegate {
     }
 
     private func prepareExplicitCaptureStart(_ attempt: ManualRecoveryAttempt, trace: ManualEntryTrace) async -> Bool {
-        #if DEBUG
-        guard let sessionLock = localSessionLock else {
+        guard await qualification.liveCaptureQualified(), let sessionLock = localSessionLock else {
+            #if DEBUG
             trace.detail.prepareOutcome = "sessionLockProviderMissing"
             diagnostics.notePrivacyTrigger("sessionLockProviderMissing")
+            #endif
             await handlePrivacyInvalidation()
             return false
         }
         let lockState = await sessionLock.sessionLockState()
+        #if DEBUG
         trace.detail.prepareLockRead = String(describing: lockState)
+        #endif
         guard manualRecoveryFence.isCurrent(attempt) else {
+            #if DEBUG
             trace.detail.prepareOutcome = "fenceStaleAfterLockRead"
+            #endif
             return false
         }
         guard lockState == .unlocked else {
+            #if DEBUG
             trace.detail.prepareOutcome = "lockNotUnlocked"
             diagnostics.notePrivacyTrigger("sessionLockReadNotUnlocked")
+            #endif
             await handlePrivacyInvalidation(reason: .sessionLocked)
             return false
         }
+        #if DEBUG
         diagnostics.endClosedInterval(cause: "protectedStoreReauthorized")
-        gate.update(.unlocked)
+        #endif
+        guard manualRecoveryFence.performIfCurrent(attempt, body: { gate.update(.unlocked) }) else {
+            return false
+        }
         let permission = await capture.requestInputMonitoringPermission()
+        #if DEBUG
         trace.detail.permissionStatus = String(describing: permission)
+        #endif
         guard manualRecoveryFence.isCurrent(attempt) else {
+            #if DEBUG
             trace.detail.prepareOutcome = "fenceStaleAfterPermission"
+            #endif
             return false
         }
         await runtimeCoordinator?.clearUserStop()
         let current = manualRecoveryFence.isCurrent(attempt)
+        #if DEBUG
         trace.detail.prepareOutcome = current ? "ready" : "fenceStaleAfterClearUserStop"
-        return current
-        #else
-        gate.update(.unknown)
-        lifecycle.requireRecovery(reason: .keyUnavailable)
-        syncRuntime()
-        return false
         #endif
+        return current
     }
 
     private func performManualCaptureEntry(trace: ManualEntryTrace,
@@ -546,16 +531,22 @@ final class ProductComposition: NSObject, NSMenuDelegate {
 
     /// Everything `boot` does before the status item exists.
     func restoreRuntime() async {
-        #if DEBUG
         // Prime the gate from the real session-lock state BEFORE restore() reloads
         // preferences (which calls gate.begin()); a locked/unknown Mac stays closed.
-        let armed = localCapture != nil
+        var armed = false
         var observedLock: SessionLockState?
-        if armed, let sessionLock = localSessionLock {
-            let state = await sessionLock.sessionLockState()
-            observedLock = state
-            if state == .unlocked { gate.update(.unlocked) }
-        }
+        _ = await manualRecoveryFence.perform(
+            prepare: { attempt in
+                armed = await qualification.liveCaptureQualified()
+                guard armed, let sessionLock = localSessionLock else { return false }
+                let state = await sessionLock.sessionLockState()
+                observedLock = state
+                guard state == .unlocked else { return false }
+                return manualRecoveryFence.performIfCurrent(attempt) { gate.update(.unlocked) }
+            },
+            start: {},
+            abort: { gate.update(.unknown) })
+        #if DEBUG
         // Record the startup inputs that decide whether protected data is readable at all.
         let primed = (try? gate.begin()) != nil
         diagnostics.record {

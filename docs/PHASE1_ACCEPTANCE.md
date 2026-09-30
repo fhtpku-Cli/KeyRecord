@@ -6,6 +6,18 @@ Current status: [PROJECT_STATUS.md](PROJECT_STATUS.md). Requirements: [PHASE1_CO
 
 ## Evidence and remaining work
 
+Shared product safety wiring (2026-10-01): lock notifications, startup protection
+and manual-entry checks now compile through one Debug/Release path. The suspended
+startup-read regression failed before repair (gate open and backend query), then
+passed after reusing the existing recovery fence for atomic current-attempt
+reopening. All 114 selected App tests and seven core recovery tests pass. App
+recovery fixtures exercise `ProductHostBoundaries.qualification` without developer
+armament; a separate negative case confirms unqualified assembly makes no Keychain
+queries or capture admission. Debug/Release arm64 builds and actual Release static
+capability/network audits pass. These are offline integration results; the Release
+factory remains blocked pending real backend integration and the remaining scoped
+privacy/UI checks.
+
 The [raw Keychain lock measurement](RAW_KEYCHAIN_LOCK_PREP_20261001.md) completed
 with owner-confirmed screen lock: one real case passed, raw read returned 0 and
 the expected fixed value, the instrumented product remained closed, and all three

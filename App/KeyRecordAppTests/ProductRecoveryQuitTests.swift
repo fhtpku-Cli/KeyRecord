@@ -59,6 +59,24 @@ private struct SilentLogin: LoginItemBackend {
     func unregister() async throws {}
 }
 
+private struct SyntheticQualification: CaptureQualification {
+    func liveCaptureQualified() async -> Bool { true }
+}
+
+private actor SuspendedStartupLock: SessionLockProvider {
+    private var pending: CheckedContinuation<SessionLockState, Never>?
+    private(set) var waiting = false
+    func sessionLockState() async -> SessionLockState {
+        if waiting { return .locked }
+        waiting = true
+        return await withCheckedContinuation { pending = $0 }
+    }
+    func releaseStaleUnlocked() {
+        pending?.resume(returning: .unlocked)
+        pending = nil
+    }
+}
+
 @MainActor
 private final class ManualLockNotifications: LockNotificationCentering {
     private var handlers: [Notification.Name: [@Sendable () -> Void]] = [:]
@@ -265,6 +283,7 @@ private final class SyntheticProduct {
     let host = SyntheticHost()
     let keychain: MemoryKeychain
     var backendOverride: (any KeychainBackend)?
+    var qualification: any CaptureQualification = SyntheticQualification()
     let notifications = ManualLockNotifications()
     let root: URL
     let journal: URL
@@ -295,6 +314,7 @@ private final class SyntheticProduct {
     func relaunch() -> SyntheticProduct {
         let next = SyntheticProduct(root: root, keychain: keychain)
         next.backendOverride = backendOverride
+        next.qualification = qualification
         return next
     }
 
@@ -306,7 +326,7 @@ private final class SyntheticProduct {
         var boundaries = ProductHostBoundaries(
             storeRoot: storeRoot, namespace: try KeychainNamespace("com.keyrecord.synthetic"),
             backend: backendOverride ?? keychain, login: SilentLogin(),
-            localCapture: LocalDevelopmentCapture(armed: true),
+            qualification: qualification,
             eventSource: { [weak self] queue, qualification, _ in
                 if let replayController {
                     return ListenOnlyEventSource.fixedReplay(queue: queue, qualification: qualification,
@@ -498,6 +518,44 @@ final class ProductRecoveryQuitTests: XCTestCase {
     }
 
     // MARK: - Recovery
+
+    func testUnqualifiedSharedCompositionNeverOpensStoreOrCapture() async throws {
+        let product = try SyntheticProduct.fresh()
+        products.append(product)
+        let client = MemoryLocalKeychainClient()
+        product.backendOverride = LocalKeychainBackend(client: client)
+        product.qualification = UnqualifiedCapture()
+        try await product.boot()
+        XCTAssertNil(product.composition.localCapture)
+        XCTAssertFalse(product.keyGateOpen)
+        await product.composition.startOrRetry()
+        await product.composition.flow.accept()
+        XCTAssertFalse(product.keyGateOpen)
+        let live = await product.live
+        XCTAssertFalse(live)
+        XCTAssertFalse(product.composition.capture.queue.isOpen)
+        XCTAssertTrue(client.queries.isEmpty)
+    }
+
+    func testStartupLockNotificationRejectsSuspendedUnlockedReply() async throws {
+        let product = try SyntheticProduct.fresh()
+        products.append(product)
+        let client = MemoryLocalKeychainClient()
+        product.backendOverride = LocalKeychainBackend(client: client)
+        let provider = SuspendedStartupLock()
+        product.lockProvider = provider
+        let startup = Task { try await product.boot() }
+        try await waitUntil("startup lock read suspended") { await provider.waiting }
+        product.notifications.post(ProductComposition.screenLockedNotification)
+        XCTAssertFalse(product.keyGateOpen)
+        await provider.releaseStaleUnlocked()
+        try await startup.value
+        XCTAssertFalse(product.keyGateOpen)
+        XCTAssertTrue(client.queries.isEmpty, "stale startup observation must not authorize a protected read")
+        let live = await product.live
+        XCTAssertFalse(live)
+        XCTAssertFalse(product.composition.capture.queue.isOpen)
+    }
 
     func testUnavailableKeychainBlocksFreshProductBeforeCapture() async throws {
         let product = try SyntheticProduct.fresh()

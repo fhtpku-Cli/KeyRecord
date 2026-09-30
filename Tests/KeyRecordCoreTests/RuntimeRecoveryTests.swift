@@ -131,6 +131,22 @@ final class RuntimeRecoveryTests: XCTestCase {
         XCTAssertEqual(aborts, 1)
     }
 
+    func testCurrentActionRefusesInvalidatedAttempt() async {
+        let fence = ManualRecoveryFence()
+        var opened = false
+        let completed = await fence.perform(
+            prepare: { attempt in
+                XCTAssertTrue(fence.performIfCurrent(attempt) { opened = true })
+                XCTAssertTrue(opened)
+                fence.invalidate()
+                opened = false
+                XCTAssertFalse(fence.performIfCurrent(attempt) { opened = true })
+                return true
+            }, start: { XCTFail("invalidated attempt must not start") }, abort: {})
+        XCTAssertFalse(completed)
+        XCTAssertFalse(opened)
+    }
+
     func testInvalidationDuringManualStartRunsAbortAfterLateCompletion() async {
         let fence = ManualRecoveryFence()
         let barrier = Barrier()

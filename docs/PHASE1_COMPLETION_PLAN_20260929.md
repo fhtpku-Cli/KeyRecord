@@ -31,6 +31,11 @@ recovery remain evidence for their stated candidates; no routine repeat is plann
 
 ## Current state
 
+- The [first signed full-product round](PRODUCT_COMPOSITION_ROUND_20260930.md)
+  failed during the scenario after a successful signed build. No host remained.
+  Diagnose its startup failure before claiming real recovery. The owner now
+  authorizes subsequent signing/automated rounds after independent sub-agent
+  review; the older fresh-approval statements below are historical.
 - [Full product hosted assembly](PRODUCT_COMPOSITION_HOST_PREP_20260930.md) now
   compiles and passes the complete simulated save/privacy/reopen scenario in the
   existing probe. Sixteen hosted offline cases and 138 lifecycle cases pass;

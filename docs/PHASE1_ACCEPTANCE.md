@@ -6,6 +6,11 @@ Current status: [PROJECT_STATUS.md](PROJECT_STATUS.md). Requirements: [PHASE1_CO
 
 ## Evidence and remaining work
 
+The [first signed full-product case](PRODUCT_COMPOSITION_ROUND_20260930.md) failed
+with a generic timeout, then exited normally with no remaining host. Signing and
+static identity checks passed, but this does not qualify real product recovery.
+The diagnostic follow-up separates failed startup from a generic wait timeout.
+
 The [full product hosted assembly](PRODUCT_COMPOSITION_HOST_PREP_20260930.md) now
 connects actual composition, encrypted storage and counter observation in the
 existing probe. Sixteen offline hosted cases and 138 lifecycle cases pass, with

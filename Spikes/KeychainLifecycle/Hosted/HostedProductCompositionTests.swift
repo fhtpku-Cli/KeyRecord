@@ -8,7 +8,7 @@ import KeyRecordStore
 import LifecyclePreflight
 
 private enum CompositionTrialError: Error {
-    case timeout, unexpectedState, cleanupIncomplete
+    case timeout(String), unexpectedState, cleanupIncomplete
 }
 
 private final class CompositionSignals: FrontmostAppProvider, SecureInputProvider,
@@ -45,20 +45,40 @@ private final class CompositionOwnedClient: LocalKeychainClient, @unchecked Send
     private let client: AuthorizedProductKeychainClient
     private let mutex = NSLock()
     private var created: [String] = []
+    private var firstFailure: String?
     init(_ client: AuthorizedProductKeychainClient) { self.client = client }
     var ownedAccounts: [String] { mutex.withLock { created } }
-    func copyMatching(_ query: [String: Any]) throws -> LocalKeychainMatch { try client.copyMatching(query) }
+    var failureSummary: String { mutex.withLock { firstFailure ?? "none" } }
+    private func operation<T>(_ name: String, _ body: () throws -> (T, OSStatus)) throws -> T {
+        do {
+            let (value, status) = try body()
+            let allowedAbsence = status == errSecItemNotFound && (name == "read" || name == "delete")
+            if status != errSecSuccess && !allowedAbsence {
+                mutex.withLock { if firstFailure == nil { firstFailure = "\(name):status=\(status)" } }
+            }
+            return value
+        } catch {
+            let cause = (error as? PreflightBlock).map { String(describing: $0) } ?? "clientError"
+            mutex.withLock { if firstFailure == nil { firstFailure = "\(name):\(cause)" } }
+            throw error
+        }
+    }
+    func copyMatching(_ query: [String: Any]) throws -> LocalKeychainMatch {
+        try operation("read") { let result = try client.copyMatching(query); return (result, result.status) }
+    }
     func add(_ attributes: [String: Any]) throws -> OSStatus {
-        let status = try client.add(attributes)
+        let status = try operation("add") { let status = try client.add(attributes); return (status, status) }
         if status == errSecSuccess, let account = attributes[kSecAttrAccount as String] as? String {
             mutex.withLock { if !created.contains(account) { created.append(account) } }
         }
         return status
     }
     func update(_ query: [String: Any], attributes: [String: Any]) throws -> OSStatus {
-        try client.update(query, attributes: attributes)
+        try operation("update") { let status = try client.update(query, attributes: attributes); return (status, status) }
     }
-    func delete(_ query: [String: Any]) throws -> OSStatus { try client.delete(query) }
+    func delete(_ query: [String: Any]) throws -> OSStatus {
+        try operation("delete") { let status = try client.delete(query); return (status, status) }
+    }
 
     func cleanup() throws {
         var firstFailure: (any Error)?
@@ -108,13 +128,13 @@ private final class CompositionFixture {
             guard product.lifecycle.phase == .consent else { throw CompositionTrialError.unexpectedState }
             await product.flow.accept()
         }
-        try await wait { self.product.lifecycle.phase == .collecting && self.product.captureSessionLive }
+        try await wait("start") { self.product.lifecycle.phase == .collecting && self.product.captureSessionLive }
     }
 
     func emitOne() async throws {
         let before = product.diagnostics.runSummary.aggregateDelta
         guard replay.emit(tick: 1) == 2 else { throw CompositionTrialError.unexpectedState }
-        try await wait { self.product.diagnostics.runSummary.aggregateDelta == before + 1 }
+        try await wait("input") { self.product.diagnostics.runSummary.aggregateDelta == before + 1 }
         try await product.flush.flushWhileUnlocked()
     }
 
@@ -129,7 +149,7 @@ private final class CompositionFixture {
     func closeForSimulatedLock() async throws {
         signals.setLocked(true)
         notifications.post(ProductComposition.screenLockedNotification)
-        try await wait {
+        try await wait("simulated-lock") {
             let state = self.product.diagnostics.runSummary
             return self.product.lifecycle.phase == .blocked && state.captureQueueOpen == false
                 && state.keyGateOpen == false && !state.captureSessionLive && !state.sensitiveContentVisible
@@ -143,17 +163,36 @@ private final class CompositionFixture {
         await product.scheduler.waitForIssuedWrite()
     }
 
-    private func wait(_ condition: () -> Bool) async throws {
+    private func wait(_ step: String, _ condition: () -> Bool) async throws {
         let deadline = ContinuousClock.now.advanced(by: .seconds(5))
         while ContinuousClock.now < deadline {
             if condition() { return }
             try await Task.sleep(for: .milliseconds(20))
         }
-        throw CompositionTrialError.timeout
+        let state = product.lifecycle.state
+        throw CompositionTrialError.timeout("step=\(step) phase=\(state.phase) "
+            + "reason=\(String(describing: state.blockedReason)) failure=\(String(describing: state.failure)) "
+            + "load=\(String(describing: ProductPersistence.lastLoadFailure))")
     }
 }
 
 final class HostedProductCompositionTests: XCTestCase {
+    func testFullCompositionWithSlowAuthorization() async throws {
+        let fixture = try SignedEffectFixture()
+        let evidence = fixture.evidence
+        let memory = MemoryLocalKeychainClient()
+        let client = CompositionOwnedClient(AuthorizedProductKeychainClient(namespace: fixture.namespace,
+            accounts: ["metadata", "master-v1", "master-v2"], client: memory, evidence: {
+                Thread.sleep(forTimeInterval: 0.1)
+                return evidence
+            }))
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("keyrecord-composition-slow-\(UUID())")
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: false,
+                                                attributes: [.posixPermissions: 0o700])
+        defer { try? FileManager.default.removeItem(at: root) }
+        try await run(root: root, namespace: fixture.namespace, client: client)
+    }
+
     func testFullCompositionWithGuardedMemoryKeychain() async throws {
         let fixture = try SignedEffectFixture()
         let evidence = fixture.evidence
@@ -225,8 +264,14 @@ final class HostedProductCompositionTests: XCTestCase {
                 guard try await backend.read(id) == nil else { throw KeyringError.duplicateItem }
             }
             try await Self.exercise(root: root.appendingPathComponent("store"), namespace: productNamespace, backend: backend)
-        } catch { failure = error }
-        do { try client.cleanup() }
+        } catch {
+            print("COMPOSITION failure=\(error) ownedItemCount=\(client.ownedAccounts.count) client=\(client.failureSummary)")
+            failure = error
+        }
+        do {
+            try client.cleanup()
+            print("COMPOSITION cleanupVerified=\(client.ownedAccounts.count)")
+        }
         catch {
             XCTFail("Full product test-item cleanup blocked; inspect the retained service record")
             if failure == nil { failure = error }

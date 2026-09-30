@@ -3,6 +3,13 @@
 ## Current Apple Silicon MVP status — 2026-09-29
 
 Latest autonomous checkpoint: [MVP closeout](MVP_CLOSEOUT_20260929.md).
+The [first full-product signed round](PRODUCT_COMPOSITION_ROUND_20260930.md)
+completed signing in 22.311 seconds but its selected test failed with a generic
+timeout. It exited normally with no remaining host. Stage and coarse Keychain
+error diagnostics are being added; a delayed-memory-client run passes and does
+not reproduce the real failure. This is not a full-product recovery PASS.
+The owner now authorizes signing/automated rounds after independent sub-agent
+review; physical/system cooperation still requires coordination.
 The newest [full product hosted assembly](PRODUCT_COMPOSITION_HOST_PREP_20260930.md)
 compiles the actual App composition and counter observer into the existing probe.
 Its complete simulated input/privacy/save/reopen scenario passes through the

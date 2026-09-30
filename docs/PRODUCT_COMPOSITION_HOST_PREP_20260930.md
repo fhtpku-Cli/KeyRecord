@@ -1,5 +1,9 @@
 # Full product composition in the Keychain probe
 
+The subsequent [first signed execution](PRODUCT_COMPOSITION_ROUND_20260930.md)
+failed during the scenario and exited normally. The preparation results below
+remain offline evidence; they are not a passing real-product recovery result.
+
 ## Result and boundary
 
 The existing `KeychainLifecycleTests` target now compiles the actual App sources,
@@ -10,7 +14,8 @@ included. No production source or collecting Release policy changed.
 
 `HostedProductCompositionTests` assembles the real lifecycle, capture coordinator,
 reduction, encrypted store and UI model. Input, permission, lock, Secure Input,
-foreground, login item, notifications and termination are explicitly simulated.
+foreground, login item, distributed lock notifications and termination are simulated.
+NSWorkspace sleep/session notifications remain registered with the real system.
 The same scenario can use the App Keychain backend with either an in-memory
 Security client or the existing per-operation signed authorization client.
 

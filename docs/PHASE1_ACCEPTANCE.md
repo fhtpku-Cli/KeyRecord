@@ -13,8 +13,9 @@ CRUD, metadata conflict, inventory and error mapping are exercised. The opt-in
 real Keychain test is prepared but unrun. Matching probe profiles were obtained
 in one approved build of `b889640b4`. Static inspection then reproduced a
 preflight error requiring independent process entitlements on a test plug-in;
-the offline repair and its exact signed-file regression pass, but the retained
-signed candidate still contains the old check and has not been launched.
+the offline repair and its exact signed-file regression pass. A separately
+approved signed rebuild at `25ef0f117` now includes that repair and passes its own
+read-only signature/role inspection. Neither signed host has been launched.
 This supersedes the query-only preparation below, without claiming real Keychain
 accessibility, full product recovery or live lock qualification.
 

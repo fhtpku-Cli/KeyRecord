@@ -3,6 +3,13 @@
 ## Current Apple Silicon MVP status — 2026-09-29
 
 Latest autonomous checkpoint: [MVP closeout](MVP_CLOSEOUT_20260929.md).
+The owner separately approved the repaired probe's signed rebuild at
+`25ef0f117`. It completed in 16.86 seconds using the same profiles/certificate,
+without provisioning updates or host launch. Both strict disk signatures and
+the repaired exact-file role/permission inspection pass. The signed rebuild
+prerequisite is complete; a bounded controller and separately approved real
+Keychain round remain needed. See the
+[repaired signing result](PRODUCT_KEYCHAIN_HOST_PREP_20260930.md#approved-repaired-signing-result).
 One owner-approved [probe signing attempt](PRODUCT_KEYCHAIN_HOST_PREP_20260930.md#approved-signing-result-and-follow-up)
 built `b889640b4` successfully in 25.06 seconds with matching new profiles and no
 launch. Read-only inspection reproduced an incorrect requirement for independent
@@ -10,9 +17,9 @@ entitlements on the in-process test plug-in. The repaired preflight checks the
 host's exact process entitlements and the plug-in's bundle code type, preserving
 both signatures, identities and matching team/certificate requirements. All 139
 lifecycle cases and 33 compiled checks pass with the signed files as a read-only
-fixture. The signed binary is unchanged and still contains the old check. Real
-Keychain execution and a rebuilt signed candidate remain pending; no automatic
-second signing attempt is authorized. Both CI runs at `b889640b4` passed.
+fixture. The original signed binary remains unchanged with its old check; the
+separately approved repaired artifact is recorded above. Real Keychain execution
+is still pending. Both CI runs at `b889640b4` passed.
 The [product Keychain backend hosted preparation](PRODUCT_KEYCHAIN_HOST_PREP_20260930.md)
 now compiles the actual App backend into the Debug test host with fresh signed
 authorization before each operation. Fourteen hosted offline cases, 73 App

@@ -1,9 +1,36 @@
 # Product Keychain backend hosted preparation
 
-Status: the owner-approved signing build of `b889640b4` succeeded; read-only
-inspection found a hosted-entitlement qualification bug, now repaired and tested
-offline. The signed artifact still contains the earlier check. Actual Keychain
-execution remains pending. This is not permission to start a system round.
+Status: the separately approved signed rebuild of `25ef0f117` succeeded and its
+read-only signature/role inspection passes. The original `b889640b4` artifact and
+its reproduced check failure remain preserved. Actual Keychain execution is still
+pending; signing approval does not authorize a system test round.
+
+## Approved repaired signing result
+
+The owner separately approved one two-minute rebuild of `25ef0f117` using only
+the existing profiles/certificate. The clean source was verified as
+`25ef0f117f9ee5d61c66cc78928f31efe1baabbc`. Xcode completed `build-for-testing`
+in 16.86 seconds with exit zero. The command omitted `-allowProvisioningUpdates`;
+no new signing materials were requested. No installation, host launch or Keychain
+test occurred. This second bounded authorization is consumed.
+
+Artifacts are under
+`/private/tmp/keyrecord-product-keychain-signing-fixed-20260930`, with `build.log`,
+`result.json`, and `build/lifecycle/Build/Products/Debug/KeychainLifecycleProbe.app`.
+The driver is `/private/tmp/keyrecord-bounded-signing-fixed-20260930.py`.
+Both strict disk signatures verify. The host has its exact application identity
+and Keychain group; the test plug-in has no independent entitlements, as expected.
+The embedded profile UUIDs remain `01e3da0d-8706-4ed6-8234-4747a5bf9b9d` (host)
+and `a623bdf3-3bb1-4b5b-b03b-c0e89cf905b4` (tests), matching the first signing run.
+
+The actual repaired `LivePreflight.signature` code inspected this new signed host
+and plug-in from a separate read-only test runner: one selected case passed with
+zero failures/skips, checking both roles, policy, identifiers and matching
+team/certificate. Log: `/private/tmp/keyrecord-fixed-signed-inspection.log`.
+This executes static inspection, not the signed host or its Keychain test. The
+complete manifest/controller preflight and live Security CRUD remain unrun.
+A bounded execution controller and approval of the real isolated Keychain round
+are the next prerequisites; the signed rebuild itself is complete.
 
 ## Approved signing result and follow-up
 

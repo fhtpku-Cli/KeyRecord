@@ -10,7 +10,8 @@ The [integrated Release dependencies](RELEASE_CANDIDATE_20261001.md) now build
 with the measured Keychain implementation and exact observed-platform qualification.
 127 App tests, six core isolation tests and actual Release static audits pass.
 Release default storage is Bundle-ID-specific; the fixed daily-root trial exclusion
-remains enforced. Final native surface/signing/real-input validation remains open.
+remains enforced. The Phase 1 aggregate surface now passes ten native UI/modifier
+tests and both locale rendering checks. Signing and real-input validation remain open.
 
 The [real key integrity/deletion round](PRODUCT_KEY_INTEGRITY_20261001.md) passes
 on signed `1b82d7cd`: one case, zero failures/skips/runtime warnings, normal exit

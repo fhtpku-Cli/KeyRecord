@@ -7,8 +7,9 @@ The [Release dependency integration](RELEASE_CANDIDATE_20261001.md) now compiles
 the measured exact-item Keychain implementation into the product, qualifies only
 the observed platform and derives isolated defaults from the validated Bundle ID.
 127 App regressions, six core isolation tests and actual Release static audits pass.
-The integrated Release still needs final MVP surface/native checks, signing and
-the short coordinated input/UI check; it is not yet a qualified collecting Release.
+The Phase 1 aggregate surface and ten focused native UI/modifier tests now pass,
+with both locale renderings inspected. Signing and the short coordinated input/UI
+check remain; it is not yet a qualified collecting Release.
 
 Current integration increment (2026-10-01): Debug and Release now share lock
 notification closure, startup key-gate priming and explicit capture-entry checks.

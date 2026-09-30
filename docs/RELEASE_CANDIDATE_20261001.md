@@ -37,8 +37,25 @@ Build/test logs: `/private/tmp/keyrecord-release-integration-debug-build.log`,
 `/private/tmp/keyrecord-release-integration-app-tests.log` and
 `/private/tmp/keyrecord-release-integration-trial-isolation-tests.log`.
 
-Next: use the existing Phase 1 aggregate view for the MVP surface while retaining
-Phase 2 preview implementation, run focused native UI checks, then prepare a signed
-isolated Release with the existing trial Bundle ID/profile. Stop for owner readiness
+The MVP surface now uses the existing Phase 1 aggregate view. Recommendation
+controls, menu suffix and badge are absent; Phase 2 implementation is retained.
+Ten focused native UI/modifier tests pass, including real ProductScreens tab
+activation, English/Chinese totals and removal of all rows when the snapshot is
+cleared. Both rendered locale images were inspected. These use synthetic data,
+not live capture. The view labels keys numerically and applications by Bundle ID.
+Debug/Release builds and the final Release static audits pass again.
+
+Native evidence: `/private/tmp/keyrecord-mvp-surface-native-final.log` and
+`/private/tmp/keyrecord-mvp-ui-output/product-aggregates-{en,zh-Hans}.png`.
+An initial unchanged window-teardown test threw an AppKit transition exception;
+it passed subsequent runs without a product change. New test fixture corrections
+select the native window toolbar tab, set the requested locale and give only the
+test screenshot an opaque background. Assertions retain actual before/after UI
+postconditions rather than relying on AXPress's inaccurate return status.
+
+Next: prepare a signed isolated Release using existing signing material. Reusing
+an older trial Bundle ID also reuses its Keychain namespace, so an empty store
+must not be assumed safe or fresh. Resolve the exact isolated identity/store pair
+before installation. Stop for owner readiness
 before a short real-input/UI check. Do not repeat completed physical lock, sleep,
 short performance or FR-P7 rounds solely for dependency selection.

@@ -34,8 +34,9 @@ recovery remain evidence for their stated candidates; no routine repeat is plann
 - [Release dependencies](RELEASE_CANDIDATE_20261001.md) now select the measured
   backend only on the exact observed platform, with Bundle ID storage isolation
   and fixed daily-root trial exclusion. Both unsigned builds, 127 App regressions,
-  six core isolation tests and static Release audits pass. Finish the Phase 1
-  aggregate surface, native checks and isolated signed candidate; then coordinate
+  six core isolation tests and static Release audits pass. The Phase 1 aggregate
+  surface now passes ten native UI/modifier tests and both locale rendering checks.
+  Prepare the isolated signed candidate; then coordinate
   only the remaining short real-input/UI check.
 
 - Shared Debug/Release privacy wiring is implemented: startup priming, synchronous

@@ -1143,7 +1143,7 @@ final class ProductComposition: NSObject, NSMenuDelegate {
                             guard let preferences = self.lifecycle.state.preferences else { return nil }
                             return try self.reduction.analysis(preferences: preferences)
                         })
-                    self.updateRecommendationBadge()
+                    self.updateMenuBarAccessibility()
                 }
                 catch is CountError {
                     await self.closeProtectedState()
@@ -1210,10 +1210,7 @@ final class ProductComposition: NSObject, NSMenuDelegate {
         statusItem?.title = Self.statusTitle(phase: lifecycle.phase,
                                             reason: lifecycle.state.blockedReason,
                                             gateOpen: gateOpen, captureSessionLive: sessionLive)
-        if flow.analysis?.topRecommendations.isEmpty == false {
-            statusItem?.title += " · " + text("phase2.newRecommendations")
-        }
-        updateRecommendationBadge()
+        updateMenuBarAccessibility()
         #if DEBUG
         if !sessionLive && !visible {
             // Written after revocation, so events already past the gate are not new input.
@@ -1321,10 +1318,9 @@ final class ProductComposition: NSObject, NSMenuDelegate {
         await closeProtectedState()
     }
 
-    private func updateRecommendationBadge() {
-        let available = flow.analysis?.topRecommendations.isEmpty == false
-        menuBarButton?.title = available ? "•" : ""
-        menuBarButton?.setAccessibilityLabel(available ? text("phase2.newRecommendations") : text("app.name"))
+    private func updateMenuBarAccessibility() {
+        menuBarButton?.title = ""
+        menuBarButton?.setAccessibilityLabel(text("app.name"))
     }
 
     private func closeProtectedState() async {
@@ -1531,14 +1527,13 @@ extension ProductComposition: LocalCaptureTransacting {
 }
 #endif
 
-private struct ProductScreens: View {
+struct ProductScreens: View {
     @ObservedObject var flow: AppFlowObservable
     private var text: NativeText { NativeText(locale: flow.language) }
     var body: some View {
         TabView {
             ConsentFlowView(flow: flow, text: text).tabItem { Text(text("flowpreview.tab.consent")) }
-            AnalysisDashboardView(snapshot: flow.analysis, layout: flow.layout, text: text,
-                                  saveLayout: { await flow.saveLayout($0) })
+            AggregateFlowView(snapshot: flow.snapshot, text: text)
                 .tabItem { Text(text("flowpreview.tab.aggregates")) }
             SettingsFlowView(flow: flow, text: text).tabItem { Text(text("flowpreview.tab.settings")) }
         }

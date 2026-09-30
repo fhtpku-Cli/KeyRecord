@@ -5,6 +5,50 @@ import KeyRecordCore
 
 @MainActor
 final class T22AccessibilityTests: XCTestCase {
+    func testProductAggregateTabShowsStatisticsAndClearsOnPrivacyClosure() throws {
+        for locale in MatrixContent.locales {
+            ScreenEvidence.prepare()
+            let fixture = MatrixFixture(state: .collecting, locale: locale, appearance: .light)
+            let flow = ScreenEvidence.makeFlow(fixture, journal: MatrixJournal())
+            flow.language = locale
+            let text = NativeText(locale: locale)
+            let view = NSHostingView(rootView: ProductScreens(flow: flow)
+                .background(Color(nsColor: .windowBackgroundColor)))
+            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1000, height: 700),
+                styleMask: [.titled], backing: .buffered, defer: false)
+            window.isReleasedWhenClosed = false
+            window.contentView = view
+            window.makeKeyAndOrderFront(nil)
+            defer { window.contentView = nil; window.close() }
+            NativeEvidence.primeAccessibility()
+            NativeEvidence.update(view)
+            let nodes = NativeEvidence.elements(in: window)
+            XCTAssertFalse(nodes.contains { KRAXIdentifier($0) == "aggregates.shortcutTotal" })
+            let tab = try XCTUnwrap(nodes.first {
+                KRAXRole($0) == "AXRadioButton" && KRAXLabel($0) == text("flowpreview.tab.aggregates")
+            }, nodes.map { "\(KRAXRole($0) ?? "nil"):\(KRAXLabel($0) ?? "nil")" }.joined(separator: "\n"))
+            _ = KRAXPress(tab)
+            ScreenEvidence.waitUntil("product aggregate tab selected", in: view) {
+                NativeEvidence.elements(in: view).contains { KRAXIdentifier($0) == "aggregates.shortcutTotal" }
+            }
+            _ = try NativeEvidence.node("aggregates.shortcutTotal", in: view)
+            _ = try NativeEvidence.node("aggregates.bareTotal", in: view)
+            if let root = NativeEvidence.outputRoot() {
+                try ScreenEvidence.capturePNG(view).write(to: root.appendingPathComponent("product-aggregates-\(locale).png"))
+            }
+            XCTAssertFalse(NativeEvidence.elements(in: view).contains {
+                (KRAXIdentifier($0) ?? "").hasPrefix("phase2.")
+            })
+            flow.snapshot = nil
+            NativeEvidence.update(view)
+            _ = try NativeEvidence.node("aggregates.locked", in: view)
+            XCTAssertFalse(NativeEvidence.elements(in: view).contains {
+                ["aggregates.row", "aggregates.bare", "aggregates.shortcutTotal", "aggregates.bareTotal"]
+                    .contains(KRAXIdentifier($0) ?? "")
+            })
+        }
+    }
+
     func testSmallSettingsEveryControlIsScrollReachable() throws {
         for locale in MatrixContent.locales {
             var fixture = MatrixFixture(state: .collecting, locale: locale, appearance: .dark)

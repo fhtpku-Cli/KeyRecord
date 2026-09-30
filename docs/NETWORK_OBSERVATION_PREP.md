@@ -1,5 +1,7 @@
 # Network observation preparation — 2026-09-27
 
+> Status reconciliation (2026-10-01): this is a dated record for the candidates and rounds named below. “Current”, “next”, “pending” and BLOCKED refer to that checkpoint, not today's work queue. The approved Apple Silicon Phase 1 MVP is complete and merged; see [current acceptance](PHASE1_ACCEPTANCE.md) and [roadmap](ROADMAP.md). Original observations and failures retain their scope; these instructions do not authorize another host round.
+
 **Historical record.** The owner changed FR-P1 acceptance on 2026-09-28 to
 source and Release-executable networking capability audits. The synthetic
 controls below and the five invalid product observations retained in PR #15's

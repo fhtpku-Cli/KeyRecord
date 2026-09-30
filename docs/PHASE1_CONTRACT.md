@@ -1,5 +1,10 @@
 # Phase 1 implementation contract
 
+Status navigation — 2026-10-01: the approved Apple Silicon MVP is complete and
+merged; see [acceptance](PHASE1_ACCEPTANCE.md) and [roadmap](ROADMAP.md). Behavioral
+requirements remain intact. Legacy receipt/host workflows below are not fresh
+instructions to regenerate evidence or repeat completed rounds.
+
 This is the repository-contained Phase 1 implementation specification. It carries forward the ten approved implementation contracts, scope, allocation and precedence below; a private or untracked execution plan is not required to interpret them. The [PRD](PRD.md) and [technical architecture](TECHNICAL_ARCHITECTURE.md) supply the referenced requirement and section definitions. Measured status belongs to [PROJECT_STATUS.md](PROJECT_STATUS.md), not this implementation specification.
 
 ## Allocation and owner approval

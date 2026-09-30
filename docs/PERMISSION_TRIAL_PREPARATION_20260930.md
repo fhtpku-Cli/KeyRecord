@@ -1,5 +1,7 @@
 # Permission and recovery preparation and completed execution
 
+> Status reconciliation (2026-10-01): this is a dated record for the candidates and rounds named below. “Current”, “next”, “pending” and BLOCKED refer to that checkpoint, not today's work queue. The approved Apple Silicon Phase 1 MVP is complete and merged; see [current acceptance](PHASE1_ACCEPTANCE.md) and [roadmap](ROADMAP.md). Original observations and failures retain their scope; these instructions do not authorize another host round.
+
 Both approved/readied segments are now consumed. See the
 [observed result and unresolved limits](CURRENT_PERMISSION_TRIAL_20260930.md).
 The procedure below is the recorded plan, not authorization to run it again.

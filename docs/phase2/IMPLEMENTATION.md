@@ -1,8 +1,14 @@
 # Phase 2 read-only analysis
 
-Scope: current-cycle daily aggregates → deterministic statistics → explanatory recommendation preview. No capture, protected storage, permission, firmware or external configuration access is introduced. Release remains unqualified and fail-closed.
+Scope: current-cycle daily aggregates → deterministic statistics → explanatory recommendation preview. No capture, protected storage, permission, firmware or external configuration access is introduced. The Phase 1 collecting Release is now qualified on its exact observed platform;
+this does not qualify the Phase 2 prototype as a released analysis feature.
 
-Implementation sequence:
+Current integration: `ProductScreens` uses `AggregateFlowView`; the dashboard
+entry remains in the Debug synthetic preview. Protected analysis publication and
+layout-preference plumbing exist, but full FR-R/FR-E and G2 are incomplete.
+See [roadmap](../ROADMAP.md).
+
+Historical implementation sequence:
 1. Completed: pure analysis module and synthetic rule-boundary tests.
 2. Completed: protected snapshots, encrypted layout preferences and bilingual native dashboard implementation.
 3. Automated builds and synthetic tests completed. Owner-assisted screenshots and keyboard/VoiceOver smoke checks cover the bounded scenarios in [validation](VALIDATION.md); desktop automation and full visual/accessibility qualification remain unavailable.
@@ -10,7 +16,8 @@ Implementation sequence:
 
 Design: preserve exact chord sides and unknown attribution in the domain, merge confirmed left/right/both modifier sides for display, keep unknown sides separately labelled, and retain expandable exact provenance. Ranking uses explicit active-day order, never elapsed wall time. The threshold uses raw cycle counts and distinct dates. All trigger choices are unverified logical previews; no mapping action is available. Missing physical evidence always means logical chord counts. Layout choice is a single existing preference, asked non-modally at the first qualifying dataset, with an explicit skip choice.
 
-User authorization permits autonomous reversible decisions and synthetic-only validation while away. Graphical lock, real keyboard and permission tests require the user's return; no wake, unlock or sleep prevention is authorized.
+Authorization recorded for that prototype work is historical, not standing permission
+to launch host rounds. Future work follows current task authorization.
 
 ## Rule choices and limits
 

@@ -1,4 +1,4 @@
-# Remaining signed-host native UI check
+# Completed signed-host native UI check
 
 Status: PASS within the bounded owner-assisted walkthrough on 2026-10-01; the owner
 confirmed all changed system settings restored. See the observed result below.

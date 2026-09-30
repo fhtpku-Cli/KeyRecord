@@ -1,7 +1,15 @@
-# Task 18 reservation
+# Native UI test targets
 
-Signed hosted XCUITest product flows are deliberately not part of task 10.
-The reserved UI-test target is buildable but intentionally contains no tests.
-Task 18 will add authorized app-launch scenarios here.
-The current KeyRecordAppTests target runs unsigned, in-process native primitive
-logic, accessibility and bitmap checks without capture or store wiring.
+`Phase1FlowTests.swift` contains signed-host XCUITest scenarios using the DEBUG-only
+`KEYRECORD_FLOW_FIXTURE` composition, in-memory fakes and temporary persistence.
+This is no longer an empty task 18 reservation. Its presence or compilation does
+not establish that every scenario ran on a signed host.
+
+`KeyRecordAppTests` separately covers native primitives, accessibility, rendering,
+product composition and store/recovery. Hostless execution and explicitly opted-in
+real Keychain cases have different effects and evidence scopes. Ordinary CI uses
+`Scripts/verify-local.sh --build-only`, skipping App XCTest execution.
+
+The scoped owner-assisted result is recorded in
+[the completed walkthrough](../../docs/RELEASE_NATIVE_UI_PREP_20261001.md).
+It does not retrospectively mark this entire XCUITest target as executed.

@@ -1,5 +1,7 @@
 # Raw Keychain read during product lock: result and preparation
 
+> Status reconciliation (2026-10-01): this is a dated record for the candidates and rounds named below. “Current”, “next”, “pending” and BLOCKED refer to that checkpoint, not today's work queue. The approved Apple Silicon Phase 1 MVP is complete and merged; see [current acceptance](PHASE1_ACCEPTANCE.md) and [roadmap](ROADMAP.md). Original observations and failures retain their scope; these instructions do not authorize another host round.
+
 ## Current result: bounded live measurement passed
 
 Signed source `a2de4ec6f483127b97c4ae5b0be7b202c67f01ce` completed the owner-readied

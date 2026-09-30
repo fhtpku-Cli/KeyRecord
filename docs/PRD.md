@@ -5,10 +5,10 @@
 | 项目 | 内容 |
 |---|---|
 | 文档版本 | v0.2（修订草案） |
-| 日期 | 2026-09-03 |
-| 状态 | 待评审 |
+| 日期 | 需求草案 2026-09-03；状态口径核对 2026-10-01 |
+| 状态 | 全产品需求草案；已批准的 MVP 范围与实测结果分开记录 |
 | 目标读者 | 产品、设计、工程、QA、安全 QA |
-| 关联文档 | 技术架构文档（另行编写），须与本 PRD 的全部数字、术语、后端状态、隐私边界与非目标保持一致 |
+| 关联文档 | [技术架构](TECHNICAL_ARCHITECTURE.md)、[路线图](ROADMAP.md)、[当前状态](PROJECT_STATUS.md)；需求数字、隐私边界和非目标保持一致 |
 
 命名约定：正式产品名待定，本文一律使用"本产品"。"KeyRecord"仅为内部代号，只允许出现在内部状态、规则命名空间等实现细节中，不作为对外名称。
 
@@ -159,7 +159,7 @@
 
 ## 5. 采集与统计生命周期
 
-> **Current-status note — status-capture (2026-09-12):** This section remains normative product behavior, not proof of implementation. The validated [current projection](PROJECT_STATUS.md#parsed-current-state), `gates[id=G0].status`, is PASS; `gates[id=G1_IMPLEMENTATION]` remains BLOCKED with its listed receipt causes. The owner-approved lock stops and exact §5.1 reset retention are in [PHASE1_CONTRACT](PHASE1_CONTRACT.md#allocation-and-owner-approval); approval does not imply implementation PASS.
+> **Current-status note — status-capture (2026-10-01):** This section is normative behavior, not an acceptance report. Scoped Apple Silicon Phase 1 completed and merged on 2026-10-01; see [acceptance](PHASE1_ACCEPTANCE.md). The [T24 projection](PROJECT_STATUS.md#parsed-current-state) is historical. Approved lock/reset constraints remain in [PHASE1_CONTRACT](PHASE1_CONTRACT.md).
 
 ### 5.1 生命周期规则
 
@@ -245,7 +245,7 @@
 
 ### 6.3 加密边界与密钥生命周期
 
-> **Current-status note — status-privacy:** [Current schema](PROJECT_STATUS.md#authority-and-reproduction) `localLifecycleAssessment` and `gates[id=SP6A_LOCAL_LIFECYCLE]` are BLOCKED pending keychainPolicy/sessionLock/restart/sleepWake receipts. Historical SP6A selection/crypto fixtures are not signed product-lifecycle qualification. Normative EK requirements below remain unchanged; apply the approved [lock/durability contract](PHASE1_CONTRACT.md#8-durability-and-lock), including possible loss since the last durable commit, without a time guarantee.
+> **Current-status note — status-privacy (2026-10-01):** The scoped MVP's signed Keychain/privacy results are in [acceptance](PHASE1_ACCEPTANCE.md). Raw reads succeeded during screen lock, so the independent software lock boundary remains essential. Old SP6A/O6 receipts retain their original scope. Apply [contracts 4–5 and 8](PHASE1_CONTRACT.md): fresh checks, unknown-state closure and loss since the last durable commit, with no fixed time guarantee.
 
 - EK1：应用管理的本地存储一律经认证加密；加密密钥为仅存本机、不随任何云同步的 Keychain 密钥项。
 - EK2：不提供明文回退模式；事件数据不以明文写入日志或临时文件。
@@ -281,7 +281,7 @@
 | FR-P6 | 备份加密 | 完整备份使用独立加盐版本化 KDF 信封，须密码解密方可恢复；常规导出文件不含统计表 |
 | FR-P7 | 密钥生命周期 | 删除或损坏 Keychain 密钥后启动：采集停止且无本地明文副本；完整删除后 Keychain 材料不存在 |
 
-> **Current-status note — status-backup:** `retainedReleaseBlockers[id=FULL_BACKUP_FINAL_RELEASE]` in the [validated projection](PROJECT_STATUS.md#parsed-current-state) remains required. FR-P6 is independently gated, not waived or marked passed by this milestone's FR-P1–P5/P7 allocation; no normative requirement in this table is removed.
+> **Current-status note — status-backup (2026-10-01):** FR-P6 full password backup remains independently required and incomplete. Local encryption and Phase 1 completion do not implement password backup or qualify final release. See [roadmap](ROADMAP.md); no retained requirement is waived.
 
 ---
 
@@ -671,7 +671,7 @@ UX 与平台：
 
 以下事项有意未定，任何文档与实现不得擅自填补。
 
-> **Current-status note — status-o6:** The table's Phase 0 writeback is historical status prose, not a current recomputation. In particular its O6 OPEN wording is stale: parsed `historicalAssessment.o_items[id=O6].status` is RESOLVED, with `evidence_paths=[sp2/evidence.json]` and empty `blocker_refs`, in the [validated current projection](PROJECT_STATUS.md#parsed-current-state). Resolution is limited to that bound SP2 generation; it neither changes C7/C8 nor qualifies current product lifecycle or every macOS version.
+> **Current-status note — status-o6 (2026-10-01):** O6 OPEN below is historical; the T24 projection later recorded RESOLVED for its bound SP2 generation. See [current product status](PROJECT_STATUS.md) for later measured qualification. Neither result expands C7/C8 or support to every macOS version.
 
 | 编号 | 事项 | 当前状态 | 说明 |
 |---|---|---|---|

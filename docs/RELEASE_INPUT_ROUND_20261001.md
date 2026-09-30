@@ -1,5 +1,7 @@
 # Bounded collecting Release input round
 
+> Status reconciliation (2026-10-01): this is a dated record for the candidates and rounds named below. “Current”, “next”, “pending” and BLOCKED refer to that checkpoint, not today's work queue. The approved Apple Silicon Phase 1 MVP is complete and merged; see [current acceptance](PHASE1_ACCEPTANCE.md) and [roadmap](ROADMAP.md). Original observations and failures retain their scope; these instructions do not authorize another host round.
+
 The installed Apple Silicon Release product from
 `ea90753feab2358166ee39384bb6a5501dc4ce64` completed one owner-coordinated input/UI
 round. It runs as **KeyRecord Release Trial**, Bundle ID

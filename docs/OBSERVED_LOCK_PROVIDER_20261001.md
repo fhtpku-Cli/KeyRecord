@@ -2,8 +2,10 @@
 
 The existing observed lock algorithm is now shared by Debug and Release source
 builds as `ObservedSessionLockProvider`. `SystemSessionLockProvider` remains a
-Debug alias for existing fixtures. This is production compilation preparation;
-the Release composition still uses `BlockedLiveKeychain` and unqualified capture.
+Debug alias for existing fixtures. At this extraction checkpoint Release was
+still blocked. Later [integration](RELEASE_CANDIDATE_20261001.md) selected the real
+backend/provider on the observed platform and the scoped MVP completed;
+unsupported platforms remain closed.
 
 ## Evidence and supported candidate
 
@@ -24,9 +26,10 @@ treated as an unlocked witness.
 
 Release excludes the diagnostic method and Debug protocol. The lifecycle probe's
 `ObservedLockSignals.qualifiedLiveVersions` is still empty; extracting this
-provider does not grant complete lifecycle or Release qualification. Remaining
-work includes raw locked Keychain measurement, outstanding privacy/UI evidence
-and deliberate final product integration.
+provider alone did not grant lifecycle or Release qualification. The then-pending
+raw lock measurement, privacy/UI and integration subsequently completed within
+their [documented scopes](PHASE1_ACCEPTANCE.md). The legacy probe list is not an
+instruction to repeat those scenarios.
 
 ## Architecture audit
 

@@ -1,5 +1,7 @@
 # PR #9 合并前：Secure Input 监视任务与存储维护
 
+> Status reconciliation (2026-10-01): this is a dated record for the candidates and rounds named below. “Current”, “next”, “pending” and BLOCKED refer to that checkpoint, not today's work queue. The approved Apple Silicon Phase 1 MVP is complete and merged; see [current acceptance](PHASE1_ACCEPTANCE.md) and [roadmap](ROADMAP.md). Original observations and failures retain their scope; these instructions do not authorize another host round.
+
 日期：2026-09-26。分支 `codex/privacy-measure-tools`。工作树 `/Users/bytedance/Documents/KeyRecord-measure-prep`。针对已评审提交 `3599851b1e7af966c11100ec92b8c149ba41b01b` 上的 Bugbot 线程 `discussion_r4107773583`。
 
 本文件只记录离线复现、修复和测试。没有新的实机采集、锁屏、密码框、系统权限或真实钥匙串操作。单机 Debug 通过不等于 Phase 1 正式验收。

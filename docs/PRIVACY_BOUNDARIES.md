@@ -5,11 +5,12 @@ exception in the normative architecture does not authorize an endpoint here.
 T20 adds evidence about the existing product; it does not change capture,
 attribution, storage, consent, or Keychain composition.
 
-Current scope: FR-P1 does not require another host packet capture. Its product
-source scan and negative fixtures must remain valid, and the exact signed
-Release executable still needs its own capability audit before release. The
-2026-09-29 Apple Silicon MVP decision defers Intel host performance; it does
-not turn the missing signed-binary audit or other privacy evidence into PASS.
+Current scope (2026-10-01): the scoped MVP's source and exact signed Release
+capability audits completed; see [candidate evidence](RELEASE_CANDIDATE_20261001.md)
+and [acceptance](PHASE1_ACCEPTANCE.md). FR-P1 does not require another host packet
+capture. Future changed binaries require their own applicable audit; an old audit
+does not qualify a new executable. Intel/full G1 and public distribution remain
+separate. The missing-audit statements in earlier reports describe those candidates.
 
 ## Deterministic code evidence
 
@@ -40,7 +41,8 @@ not turn the missing signed-binary audit or other privacy evidence into PASS.
   are unchanged; this test does not claim to remove all application attribution.
 - `PrivacyEgressTests` independently scans product `Sources` and `App/KeyRecordApp`
   for network/shell APIs and HTTP(S) literals outside comments. It excludes tests
-  and probes. T19's Release isolation checks remain unchanged.
+  and probes. Later Release integration promoted the exact-item Keychain backend and version-scoped
+  lock provider while retaining diagnostic/test-only exclusion.
 - `Scripts/audit-product-network.sh <Mach-O>` checks **built executable bytes**
   with `nm -u -arch all` and `strings -a`, including network APIs, socket imports,
   endpoint literals and shell references. Missing, empty, non-Mach-O and symlink
@@ -77,7 +79,7 @@ These checks establish absence of identified networking capability in the audite
 code and binary; they do not claim an OS-enforced sandbox or a measured zero-packet
 result. No host capture is required for this milestone's FR-P1 acceptance.
 
-## Attempt-local G1 evaluation
+## Historical attempt-local G1 evaluation
 
 Generate and verify a new projection under `$A`, never overwrite the historical
 `evidence/phase1/readiness.json` snapshot:
@@ -89,17 +91,12 @@ swift run --package-path Spikes EvidenceValidator verify-current-readiness \
   "$A/current-projection.json"
 ```
 
-Both commands legitimately exit 2 while G1 is BLOCKED. `capture`, `privacy`, and
-`encryptedPersistence` qualification receipts remain missing; fake tests and static
-audits are not endorsed producers. `privacy` still requires both
-`t20.network.noClientCapability` and `t20.persistence.noEventLevelData`. The former
-must bind the source and exact Release-executable audit results to the candidate.
-Task 7 authorized host lifecycle evidence and producer endorsement remain
-independent requirements. Native Apple Silicon product performance remains
-necessary for the current MVP; Intel product performance belongs to complete
-G1/v1. FR-P6 full backup is neither
-implemented nor passed by these tests. T24 publishes the [milestone status](MILESTONE_STATUS.md)
-and attempt-local readiness only; T15's tracked snapshot is not republished before T25.
+These commands explicitly supply `--lifecycle none`; BLOCKED/2 describes that
+receipt input set. Old producer receipts are not fabricated or replaced by prose.
+This is not a live recomputation of the later scoped MVP, whose signed source/binary
+audit and host results are in [acceptance](PHASE1_ACCEPTANCE.md). Short ARM performance
+retains its Debug fixed-replay scope. Intel and FR-P6 full backup remain later work.
+No packet capture or historical receipt generation is required for this status update.
 
 File counts, lengths and filesystem modification times remain known side channels;
 system crash dumps and unlocked privileged local access are outside this proof.

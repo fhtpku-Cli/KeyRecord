@@ -5,8 +5,8 @@
 | 项目 | 内容 |
 |---|---|
 | 文档版本 | v0.1（草案） |
-| 日期 | 2026-09-03 |
-| 状态 | 待评审 |
+| 日期 | 架构草案 2026-09-03；状态口径核对 2026-10-01 |
+| 状态 | 全产品架构规格；历史实验结论不等于当前 MVP 状态 |
 | 对应需求文档 | PRD v0.2（2026-09-03，修订草案），本文不修改其任何需求、数字、术语与非目标 |
 | 目标读者 | 工程、QA、安全 QA；产品与设计师可参考第 1、2、14、15 章 |
 | 承接关系 | 承接 PRD 未决事项 O5（最终 API 与 spike 验证细节）；O1/O2/O3/O4/O6/O7 在本文中仅映射到决策或门禁，不擅自落定 |
@@ -210,7 +210,7 @@ struct ObservedKeyEvent {
 
 ### 4.3 事件 Tap 位置与已知边界情况【Spike 门禁 SP-1】
 
-> **Current-status note — status-tap:** The Phase 0 status paragraph below is historical/stale local prose. [Validated current fields](PROJECT_STATUS.md#parsed-current-state) `gates[id=G0].status=PASS` and `historicalAssessment.g0.candidate_selection=session` supersede its OPEN/unselected status claim, not the normative listen-only/observation boundary. The sealed SP1 selected-NONE description is explicitly identified in [historical limits](PROJECT_STATUS.md#historical-descriptions-not-current-authority).
+> **Current-status note — status-tap (2026-10-01):** Phase 0's unselected tap/G0 OPEN writeback below is historical. The bound T24 projection later recorded G0 PASS and session selection. Current product capture is recorded in [acceptance](PHASE1_ACCEPTANCE.md); neither result broadens the listen-only boundary or platform support.
 
 Tap 的具体挂载点（HID 级 / Session 级 / Annotated Session 级）不由本文冻结，由 SP-1 决定。选择标准是：在用户已启用 Karabiner-Elements 的典型环境中，观测到的是变换后的事件，且每个物理按下只观测到一次。
 
@@ -236,7 +236,7 @@ Tap 的具体挂载点（HID 级 / Session 级 / Annotated Session 级）不由�
 
 ### 4.4 PrivacyGate（隐私门）
 
-> **Current-status note — status-privacy:** The Phase 0 O6 OPEN paragraph below is historical/stale prose; current `historicalAssessment.o_items[id=O6].status=RESOLVED` is bound-generation evidence only ([projection](PROJECT_STATUS.md#parsed-current-state)). The formula below is not a complete approved product lock gate: [fixed contracts 4–5](PHASE1_CONTRACT.md#4-signed-lifecycle-and-lock-detector) also require key availability/session unlock, unknown-state closure and a generation fence. This note records approval, not implementation success.
+> **Current-status note — status-privacy (2026-10-01):** The scoped MVP's signed Keychain/privacy results are in [acceptance](PHASE1_ACCEPTANCE.md). Raw reads succeeded during screen lock, so the independent software lock boundary remains essential. Old SP6A/O6 receipts retain their original scope. Apply [contracts 4–5 and 8](PHASE1_CONTRACT.md): fresh checks, unknown-state closure and loss since the last durable commit, with no fixed time guarantee.
 
 隐私门位于 EventSource 与 Normalizer 之间，是所有事件的必经路径。FrontmostAppProvider 的输出为三态：
 
@@ -268,7 +268,7 @@ appBucket = frontmostState == .known(b) ? b : UNKNOWN   // knownUnattributable �
 
 ### 4.5 修饰键重建与规范化
 
-> **Current-status note — status-modifiers:** The local OPEN/no-sleep/blocked-recovery writeback below is historical/stale, not a live inventory. Use [projection](PROJECT_STATUS.md#parsed-current-state) `historicalAssessment.o_items[id=O6]` and its bound SP2 evidence paths for measured status; current lifecycle still requires its own `receipt.sleepWake`. No normative modifier rule below is replaced, and no host action is authorized.
+> **Current-status note — status-modifiers (2026-10-01):** Historical missing sleep/recovery evidence is not a current task list. Later [sleep](SLEEP_WAKE_SECOND_ROUND_20260929.md) and [Release input/readback](RELEASE_INPUT_ROUND_20261001.md) observations retain their candidates. Unknown side is valid until coherent events establish it; no repeat is required just to relabel an unknown.
 
 - Normalizer 维护一个由 `flagsChanged` 事件驱动的修饰键状态机，每个修饰键族（cmd/opt/ctrl/shift）的状态为五态之一：`none / left / right / both / activeSideUnknown`（见 4.6）。
 - 以下任一发生后，受影响修饰键族置为 `activeSideUnknown`：事件丢失迹象（如 flagsChanged 序列不自洽）、tap 重置、系统唤醒。状态在收到该族下一个确定性的修饰键事件后重新建立为 left/right/both（C3）。
@@ -361,7 +361,7 @@ struct Chord: Hashable {
 
 ### 5.2 加密对象存储设计（ADR-002）
 
-> **Current-status note — status-storage:** Historical crypto/atomicity fixtures do not close `gates[id=SP6A_LOCAL_LIFECYCLE]` or `gates[id=G1_IMPLEMENTATION]` ([current projection](PROJECT_STATUS.md#parsed-current-state)); the old G1 ← G0 status prose below is stale. The approved milestone [wire and recovery contracts 6–7](PHASE1_CONTRACT.md#6-storage-wire-contract) specify measured v1's 64-byte/UInt32 header rather than the illustrative UInt16 header below, authenticated recovery before orphan cleanup, and complete protected-reference scanning. This is an allocation/precedence note, not a rewrite of the historical design illustration or a claim of implemented recovery.
+> **Current-status note — status-storage (2026-10-01):** [Wire/recovery contracts 6–7](PHASE1_CONTRACT.md#6-storage-wire-contract) take precedence over the early illustration below: 64-byte header, UInt32 keyVersion, authenticated recovery before orphan cleanup and complete protected-reference scans. Current implementation evidence is in [acceptance](PHASE1_ACCEPTANCE.md). Historical projection BLOCKED rows are not a new MVP verdict.
 
 数据规模论证：明细为 `(chord, appBucket, dayKey)` 粒度的日聚合记录与裸键日计数记录。重度使用下一年为数十万条记录量级、个位数 MB，按 `(cycleId, dayKey, aggregateType)` 分片后单分片体积小，整体重写代价可忽略。对象数量小、写入频率低、无关系查询需求。SQLite 默认不加密，引入 SQLCipher 会增加一个需要审计的原生依赖；因此选择自有的、可完整审计的加密对象存储。
 
@@ -390,7 +390,7 @@ struct Chord: Hashable {
 
 ### 5.3 密钥生命周期（版本化密钥环）
 
-> **Current-status note — status-keyring:** Read `localLifecycleAssessment` and `gates[id=SP6A_LOCAL_LIFECYCLE].unresolvedCauses`, not the historical selection-only wording below ([projection](PROJECT_STATUS.md#parsed-current-state)). [Owner approval](PHASE1_CONTRACT.md#allocation-and-owner-approval) requires lock to stop capture/protected reads and fresh checks before resume; fixed contract 4 makes AfterFirstUnlock comparison-only, never fallback. Qualification remains BLOCKED, with no guaranteed Swift/CryptoKit copy zeroization claim.
+> **Current-status note — status-keyring (2026-10-01):** The scoped product uses WhenUnlockedThisDeviceOnly with independent software lock closure; raw screen-lock reads returned success on this host. See [measurement](RAW_KEYCHAIN_LOCK_PREP_20261001.md) and [acceptance](PHASE1_ACCEPTANCE.md). AfterFirstUnlock remains comparison-only, never fallback; no Swift/CryptoKit zeroization guarantee is made. Missing-entitlement reports below are historical.
 
 - 本地密钥材料为一组版本化的 Keychain 对称密钥项（密钥环）：每个密钥版本是一个独立的 Keychain 项，可访问性全部限定为仅本机、不同步（`ThisDeviceOnly` 族），不随 iCloud Keychain 或任何云同步（EK1、P4）。【架构决策，具体可访问性级别以 SP-6A 验证为准】
 - **密钥版本化**：信封头携带 `keyVersion`，指向密钥环上的对应版本。每个版本项为当版主密钥；对象加密键与定位键（locatorKey）经 HKDF 以不同 info 标签从当版主密钥派生（密钥分离，SP-6A 定稿）。轮换时生成新版本主密钥项；读取时按信封版本从环上选择派生来源，写入一律用当前版本。旧版本密钥项被显式保留，直至其保护的对象全部完成重加密或被删除；不存在"单一根密钥自动解开所有历史版本"的机制。轮换是否触发全量重加密由 SP-6A 的性能实测决定，首版允许惰性（读时重写）策略。
@@ -885,7 +885,7 @@ recordVerification(mapping, batch, artifact, method, result):
 
 ## 13. Spike 门禁表（承接 O5）
 
-> **Current-status note — status-summary:** The G0 OPEN summary and static dependency list after this table are historical/stale writebacks. [Current schema](PROJECT_STATUS.md#parsed-current-state) `gates[id=G0]` is PASS without unresolved causes; `gates[id=G1_IMPLEMENTATION]` is BLOCKED for lifecycle plus capture/privacy/encryptedPersistence receipts, not G0. `retainedReleaseBlockers` preserves independent release blockers. The spike table's normative exit criteria are unchanged; bound Phase 0 measurements do not prove product implementation.
+> **Current-status note — status-summary (2026-10-01):** The spike table and dependency writeback describe their historical generation. Scoped Apple Silicon Phase 1 is complete; full G1/v1, FR-P6 and backend/public-release requirements are not. Use [roadmap](ROADMAP.md) and [acceptance](PHASE1_ACCEPTANCE.md). Historical JSON is not regenerated to match prose.
 
 凡【Spike 门禁】标记的内容，未通过前不得冻结 API、版本矩阵或行为承诺。每项 spike 产出书面结论并回写本文对应章节。
 
@@ -911,7 +911,7 @@ recordVerification(mapping, batch, artifact, method, result):
 
 ### 14.1 功能需求到组件与测试
 
-> **Current-status note — status-allocation:** This table is the full product roadmap, not a checklist of completed implementations. [Milestone allocation](PHASE1_CONTRACT.md#allocation-and-owner-approval) covers FR-C1–C8 and FR-P1–P5/P7 plus native support views, preserving opaque backend fixtures without mapping actions. FR-P6 and later roadmap requirements remain independently required; `retainedReleaseBlockers` in the [projection](PROJECT_STATUS.md#parsed-current-state) is not a waiver mechanism.
+> **Current-status note — status-allocation (2026-10-01):** This is full-product allocation, not a list of completed implementations. [Phase 1 scope](PHASE1_CONTRACT.md#allocation-and-owner-approval) covers FR-C1–C8, FR-P1–P5/P7 and native support views. FR-P6, full FR-R/FR-E and backend requirements remain open; see [roadmap](ROADMAP.md).
 
 | PRD 组 | 需求要点 | 架构组件 | 验证 |
 |---|---|---|---|
@@ -945,7 +945,7 @@ recordVerification(mapping, batch, artifact, method, result):
 
 ### 14.3 未决事项承接
 
-> **Current-status note — status-o6:** O6 OPEN in the table below is historical/stale local prose. The [validated projection](PROJECT_STATUS.md#parsed-current-state) carries `historicalAssessment.o_items[id=O6].status=RESOLVED`, bounded to its `evidence_paths`/historical source identity. This does not remove current lifecycle receipts or expand the support envelope.
+> **Current-status note — status-o6 (2026-10-01):** O6 OPEN below is historical; the T24 projection later recorded RESOLVED for its bound SP2 generation. See [current product status](PROJECT_STATUS.md) for later measured qualification. Neither result expands C7/C8 or support to every macOS version.
 
 | 编号 | 承接方式 |
 |---|---|
@@ -961,7 +961,7 @@ recordVerification(mapping, batch, artifact, method, result):
 
 ## 15. 分阶段交付与发布门禁
 
-> **Current-status note — status-release:** The Phase 0 writeback below is a historical static dependency description, not current acceptance. Use [projection](PROJECT_STATUS.md#parsed-current-state) `gates` and `retainedReleaseBlockers`: G0 PASS; lifecycle/G1_IMPLEMENTATION BLOCKED; KARABINER_STABLE, VIA_GENERATION, VIAL_BETA and FULL_BACKUP_FINAL_RELEASE retained. FR-P6 full password backup remains independently required. The 2026-09-29 Apple Silicon MVP decision removes Intel evidence from MVP qualification, but does not turn the original full G1/v1 dual-architecture gate into PASS. A future receipt-gate PASS also does not alone prove the Apple Silicon product-performance requirement or the later Intel requirement. SP6B Intel KDF timing belongs to full backup/final release, not this MVP.
+> **Current-status note — status-release (2026-10-01):** The scoped Apple Silicon Phase 1 objective completed and merged on 2026-10-01. The phase table retains full-product exit criteria; full G1/v1 is not claimed. Phase 2 is a logical prototype, not G2 completion. Karabiner, VIA/Vial, FR-P6 and public release remain open. Intel is deferred from this MVP, including separate SP6B Intel KDF timing for backup. See [roadmap](ROADMAP.md).
 
 风险驱动的交付顺序：先消除不确定性（spike），再建地基（隐私与存储），再做确定性分析，再做稳定后端，最后做 Beta 后端。
 
@@ -981,7 +981,7 @@ v1 发布门禁：PRD 第 15 章 17 项验收全部通过。
 
 ## 16. ADR 记录
 
-> **Current-status note — status-adr:** ADR status cells are historical evidence writebacks; ADR-003's unselected tap is stale against `historicalAssessment.g0.candidate_selection`, while ADR-002/009/011 lifecycle limits remain represented by `gates[id=SP6A_LOCAL_LIFECYCLE]`. Consult [bound current fields](PROJECT_STATUS.md#parsed-current-state), including `bindings`, rather than prose as proof. ADR-010's pending product-review sentence predates the [2026-09-12 owner approval](PHASE1_CONTRACT.md#allocation-and-owner-approval): reset retains exactly §5.1 CycleSummary fields plus existing mappings/backups/ignored items/preferences, not daily details/sourceCounts/kind/scopeClass. The same approval supplies lock/read stops and conditional fresh-check resume. These are approved constraints, not verified implementation claims.
+> **Current-status note — status-adr (2026-10-01):** ADR status cells retain historical evidence writebacks. Tap/lifecycle blockers below are not current acceptance; see [PROJECT_STATUS](PROJECT_STATUS.md). ADR-010's pending-review wording predates [owner approval](PHASE1_CONTRACT.md#allocation-and-owner-approval): reset retains exactly CycleSummary plus mappings/backups/ignored items/preferences, not daily details/sourceCounts/kind/scopeClass. No new architecture choice is introduced.
 
 | 编号 | 决策 | 备选方案（已拒绝） | 理由与状态 |
 |---|---|---|---|

@@ -2,6 +2,13 @@
 
 ## Current Apple Silicon MVP status — 2026-10-01
 
+PR #17 merged into `main` as `8bb99e81a6ea411c5e167e156a548372e961c44d`
+on 2026-10-01 at 03:50:59 Asia/Shanghai. The merge has the same file tree as
+accepted PR head `7102d2c0`; its [main CI](https://github.com/fhtpku-Cli/KeyRecord/actions/runs/36768522338)
+passed. No new live run or re-sign is implied by the merge. Use the [document
+index](STATUS_INDEX.md) and [roadmap](ROADMAP.md) for navigation and next work.
+The measured MVP is complete; full G1/v1 and Phase 2 are not.
+
 Current acceptance: [Phase 1 evidence](PHASE1_ACCEPTANCE.md).
 Earlier autonomous checkpoint: [MVP closeout](MVP_CLOSEOUT_20260929.md).
 The [Release dependency integration](RELEASE_CANDIDATE_20261001.md) now compiles
@@ -26,11 +33,32 @@ Normal exit took 175.366 seconds with no remaining instance; the owner confirmed
 all changed system settings restored to their original disabled states. Both CI
 jobs on documentation follow-up `a518f34b` pass. The Apple Silicon Phase 1 objective
 is complete with the measured platform and candidate boundaries below; PR #17
-remains draft and unmerged.
+is merged. No further owner-assisted Phase 1 round is scheduled.
 Public distribution is outside scope. Completed lock/sleep/performance/Keychain
 rounds are not reopened.
 
-Current integration increment (2026-10-01): Debug and Release now share lock
+### Current limits and next work
+
+- Runtime qualification is native arm64 macOS 27.0 build `26A428` only. macOS 14+
+  is the deployment floor, not verified support for every intervening version.
+- Trial identity: `com.keyrecord.phase1.probe.host`. Its development profile expires
+  2026-10-07 at 17:39:57 Asia/Shanghai. Public distribution is not qualified.
+- Short ARM resource results remain Debug fixed replay, not a new Release event-tap
+  benchmark. No routine repeat is required by this MVP.
+- Phase 2 logical analysis exists, but the product screen uses Phase 1 aggregates.
+  Full FR-R/FR-E and G2 remain incomplete. Analysis integration and ongoing local
+  build/update usability are recommended next work, not executed here.
+- Phase 3/4 backends, FR-P6, Intel and public release retain their own requirements.
+
+## Historical checkpoint log
+
+Everything below records earlier checkpoints and their original evidence limits.
+Words such as "current", "next", "pending" and "blocked" apply to the adjacent
+candidate/date, not the merged MVP above. A later pass does not rewrite an earlier
+failure, skip or missing measurement. Consumed paths and old approvals do not
+authorize a new host round.
+
+Integration checkpoint (2026-10-01): Debug and Release now share lock
 notification closure, startup key-gate priming and explicit capture-entry checks.
 A suspended startup lock read previously reopened the key gate after a lock
 notification; the new regression reproduced both gate reopening and a backend
@@ -939,7 +967,10 @@ The sections below retain historical checkpoints and existing qualification rule
 
 ## Authority and reproduction
 
-This is the current-status entry point, not a new Phase 0 conclusion or a release approval. The repository-contained [approved contract](PHASE1_CONTRACT.md#allocation-and-owner-approval) establishes precedence: owner contract > PRD normative behavior > architecture normative behavior > verified current evidence for measured facts. Requirement allocation and implementation constraints are in [PHASE1_CONTRACT.md](PHASE1_CONTRACT.md).
+This section describes the historical receipt workflow; current measured status
+is at the top of this document. The [approved contract](PHASE1_CONTRACT.md#allocation-and-owner-approval)
+establishes precedence: owner contract > PRD behavior > architecture behavior >
+verified evidence for measured facts. It is not release approval.
 
 The observation below was rechecked from a clean schema-v1 projection at base `064164e47fe2dfb1957ea8fc601269ecb2c8812e` in T24. Exact attempt identities are in the milestone report. It is not a promise about a later checkout. Generate a fresh, nonexisting output under the current attempt, then validate it using the built `EvidenceValidator`:
 
@@ -953,7 +984,11 @@ Generation/verification returning 2 means a valid BLOCKED projection, not a pars
 
 ## Parsed current state
 
-Selectors below refer to the validated current projection, with array rows selected by exact `id` (not position or phrase matching).
+This heading/anchor is retained for existing links. This is the **historical T24
+schema-v1 projection at `064164e`**, not the 2026-10-01 product status. Selectors
+refer to that validated projection, with rows selected by exact `id`. Missing
+receipt verdicts remain unchanged; they do not erase later signed observations
+or confer full G1/v1 approval. No historical projection was regenerated.
 
 | Claim / reference ID | Parsed field | Observed value and limit |
 |---|---|---|

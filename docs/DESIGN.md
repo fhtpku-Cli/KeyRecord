@@ -1,5 +1,10 @@
 # KeyRecord native design contract
 
+Status — 2026-10-01: the scoped Phase 1 native walkthrough completed on signed
+Release; see [observations and limits](RELEASE_NATIVE_UI_PREP_20261001.md). T22/T23
+descriptions distinguish automated and owner-observed surfaces, not exhaustive
+accessibility coverage. Phase 2 dashboard qualification remains separate.
+
 ## 0. Reference selection
 Task 10 establishes primitives, not capture or settings business flows. The reference
 is macOS Human Interface Guidelines and standard AppKit/SwiftUI controls:

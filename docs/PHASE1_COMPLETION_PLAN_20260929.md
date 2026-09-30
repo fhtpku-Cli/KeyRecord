@@ -1,20 +1,22 @@
 # Apple Silicon Phase 1 completion
 
-Owner instruction: complete Phase 1 autonomously until a concrete step needs
-owner cooperation. Work remains in the isolated PR #17 checkout. Public release,
-Intel, packet capture and Phase 3/4 backends are outside this continuation.
+Completed plan: Phase 1 concluded and PR #17 merged as `8bb99e81` on 2026-10-01
+(Asia/Shanghai), with merge CI passing. Current work is indexed in [ROADMAP](ROADMAP.md).
+Sequences and approvals below are history, not instructions to restart a finished
+goal. Public release, Intel, packet capture and Phase 3/4 were outside that continuation.
 
 ## Completion criteria
 
 Deliver a candidate whose capture, privacy closure, encrypted persistence,
 restart/recovery, consent and aggregate presentation satisfy the existing
 Phase 1 specification. Preserve existing fail-closed behavior and separate
-observed candidate behavior from broader unverified claims. Do not merge PR #17.
+observed candidate behavior from broader unverified claims. The original request
+stopped before merge; the owner subsequently authorized and completed merging PR #17.
 
 The completed two-window ARM fixed-replay measurement and bounded lock/sleep
 recovery remain evidence for their stated candidates; no routine repeat is planned.
 
-## Work order
+## Completed work order (historical)
 
 1. Reconcile the current remaining requirements against executable product code.
    Fix reproducible functional gaps and run focused regressions. In particular,
@@ -46,9 +48,15 @@ recovery remain evidence for their stated candidates; no routine repeat is plann
   [T23 signed-host accessibility/appearance walkthrough](RELEASE_NATIVE_UI_PREP_20261001.md)
   now passes as an owner-assisted observation, with normal exit and confirmed
   restoration of all changed settings. Both CI jobs on `a518f34b` pass. The scoped
-  Apple Silicon Phase 1 objective is complete; PR #17 remains draft and unmerged.
+  Apple Silicon Phase 1 objective is complete; PR #17 is merged as `8bb99e81`.
   Native ten-test evidence retains its distinct scope. Do not repeat input
   just to relabel unknown as left, or repeat completed lock/sleep/performance/Keychain work.
+
+## Earlier checkpoint log
+
+All entries below are dated intermediate results. Their pending follow-ups and
+approval requests have been consumed or superseded by current acceptance above;
+they do not schedule more owner work or change any earlier measurement.
 
 - Shared Debug/Release privacy wiring is implemented: startup priming, synchronous
   lock closure and manual-entry checks. A reproduced stale startup-lock reply is

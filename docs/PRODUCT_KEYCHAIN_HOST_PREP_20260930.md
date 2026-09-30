@@ -1,5 +1,7 @@
 # Product Keychain backend hosted preparation
 
+> Status reconciliation (2026-10-01): this is a dated record for the candidates and rounds named below. “Current”, “next”, “pending” and BLOCKED refer to that checkpoint, not today's work queue. The approved Apple Silicon Phase 1 MVP is complete and merged; see [current acceptance](PHASE1_ACCEPTANCE.md) and [roadmap](ROADMAP.md). Original observations and failures retain their scope; these instructions do not authorize another host round. Subsequent [product composition](PRODUCT_COMPOSITION_ROUND_20260930.md), [locked restart](PRODUCT_LOCKED_RESTART_PREP_20261001.md) and [Release integration](RELEASE_CANDIDATE_20261001.md) supersede then-open follow-up items, within their own evidence scopes.
+
 Status: the separately approved [real Keychain round](PRODUCT_KEYCHAIN_ROUND_20260930.md)
 on signed `25ef0f117` passed one actual test with no failures/skips, including exact
 test-item cleanup; the host exited normally. Full product privacy/recovery and

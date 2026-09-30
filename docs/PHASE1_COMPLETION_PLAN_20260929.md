@@ -31,6 +31,11 @@ recovery remain evidence for their stated candidates; no routine repeat is plann
 
 ## Current state
 
+- A deterministic [Secure Input rebuild race](SECURE_INPUT_RECOVERY_RACE_20260930.md)
+  is repaired; all 65 product recovery/quit cases and native unsigned Release
+  compilation pass. The same suite connects the real product Keychain backend to
+  the observer and missing-material recovery scenarios using a memory Security
+  client. Full signed host assembly and independent lock authority remain open.
 - The owner-approved [real Keychain round](PRODUCT_KEYCHAIN_ROUND_20260930.md) now
   passes on signed `25ef0f117`: one executed case, no failures/skips, exact cleanup
   and normal host exit within 10.327 seconds. This supersedes the preparation-only

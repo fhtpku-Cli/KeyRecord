@@ -1,6 +1,7 @@
 import Foundation
 import XCTest
 import AppKit
+import Security
 import KeyRecordCore
 import LifecycleHosted
 import LifecyclePreflight
@@ -263,6 +264,7 @@ private final class SyntheticTap: CaptureTapBackend, @unchecked Sendable {
 private final class SyntheticProduct {
     let host = SyntheticHost()
     let keychain: MemoryKeychain
+    var backendOverride: (any KeychainBackend)?
     let notifications = ManualLockNotifications()
     let root: URL
     let journal: URL
@@ -290,7 +292,11 @@ private final class SyntheticProduct {
     }
 
     /// A later launch against the same synthetic store and keychain.
-    func relaunch() -> SyntheticProduct { SyntheticProduct(root: root, keychain: keychain) }
+    func relaunch() -> SyntheticProduct {
+        let next = SyntheticProduct(root: root, keychain: keychain)
+        next.backendOverride = backendOverride
+        return next
+    }
 
     var storeRoot: URL { root.appendingPathComponent("app/store", isDirectory: true) }
 
@@ -299,7 +305,7 @@ private final class SyntheticProduct {
         let replayController = self.replayController
         var boundaries = ProductHostBoundaries(
             storeRoot: storeRoot, namespace: try KeychainNamespace("com.keyrecord.synthetic"),
-            backend: keychain, login: SilentLogin(),
+            backend: backendOverride ?? keychain, login: SilentLogin(),
             localCapture: LocalDevelopmentCapture(armed: true),
             eventSource: { [weak self] queue, qualification, _ in
                 if let replayController {
@@ -470,8 +476,9 @@ final class ProductRecoveryQuitTests: XCTestCase {
         products.removeAll()
     }
 
-    private func collecting(journal: Bool = true) async throws -> SyntheticProduct {
+    private func collecting(journal: Bool = true, backend: (any KeychainBackend)? = nil) async throws -> SyntheticProduct {
         let product = try SyntheticProduct.fresh()
+        product.backendOverride = backend
         products.append(product)
         try await product.boot(journal: journal)
         // Fresh install: Start opens consent, then the consent screen's Accept starts capture.
@@ -556,16 +563,79 @@ final class ProductRecoveryQuitTests: XCTestCase {
         XCTAssertEqual(controller.emit(tick: 1), 0)
     }
 
-    func testExplicitStartAfterLockAndUnlockReestablishesCollecting() async throws {
-        let product = try await collecting()
+    func testProductBackendMissingMaterialPreservesStoreAndRecoversOriginalData() async throws {
+        let client = MemoryLocalKeychainClient()
+        let backend = LocalKeychainBackend(client: client)
+        let product = try await collecting(backend: backend)
         try await product.press(2)
         try await product.waitDurable()
+        await product.composition.requestQuit()
+
+        let namespace = try KeychainNamespace("com.keyrecord.synthetic")
+        let storedMetadata = try await backend.read(.metadata(namespace))
+        let metadata = try XCTUnwrap(storedMetadata)
+        let current = try KeyringMetadata.decode(metadata).current
+        let storedMaterial = try await backend.read(.key(namespace, current))
+        let originalMaterial = try XCTUnwrap(storedMaterial)
+        try await backend.delete(.key(namespace, current))
+        func encryptedFiles() throws -> [String: Data] {
+            var files: [String: Data] = [:]
+            for name in try FileManager.default.subpathsOfDirectory(atPath: product.storeRoot.path) {
+                let url = product.storeRoot.appendingPathComponent(name)
+                if try url.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile == true {
+                    files[name] = try Data(contentsOf: url)
+                }
+            }
+            return files
+        }
+        let encryptedBefore = try encryptedFiles()
+        XCTAssertFalse(encryptedBefore.isEmpty)
+        let beforeRestartQueries = client.queries.count
+
+        let next = product.relaunch()
+        products.append(next)
+        try await next.boot()
+        await next.composition.startOrRetry()
+        XCTAssertNotEqual(next.phase, .collecting)
+        let live = await next.live
+        XCTAssertFalse(live)
+        XCTAssertFalse(next.keyGateOpen)
+        XCTAssertFalse(next.composition.flow.sensitiveContentVisible)
+        XCTAssertEqual(try encryptedFiles(), encryptedBefore)
+        XCTAssertFalse(client.queries.dropFirst(beforeRestartQueries).contains {
+            $0[kSecValueData as String] != nil
+        }, "Existing encrypted data must not trigger replacement key creation")
+        let retainedMetadata = try await backend.read(.metadata(namespace))
+        let missingMaterial = try await backend.read(.key(namespace, current))
+        XCTAssertTrue(retainedMetadata == metadata)
+        XCTAssertNil(missingMaterial)
+
+        try await backend.add(.init(id: .key(namespace, current), material: originalMaterial,
+                                    policy: .candidateWhenUnlockedThisDeviceOnly))
+        await next.composition.startOrRetry()
+        XCTAssertEqual(next.phase, .collecting)
+        let recoveredTotal = try await next.diskBareTotal()
+        XCTAssertEqual(recoveredTotal, 2)
+        try await next.press(1)
+        try await next.waitDurable()
+        let continuedTotal = try await next.diskBareTotal()
+        XCTAssertEqual(continuedTotal, 3)
+    }
+
+    func testExplicitStartAfterLockAndUnlockReestablishesCollecting() async throws {
+        let client = MemoryLocalKeychainClient()
+        let initialReads = try XCTUnwrap(ProtectedReadActivity.process.snapshot).keychainReadStarted
+        let product = try await collecting(backend: LocalKeychainBackend(client: client))
+        try await product.press(2)
+        try await product.waitDurable()
+        XCTAssertGreaterThan(try XCTUnwrap(ProtectedReadActivity.process.snapshot).keychainReadStarted, initialReads)
 
         try await product.lockScreen()
         XCTAssertEqual(product.phase, .blocked)
         XCTAssertEqual(product.composition.lifecycle.state.blockedReason, .sessionLocked)
         XCTAssertFalse(product.keyGateOpen)
         XCTAssertEqual(try product.tap?.press(), .closed, "no delivery while closed")
+        let closedQueryCount = client.queries.count
 
         let observer = try XCTUnwrap(CounterWindowProductObserver(
             recorder: product.composition.diagnostics, interval: 0.02))
@@ -594,12 +664,14 @@ final class ProductRecoveryQuitTests: XCTestCase {
         XCTAssertEqual(waitingForStart?.protectedReadDelta, 0)
         XCTAssertEqual(waitingForStart?.publishDelta, 0)
         XCTAssertEqual(waitingForStart?.aggregateDelta, 0)
+        XCTAssertEqual(client.queries.count, closedQueryCount)
 
         await product.composition.startOrRetry()
         XCTAssertEqual(product.phase, .collecting)
         let liveAfterStart = await product.live
         XCTAssertTrue(liveAfterStart)
         XCTAssertTrue(product.composition.flow.sensitiveContentVisible)
+        XCTAssertGreaterThan(client.queries.count, closedQueryCount)
         try await product.press(1)
 
         let start = try XCTUnwrap(product.actionEnds("start").last)
@@ -1352,6 +1424,30 @@ final class ProductRecoveryQuitTests: XCTestCase {
             return live
         }
         try await product.press(1)
+    }
+
+    func testSecureInputClearingDuringFailedRebuildSettlementStillRecoversAutomatically() async throws {
+        let product = try await collecting(journal: false)
+        try await product.press(2)
+        await product.composition.stopBackgroundMaintenanceForFixture()
+        product.host.setSecureInput(.enabled)
+        product.host.scriptSecureInputReads([.enabled, .enabled, .enabled, nil])
+        defer { product.host.releaseSecureInputReads() }
+        let rebuild = Task { await product.composition.applyExclusions([]) }
+        try await waitUntil("failed rebuild reached settlement read") {
+            product.host.parkedSecureInputReads == 1
+        }
+        product.host.setSecureInput(.disabled)
+        product.host.completeNextSecureInputRead(.disabled)
+        await rebuild.value
+        try await waitUntil("cleared Secure Input automatically recovers failed rebuild") {
+            let live = await product.live
+            return live && product.phase == .collecting
+        }
+        try await product.press(1)
+        try await product.waitDurable()
+        let total = try await product.diskBareTotal()
+        XCTAssertEqual(total, 3)
     }
 
     func testUnknownSecureInputStaysClosed() async throws {

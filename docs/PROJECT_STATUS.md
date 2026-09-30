@@ -3,6 +3,13 @@
 ## Current Apple Silicon MVP status — 2026-09-29
 
 Latest autonomous checkpoint: [MVP closeout](MVP_CLOSEOUT_20260929.md).
+The latest offline work fixes a reproduced [Secure Input rebuild race](SECURE_INPUT_RECOVERY_RACE_20260930.md)
+that could require manual Start after Secure Input cleared during failure
+settlement. All 65 product recovery/quit cases and native unsigned Release
+compilation pass. Recovery tests also now use the actual App Keychain backend over
+an in-memory Security client: closed intervals make no queries, and missing key
+material with retained metadata preserves the encrypted files and recovers when
+the original material returns. These are offline results, not a new signed trial.
 The separately approved [real product Keychain backend round](PRODUCT_KEYCHAIN_ROUND_20260930.md)
 on signed `25ef0f117` passed: one executed case, no failures/skips, exact item
 cleanup, normal exit and no remaining host. Total controller duration was 10.327

@@ -699,7 +699,7 @@ final class ProductComposition: NSObject, NSMenuDelegate {
                 // Authoritative: the session is gone, so the UI must stop claiming it.
                 await MainActor.run { self?.captureSessionLive = false }
             },
-            openSession: { [weak self] _ in
+            openSession: { [weak self] conditions in
                 guard let self else { return false }
                 guard let preferences = await self.currentPreferences() else { return false }
                 let exclusion = await capture.reapplyPolicy(preferences: preferences)
@@ -712,6 +712,10 @@ final class ProductComposition: NSObject, NSMenuDelegate {
                 }
                 await MainActor.run {
                     self.captureSessionLive = live
+                    if !live, self.lifecycle.phase == .collecting {
+                        self.lifecycle.observe(self.lifecycle.state.conditions.with(secureInput: conditions.secureInput))
+                        self.lastSecureInput = conditions.secureInput
+                    }
                     #if DEBUG
                     self.diagnostics.record { $0.captureSessionLive = live }
                     self.diagnostics.notePrivacyInterval()
@@ -760,9 +764,12 @@ final class ProductComposition: NSObject, NSMenuDelegate {
         // Secure Input monitor retries once it clears.
         guard outcome == .blocked(.startFailed), lifecycle.phase == .collecting,
               !(await capture.hasLiveSession()) else { return }
+        let rebuildingSecureInput = lifecycle.state.conditions.secureInput
         let secureInput = await capture.secureInputState()
-        guard secureInput == .disabled else {
-            lastSecureInput = secureInput
+        // Clearing Secure Input during this read does not turn its rejected rebuild
+        // into a permanent failure. The monitor retries through fresh privacy checks.
+        guard rebuildingSecureInput == .disabled, secureInput == .disabled else {
+            lastSecureInput = rebuildingSecureInput != .disabled ? rebuildingSecureInput : secureInput
             return
         }
         try? await flush.flushWhileUnlocked()

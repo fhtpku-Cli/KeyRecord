@@ -6,6 +6,12 @@ Current status: [PROJECT_STATUS.md](PROJECT_STATUS.md). Requirements: [PHASE1_CO
 
 ## Evidence and remaining work
 
+The [Secure Input rebuild race repair](SECURE_INPUT_RECOVERY_RACE_20260930.md)
+passes a deterministic failing-first regression and all 65 product recovery/quit
+cases. The product observer and missing-material recovery now exercise the actual
+backend's metadata inventory/read path over a memory Security client. Native
+Release compiles with its existing restrictions; live recovery remains separate.
+
 The subsequent owner-approved [real Keychain round](PRODUCT_KEYCHAIN_ROUND_20260930.md)
 passed the actual App backend's isolated unlocked CRUD, policy-attribute and cleanup
 case on signed `25ef0f117`: one passed, zero failed/skipped, normal host exit.

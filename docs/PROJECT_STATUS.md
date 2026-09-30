@@ -3,6 +3,15 @@
 ## Current Apple Silicon MVP status — 2026-09-29
 
 Latest autonomous checkpoint: [MVP closeout](MVP_CLOSEOUT_20260929.md).
+The newest [full product hosted assembly](PRODUCT_COMPOSITION_HOST_PREP_20260930.md)
+compiles the actual App composition and counter observer into the existing probe.
+Its complete simulated input/privacy/save/reopen scenario passes through the
+guarded memory Keychain client. Sixteen hosted offline cases and 138 lifecycle
+cases pass; two real-Keychain opt-ins and one optional signed-disk fixture skip.
+Unsigned native Debug/Release probe builds pass. The real Keychain variant is
+prepared but unrun; signing and that bounded round need fresh approval. Independent
+OS lock authority and collecting Release remain open. Older assembly-pending
+statements below describe their earlier checkpoints.
 The latest offline work fixes a reproduced [Secure Input rebuild race](SECURE_INPUT_RECOVERY_RACE_20260930.md)
 that could require manual Start after Secure Input cleared during failure
 settlement. All 65 product recovery/quit cases and native unsigned Release

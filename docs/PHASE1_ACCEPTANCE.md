@@ -6,6 +6,14 @@ Current status: [PROJECT_STATUS.md](PROJECT_STATUS.md). Requirements: [PHASE1_CO
 
 ## Evidence and remaining work
 
+The [full product hosted assembly](PRODUCT_COMPOSITION_HOST_PREP_20260930.md) now
+connects actual composition, encrypted storage and counter observation in the
+existing probe. Sixteen offline hosted cases and 138 lifecycle cases pass, with
+two real-Keychain cases and one optional signed-disk fixture explicitly skipped.
+Debug/Release probe builds pass. This supersedes the older assembly-pending
+preparation below; real product Keychain execution and independent lock authority
+remain unverified.
+
 The [Secure Input rebuild race repair](SECURE_INPUT_RECOVERY_RACE_20260930.md)
 passes a deterministic failing-first regression and all 65 product recovery/quit
 cases. The product observer and missing-material recovery now exercise the actual

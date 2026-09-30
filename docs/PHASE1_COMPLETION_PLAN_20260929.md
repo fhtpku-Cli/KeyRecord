@@ -31,6 +31,12 @@ recovery remain evidence for their stated candidates; no routine repeat is plann
 
 ## Current state
 
+- [Full product hosted assembly](PRODUCT_COMPOSITION_HOST_PREP_20260930.md) now
+  compiles and passes the complete simulated save/privacy/reopen scenario in the
+  existing probe. Sixteen hosted offline cases and 138 lifecycle cases pass;
+  Debug/Release probe builds pass. The opt-in full-product real Keychain case is
+  prepared but unrun. This advances the older assembly-open entries below;
+  independent OS lock authority and collecting Release remain open.
 - A deterministic [Secure Input rebuild race](SECURE_INPUT_RECOVERY_RACE_20260930.md)
   is repaired; all 65 product recovery/quit cases and native unsigned Release
   compilation pass. The same suite connects the real product Keychain backend to

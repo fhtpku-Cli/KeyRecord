@@ -83,3 +83,29 @@ no sleep, permission toggles, manual test keys or installation are needed.
 
 No signed build or physical product locked-startup run is claimed by the offline
 results above. Preserve the current restriction until its exact result is inspected.
+
+## Signed preparation result
+
+Source `3174772037ac18e40a822e0bab12f278f41486b8` was built using existing profiles
+and certificate in `/private/tmp/keyrecord-product-locked-startup-20260930`.
+The reviewed signing controller finished in 27.617 seconds with exit 0, no forced
+stop, no remaining build process group and no App launch. Independent review
+verified the host/plugin signatures, permissions and existing profiles. No
+provisioning update or installation occurred.
+
+The private controller is `/private/tmp/keyrecord-product-locked-startup-round.py`;
+its exact-path host helper is `/private/tmp/KeyRecordLockedStartupControl`.
+Review found a cancellation race in the new readiness wait. It now rejects stop
+requests after each lock-state read, after preflight and before `Popen`; synthetic
+tests cover a stop arriving inside the read and forbid any subsequent launch.
+The complete synthetic controller self-test passes. The host budget also reserves
+15 seconds of the overall 180-second window for termination confirmation.
+Swift helper compilation and Python syntax validation pass without installing LSPs.
+The controller's actual `--check` passes for the exact signed source and selected
+test, reporting no host launch, no manifest write and zero real Keychain calls.
+The independent presence helper reports no exact or foreign probe instance.
+The reviewer reran the synthetic suite and cleared the cancellation fix in
+`/private/tmp/.omo/evidence/locked-startup-controller-rereview-code-review.md`.
+
+The selected real case has not run. No product locked-startup PASS, Keychain items
+or physical test window are claimed by this signing preparation.

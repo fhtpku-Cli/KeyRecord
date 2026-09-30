@@ -19,7 +19,9 @@ The [product locked-startup fixture](PRODUCT_LOCKED_STARTUP_PREP_20260930.md) no
 passes offline with the memory Keychain: locked startup makes zero client calls;
 explicit Retry then Start/consent saves two, restores two and saves three. Eighteen
 selected offline cases pass and all three real opt-ins skip. Signing and the
-coordinated real product-host round remain pending.
+coordinated real product-host round are separate: signed `3174772037` now passes
+the reviewed build in 27.617 seconds and static artifact inspection, without
+launch. The physical product locked-startup round still awaits owner readiness.
 The earlier diagnostic add `-25308` failure and later locked-host readiness
 observation remain recorded; neither alone establishes failure-time lock state.
 The following entries preserve earlier preparation and failed-round checkpoints.

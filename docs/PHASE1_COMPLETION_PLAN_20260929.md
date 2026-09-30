@@ -52,6 +52,9 @@ recovery remain evidence for their stated candidates; no routine repeat is plann
   save two, same-process reload two and save three. Eighteen offline cases pass,
   three real opt-ins skip. Complete reviewed signing/controller preparation before
   requesting the next physical readiness window.
+- Signed locked-startup source `3174772037` now builds in 27.617 seconds with existing
+  profiles and no launch; artifact inspection and synthetic controller checks pass.
+  The real product locked-startup case remains unrun and needs owner readiness.
 - The [first signed full-product round](PRODUCT_COMPOSITION_ROUND_20260930.md)
   failed during the scenario after a successful signed build. No host remained.
   Diagnose its startup failure before claiming real recovery. The owner now

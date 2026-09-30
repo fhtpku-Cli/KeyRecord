@@ -10,10 +10,15 @@ The [coordinated lock-source observation](LOCK_STATE_SOURCE_PREP_20260930.md)
 recorded 58 fresh processes across unlocked/locked/unlocked with owner confirmation.
 The [product locked-startup fixture](PRODUCT_LOCKED_STARTUP_PREP_20260930.md) passes
 offline with zero locked Keychain attempts and subsequent counts 2/2/3. Eighteen
-offline cases pass; all three actual Keychain opt-ins skip. Neither result qualifies
-the still-pending signed product locked-startup round or collecting Release.
+offline cases pass; all three actual Keychain opt-ins skip. The subsequent signed
+`3174772037` round passes the fresh-install scenario: one passed, zero failed/skipped,
+zero guarded Keychain attempts while locked, counts 2/2/3 after unlock, cleanup of
+both owned items and no remaining host. Its xcresult retains a Security main-thread
+runtime warning, addressed separately in test source. This does not qualify
+existing-store process restart under lock, production lock authority or collecting
+Release.
 
-The latest reviewed round reuses unchanged signed `fee7d4aef` after owner unlock:
+The preceding reviewed round reuses unchanged signed `fee7d4aef` after owner unlock:
 one full-product real Keychain case passed, zero failed/skipped, no runtime warnings.
 It saves two simulated inputs, recovers two, reconstructs the composition in the
 same process and saves three. Both owned items are cleaned up; the controller exits

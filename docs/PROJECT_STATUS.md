@@ -9,19 +9,25 @@ One real Keychain/product-composition test passed with no failures/skips or runt
 warnings. Simulated input saved two, recovery and same-process reconstruction read
 two, then saved three. Both owned Keychain items were cleaned up; the controller
 exited normally in 12.236 seconds with no remaining host. No new signing occurred.
-Actual OS lock authority, startup/restart under lock and collecting Release remain
+Production OS lock authority, existing-store restart under lock and collecting Release remain
 open. The [coordinated lock-state observation](LOCK_STATE_SOURCE_PREP_20260930.md)
 completed 58 fresh-process samples: 36 unlocked, 13 locked, 9 unlocked, with owner
 confirmation of the visible lock screen and normal exit. This supports bounded
 process-start observations on this host; the input fields remain private
-implementation properties. Product locked startup and Release remain unqualified.
+implementation properties; they do not establish production lock authority.
 The [product locked-startup fixture](PRODUCT_LOCKED_STARTUP_PREP_20260930.md) now
 passes offline with the memory Keychain: locked startup makes zero client calls;
 explicit Retry then Start/consent saves two, restores two and saves three. Eighteen
 selected offline cases pass and all three real opt-ins skip. Signing and the
 coordinated real product-host round are separate: signed `3174772037` now passes
 the reviewed build in 27.617 seconds and static artifact inspection, without
-launch. The physical product locked-startup round still awaits owner readiness.
+launch. The subsequent owner-coordinated signed round now passes: zero guarded
+Keychain attempts while locked, counts 2/2/3 after unlock and two items cleaned up.
+One case passed in 26.905 seconds, with a retained Security main-thread runtime
+warning. The controller exited normally in 31.281 seconds (49.889 including
+readiness), with no remaining host. The test-entry actor repair is separate from
+that signed result. Existing-store process restart under lock and Release remain
+open; this result covers fresh-install startup with fixed simulated input only.
 The earlier diagnostic add `-25308` failure and later locked-host readiness
 observation remain recorded; neither alone establishes failure-time lock state.
 The following entries preserve earlier preparation and failed-round checkpoints.

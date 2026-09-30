@@ -50,11 +50,15 @@ recovery remain evidence for their stated candidates; no routine repeat is plann
 - The [locked-startup fixture](PRODUCT_LOCKED_STARTUP_PREP_20260930.md) now does so:
   its guarded memory-client scenario passes zero locked attempts, Retry/Start,
   save two, same-process reload two and save three. Eighteen offline cases pass,
-  three real opt-ins skip. Complete reviewed signing/controller preparation before
-  requesting the next physical readiness window.
+  three real opt-ins skip. Reviewed signing/controller preparation and the physical
+  window are now complete as recorded below.
 - Signed locked-startup source `3174772037` now builds in 27.617 seconds with existing
   profiles and no launch; artifact inspection and synthetic controller checks pass.
-  The real product locked-startup case remains unrun and needs owner readiness.
+  The owner-coordinated real fresh-install case now passes in 26.905 seconds:
+  zero locked Keychain attempts, counts 2/2/3 after unlock, cleanup two, no host.
+  A Security main-thread runtime warning is retained and repaired separately in
+  test source. Existing-store process restart under lock, production lock authority
+  and collecting Release remain open; no duplicate physical round for this warning.
 - The [first signed full-product round](PRODUCT_COMPOSITION_ROUND_20260930.md)
   failed during the scenario after a successful signed build. No host remained.
   Diagnose its startup failure before claiming real recovery. The owner now

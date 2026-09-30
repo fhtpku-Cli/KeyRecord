@@ -1,8 +1,47 @@
-# Product startup while locked: prepared scenario
+# Product startup while locked: bounded signed result
+
+## Current result: functional PASS with a retained runtime warning
+
+Signed source `3174772037ac18e40a822e0bab12f278f41486b8` completed the
+owner-coordinated round on arm64 macOS 27.0 (26A428). The owner confirmed seeing
+the lock screen before unlocking. The controller recorded consistent locked
+session/console observations before launching the actual signed product host.
+The selected case passed in 26.905 seconds: one passed, zero failed or skipped.
+It recorded zero guarded product Keychain attempts while locked, then saved two,
+restored two and saved three after unlock. Both created items were deleted and
+their absence checked. The controller exited normally in 31.281 seconds after
+launch (49.889 seconds including readiness), with no force, control errors or
+remaining exact host. A subsequent presence check found no probe instance.
+
+The xcresult retains one Security runtime-warning entry: a method should not be
+called on the main thread. This is a functional PASS, not a warning-free result.
+The test entry performed synchronous signed-resource preparation on MainActor;
+the subsequent source repair removes that entry annotation while retaining
+MainActor isolation for product operations and per-operation authorization.
+The signed artifact above predates that repair; removal of the warning in a new
+signed execution is not claimed. No repeat physical round is required solely
+for this warning.
+
+The source repair builds successfully without signing. The three selected hosted
+classes then execute 21 cases: 18 pass, three real opt-ins skip, zero failures
+(6.706 seconds). Logs are `/private/tmp/keyrecord-locked-startup-offmain-build.log`
+and `/private/tmp/keyrecord-locked-startup-offmain-tests.log`. This validates the
+fixture regression paths; skipped live cases do not prove warning removal in a
+signed run. Existing headermap build warnings remain.
+
+Evidence: `/private/tmp/keyrecord-product-locked-startup-20260930/` contains
+`launch-lock-state.json`, `keychain-run.json`, `keychain-run.log` and
+`keychain.xcresult`. Independent result review is
+`/private/tmp/.omo/evidence/locked-startup-live-result-code-review.md`.
+This closes the bounded fresh-install product startup-under-lock scenario only.
+Existing-store separate-process restart under lock, raw locked Keychain behavior,
+production lock authority and collecting Release remain open.
+
+## Original preparation and scope
 
 The [owner-coordinated source observation](LOCK_STATE_SOURCE_PREP_20260930.md)
 recorded fresh diagnostic processes across unlocked/locked/unlocked states.
-The next scenario starts the actual signed test host while already locked and
+The scenario starts the actual signed test host while already locked and
 assembles the product with `SystemSessionLockProvider` and real distributed
 notifications. Event input, permission, foreground and Secure Input remain fixed
 test inputs; there is no global event tap or ordinary input capture.
@@ -107,5 +146,5 @@ The independent presence helper reports no exact or foreign probe instance.
 The reviewer reran the synthetic suite and cleared the cancellation fix in
 `/private/tmp/.omo/evidence/locked-startup-controller-rereview-code-review.md`.
 
-The selected real case has not run. No product locked-startup PASS, Keychain items
-or physical test window are claimed by this signing preparation.
+The preparation above preceded the physical round. Its later bounded result is
+recorded at the top; static signing checks alone did not establish that result.

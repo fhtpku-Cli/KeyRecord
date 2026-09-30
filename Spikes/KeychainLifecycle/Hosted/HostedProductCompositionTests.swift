@@ -267,7 +267,6 @@ final class HostedProductCompositionTests: XCTestCase {
             })
     }
 
-    @MainActor
     func testAuthorizedProductStartupWhileLocked() async throws {
         let (root, namespace, client) = try authorizedResources(
             optIn: "KEYRECORD_HOSTED_LOCKED_STARTUP_TRIAL",

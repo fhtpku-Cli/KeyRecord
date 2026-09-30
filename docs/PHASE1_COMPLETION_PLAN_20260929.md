@@ -31,6 +31,11 @@ recovery remain evidence for their stated candidates; no routine repeat is plann
 
 ## Current state
 
+- Actual App Keychain backend is now compiled into the Debug hosted test target;
+  [offline verification and signing prerequisite](PRODUCT_KEYCHAIN_HOST_PREP_20260930.md)
+  are recorded. The opt-in real test is unrun. Both locally installed profiles
+  match existing trials, not the new probe identities. No automatic account or
+  provisioning attempt is authorized by this preparation.
 - Latest offline increment: [tri-state permission witnesses](PERMISSION_WITNESS_REPAIR_20260930.md)
   and [failed-recovery settlement repair](RECOVERY_SETTLEMENT_REPAIR_20260930.md).
   All 590 package cases and the final 63 product recovery/quit cases pass. Fresh

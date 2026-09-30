@@ -23,7 +23,7 @@ final class SignedCandidateBackend: CandidateBackend {
         try executor.perform(operation, namespace: namespace)
     }
 
-    private static func evidence(attempt: URL) -> SignedEffectEvidence {
+    static func evidence(attempt: URL) -> SignedEffectEvidence {
         let host = attempt.appendingPathComponent("build/lifecycle/Build/Products/Debug/KeychainLifecycleProbe.app")
         let tests = host.appendingPathComponent("Contents/PlugIns/KeychainLifecycleTests.xctest")
         let bundles = BundlePathMatch(host: Bundle.main.bundleURL.resolvingSymlinksInPath() == host.resolvingSymlinksInPath(),

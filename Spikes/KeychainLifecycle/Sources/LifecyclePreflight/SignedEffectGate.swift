@@ -53,30 +53,35 @@ public enum SignedEffectDecision: Equatable, Sendable {
 public enum SignedEffectGate {
     public static func evaluate(_ intent: SignedEffectIntent, evidence: SignedEffectEvidence,
                                 expectedNamespace: ProbeNamespace) -> SignedEffectDecision {
-        guard intent.namespace == expectedNamespace else { return .deny(.namespaceMismatch) }
-        guard evidence.identity.bundles.host else { return .deny(.bundleIDsMismatch) }
-        guard evidence.identity.bundles.tests else { return .deny(.bundleIDsMismatch) }
+        switch authorizeKeychain(namespace: intent.namespace, evidence: evidence, expectedNamespace: expectedNamespace) {
+        case .ready: return .allow(intent)
+        case .blocked(let reason): return .deny(reason)
+        }
+    }
+
+    public static func authorizeKeychain(namespace: ProbeNamespace, evidence: SignedEffectEvidence,
+                                         expectedNamespace: ProbeNamespace) -> PreflightVerdict {
+        guard namespace == expectedNamespace else { return .blocked(.namespaceMismatch) }
+        guard evidence.identity.bundles.host else { return .blocked(.bundleIDsMismatch) }
+        guard evidence.identity.bundles.tests else { return .blocked(.bundleIDsMismatch) }
         let identity: RunningSigningIdentity
         switch evidence.identity.runningCode {
-        case .invalid: return .deny(.unavailableIdentity)
+        case .invalid: return .blocked(.unavailableIdentity)
         case .valid(let value): identity = value
         }
         let manifest: HostManifest
         switch evidence.manifest {
-        case .failure(let reason): return .deny(reason)
+        case .failure(let reason): return .blocked(reason)
         case .success(let value): manifest = value
         }
-        guard identity.teamID == manifest.teamID else { return .deny(.teamIDMismatch) }
-        guard identity.certificateSHA256 == manifest.certificateSHA256 else { return .deny(.certificateFingerprintMismatch) }
-        guard identity.identifier == "com.keyrecord.phase1.probe.host" else { return .deny(.bundleIDsMismatch) }
+        guard identity.teamID == manifest.teamID else { return .blocked(.teamIDMismatch) }
+        guard identity.certificateSHA256 == manifest.certificateSHA256 else { return .blocked(.certificateFingerprintMismatch) }
+        guard identity.identifier == "com.keyrecord.phase1.probe.host" else { return .blocked(.bundleIDsMismatch) }
         switch evidence.preflight {
-        case .blocked(let reason): return .deny(reason)
+        case .blocked(let reason): return .blocked(reason)
         case .ready: break
         }
-        switch intent.operation {
-        case .add, .read, .attributes, .delete:
-            guard manifest.operations.contains(.keychain) else { return .deny(.operationAllowlistMismatch) }
-        }
-        return .allow(intent)
+        guard manifest.operations.contains(.keychain) else { return .blocked(.operationAllowlistMismatch) }
+        return .ready
     }
 }

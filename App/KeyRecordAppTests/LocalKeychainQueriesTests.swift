@@ -1,9 +1,125 @@
 import Foundation
 import Security
 import XCTest
+#if DEBUG
+import KeyRecordCore
+@testable import KeyRecordStore
 
+final class MemoryLocalKeychainClient: LocalKeychainClient, @unchecked Sendable {
+    private let lock = NSLock()
+    private let forcedStatus: OSStatus?
+    private var items: [String: Data] = [:]
+    private var recordedQueries: [[String: Any]] = []
+    var queries: [[String: Any]] { lock.withLock { recordedQueries } }
+
+    init(forcedStatus: OSStatus? = nil) { self.forcedStatus = forcedStatus }
+
+    private func identity(_ query: [String: Any]) -> String? {
+        guard let service = query[kSecAttrService as String] as? String,
+              let account = query[kSecAttrAccount as String] as? String else { return nil }
+        return service + "/" + account
+    }
+
+    func copyMatching(_ query: [String: Any]) -> LocalKeychainMatch {
+        lock.withLock {
+            recordedQueries.append(query)
+            if let forcedStatus { return .init(status: forcedStatus, value: nil) }
+            guard let id = identity(query) else { return .init(status: errSecParam, value: nil) }
+            guard let data = items[id] else { return .init(status: errSecItemNotFound, value: nil) }
+            return .init(status: errSecSuccess, value: data as CFData)
+        }
+    }
+
+    func add(_ attributes: [String: Any]) -> OSStatus {
+        lock.withLock {
+            recordedQueries.append(attributes)
+            guard let id = identity(attributes), let data = attributes[kSecValueData as String] as? Data else { return errSecParam }
+            guard items[id] == nil else { return errSecDuplicateItem }
+            items[id] = data
+            return errSecSuccess
+        }
+    }
+
+    func update(_ query: [String: Any], attributes: [String: Any]) -> OSStatus {
+        lock.withLock {
+            recordedQueries.append(query)
+            guard let id = identity(query), let data = attributes[kSecValueData as String] as? Data else { return errSecParam }
+            guard items[id] != nil else { return errSecItemNotFound }
+            items[id] = data
+            return errSecSuccess
+        }
+    }
+
+    func delete(_ query: [String: Any]) -> OSStatus {
+        lock.withLock {
+            recordedQueries.append(query)
+            guard let id = identity(query) else { return errSecParam }
+            return items.removeValue(forKey: id) == nil ? errSecItemNotFound : errSecSuccess
+        }
+    }
+}
+#endif
+
+@MainActor
 final class LocalKeychainQueriesTests: XCTestCase {
     private let service = "com.keyrecord.app"
+
+    #if DEBUG
+    func testProductBackendCRUDInventoryAndConflictUseExactItems() async throws {
+        let client = MemoryLocalKeychainClient()
+        let backend = LocalKeychainBackend(client: client)
+        let namespace = try KeychainNamespace("com.keyrecord.synthetic.backend")
+        let other = try KeychainNamespace("com.keyrecord.synthetic.other")
+        let first = KeyVersion(rawValue: 1), second = KeyVersion(rawValue: 2)
+        let policy = KeychainAccessibilityPolicy.candidateWhenUnlockedThisDeviceOnly
+        let material = Data(repeating: 0x42, count: 32)
+        for id in [KeychainItemID.key(namespace, first), .key(namespace, second), .key(other, first)] {
+            try await backend.add(KeychainItem(id: id, material: material, policy: policy))
+        }
+        let before = try KeyringMetadata(current: first, versions: [first]).encoded()
+        let after = try KeyringMetadata(current: second, versions: [first, second],
+                                        rotation: KeyRotation(from: first, to: second)).encoded()
+        try await backend.publish(.init(id: .metadata(namespace), expected: nil, replacement: before, policy: policy))
+        try await backend.publish(.init(id: .metadata(namespace), expected: before, replacement: after, policy: policy))
+        do {
+            try await backend.publish(.init(id: .metadata(namespace), expected: before, replacement: before, policy: policy))
+            XCTFail("Stale metadata update succeeded")
+        } catch { XCTAssertEqual(error as? KeyringError, .metadataConflict) }
+        let metadata = try await backend.read(.metadata(namespace))
+        XCTAssertTrue(metadata == after)
+        let inventory = try await backend.versions(in: namespace)
+        XCTAssertEqual(inventory, [first, second])
+        XCTAssertTrue(client.queries.contains { $0[kSecAttrAccount as String] as? String == "master-v3" })
+        for id in [KeychainItemID.key(namespace, first), .key(namespace, second), .metadata(namespace)] {
+            try await backend.delete(id)
+            try await backend.delete(id)
+            let missing = try await backend.read(id)
+            XCTAssertNil(missing)
+        }
+        let retained = try await backend.read(.key(other, first))
+        XCTAssertTrue(retained == material)
+        for query in client.queries {
+            XCTAssertNotNil(query[kSecAttrAccount as String] as? String)
+            XCTAssertEqual(query[kSecUseDataProtectionKeychain as String] as? Bool, true)
+            XCTAssertEqual(query[kSecAttrSynchronizable as String] as? Bool, false)
+            XCTAssertEqual(query[kSecUseAuthenticationUI as String] as? String, kSecUseAuthenticationUIFail as String)
+        }
+    }
+
+    func testProductBackendMapsUnavailableAndLockedReadsWithoutFallback() async throws {
+        let namespace = try KeychainNamespace("com.keyrecord.synthetic.denied")
+        for (status, expected) in [(errSecInteractionNotAllowed, KeyringError.locked),
+                                   (errSecAuthFailed, KeyringError.backendUnavailable)] {
+            let client = MemoryLocalKeychainClient(forcedStatus: status)
+            let backend = LocalKeychainBackend(client: client)
+            do {
+                _ = try await backend.read(.metadata(namespace))
+                XCTFail("Unavailable keychain read succeeded")
+            } catch { XCTAssertEqual(error as? KeyringError, expected) }
+            XCTAssertEqual(client.queries.count, 1)
+        }
+    }
+    #endif
 
     func testIdentityQueryTargetsExactGenericPasswordItem() {
         // Given an exact service/account identity.

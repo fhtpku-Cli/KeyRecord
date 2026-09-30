@@ -4,6 +4,38 @@ import Security
 import KeyRecordCore
 import KeyRecordStore
 
+struct LocalKeychainMatch {
+    let status: OSStatus
+    let value: CFTypeRef?
+}
+
+protocol LocalKeychainClient: Sendable {
+    func copyMatching(_ query: [String: Any]) throws -> LocalKeychainMatch
+    func add(_ attributes: [String: Any]) throws -> OSStatus
+    func update(_ query: [String: Any], attributes: [String: Any]) throws -> OSStatus
+    func delete(_ query: [String: Any]) throws -> OSStatus
+}
+
+struct SystemLocalKeychainClient: LocalKeychainClient {
+    func copyMatching(_ query: [String: Any]) -> LocalKeychainMatch {
+        var result: CFTypeRef?
+        let status = SecItemCopyMatching(query as CFDictionary, &result)
+        return LocalKeychainMatch(status: status, value: result)
+    }
+
+    func add(_ attributes: [String: Any]) -> OSStatus {
+        SecItemAdd(attributes as CFDictionary, nil)
+    }
+
+    func update(_ query: [String: Any], attributes: [String: Any]) -> OSStatus {
+        SecItemUpdate(query as CFDictionary, attributes as CFDictionary)
+    }
+
+    func delete(_ query: [String: Any]) -> OSStatus {
+        SecItemDelete(query as CFDictionary)
+    }
+}
+
 // REAL Security.framework backend, compiled only into DEBUG builds and selected only
 // when KEYRECORD_LOCAL_CAPTURE=1 arms the local developer capture path. Security
 // invariants: exact service+account generic-password items in the data-protection
@@ -12,16 +44,20 @@ import KeyRecordStore
 // logged. An unavailable data-protection keychain fails closed. Release and
 // non-armed Debug builds keep BlockedLiveKeychain.
 struct LocalKeychainBackend: KeychainBackend {
+    private let client: any LocalKeychainClient
+
+    init(client: any LocalKeychainClient = SystemLocalKeychainClient()) {
+        self.client = client
+    }
+
     func read(_ id: KeychainItemID) async throws -> Data? {
         let identity = Self.identity(id)
-        var result: CFTypeRef?
-        let status = ProtectedReadActivity.process.observe(.keychain) {
-            SecItemCopyMatching(LocalKeychainQueries.queryForReadingData(identity: identity) as CFDictionary,
-                                &result)
+        let result = try ProtectedReadActivity.process.observe(.keychain) {
+            try client.copyMatching(LocalKeychainQueries.queryForReadingData(identity: identity))
         }
-        if status == errSecItemNotFound { return nil }
-        guard status == errSecSuccess else { throw Self.statusError(status) }
-        guard let bytes = result as? Data else { throw Self.contentError(for: id) }
+        if result.status == errSecItemNotFound { return nil }
+        guard result.status == errSecSuccess else { throw Self.statusError(result.status) }
+        guard let bytes = result.value as? Data else { throw Self.contentError(for: id) }
         return bytes
     }
 
@@ -58,7 +94,7 @@ struct LocalKeychainBackend: KeychainBackend {
         let identity = Self.identity(update.id)
         let attributes = LocalKeychainQueries.attributesForUpdate(
             data: update.replacement, accessible: Self.accessible(update.policy))
-        let status = SecItemUpdate(identity as CFDictionary, attributes as CFDictionary)
+        let status = try client.update(identity, attributes: attributes)
         guard status == errSecSuccess else {
             if status == errSecItemNotFound { throw KeyringError.metadataConflict }
             throw Self.statusError(status)
@@ -66,7 +102,7 @@ struct LocalKeychainBackend: KeychainBackend {
     }
 
     func delete(_ id: KeychainItemID) async throws {
-        let status = SecItemDelete(Self.identity(id) as CFDictionary)
+        let status = try client.delete(Self.identity(id))
         guard status == errSecSuccess || status == errSecItemNotFound else {
             throw Self.statusError(status)
         }
@@ -76,7 +112,7 @@ struct LocalKeychainBackend: KeychainBackend {
         let identity = Self.identity(id)
         let attributes = LocalKeychainQueries.attributesForAdd(
             identity: identity, data: data, accessible: Self.accessible(policy))
-        let status = SecItemAdd(attributes as CFDictionary, nil)
+        let status = try client.add(attributes)
         guard status == errSecSuccess else {
             if status == errSecDuplicateItem { throw KeyringError.duplicateItem }
             throw Self.statusError(status)

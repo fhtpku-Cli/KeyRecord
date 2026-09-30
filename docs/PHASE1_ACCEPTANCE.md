@@ -6,6 +6,14 @@ Current status: [PROJECT_STATUS.md](PROJECT_STATUS.md). Requirements: [PHASE1_CO
 
 ## Evidence and remaining work
 
+The latest [hosted backend integration](PRODUCT_KEYCHAIN_HOST_PREP_20260930.md)
+executes the real App backend against an injected in-memory Security client in
+offline tests. Per-operation authorization, exact namespace/policy constraints,
+CRUD, metadata conflict, inventory and error mapping are exercised. The opt-in
+real Keychain test is prepared but unrun; probe signing profiles are missing.
+This supersedes the query-only preparation below, without claiming real Keychain
+accessibility, full product recovery or live lock qualification.
+
 Latest [approved permission/restarted-recovery round](CURRENT_PERMISSION_TRIAL_20260930.md)
 on signed `fde8c8886` observed 32 stable closed samples, normal exit, retained two
 shortcuts after restart and one new saved chord (total three). The running process

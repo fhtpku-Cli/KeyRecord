@@ -3,6 +3,14 @@
 ## Current Apple Silicon MVP status — 2026-09-29
 
 Latest autonomous checkpoint: [MVP closeout](MVP_CLOSEOUT_20260929.md).
+The [product Keychain backend hosted preparation](PRODUCT_KEYCHAIN_HOST_PREP_20260930.md)
+now compiles the actual App backend into the Debug test host with fresh signed
+authorization before each operation. Fourteen hosted offline cases, 73 App
+backend/recovery cases, 135 lifecycle cases and 24 boundary/configuration cases
+pass. Hosted Debug/Release and native product Release builds succeed. No real
+Keychain call or new signed launch occurred. Existing local profiles do not match
+the probe identities; one separately authorized signing configuration attempt is
+the next prerequisite. Full product observation and collecting Release remain open.
 The in-process `CounterWindowProductObserver` now reads the actual product
 diagnostics recorder through the existing hosted observer port. The product
 lock/unlock recovery test exercises it against production composition objects

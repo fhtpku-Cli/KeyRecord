@@ -73,6 +73,49 @@ App build and test logs use `/private/tmp/keyrecord-phase1-completion-` with
 `app-build.log`, `product-tests.log` (first run) and `reduction-tests.log` (rerun).
 The earlier host measurements retain their original candidate bounds.
 
+## In-process product counter observer - 2026-09-30
+
+`LifecycleHosted` is now a test-support library, linked only to `KeyRecordAppTests`.
+Its `CounterWindowProductObserver` implements the existing hosted observer port
+using `CaptureDiagnosticsRecorder.runSummary`. There is no new App journal format,
+event payload, product runtime control, or production library dependency.
+
+The adapter measures a bounded interval after both queue and key access have
+closed, capture has stopped, protected presentation is hidden, and existing
+protected reads have settled. It checks actual protected-read starts/completions,
+publication and aggregate deltas, event admission/normalization, and protected
+gate entries. Missing instrumentation, pending reads, counter reset/overflow,
+reused transitions and an unlock window crossing product reopening cannot turn
+into a zero-delta result. It supports closed lock/sleep and pre-resume unlock/wake
+windows; restart/session-handoff remain unsupported. No sleep trial was run.
+
+The existing real product-composition recovery test now measures locked and
+unlocked-but-not-resumed intervals, then verifies Start and subsequent counting.
+OS providers, event tap and Keychain remain simulated in this test. All 63 recovery
+cases pass. The 12 observer cases include every protected-activity kind and a
+controller test that fails on an injected cache read. The existing 40 scenario and
+83 preflight tests also pass. Debug test and unsigned arm64 Release builds pass.
+
+Limits: observation starts after closure has settled. Closed endpoints do not
+prove continuously closed admission, the five instrumented activity categories
+do not independently prove exhaustive read coverage, and model publication does
+not prove rendered pixels. The signed probe process still needs actual product
+assembly and an independent lock authority. No live qualification is claimed.
+
+An initial broad isolation invocation accidentally supplied an arm64 artifact to
+two legacy Universal-only tests; their failures are retained, not reported as
+passes. The local-package assertion now separately checks the two local package
+references and the unchanged four-product App dependency set. The source scanner
+undefines the hosted-test macro while rejecting that macro in Release settings.
+The original Universal-only tests remain unchanged for their later scope.
+The corrected native scope passes 29 App project/Release isolation cases with no
+skips, including the fresh arm64 executable scan and a negative fixture that
+rejects the hosted-test macro in Release configuration. `ruby -c` and the actual
+Release project scanner pass; no Ruby language server installation was needed.
+
+Logs: `/private/tmp/keyrecord-product-observer-{package,app-build,integration,recovery,release,isolation,native-isolation}.log`.
+The prior query head `6d593ef91` passed PR CI 36691491905 and push CI 36691485833.
+
 ## Shared product queries in the hosted probe - 2026-09-30
 
 The hosted Security adapter now compiles `App/KeyRecordApp/LocalKeychainQueries.swift`

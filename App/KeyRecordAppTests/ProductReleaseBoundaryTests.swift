@@ -97,6 +97,10 @@ final class ProductReleaseBoundaryTests: XCTestCase {
         try rejectProjectMutation("BAD123 = {isa = XCBuildConfiguration; name = Release; buildSettings = {CODE_SIGN_ENTITLEMENTS = missing.entitlements;};};")
     }
 
+    func testRejectsHostedTestCompilationInReleaseConfiguration() throws {
+        try rejectProjectMutation("BAD123 = {isa = XCBuildConfiguration; name = Release; buildSettings = {SWIFT_ACTIVE_COMPILATION_CONDITIONS = KEYRECORD_SIGNED_HOSTED_TESTS;};};")
+    }
+
     func testRejectsMalformedProject() throws {
         try rejectProjectMutation("unclosed = {")
     }

@@ -12,6 +12,7 @@ final class Phase1ReleaseIsolationTests: XCTestCase {
     private let forbiddenReleaseTokens = [
         "KEYRECORD_LOCAL_CAPTURE", "LocalDevelopmentCapture", "SystemSessionLockProvider",
         "LocalKeychainBackend", "LocalKeychainQueries", "debug.localCaptureEnabled",
+        "CounterWindowProductObserver", "LifecycleHosted", "HostedLifecycleScenarioController",
     ]
 
     func testLocalCaptureArmamentRequiresExactEnvValue() {

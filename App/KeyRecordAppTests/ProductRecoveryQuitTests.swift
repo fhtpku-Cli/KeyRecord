@@ -2,6 +2,8 @@ import Foundation
 import XCTest
 import AppKit
 import KeyRecordCore
+import LifecycleHosted
+import LifecyclePreflight
 @testable import KeyRecordCapture
 @testable import KeyRecordStore
 
@@ -565,10 +567,33 @@ final class ProductRecoveryQuitTests: XCTestCase {
         XCTAssertFalse(product.keyGateOpen)
         XCTAssertEqual(try product.tap?.press(), .closed, "no delivery while closed")
 
+        let observer = try XCTUnwrap(CounterWindowProductObserver(
+            recorder: product.composition.diagnostics, interval: 0.02))
+        var authority = SessionLockQualification(supported: true)
+        let lockedTransition = try authority.advance(
+            .init(challenge: authority.challenge, unlocked: false), expectedUnlocked: false).get()
+        let closed = await Task.detached {
+            observer.observe(step: .lockBackground, transition: lockedTransition)
+        }.value
+        XCTAssertEqual(closed?.captureClosed, true)
+        XCTAssertEqual(closed?.protectedReadDelta, 0)
+        XCTAssertEqual(closed?.publishDelta, 0)
+        XCTAssertEqual(closed?.aggregateDelta, 0)
+
         try await product.unlockScreen()
         XCTAssertEqual(product.phase, .blocked, "unlock alone must not resume")
         let liveAfterUnlock = await product.live
         XCTAssertFalse(liveAfterUnlock)
+
+        let unlockedTransition = try authority.advance(
+            .init(challenge: authority.challenge, unlocked: true), expectedUnlocked: true).get()
+        let waitingForStart = await Task.detached {
+            observer.observe(step: .unlockRevalidate, transition: unlockedTransition)
+        }.value
+        XCTAssertEqual(waitingForStart?.captureClosed, true)
+        XCTAssertEqual(waitingForStart?.protectedReadDelta, 0)
+        XCTAssertEqual(waitingForStart?.publishDelta, 0)
+        XCTAssertEqual(waitingForStart?.aggregateDelta, 0)
 
         await product.composition.startOrRetry()
         XCTAssertEqual(product.phase, .collecting)

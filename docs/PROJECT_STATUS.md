@@ -3,6 +3,14 @@
 ## Current Apple Silicon MVP status — 2026-09-29
 
 Latest autonomous checkpoint: [MVP closeout](MVP_CLOSEOUT_20260929.md).
+The in-process `CounterWindowProductObserver` now reads the actual product
+diagnostics recorder through the existing hosted observer port. The product
+lock/unlock recovery test exercises it against production composition objects
+with simulated OS/Keychain boundaries. Twelve adapter cases and all 63 product
+recovery cases pass; an injected protected read makes the hosted controller fail.
+This is bounded counter observation, not a live lock-authority qualification or
+proof of continuously closed capture/rendered pixels. Signed-host assembly remains
+to be connected. The test library is not a product App dependency.
 The Keychain hosted probe now compiles and uses the App's exact-item query builders.
 Read, attribute inspection and deletion no longer filter by expected accessibility,
 which could hide an incorrectly configured item. The offline lifecycle suites

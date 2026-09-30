@@ -12,9 +12,14 @@ final class AppProjectTests: XCTestCase {
         let products = try XCTUnwrap(app["packageProductDependencies"] as? [String])
         XCTAssertEqual(Set(products.compactMap { objects[$0]?["productName"] as? String }),
                        ["KeyRecordCore", "KeyRecordCapture", "KeyRecordStore", "KeyRecordAnalysis"])
-        XCTAssertEqual(objects.values.filter { $0["isa"] as? String == "XCLocalSwiftPackageReference" }.count, 1)
+        let localPackages = objects.values.filter { $0["isa"] as? String == "XCLocalSwiftPackageReference" }
+        XCTAssertEqual(localPackages.count, 2)
+        XCTAssertEqual(Set(localPackages.compactMap { $0["relativePath"] as? String }),
+                       [".", "Spikes/KeychainLifecycle"])
         XCTAssertFalse(objects.values.contains { $0["isa"] as? String == "XCRemoteSwiftPackageReference" })
-        XCTAssertEqual(objects.values.first { $0["isa"] as? String == "XCLocalSwiftPackageReference" }?["relativePath"] as? String, ".")
+        let tests = try XCTUnwrap(objects.values.first { $0["name"] as? String == "KeyRecordAppTests" })
+        let testProducts = try XCTUnwrap(tests["packageProductDependencies"] as? [String])
+        XCTAssertTrue(testProducts.contains { objects[$0]?["productName"] as? String == "LifecycleHosted" })
         let list = try XCTUnwrap(app["buildConfigurationList"] as? String)
         let configurations = try XCTUnwrap(objects[list]?["buildConfigurations"] as? [String])
             .map { id -> (name: String, settings: [String: Any]) in

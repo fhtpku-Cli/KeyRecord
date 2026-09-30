@@ -1,6 +1,9 @@
 import XCTest
 import Security
 @testable import LifecyclePreflight
+#if SWIFT_PACKAGE
+import LifecycleHosted
+#endif
 
 final class KeychainLifecycleScenarioTests: XCTestCase {
     func testSleepWakeRequiresSeparateClosedSleepAndVerifiedWakeSteps() {

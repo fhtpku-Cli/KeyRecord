@@ -82,7 +82,12 @@ product backend or establish real Keychain lifecycle behavior.
 The hosted Keychain scenario controller requires a separate product observation
 for lock-transition results. Without it, those steps return BLOCKED; the fake
 observer in offline tests establishes only that the controller handles supplied
-measurements. No live product observer is wired into the hosted probe yet.
+measurements. `CounterWindowProductObserver` now supplies actual in-process
+recorder deltas, exercised by the App's product-composition recovery test with
+simulated host boundaries. An injected protected read is also rejected through
+the hosted controller. No live product observer is wired into the signed probe
+process yet. The adapter's closed endpoints and cumulative counters do not prove
+that capture never reopened between samples or cover actual rendered pixels.
 The Debug privacy journal records capture state, aggregate counters, protected
 snapshot/analysis attempts, and successful snapshot/analysis assignments at the
 flow boundary. These assignments do not prove screen rendering. Protected-data

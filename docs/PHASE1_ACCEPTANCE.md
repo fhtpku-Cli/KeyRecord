@@ -6,11 +6,18 @@ Current status: [PROJECT_STATUS.md](PROJECT_STATUS.md). Requirements: [PHASE1_CO
 
 ## Evidence and remaining work
 
-The subsequent diagnostic round on `fee7d4aef` identifies initial Keychain add
-status `-25308` (interaction not allowed), with zero created items and normal
-host exit. A later read-only check sees the host locked. Execution is waiting for
-owner unlock/readiness; neither round qualifies product recovery or lock behavior.
-See the [current result](PRODUCT_COMPOSITION_ROUND_20260930.md#current-result-waiting-for-an-unlocked-host).
+The latest reviewed round reuses unchanged signed `fee7d4aef` after owner unlock:
+one full-product real Keychain case passed, zero failed/skipped, no runtime warnings.
+It saves two simulated inputs, recovers two, reconstructs the composition in the
+same process and saves three. Both owned items are cleaned up; the controller exits
+normally in 12.236 seconds with no remaining host. This qualifies that bounded
+unlocked recovery path, not actual OS lock authority, startup/process restart under
+lock or collecting Release. See the [current result](PRODUCT_COMPOSITION_ROUND_20260930.md#current-result-unlocked-full-product-scenario-passed).
+
+Earlier diagnostic execution on the same source failed at Keychain add `-25308`,
+created zero items and exited normally. A subsequent check saw the host locked;
+that check does not establish the lock state at failure time. The earlier records
+below retain their checkpoint scope; real product execution is now covered above.
 
 The [first signed full-product case](PRODUCT_COMPOSITION_ROUND_20260930.md) failed
 with a generic timeout, then exited normally with no remaining host. Signing and

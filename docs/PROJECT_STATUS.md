@@ -3,17 +3,23 @@
 ## Current Apple Silicon MVP status — 2026-09-29
 
 Latest autonomous checkpoint: [MVP closeout](MVP_CLOSEOUT_20260929.md).
-Current blocker: the [diagnostic full-product round](PRODUCT_COMPOSITION_ROUND_20260930.md)
-on signed `fee7d4aef` identified `SecItemAdd` status `-25308` during initial key
-provisioning, with zero created items. It failed and exited normally, leaving no
-host. A subsequent read-only check reports this Mac currently locked; wait for
-owner unlock/readiness before another reviewed round. This does not prove the
-failure-time lock state or establish live lock qualification. Product safety
-behavior remains unchanged.
+Latest result: the [unlocked full-product round](PRODUCT_COMPOSITION_ROUND_20260930.md)
+passed on unchanged signed `fee7d4aef` after owner unlock and independent review.
+One real Keychain/product-composition test passed with no failures/skips or runtime
+warnings. Simulated input saved two, recovery and same-process reconstruction read
+two, then saved three. Both owned Keychain items were cleaned up; the controller
+exited normally in 12.236 seconds with no remaining host. No new signing occurred.
+Actual OS lock authority, startup/restart under lock and collecting Release remain
+open. [Lock-state source investigation](LOCK_STATE_SOURCE_PREP_20260930.md) identifies
+the current inputs as private implementation properties and prepares a bounded
+read-only process-start observation; it does not enable Release collection.
+The earlier diagnostic add `-25308` failure and later locked-host readiness
+observation remain recorded; neither alone establishes failure-time lock state.
+The following entries preserve earlier preparation and failed-round checkpoints.
 The [first full-product signed round](PRODUCT_COMPOSITION_ROUND_20260930.md)
 completed signing in 22.311 seconds but its selected test failed with a generic
 timeout. It exited normally with no remaining host. Stage and coarse Keychain
-error diagnostics are being added; a delayed-memory-client run passes and does
+error diagnostics were subsequently added; a delayed-memory-client run passes and does
 not reproduce the real failure. This is not a full-product recovery PASS.
 The owner now authorizes signing/automated rounds after independent sub-agent
 review; physical/system cooperation still requires coordination.

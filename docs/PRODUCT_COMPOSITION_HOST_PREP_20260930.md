@@ -1,8 +1,10 @@
 # Full product composition in the Keychain probe
 
-The subsequent [first signed execution](PRODUCT_COMPOSITION_ROUND_20260930.md)
-failed during the scenario and exited normally. The preparation results below
-remain offline evidence; they are not a passing real-product recovery result.
+The subsequent [unlocked signed execution](PRODUCT_COMPOSITION_ROUND_20260930.md)
+passed the full-product real Keychain scenario on unchanged `fee7d4aef`: one passed,
+zero failed/skipped, two owned items cleaned up and no remaining host. This follows
+two retained failed rounds. The preparation results below remain offline evidence;
+real lock authority and process-restart qualification remain open.
 
 ## Result and boundary
 
@@ -26,7 +28,7 @@ unlock windows, explicit recovery, and a new composition/store reading two then
 saving a third count. The reopen occurs in the same process. It is not a process
 restart, a real OS lock transition, rendered-pixel evidence or lock qualification.
 
-The real Keychain variant is prepared but has not run. It requires its own opt-in
+At this preparation checkpoint the real Keychain variant had not run. It requires its own opt-in
 and the existing signed manifest authorizing only test-item Keychain operations.
 It uses a new probe service and a private store under that round's directory.
 Successful Keychain creates are tracked at the client boundary, including metadata;

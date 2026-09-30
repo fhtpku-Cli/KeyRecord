@@ -1,6 +1,45 @@
-# Full product Keychain round: first execution and diagnosis
+# Full product Keychain round: execution and recovery result
 
-## Current result: waiting for an unlocked host
+## Current result: unlocked full-product scenario passed
+
+After the owner confirmed normal unlock, a read-only readiness check reported
+`console=unlocked`, on-console true and matching current user. The session lock
+key was absent (`session=unknown`); this check is readiness evidence only.
+The existing signed `fee7d4aef` Products were copied unchanged into a fresh round,
+independently reviewed, and used without rebuilding, resigning or installation.
+The previous two rounds and their outputs remain intact.
+
+The exact selected test
+`HostedProductCompositionTests.testAuthorizedProductCompositionWithRealKeychainAndSimulatedInput`
+passed in 7.564 seconds. The xcresult reports one passed, zero failed/skipped and
+no runtime warnings. The controller finished in 12.236 seconds with exit 0,
+no forced stop, no control errors and no remaining exact host; independent
+presence inspection also found none. The log reports `COMPOSITION cleanupVerified=2`.
+
+This executes actual product composition, encrypted storage and the App backend
+against real data-protection Keychain items in a fresh private namespace. Two
+fixed simulated inputs save and read back as two; simulated lock closes admission
+and key access. Bounded closed and unlock-before-Start windows report zero
+protected-read/publication/aggregate deltas. Explicit recovery reads two, then a
+new composition/store in the same process reads two and saves a third input.
+Both successfully created test items are deleted and their absence is verified.
+
+Artifacts: `/private/tmp/keyrecord-product-composition-unlocked-20260930`, including
+`keychain-run.json`, `keychain-run.log`, `keychain.xcresult`, `host.json`,
+`keychain-approved.xctestrun` and the service-only namespace record. Its
+`result.json` retains the original diagnostic signing result (21.076 seconds),
+with explicit reuse provenance; that duration is not a new signing run.
+The round is consumed. Its output directory and namespace must not be reused.
+Independent post-run review also confirmed this result and scope in
+`/private/tmp/.omo/evidence/composition-unlocked-result-code-review.md`.
+
+This closes unlocked full-product recovery for this signed candidate. Actual OS
+lock transitions, initial startup under lock, separate-process restart, continuous
+privacy coverage and rendered UI remain outside this scenario. Independent
+production lock authority and collecting Release remain unqualified. No system
+permissions or product safety behavior changed, and no ordinary input was captured.
+
+## Earlier diagnostic failure and locked readiness
 
 The separately reviewed diagnostic source `fee7d4aef` signed successfully in
 21.076 seconds using the existing profiles. Actual-artifact review and read-only
@@ -25,8 +64,8 @@ Artifacts remain under
 `/private/tmp/keyrecord-product-composition-diagnostic-20260930`, with the same
 result/log/xcresult/service-record names as the first round. This round is also
 consumed. The reviewer independently confirmed the add rejection and zero created
-items. Actual Keychain retries stop until the owner normally unlocks this Mac and
-confirms readiness. No permission toggle, Keychain setting change, authentication
+items. At this checkpoint actual Keychain retries stopped until the owner unlocked
+this Mac and confirmed readiness. No permission toggle, Keychain setting change, authentication
 prompt handling or extra signature is needed merely to resolve readiness.
 The existing signed diagnostic artifact can be reused for a newly isolated,
 reviewed round; the prior outputs must remain intact.

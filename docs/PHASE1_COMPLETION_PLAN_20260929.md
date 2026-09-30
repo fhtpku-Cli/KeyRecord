@@ -31,11 +31,19 @@ recovery remain evidence for their stated candidates; no routine repeat is plann
 
 ## Current state
 
-- The diagnostic full-product round `fee7d4aef` reports Keychain add `-25308`,
-  zero created items, one failed test and normal exit with no host. A subsequent
-  read-only check sees the Mac locked. Wait for owner unlock/readiness; reuse the
-  signed artifact in a fresh reviewed isolation directory, without repeating
-  signing solely for this readiness change. [Evidence](PRODUCT_COMPOSITION_ROUND_20260930.md).
+- The unlocked full-product round passed on reused signed `fee7d4aef`, after
+  owner readiness and independent review: one passed, zero failed/skipped, no
+  runtime warnings, two owned items cleaned up, normal exit in 12.236 seconds
+  and no host. Actual product/real Keychain recovery saves two, restores two and
+  saves three after same-process reconstruction. No new signing was needed.
+  Real OS lock authority and startup/separate-process restart under lock remain
+  open. [Evidence and earlier failed rounds](PRODUCT_COMPOSITION_ROUND_20260930.md).
+- The entries below retain earlier checkpoint scope. Full assembly and unlocked
+  real Keychain execution are now covered above; simulated lock is not OS lock
+  qualification. Next work is to identify and exercise the independent initial
+  lock-state witness before enabling any collecting Release path. The
+  [source investigation and bounded observation](LOCK_STATE_SOURCE_PREP_20260930.md)
+  are prepared; the physical lock/unlock interval awaits owner readiness.
 - The [first signed full-product round](PRODUCT_COMPOSITION_ROUND_20260930.md)
   failed during the scenario after a successful signed build. No host remained.
   Diagnose its startup failure before claiming real recovery. The owner now

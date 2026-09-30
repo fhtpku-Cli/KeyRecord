@@ -139,7 +139,7 @@ final class CaptureRuntimeCoordinatorTests: XCTestCase {
     }
 
     func testSleepAndSessionChangeStayClosedUntilAnExplicitUnlock() async throws {
-        for reason in [CaptureInvalidation.sleep, .sessionChanged] {
+        for reason in [CaptureInvalidation.sleep, .sessionChanged, .tapUnavailable] {
             let journal = Journal()
             let coordinator = makeCoordinator(checks: Checks(), journal: journal)
             let outcome = await coordinator.handle(.invalidated(reason))
@@ -274,7 +274,7 @@ final class CaptureRuntimeCoordinatorTests: XCTestCase {
             switch reason {
             case .foregroundChanged, .tapDisabled, .secureInputChanged:
                 XCTAssertTrue(reason.allowsAutomaticRecovery, "\(reason)")
-            case .permissionRevoked, .sleep, .sessionChanged:
+            case .permissionRevoked, .sleep, .sessionChanged, .tapUnavailable:
                 XCTAssertFalse(reason.allowsAutomaticRecovery, "\(reason)")
             }
         }

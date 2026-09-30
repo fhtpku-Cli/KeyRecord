@@ -41,6 +41,7 @@ private actor FakeTap: CaptureTapBackend {
     func subscribe(invalidate: @escaping @Sendable (CaptureInvalidation) -> Void) {}
     func readProviders() -> CaptureProviderSnapshot { cachedProviders() }
     nonisolated func cachedProviders() -> CaptureProviderSnapshot { CaptureProviderSnapshot(.safe) }
+    func isEnabled() -> Bool { handoff != nil }
     func start(handoff: @escaping @Sendable (ObservedKeyEvent) -> EventHandoffResult) async throws {
         starts += 1
         self.handoff = handoff

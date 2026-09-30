@@ -209,32 +209,65 @@ final class AppFlowObservable: ObservableObject {
     @Published private var rawAnalysis: AnalysisSnapshot?
     @Published private(set) var layout = LayoutPreference()
     var saveLayoutAction: (@MainActor (LayoutPreference) async throws -> Void)?
+    #if DEBUG
+    private var diagnostics: CaptureDiagnosticsRecorder?
+
+    func configureDiagnostics(_ recorder: CaptureDiagnosticsRecorder) {
+        diagnostics = recorder
+    }
+    #endif
 
     private let flow: Phase1FlowModel
+    private let protectedGate: KeyAvailabilityGate?
+    private var snapshotGeneration: CaptureGeneration?
+    private var analysisGeneration: CaptureGeneration?
     var actions: FlowActions
 
-    init(flow: Phase1FlowModel, actions: FlowActions = FlowActions()) {
+    init(flow: Phase1FlowModel, actions: FlowActions = FlowActions(),
+         protectedGate: KeyAvailabilityGate? = nil) {
         self.flow = flow
         self.actions = actions
+        self.protectedGate = protectedGate
         flow.onChange = { [weak self] in self?.mirror() }
         mirror()
     }
 
     var menuState: MenuBarState { MenuBarState(state: state) }
 
-    /// Gating stays in Core: a locked/error context reads nil even with raw totals set.
     var snapshot: AggregateSnapshot? {
-        get { flow.displayedAggregate }
+        get { readPresentation(snapshotGeneration) { flow.displayedAggregate } }
         set {
-            if newValue == nil { rawAnalysis = nil }
-            flow.displayedAggregate = newValue
+            guard let visible = newValue else {
+                snapshotGeneration = nil
+                analysisGeneration = nil
+                rawAnalysis = nil
+                flow.displayedAggregate = nil
+                return
+            }
+            if !publishPresentation({ generation in
+                snapshotGeneration = generation
+                flow.displayedAggregate = visible
+                #if DEBUG
+                diagnostics?.recordPublication(shortcutTotal: visible.shortcutTotal, bareKeyTotal: visible.bareKeyTotal)
+                #endif
+            }) {
+                snapshotGeneration = nil
+                flow.displayedAggregate = nil
+            }
         }
     }
 
-    var analysis: AnalysisSnapshot? { sensitiveContentVisible ? rawAnalysis : nil }
+    var analysis: AnalysisSnapshot? { readPresentation(analysisGeneration) { rawAnalysis } }
 
     func publishAnalysis(_ snapshot: AnalysisSnapshot?) {
-        rawAnalysis = sensitiveContentVisible ? snapshot : nil
+        guard let snapshot else { rawAnalysis = nil; analysisGeneration = nil; return }
+        if !publishPresentation({ generation in
+            analysisGeneration = generation
+            rawAnalysis = snapshot
+            #if DEBUG
+            diagnostics?.recordAnalysisPublication()
+            #endif
+        }) { rawAnalysis = nil; analysisGeneration = nil }
     }
 
     func saveLayout(_ preset: LayoutPreset) async {
@@ -246,7 +279,33 @@ final class AppFlowObservable: ObservableObject {
         } catch { noticeKey = "flow.actionUnavailable" }
     }
 
-    var sensitiveContentVisible: Bool { flow.sensitiveContentVisible }
+    var sensitiveContentVisible: Bool {
+        flow.sensitiveContentVisible && (protectedGate.map { (try? $0.begin()) != nil } ?? true)
+    }
+
+    private func readPresentation<T>(_ generation: CaptureGeneration?, _ read: () -> T?) -> T? {
+        guard flow.sensitiveContentVisible else { return nil }
+        func observed() -> T? {
+            #if DEBUG
+            return ProtectedReadActivity.process.observe(.aggregate, read)
+            #else
+            return read()
+            #endif
+        }
+        guard let protectedGate else { return observed() }
+        guard let generation else { return nil }
+        return try? protectedGate.use(generation, body: observed)
+    }
+
+    private func publishPresentation(_ publish: (CaptureGeneration?) -> Void) -> Bool {
+        guard flow.sensitiveContentVisible else { return false }
+        guard let protectedGate else { publish(nil); return true }
+        do {
+            let generation = try protectedGate.begin()
+            try protectedGate.use(generation) { publish(generation) }
+            return true
+        } catch { return false }
+    }
 
     func update(phase: LifecyclePhase, loginItemEnabled: Bool = false,
                        loginItemErrorKey: String? = nil) {

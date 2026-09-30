@@ -1,8 +1,507 @@
 # Current project status
 
-## Current summary — 2026-09-28
+## Current Apple Silicon MVP status — 2026-10-01
 
-Main includes PR #14 at `c367a0026c9df0c44d65290121b66d1c3577e774`.
+Current acceptance: [Phase 1 evidence](PHASE1_ACCEPTANCE.md).
+Earlier autonomous checkpoint: [MVP closeout](MVP_CLOSEOUT_20260929.md).
+The [Release dependency integration](RELEASE_CANDIDATE_20261001.md) now compiles
+the measured exact-item Keychain implementation into the product, qualifies only
+the observed platform and derives isolated defaults from the validated Bundle ID.
+127 App regressions, six core isolation tests and actual Release static audits pass.
+The Phase 1 aggregate surface and ten focused native UI/modifier tests now pass,
+with both locale renderings inspected. Signed Release `ea90753f` now completes its
+[real input/UI round](RELEASE_INPUT_ROUND_20261001.md): owner-confirmed Collecting,
+two TextEdit shortcuts, zero bare keys, unknown Command 1 / left Command 1, and normal
+exit in 141.014 seconds. Unknown is consistent with conservative reset behavior;
+it is not two observed left-side inputs. The exact trial is closed. All 591 local
+package tests and both remote CI jobs on test/docs follow-up `c337c684` pass.
+The subsequent fresh-process readback recovered the same two TextEdit records;
+the owner reported that it opened directly as Paused. It exited normally in 81.534
+seconds. This establishes readback and the reported state, not a Pause-button action
+or the reason for that startup state. Both CI jobs on documentation follow-up
+`2b2d365d` also pass. The existing [T23 signed-host accessibility/appearance
+walkthrough](RELEASE_NATIVE_UI_PREP_20261001.md) now passes within its owner-assisted
+scope: Paused, intact native menu, clear focus, normal speech and no reported issues.
+Normal exit took 175.366 seconds with no remaining instance; the owner confirmed
+all changed system settings restored to their original disabled states. Both CI
+jobs on documentation follow-up `a518f34b` pass. The Apple Silicon Phase 1 objective
+is complete with the measured platform and candidate boundaries below; PR #17
+remains draft and unmerged.
+Public distribution is outside scope. Completed lock/sleep/performance/Keychain
+rounds are not reopened.
+
+Current integration increment (2026-10-01): Debug and Release now share lock
+notification closure, startup key-gate priming and explicit capture-entry checks.
+A suspended startup lock read previously reopened the key gate after a lock
+notification; the new regression reproduced both gate reopening and a backend
+query. Reusing the existing recovery fence now rejects that stale result and
+serializes gate reopening with notification invalidation. The shared path passes
+114 App regressions and seven core recovery tests; native arm64 Debug/Release
+builds and Release capability/network static audits pass. That extraction retained
+blocked Release selection; the subsequent dependency integration is described above.
+The [real key integrity and
+product deletion scenario](PRODUCT_KEY_INTEGRITY_20261001.md) now passes on signed
+`1b82d7cd`: both missing/corrupt branches preserve data, original key restoration
+reads two counts, and the product removes its store and both owned items. One case
+passes with no runtime warnings; normal full-round exit takes 12.154 seconds and
+leaves no host. The subsequently completed candidate signing and native
+UI/accessibility checks are recorded above. Earlier lock/sleep/performance rounds
+are not scheduled for routine repetition.
+
+The [raw Keychain lock measurement](RAW_KEYCHAIN_LOCK_PREP_20261001.md) now passes
+on signed `a2de4ec6`, with owner-confirmed screen lock. Raw read status was 0 with
+the expected fixed value, while instrumented product reads/publications/counts
+stayed closed. Three owned items were cleaned up; normal exit took 52.148 seconds
+with no remaining host or runtime warnings. This measures the scoped raw behavior;
+product lock protection and remaining Release/privacy qualification still apply.
+The [version-scoped lock provider](OBSERVED_LOCK_PROVIDER_20261001.md) is now
+shared with Release compilation for native arm64 macOS 27.0 build 26A428 only.
+Other platforms remain unknown. This prepared integration using the completed
+observations permitted by contract section 4; Release capture was still blocked
+at that intermediate checkpoint and is qualified within the scope above.
+The dated entries below retain their original evidence boundaries.
+The [existing-store locked-restart round](PRODUCT_LOCKED_RESTART_PREP_20261001.md)
+now passes on signed `0766c515`: two real XCTest cases passed, zero failures/skips
+and no recorded runtime warnings. Seed PID 40935 saved two simulated counts and
+exited; locked-started PID 41230 made zero guarded Keychain attempts, then restored
+two and saved three after unlock. Both created items were cleaned up. The whole
+round took 53.383 seconds with normal exits and no remaining probe. This closes
+bounded existing-store separate-process recovery, not production lock authority,
+raw locked Keychain semantics or collecting Release. The fixture also has 21
+offline passes and six real opt-in skips. Both CI checks for the preceding
+`2288fbf27` closeout passed.
+Latest result: the [unlocked full-product round](PRODUCT_COMPOSITION_ROUND_20260930.md)
+passed on unchanged signed `fee7d4aef` after owner unlock and independent review.
+One real Keychain/product-composition test passed with no failures/skips or runtime
+warnings. Simulated input saved two, recovery and same-process reconstruction read
+two, then saved three. Both owned Keychain items were cleaned up; the controller
+exited normally in 12.236 seconds with no remaining host. No new signing occurred.
+Production OS lock authority and collecting Release remain
+open. The [coordinated lock-state observation](LOCK_STATE_SOURCE_PREP_20260930.md)
+completed 58 fresh-process samples: 36 unlocked, 13 locked, 9 unlocked, with owner
+confirmation of the visible lock screen and normal exit. This supports bounded
+process-start observations on this host; the input fields remain private
+implementation properties; they do not establish production lock authority.
+The [product locked-startup fixture](PRODUCT_LOCKED_STARTUP_PREP_20260930.md) now
+passes offline with the memory Keychain: locked startup makes zero client calls;
+explicit Retry then Start/consent saves two, restores two and saves three. Eighteen
+selected offline cases pass and all three real opt-ins skip. Signing and the
+coordinated real product-host round are separate: signed `3174772037` now passes
+the reviewed build in 27.617 seconds and static artifact inspection, without
+launch. The subsequent owner-coordinated signed round now passes: zero guarded
+Keychain attempts while locked, counts 2/2/3 after unlock and two items cleaned up.
+One case passed in 26.905 seconds, with a retained Security main-thread runtime
+warning. The controller exited normally in 31.281 seconds (49.889 including
+readiness), with no remaining host. The test-entry actor repair is separate from
+that signed result. This earlier result covers fresh-install startup with fixed
+simulated input only; the separate-process result is recorded above. Release remains open.
+The earlier diagnostic add `-25308` failure and later locked-host readiness
+observation remain recorded; neither alone establishes failure-time lock state.
+The following entries preserve earlier preparation and failed-round checkpoints.
+The [first full-product signed round](PRODUCT_COMPOSITION_ROUND_20260930.md)
+completed signing in 22.311 seconds but its selected test failed with a generic
+timeout. It exited normally with no remaining host. Stage and coarse Keychain
+error diagnostics were subsequently added; a delayed-memory-client run passes and does
+not reproduce the real failure. This is not a full-product recovery PASS.
+The owner now authorizes signing/automated rounds after independent sub-agent
+review; physical/system cooperation still requires coordination.
+The newest [full product hosted assembly](PRODUCT_COMPOSITION_HOST_PREP_20260930.md)
+compiles the actual App composition and counter observer into the existing probe.
+Its complete simulated input/privacy/save/reopen scenario passes through the
+guarded memory Keychain client. Sixteen hosted offline cases and 138 lifecycle
+cases pass; two real-Keychain opt-ins and one optional signed-disk fixture skip.
+Unsigned native Debug/Release probe builds pass. The real Keychain variant is
+prepared but unrun; signing and that bounded round need fresh approval. Independent
+OS lock authority and collecting Release remain open. Older assembly-pending
+statements below describe their earlier checkpoints.
+The latest offline work fixes a reproduced [Secure Input rebuild race](SECURE_INPUT_RECOVERY_RACE_20260930.md)
+that could require manual Start after Secure Input cleared during failure
+settlement. All 65 product recovery/quit cases and native unsigned Release
+compilation pass. Recovery tests also now use the actual App Keychain backend over
+an in-memory Security client: closed intervals make no queries, and missing key
+material with retained metadata preserves the encrypted files and recovers when
+the original material returns. These are offline results, not a new signed trial.
+The separately approved [real product Keychain backend round](PRODUCT_KEYCHAIN_ROUND_20260930.md)
+on signed `25ef0f117` passed: one executed case, no failures/skips, exact item
+cleanup, normal exit and no remaining host. Total controller duration was 10.327
+seconds. This closes unlocked backend CRUD on this candidate, not lock-state
+protection, full product recovery or collecting Release. A main-thread warning
+in the test harness is retained and addressed separately in source.
+The following entries preserve the preceding preparation/signing history.
+The owner separately approved the repaired probe's signed rebuild at
+`25ef0f117`. It completed in 16.86 seconds using the same profiles/certificate,
+without provisioning updates or host launch. Both strict disk signatures and
+the repaired exact-file role/permission inspection pass. The signed rebuild
+prerequisite is complete. The bounded controller now passes synthetic failure/
+timeout checks and read-only preparation; the separately approved real Keychain
+round remains pending. No probe host has been launched. See the
+[repaired signing result](PRODUCT_KEYCHAIN_HOST_PREP_20260930.md#approved-repaired-signing-result).
+One owner-approved [probe signing attempt](PRODUCT_KEYCHAIN_HOST_PREP_20260930.md#approved-signing-result-and-follow-up)
+built `b889640b4` successfully in 25.06 seconds with matching new profiles and no
+launch. Read-only inspection reproduced an incorrect requirement for independent
+entitlements on the in-process test plug-in. The repaired preflight checks the
+host's exact process entitlements and the plug-in's bundle code type, preserving
+both signatures, identities and matching team/certificate requirements. All 139
+lifecycle cases and 33 compiled checks pass with the signed files as a read-only
+fixture. The original signed binary remains unchanged with its old check; the
+separately approved repaired artifact is recorded above. Real Keychain execution
+is still pending. Both CI runs at `b889640b4` passed.
+The [product Keychain backend hosted preparation](PRODUCT_KEYCHAIN_HOST_PREP_20260930.md)
+now compiles the actual App backend into the Debug test host with fresh signed
+authorization before each operation. Fourteen hosted offline cases, 73 App
+backend/recovery cases, 135 lifecycle cases and 24 boundary/configuration cases
+pass. Hosted Debug/Release and native product Release builds succeed. No real
+Keychain call or signed launch occurred. Matching probe profiles were subsequently
+obtained in the approved build above. Full product observation and collecting
+Release remain open.
+The in-process `CounterWindowProductObserver` now reads the actual product
+diagnostics recorder through the existing hosted observer port. The product
+lock/unlock recovery test exercises it against production composition objects
+with simulated OS/Keychain boundaries. Twelve adapter cases and all 63 product
+recovery cases pass; an injected protected read makes the hosted controller fail.
+This is bounded counter observation, not a live lock-authority qualification or
+proof of continuously closed capture/rendered pixels. Signed-host assembly remains
+to be connected. The test library is not a product App dependency.
+The Keychain hosted probe now compiles and uses the App's exact-item query builders.
+Read, attribute inspection and deletion no longer filter by expected accessibility,
+which could hide an incorrectly configured item. The offline lifecycle suites
+(40 + 83), eight App query tests, one compiled hosted-query parity test and 22
+Release isolation tests pass. This connects query construction, not the complete
+live product observer; no system Keychain effects were run for this increment.
+The 2026-09-30 offline continuation repaired a reproducible
+[failed-recovery settlement race](RECOVERY_SETTLEMENT_REPAIR_20260930.md) that could
+discard a retained count. The existing reconciliation lifetime now includes the
+save and lifecycle handover; genuine permission loss still closes protected state.
+It also [distinguishes denied and unknown permission witnesses](PERMISSION_WITNESS_REPAIR_20260930.md)
+in the opt-in Debug journal. All 590 package cases and the final 63 product
+recovery/quit cases pass. The initial intermittent failure was deterministically
+reproduced before repair, not dismissed after a quiet rerun. These are offline
+results. Signed candidate `fde8c8886` is now
+[installed and exercised in two approved/readied segments](CURRENT_PERMISSION_TRIAL_20260930.md).
+The owner-reported permission toggle led to closed capture/key protection and 32
+stable blocked samples, followed by normal Quit. All permission witnesses still
+reported granted, so explicit denial remains unobserved. Restart preserved two
+shortcuts and saved one additional chord (total three, bare zero, three durable
+writes), then Pause and normal Quit completed. Startup restored Collecting as
+required by PRD L3; the original plan's manual-Start expectation is withdrawn and
+must not trigger another restart trial. Both exact processes are
+gone, output names consumed, and no repeat is authorized. Both CI jobs at
+`80061ab1f` passed. Full hosted qualification and collecting Release remain open.
+An [explicit hold-Command/press-A trial](CURRENT_COMMAND_CHORD_TRIAL_20260930.md)
+completed on unchanged signed source `426969c9f` after explicit approval/readiness.
+It received two key-downs, two key-ups and six modifier callbacks, accepted ten
+handoffs and counted two shortcuts with zero bare keys. The owner confirmed
+expanded left Command count two and TextEdit count two while Paused; actual queue
+closure was observed. All five issued writes succeeded durably with zero write/read
+failures. Normal early Quit completed and exact PID 27425 is gone. This closes
+the bounded current-candidate chord/left-side/attribution check, not accessibility,
+restart readback, full hosted lifecycle or collecting Release. The root is consumed;
+no repeat is authorized. Earlier corrected evidence below remains unchanged.
+Signed arm64 Debug candidate `426969c9f` was installed and run once after explicit
+owner approval/readiness for the [bounded modifier check](CURRENT_MODIFIER_TRIAL_20260930.md).
+The complete installed bundle matched staging and the old bundle is preserved.
+The owner reported completing input and Pause, then clarified that the instructions
+were understood as Command press/release followed by two standalone A presses.
+Actual queue closure, five successful durable writes and normal Quit
+were recorded, and exact PID 34309 is gone. The two aggregate increments
+were published as **bare keys 2 / shortcuts 0**, with two flagsChanged callbacks.
+These totals match the clarified operation. The earlier classification-defect
+interpretation is withdrawn; Command+A and side acceptance remain untested.
+The 175-second deadline arrived before expanded UI details were observed.
+Preparation marks bracket all six accepted callbacks between attempts three and
+four; they do not show a preparation between the counted inputs. Incoming native
+flag values are not recorded. Offline source
+review found no swapped summary fields and no basis for converting a Command-active
+key-down to bare solely because flagsChanged was missing. No speculative capture
+fix or automatic repeat occurred. Additional classification instrumentation is
+not warranted by this round. This is not collecting-Release qualification.
+At the preceding resting checkpoint, push and PR CI at
+`aa124243c` both succeeded (runs
+[36632563667](https://github.com/fhtpku-Cli/KeyRecord/actions/runs/36632563667) and
+[36632570428](https://github.com/fhtpku-Cli/KeyRecord/actions/runs/36632570428)).
+Those jobs run package tests, the offline capture harness, SwiftPM Release,
+unsigned universal App Release and native Debug test compilation; they do not
+run App XCTest or establish live host qualification. Product source remains
+`426969c9f`; this correction/preparation changes documentation and a local controller
+only. Both CI runs for `f77dd3045` subsequently passed as well; the approved chord
+round above used that unchanged product source. No further live round is authorized.
+The latest offline increment adds DEBUG preparation boundaries and the existing
+cumulative `sessionCount` to the opt-in privacy journal. This helps locate future
+capture resets around aggregate increments without persisting event traces.
+The count records preparation attempts before activation, not proven tap starts.
+The failing-first boundary regression now passes, along with 71 focused cases and
+60 product recovery/quit cases. The 590-case package run found one missing privacy
+inventory registration; after registering only the new integer field, all 46
+integration cases pass. The other 544 cases passed in the full run. Debug/unsigned
+arm64 Release builds and the zero-match static audit pass. That offline increment
+did not replace the trial; the approved installation is recorded above. Historical
+side-unknown evidence remains unchanged. See the
+[completion plan](PHASE1_COMPLETION_PLAN_20260929.md#observe-capture-preparation-boundaries--2026-09-30).
+Latest owner-assisted paused readback now has an expanded screenshot: two ordinary
+Command+A uses and TextEdit attribution are visible, but exact Command side is
+unknown. Normal Quit completed with no new callbacks, counts or writes; exact PID
+21499 is gone. An offline queue-to-product-to-analysis test preserves known sides,
+so no speculative capture change was made. The original input round's eight
+session preparation attempts do not locate a reset between presses; the cause remains unresolved.
+The screenshot's contradictory bare-key empty message is corrected in both
+languages. See [current UI evidence](CURRENT_UI_TRIAL_20260930.md#manual-provenance-readback-completed).
+This adds bounded rendering evidence, not accessibility or Release qualification.
+Latest offline repair also binds each keychain deletion plan to its inventory's
+original generation, preventing lock/reopen from reauthorizing stale work. Overlapping
+adapter operations are rejected and failed finish releases the plan for a fresh
+explicit retry. All 33 focused deletion/recovery tests and all 589 root-package
+tests pass. Unsigned arm64 Release and its zero-match static network audit pass.
+The preceding stage-fencing repair remains in place. No live deletion or installed
+trial replacement occurred during that offline increment. Atomic cancellation of admitted operations and system
+lock qualification of the full filesystem/login sequence are not claimed.
+Details: [completion plan](PHASE1_COMPLETION_PLAN_20260929.md).
+Debug diagnostics now also read actual queue admission and key-gate state, rather
+than relying on the delayed lifecycle live flag. A failing-first product test
+reproduced the missing observation; both targeted product tests and all 43 focused
+package tests pass. Debug/unsigned arm64 Release builds and the existing static
+network audit pass, with observation code absent from Release. These are sampled
+product states; the real hosted observer and independent lock authority remain
+unimplemented. Native current-candidate row/status inspection is the next bounded
+owner-assisted acceptance step; completed performance/sleep evidence is retained.
+The owner-approved/readied signed `346dc26d8`
+[bounded native UI/attribution round](CURRENT_UI_TRIAL_20260930.md) recorded two
+physical shortcuts, aggregate delta/totals two and six successful durable writes.
+Pause closed the actual queue; normal Quit completed and the exact PID is gone.
+Computer Use disconnected before returning a native view, so rows, application
+attribution, rendering and accessibility remain unverified. The round's occupied
+private directory is preserved; no automatic repeat is authorized.
+Subsequent pure AppKit regular/accessory control windows both returned native
+accessibility trees. The observation service is usable for these minimal targets;
+accessory shape alone does not reproduce the product failure. The exact product
+hierarchy/helper trigger remains unresolved; no live trial was repeated.
+The separately approved/readied paused UI readback completed on the same candidate:
+two shortcuts restored, zero new callbacks/handoffs/aggregate delta/writes or read
+failures, all five journal records closed, and normal Quit with exact PID gone.
+The owner opened the aggregate tab, but native observation again disconnected.
+The owner reported two occurrences and subsequently explicitly confirmed seeing
+TextEdit. Exact left/right modifier provenance remains unconfirmed. This is bounded
+readback and owner-observed attribution evidence, not full UI/accessibility
+acceptance or a repaired helper. Readback output names are consumed; no auto-relaunch.
+The 2026-09-30 increment retains Debug read/processing counts at synchronous
+key revocation, before queued cleanup writes the journal. A failing-first product
+test reproduced the missing observation; the repaired evaluator detects activity
+in that gap and treats missing evidence as inconclusive. All 47 focused package
+tests and all 59 product recovery tests pass. Debug and unsigned
+arm64 Release builds pass, and Release excludes this observation with zero static
+network audit matches. Full hosted observation and an independent OS lock witness
+remain open. This is offline evidence; the installed signed trial is unchanged.
+Latest observation increment counts plaintext-processing scopes through parsing,
+validation, serialization and key/crypto operations, including in-flight work.
+The evaluator preserves historical coverage limits and rejects missing groups.
+The 570-case package run and 80 selected product tests pass; after the last
+crypto-coverage extension, all 221 affected cases and two product boundary tests
+pass. Final Debug/unsigned arm64 Release builds pass; Release excludes Debug
+observation state and its static network audit has zero matches. Full hosted
+observation remains open; the next increment above addresses the journal's start
+against immediate key revocation. No new live evidence is claimed.
+Latest product regression reproduced cached aggregate/analysis visibility and
+publication after synchronous key revocation but before lifecycle state updated.
+Product flow now uses the existing key gate for presentation access and retains
+the producing generation; reopening alone cannot expose an old presentation.
+All 89 selected hostless product tests pass, with Debug and unsigned arm64 Release
+builds and the zero-match static network audit passing. This covers model reads
+and publication, not rendered pixels or complete hosted observation. No live run
+occurred. Details and failing-first evidence are in the completion plan.
+Latest safety repair serializes aggregates under the existing protection scope and
+carries the producing generation into scheduler staging, preventing old batches
+from entering a reopened session. Preference coding after awaits is also fenced.
+All 201 affected package tests, 11 reduction and 57 recovery/quit tests pass; Debug
+and unsigned arm64 Release builds pass, with zero static network audit matches.
+The installed signed trial remains unchanged and no new live round was run.
+Latest offline increment adds Debug process-wide actual decrypt/Keychain, cached
+store and in-memory aggregate read start/completion counts to the privacy journal.
+The product-path closure test verifies all eight counts stay balanced and unchanged
+through explicit reauthorization. All 57 recovery/quit and 10 reduction tests pass.
+The 564-case package run found one source-length failure; helper extraction fixed
+it and all 175 affected storage tests then passed. Debug and unsigned arm64 Release
+builds succeed; Release excludes the observer and its static network audit has zero
+matches. Plaintext processing, publication and full hosted observation remain open;
+this is not new live acceptance. Details are in the completion plan below.
+The owner has set an active goal to complete Apple Silicon Phase 1, continuing
+autonomously until a concrete host step needs cooperation. The
+[completion plan](PHASE1_COMPLETION_PLAN_20260929.md) records the remaining work.
+An encrypted-store regression reproduced active-day encounter order being lost
+across restart after date rollback. The repair persists encrypted daily order
+and removes it during cycle reset; 52 focused tests and all 553 SwiftPM XCTest
+cases pass. The App test build and all 69 selected hostless product recovery,
+reduction and startup cases pass. Earlier live evidence retains its original
+candidate bounds.
+Product Keychain queries now explicitly forbid authentication UI; all seven
+hostless query tests pass after reproducing the omitted-policy failure.
+Signed candidate `293f25a45` includes both repairs and passes build/profile/isolation
+checks. Its owner-approved/readied fresh isolated input/save/restart-readback check
+now completes: one physical key-down and one key-up, aggregate delta one, four
+successful durable writes, then the same shortcut total one after restart with no
+new input, writes or read failures. Both launches quit normally with no remaining
+App process. The MVP trial is updated with the old bundle preserved; the Performance
+Trial is unchanged. Both CI builds at `e808d6483` pass. See the completion plan for
+artifacts and limits. A subsequent separately readied permission-toggle round
+observed fail-closed capture/hidden state with 19 unchanged closed samples, then
+normal Quit. After the owner restored permission and confirmed readiness, an
+isolated restart freshly observed granted permission and saved one further
+shortcut (total two), with two successful durable writes and normal Quit.
+Both exact App processes are gone. The closure trigger was `tapUnavailable`,
+without a denied-permission witness, so this remains bounded toggle/closure and
+restart recovery evidence, not full permission qualification. Full hosted
+observation and collecting Release qualification remain open. A failing-first
+hostless regression reproduced the diagnostic gap when an unavailable tap closes
+the product before permission changes. Debug closed-interval observation now
+records noninteractive granted/not-granted preflight witnesses, without reopening
+capture. All 57 recovery/quit and 16 interval-evaluation tests pass; Debug test
+build succeeds. The installed `293f25a45` trial and its host evidence are unchanged.
+Formal performance acceptance was shortened at the owner's request: typing and
+idle once each, 30 seconds warmup plus 120 seconds measurement per window,
+about five minutes plus startup/exit. Targeted reruns replace automatic repeats;
+budgets and privacy/integrity checks are unchanged. This changes the formal
+default, not merely an exploratory precheck. See [the protocol](PHASE1_ACCEPTANCE.md#performance-plan).
+The approved replacement typing and idle windows now complete on signed
+`a604ad535` with controller `1cf51a056`. Both report measured, completed replay,
+normal exit and no failed checks. Host evaluation is within-budget: typing CPU
+0.0983%, idle CPU 0.0807%, highest footprint mean/peak 33.93/34.06 MB. Typing
+saved 2,550 key downs in 145 successful durable writes; idle accepted zero events.
+No product process remains. This closes the agreed short native ARM measurement,
+not full MVP/Release or real event-tap overhead qualification (productPass=false).
+The first invalid window and its reproduced post-exit architecture query bug
+remain separately recorded; the repaired controller captures architecture while alive.
+The [dedicated performance package preparation](PERFORMANCE_SHORT_ROUND_20260929.md)
+compiled successfully on `a604ad535`. Its initial missing-profile blocker was
+resolved by one owner-approved Xcode attempt (33.3 seconds, exit 0). The signed
+Performance Trial is installed separately; signature/profile/isolation checks
+passed before launch. The owner enabled Input Monitoring and confirmed Collecting
+separately for the completed replacement windows. See the linked round record.
+The completed [second sleep/wake round](SLEEP_WAKE_SECOND_ROUND_20260929.md) on
+signed `cf08a07c` observed 32.028 seconds suspended, sampled closure through wake
+with unchanged counters, explicit Start back to Collecting, new post-recovery
+input and successful save. Normal early Quit at 223.431 seconds left no process.
+Final totals are 12 shortcuts/2 bare keys, with 12 successful durable writes and
+zero write/read failures. The repaired interval evaluator reports observed.
+This completes the narrow collecting sleep/wake/manual recovery/input/save
+scenario, not continuous privacy or full hosted lifecycle qualification. The
+[first partial round](SLEEP_WAKE_ROUND_20260929.md), which ended before final
+input, remains separately recorded and unchanged.
+The [collecting lock and explicit recovery round](NEXT_HOST_ROUND_20260929.md)
+has now completed on signed `8e3ca0c55`: locked and unlocked-before-Start
+observations stayed closed with unchanged counters; explicit Start restored
+collection and saved new input; normal Quit left no process. The old interval
+end marker also included 20 gate admissions during authorized Start recovery,
+so the unmodified evaluator reported `closed-interval-protected-gate-entry`.
+An offline-reproduced Debug journal repair places the end before explicit
+unlocked store reauthorization. All 55 recovery/quit and 15 interval evaluation
+tests pass; this newer diagnostic repair is installed in signed `cf08a07c` and
+now has the separate sleep/wake observation above.
+The new focused hostless sleep recovery test passed, as did signed build and
+installed-package checks before that live round. The original lock journal and its
+evaluator result remain unchanged. See the
+candidate-specific [lock result](PERMISSION_RECOVERY_TEST.md#bounded-collecting-lock-and-explicit-recovery--2026-09-29).
+Both CI jobs for diagnostic repair `1e3918136` passed; performance-tool
+self-checks remain synthetic, with no new product resource window.
+The follow-up signed repair `8e3ca0c55` now has a separately approved bounded
+host result: Collecting survived the owner's TextEdit input and return to chat,
+with three capture sessions, no false Blocked phase, four successful durable
+writes and normal Quit at 55 seconds. No process remained. The 17-record journal
+contains only Collecting then Stopped. Shortcut total moved 4 to 7; the owner
+confirmed one Command-A, but aggregate-only evidence cannot identify the other
+two shortcut increments. This closes the narrow regrant/isolated-restart and
+foreground-rebuild regression round, not same-process revocation or the full
+privacy/Release requirements below. No further owner action is needed for this
+round.
+
+The subsequent reason-classification repair replaces the generic handler's
+incorrect `sessionLocked` label with `privacyCheckRequired`, while retaining
+actual lock reasons and all closure protections. Three new assertions failed
+before the repair; all 53 recovery/quit and 233 Core tests passed afterward.
+The owner clarified the last system prompt was Quit and Reopen. On signed
+`10676e1aa`, re-enabling the exact trial followed by an isolated restart reached
+Collecting; one confirmed shortcut increased the restored total from 3 to 4
+with one successful durable write. Normal Quit left no process. An unexpected
+`sourceStopped` block before Quit prevents a sustained-recovery pass. A held
+foreground rebuild reproduces that false block offline; the follow-up repair
+keeps health observations during reconciliation from becoming permanent faults
+while retaining the permission/lock checks. See the candidate-specific record
+and the passing 55 recovery/quit tests (zero failures; Debug test build passed)
+in [permission recovery](PERMISSION_RECOVERY_TEST.md). The older results below
+remain bound to `de8b9c526`.
+
+At `ba57ea711`, 546 package tests, 133 selected hostless App tests and 122
+KeychainLifecycle logic tests passed; fresh unsigned builds and the Release
+network-capability audit also passed. An initial signing build identified a
+missing provisioning profile. In one subsequently approved Xcode attempt,
+the existing account generated the matching Mac App Development profile and
+built the arm64 trial at `de8b9c526`. Its separately approved first-consent run
+completed key provisioning and encrypted preferences initialization, then failed
+capture startup with Input Monitoring denied. It never entered Collecting and
+quit normally. The owner enabled Input Monitoring and used OS Quit and Reopen;
+the reopened App was blocked and wrote no new isolated journal. A separately
+approved restart through the explicit isolation controller reused that store
+and namespace, reached Collecting with Input Monitoring granted, and quit
+normally after the controller's 55-second request, before its 60-second limit.
+It recorded one capture session but zero keyboard callbacks, accepted events,
+aggregates and flushes because the coordinated input step was not completed.
+After an explicit ready response, a separately coordinated input round recorded
+3 shortcuts, 0 bare keys, 3 key-down/3 key-up/6 modifier callbacks and 4 issued/4
+durable writes, with no write failure or timeout. It quit normally after the
+55-second controller request and left no process. Local provisioning, initial
+protected-store creation, isolated startup recovery and bounded physical input
+through durable save now have product evidence. A separately approved restart
+read back the same 3 shortcuts and 0 bare keys with zero new input, writes or
+snapshot read failures. It quit normally after a 15-second request, within the
+20-second limit, and left no process. This closes bounded aggregate restart
+readback for this candidate; full Keychain lifecycle remains open. A reusable
+trial build helper preserves the ordinary project defaults.
+
+A later separately approved permission round observed Collecting followed by
+Blocked with `privacyTrigger=sourceStopped`, `blockedReason=sessionLocked`, no
+live capture session and hidden sensitive state. The owner reported a restart
+or authentication prompt, triggering the agreed early stop. Normal Quit
+completed and no process remained. The observed protected-state counters stayed
+unchanged after closure, but all recorded Input Monitoring preflights before
+closure were granted. The initiating cause is not isolated; no explicit
+regrant/Start or recovery interval was exercised. This is partial closure
+evidence, not permission-recovery acceptance. The final Settings toggle state
+was not independently verified or automatically changed.
+
+The owner accepts an Apple Silicon-only first usable capture MVP. Intel runtime,
+Intel product-performance measurement and SP6B Intel backup-KDF timing are not
+MVP prerequisites. The original full G1/v1 requirements still exist as later
+work; neither G1 nor public Release is marked PASS by this scope decision.
+
+The earlier PR #17 checkpoint assessed product source `87a26a216` on
+`codex/phase1-acceptance`. The newer `de8b9c526` trial above has its own record;
+later documentation-only commits do not rebind either candidate's host results.
+Offline permission, tap-liveness, lock-callback and protected-store race repairs
+are present. The provisioned trial above has bounded capture/save/restart
+readback evidence. An earlier installed permission-witness trial appeared in
+Input Monitoring, then failed before Collecting with effective data-protection
+Keychain error `-34018`. A later isolated arm64 Debug App compiled from this
+branch is ad hoc signed with no matching embedded provisioning profile; its
+no-launch preflight rejected it. These packages cannot qualify revocation,
+regrant, lock, sleep or product Keychain behavior. Do not repeat host toggles
+with either package. See [permission evidence](PERMISSION_RECOVERY_TEST.md) and
+[remaining acceptance](PHASE1_ACCEPTANCE.md).
+
+The provisioned isolated Apple Silicon candidate now reaches Collecting through
+its explicit wrapper and has retained the agreed small shortcut total across
+restart. Bounded collecting lock and sleep/manual recovery now have the scoped
+observations above. Actual permission revoke/regrant, continuous lock/sleep
+protection remain open. The agreed short native Apple Silicon fixed-replay
+typing/idle measurement is complete for `a604ad535`, as recorded above. Offline
+KeychainLifecycle scenario tests have passed, but no live product observer is
+wired into the hosted controller; its missing closed-interval counters cannot
+count as zero. Current Release composition still uses `BlockedLiveKeychain` and
+`UnqualifiedCapture`, so it cannot yet serve as a collecting MVP. The exact
+eventual signed Release executable must pass the static FR-P1 capability audit;
+earlier unsigned binaries passing that audit do not qualify it. Current-candidate
+native consent/status/accessibility checks are also outstanding. No additional
+host packet-capture round is required for FR-P1.
+
+## 2026-09-28 network and permission checkpoint (historical)
+
+Main includes PR #16 at `f7dbe7434188edb706e877f168ff9940f7bea438`.
 The owner ended packet-capture qualification for FR-P1. This milestone has no
 network client or update endpoint. The revised [FR-P1 requirement](PRD.md#66-功能需求隐私)
 uses the product-source scan and an audit of the exact Release executable being
@@ -24,6 +523,206 @@ This closeout branch passed six focused `PrivacyEgressTests` and
 Release App built offline; its executable passed `audit-product-network.sh`
 with zero matches. `EvidenceValidator` compiled. The eventual signed Release
 candidate still needs its own audit before FR-P1 release acceptance.
+
+## Phase 1 permission polling candidate — 2026-09-28
+
+The `codex/phase1-acceptance` candidate checks Input Monitoring authorization in
+the existing collecting-state monitor. A failed read revokes the capture queue,
+closes protected state and leaves recovery to an explicit Start, including when
+macOS does not deliver a tap invalidation callback. The synthetic product test
+passes without sending such a callback. The 46 product recovery tests, seven
+Capture permission tests and six Keyring lock tests passed. The 22 Release
+isolation tests had zero failures and one skipped binary-dependent test;
+that test was separately run
+against this candidate's unsigned universal Release build and passed. That
+build's executable passed the static network audit with zero matches. These
+results establish offline behavior only. Actual macOS permission revocation and
+regrant, real Keychain access, lock timing, formal ARM/Intel resource measurement
+and signed Release qualification remain open.
+
+Candidate review reproduced a late-write fault in protected Keychain rotation:
+closing the store during a pending key read allowed an old migration to create a
+ciphertext locator or replace the manifest afterward. The existing protected
+session token now fences the reference session and resumed store work. Both
+failing-first regressions pass after repair; the Store suite and a SwiftPM
+Release build passed. This is an offline fix, not a host lock result.
+
+The resource sampler's own synthetic self-check initially returned
+`interrupted/duration-short`: its last sample landed 0.066 seconds beyond the
+nominal endpoint and was discarded. The measurement evaluator now includes the
+first sample at or after the endpoint when it is within 1.5 sampling intervals;
+missing, excessively late and genuinely short windows still fail. The ten
+resource-evaluation tests and two sampler self-check runs passed after this fix.
+This repairs the measurement tool, not the missing product workload or formal
+ARM/Intel measurements.
+The later archive follow-up uses that same accepted endpoint when reporting
+`effectiveMeasureSeconds`; previously, an accepted sample just beyond the
+window could still make the archive report a shorter duration. Ten focused
+resource tests and the sampler's synthetic self-check passed after this change.
+The sampler CLI now rejects non-finite, zero and sub-0.1-second intervals before
+sampling a process. Six malformed interval invocations exited promptly without
+writing measurement archives; the valid synthetic self-check still passed.
+
+The current PR candidate adds a Debug-only fixed replay source to the product
+composition. A hostless product test drives a fixture tick through reduction
+and encrypted persistence; a separate test checks that the replay fixture
+matches the compressed measurement receipt's workload. The app-side replay
+waits for Collecting and writes only aggregate progress to the trial's private
+root. It has not been launched or measured on a host, so neither ARM nor Intel
+performance qualification is established.
+
+Review found that fixed replay had used a constant-granted Input Monitoring
+stub, omitting the real system preflight cost from a formal product measurement.
+The App now supplies the system permission provider; hostless tests inject a
+provider and verify that denial blocks replay. Both focused replay tests and
+an unsigned Debug App test build passed. The changed host path remains unrun.
+
+Historical tool preparation under the former long protocol added a monotonic start marker shared with the
+resource sampler and a two-second drain tail after the 60-second warmup and
+600-second measurement window. Before reading the isolated encrypted aggregate,
+the Debug product waits for its queue to drain and checks the reduced total
+against accepted replay events. It then flushes and reads the aggregate back. The
+one-window `KeyRecordPerformanceTrial` controller compiles and the sampler's
+marker self-check runs against its own short synthetic process. Its offline
+six-window evaluator verifies same-host/same-candidate identity and six distinct
+process launches, recomputes the saved samples and applies the per-host budget.
+Its file-loading path then passed an explicitly synthetic six-window self-check, but
+has no real reports to evaluate. The controller has not launched a product App, and no ARM/Intel host
+performance result exists. The formal host performance lane remains inert.
+
+The 2026-09-29 owner-requested protocol update supersedes that default with two
+30/120-second windows. The current two-window evaluator and sampler self-checks,
+35 focused package tests, Debug build-for-testing and one hostless product
+replay/store test passed. No real performance App was launched. The installed
+sleep-tested `cf08a07c` App predates this replay-duration change and is not the
+new performance measurement package.
+The performance controller now rejects a trial package without a matching
+provisioning profile and signed Keychain application identifier. Its previous
+ad hoc package returned `trial-provisioning-profile-missing` in a no-launch
+check. A passing profile check would still require a bounded runtime Keychain
+readiness check before any formal measurement.
+
+The standalone Keychain lifecycle probe built unsigned on native ARM and its
+80 SwiftPM logic tests passed on this candidate. The build and tests did not
+launch the probe, access the real Keychain, or operate the session lock.
+Hosted Keychain accessibility and lock/unlock behavior therefore remain open.
+At the later `codex/phase1-acceptance` head, 80 preflight tests and 17 hosted
+scenario tests passed offline. The hosted controller no longer turns an assumed
+zero product delta or capture-closed state into a passing lock result: without a
+product observation it returns BLOCKED. A failed Keychain add stops the CRUD sequence
+and records the failing status rather than allowing a later read to mask it.
+These changes improve evidence integrity; no real Keychain or lock transition
+was exercised.
+The standalone probe and the current armed Debug product request the
+nonsynchronizable data-protection Keychain. The earlier Debug product used the
+traditional file Keychain, which did not enforce its requested
+`WhenUnlockedThisDeviceOnly` attribute. The product now fails closed if the
+data-protection Keychain is unavailable. The probe still has no live product
+observer, so even a future probe result alone cannot qualify the product's
+Keychain and lock lifecycle. The remaining evidence gap is recorded in
+[Phase 1 acceptance](PHASE1_ACCEPTANCE.md).
+The offline sleep/wake scenario now checks sleep closure and post-wake
+revalidation as separate steps. Its previous one-step form could skip the
+sleep interval; the failing-first test caught that model gap. A missing locked
+witness also blocks before wake. The complete KeychainLifecycle SwiftPM suite
+and unsigned hosted Xcode test bundle build passed after the repair. No sleep
+or wake was performed on the host, and live lifecycle qualification remains
+open.
+Apple documents that macOS applies `kSecAttrAccessible` only when
+`kSecUseDataProtectionKeychain` or `kSecAttrSynchronizable` is true
+([attribute reference](https://developer.apple.com/documentation/security/ksecattraccessible),
+[Mac Keychain technote](https://developer.apple.com/documentation/technotes/tn3137-on-mac-keychains)).
+The revised Debug product uses the former and keeps synchronization false.
+Its six query tests and the synthetic unavailable-Keychain product test passed;
+the focused App run passed 76 tests with one Release-binary-dependent skip.
+No real Keychain item was created or read in that run, and no lock transition
+was performed.
+
+The first owner-assisted same-process permission trial on the isolated Debug
+candidate did **not** show the required closure: after Input Monitoring was
+turned off for the trial bundle, the App still displayed Collecting. Its
+private coarse journal has no permission-revoked or Blocked transition before
+normal Quit. See [the scoped evidence](PERMISSION_RECOVERY_TEST.md#owner-assisted-real-permission-trial--2026-09-28).
+The synthetic polling result must not be promoted to live permission acceptance.
+An opt-in Debug witness now records whether the collecting monitor continues
+to sample Input Monitoring. Its owner-assisted run recorded 14 granted samples
+while Collecting, no non-granted sample or Blocked transition, and a normal
+Quit. The owner's System Settings screenshot has no entry for this new bundle;
+the only trial entry is the earlier bundle, with its switch off. The new bundle
+was not revoked in this run, so these samples describe baseline polling only.
+A narrow system-log review attributes the new bundle's permission request to
+Terminal and shows a LaunchServices lookup failure at the time. A reusable
+signed-trial launcher now uses LaunchServices and passed no-launch preflight,
+but has not been run or verified in Settings.
+The live acceptance remains open.
+See [the witness trial](PERMISSION_RECOVERY_TEST.md#owner-assisted-permission-witness-trial--2026-09-28).
+
+A later installed witness package did appear in Input Monitoring as
+`KeyRecord Permission Witness Trial 20260928b`. Enabling it required Quit and
+Reopen. Its initial isolated run failed before Collecting with unavailable
+protected storage; `secd` ignored the embedded application identifier because
+of an invalid signature or incorrect provisioning profile and returned
+`-34018` on Keychain lookup. The automatic relaunch did not write to the
+isolated journal. This is a trial-packaging failure, not evidence for real
+permission revocation or recovery; no further host toggle is planned from it.
+
+A later offline repair checks the actual Core Graphics tap state when deciding
+whether a session is live. In a synthetic product test, a disabled tap with no
+callback moves Collecting to Blocked and requires manual Start; 47 product
+recovery tests and 65 capture-layer tests passed. This improves fail-closed
+liveness but does not validate macOS permission revocation or the new bundle's
+Settings identity. See [the scoped result](PERMISSION_RECOVERY_TEST.md#disabled-tap-liveness-fallback--2026-09-28).
+
+At source commit `44e402d1edc7956f238cd1420875af5a17d0cbc4`, an unsigned
+universal Release App built with arm64 and x86_64 slices. The exact executable
+(`SHA-256 e2d51499ccc67f85f0223e6636aab5e26babfb6fc66b1476dabf4c45190c2a71`)
+passed `Scripts/audit-product-network.sh` with zero matches; six
+`PrivacyEgressTests` and `PrivacyBinaryAuditTests` passed, including the
+negative fixtures. Both macOS build CI jobs passed for this source commit.
+This is a static capability result for that unsigned executable.
+
+At PR #17 source commit `b188f5bd5ef5d731c7d96b6ac4fe13a4a1dd9bd6`, a fresh
+unsigned Release App built with arm64 and x86_64 slices. Its exact executable
+(`SHA-256 28ed199def331a6e20a00735c95c200f6179ab3f819a41807acac97b8cfc38ad`)
+passed `Scripts/audit-product-network.sh`: 1,848 undefined-symbol lines and
+20,069 string lines were inspected with zero matches. This qualifies only the
+static audit of that unsigned candidate. The final signed Release executable
+still needs its own audit.
+
+At PR #17 source commit `1b9bf5adc13df5d3eb57a626cd13d82e17d4b524`, the
+Debug journal counts visible snapshot and analysis assignments at their flow
+boundary, including paused restoration. An older journal without the analysis
+count is inconclusive for closed-interval publication evaluation. The focused
+SwiftPM diagnostic, privacy-schema and evaluator tests passed; 11 native
+snapshot-publication tests and the paused-restoration test passed. The unsigned
+universal Release bundle passed the existing project and bundle boundary scans.
+Its executable (`SHA-256 b25c1a800a3d02cc354cc34625e1cfa8ae804e5270727a8323f265e7efec6031`)
+passed `Scripts/audit-product-network.sh` with zero matches. This does not
+connect a live product observer to the hosted Keychain controller or audit a
+final signed Release.
+
+At PR #17 source commit `e550075ca3d6d325249196eb793e655ecbb2be0c`, an
+unsigned universal Release App built with arm64 and x86_64 slices. Its exact
+executable (`SHA-256 29feb7e48756d7002ed1c2dc03127342c8eb28c6ac9ff7ac340994ece19507ab`)
+passed `Scripts/audit-product-network.sh`: 1,854 undefined-symbol lines and
+20,192 string lines were inspected with zero matches. The executable has an
+ad hoc signature and no Team ID. On this host, `security find-identity -v -p
+codesigning` found zero valid identities, and the installed permission witness
+trial has no embedded provisioning profile. These are current candidate and
+host facts, not a signed Release audit or a usable permission trial. A final
+signed Release executable needs its own static audit; the prior trial must not
+be reused for permission qualification.
+
+An isolated arm64 Debug package was also compiled from the same PR #17 source
+with bundle ID `com.keyrecord.trial.permissioncandidate20260929`, display name
+`KeyRecord Phase 1 Permission Candidate`, and the required trial-isolation
+Info.plist marker set before the build. Its product dylib has SHA-256
+`f3b79b50c9955b16914e9ae3009153fb43756523c1d37194383527679bb028d9`.
+The bundle is ad hoc signed and has no embedded provisioning profile;
+`launch-isolated-debug-trial.sh --check` rejected it with exit 2 without
+launching. This is a compiled source candidate, not an operable host-trial
+package. It must be rebuilt with a matching development signature and profile
+before any permission or Keychain run.
 
 ## Dedicated trial isolation and bounded restart follow-up — 2026-09-27
 

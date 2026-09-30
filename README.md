@@ -2,7 +2,7 @@
 
 KeyRecord is an in-development native macOS menu-bar app for local, aggregate keyboard-use statistics. It aims to count shortcuts by application and bare keys without storing typed text or event sequences. The codebase uses Swift 6, macOS 14+, and Apple system frameworks.
 
-**Current stage: Phase 1 integration repair and bounded DEBUG validation.** The repair is merged into main. Owner-approved signed Debug runs observed physical input, application attribution, restart retention, manual recovery after lock/sleep, and shortcut exclusion for one tested application. These runs used the earlier signed validation candidate, not a freshly signed main or Release build. Passing tests and these bounded observations do not establish reliable daily use, full G1 acceptance, or release readiness. Release capture remains blocked pending qualification. See [current status](docs/PROJECT_STATUS.md) for measured results and their limits.
+**Current stage: Apple Silicon capture MVP qualification on draft PR #17.** The owner has deferred Intel compatibility for this MVP. Earlier signed Debug runs observed bounded physical input, attribution, restart retention and some privacy recovery on older candidates. The provisioned trial at `de8b9c526` completed first-consent key provisioning, encrypted preferences initialization and isolated startup recovery. A separately coordinated input round recorded 3 shortcuts, 0 bare keys and 4 issued/4 durable writes, then quit normally at the controller deadline. A subsequent approved restart read back the same totals with no new input, writes or snapshot read failures and quit normally. Release still uses blocked capture and Keychain composition, so no collecting Release or usable MVP is claimed. Current product source and an unsigned Release executable passed static network-capability checks; no repeat packet-capture round is required for FR-P1. See [current status](docs/PROJECT_STATUS.md) and [remaining acceptance](docs/PHASE1_ACCEPTANCE.md).
 
 ## Build and test
 
@@ -28,9 +28,16 @@ For a headless runner:
 Scripts/verify-local.sh --build-only
 ```
 
-This still runs SwiftPM tests and both App builds, but deliberately skips App XCTest. The ordinary [macOS CI workflow](.github/workflows/macos.yml) uses this mode. The workflow explicitly selects `/Applications/Xcode_26.3.app/Contents/Developer`, listed in the [official macOS 15 runner inventory](https://github.com/actions/runner-images/blob/main/images/macos/macos-15-Readme.md); [Swift 6.2.4 ships in Xcode 26.3](https://forums.swift.org/t/announcing-swift-6-2-4/85050). The local review/repair host uses Xcode 27.0 (27A266a), Apple Swift 6.4; CI passed at `b46316bbb` with Xcode 26.3. Later checks are revision-specific: consult the PR checks for the current commit; older CI or local results do not establish current remote compatibility. A green CI run proves only those tests and unsigned compilation. It does not launch capture, exercise WindowServer/VoiceOver, validate Intel execution, prove signing/notarization, or authorize host operations.
+This still runs SwiftPM tests and both App builds, but deliberately skips App XCTest. The ordinary [macOS CI workflow](.github/workflows/macos.yml) uses this mode. The workflow explicitly selects `/Applications/Xcode_26.3.app/Contents/Developer`, listed in the [official macOS 15 runner inventory](https://github.com/actions/runner-images/blob/main/images/macos/macos-15-Readme.md); [Swift 6.2.4 ships in Xcode 26.3](https://forums.swift.org/t/announcing-swift-6-2-4/85050). The local review/repair host uses Xcode 27.0 (27A266a), Apple Swift 6.4; CI passed at `b46316bbb` with Xcode 26.3. Later checks are revision-specific: consult the PR checks for the current commit; older CI or local results do not establish current remote compatibility. A green CI run proves only those tests and unsigned compilation. It does not launch capture, exercise WindowServer/VoiceOver, prove effective Keychain access, signing/notarization or native Apple Silicon product performance, or authorize host operations. The script's universal compilation is a development check, not an Intel requirement for the current MVP.
 
 ## Scope and host validation
+
+For a provisioned Apple Silicon Debug trial, use
+`bash Scripts/build-isolated-debug-trial.sh --help`. This builds a separately
+identified, isolation-required App without installing or launching it. The
+[latest checkpoint](docs/MVP_CLOSEOUT_20260929.md) records the tested candidate,
+offline results, and the resolved local provisioning issue; a build or signature
+check alone does not establish effective Keychain access.
 
 The [Phase 1 acceptance matrix](docs/PHASE1_ACCEPTANCE.md) lists current evidence, remaining
 gaps, safe automated checks and the minimum owner-assisted follow-up.

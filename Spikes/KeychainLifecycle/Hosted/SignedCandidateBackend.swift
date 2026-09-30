@@ -23,7 +23,7 @@ final class SignedCandidateBackend: CandidateBackend {
         try executor.perform(operation, namespace: namespace)
     }
 
-    private static func evidence(attempt: URL) -> SignedEffectEvidence {
+    static func evidence(attempt: URL) -> SignedEffectEvidence {
         let host = attempt.appendingPathComponent("build/lifecycle/Build/Products/Debug/KeychainLifecycleProbe.app")
         let tests = host.appendingPathComponent("Contents/PlugIns/KeychainLifecycleTests.xctest")
         let bundles = BundlePathMatch(host: Bundle.main.bundleURL.resolvingSymlinksInPath() == host.resolvingSymlinksInPath(),
@@ -56,9 +56,37 @@ final class SignedCandidateBackend: CandidateBackend {
     }
 }
 
+// Use the App's query builders, compiled from the same source file into this test
+// target. The signed executor still owns authorization and exact test identity.
+enum HostedProductKeychainQuery {
+    static func make(_ request: CandidateEffectRequest) throws -> [String: Any] {
+        guard case .string(let service) = request.query[kSecAttrService as String],
+              case .string(let account) = request.query[kSecAttrAccount as String] else {
+            throw CocoaError(.coderInvalidValue)
+        }
+        let identity = LocalKeychainQueries.productIdentity(service: service, account: account)
+        let query: [String: Any]
+        switch request.operation {
+        case .add:
+            query = LocalKeychainQueries.attributesForAdd(identity: identity, data: request.expectedValue,
+                accessible: LocalKeychainQueries.accessibleWhenUnlockedThisDeviceOnly)
+        case .read:
+            query = LocalKeychainQueries.queryForReadingData(identity: identity)
+        case .attributes:
+            query = LocalKeychainQueries.queryForReadingAttributes(identity: identity)
+        case .delete:
+            query = identity
+        }
+        guard (query as NSDictionary).isEqual(to: request.foundationQuery) else {
+            throw CocoaError(.coderInvalidValue)
+        }
+        return query
+    }
+}
+
 private final class SecurityCandidateEffectStore: CandidateEffectStore {
     func perform(_ request: CandidateEffectRequest) throws -> CandidateObservation {
-        let query = request.foundationQuery as CFDictionary
+        let query = try HostedProductKeychainQuery.make(request) as CFDictionary
         var result: CFTypeRef?
         let status: OSStatus
         var matched: Bool?

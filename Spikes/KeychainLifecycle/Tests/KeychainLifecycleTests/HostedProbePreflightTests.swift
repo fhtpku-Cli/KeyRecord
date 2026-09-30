@@ -5,6 +5,73 @@ import XCTest
 final class HostedProbePreflightTests: XCTestCase {
     let now = Date(timeIntervalSince1970: 2_000_000_000)
 
+    func testInspectsSignedHostAndPluginWithoutLaunchingOrKeychainAccess() throws {
+        guard let path = ProcessInfo.processInfo.environment["KEYRECORD_SIGNED_PROBE_INSPECTION"] else {
+            throw XCTSkip("No signed disk fixture supplied for read-only inspection")
+        }
+        let host = URL(fileURLWithPath: path)
+        let tests = host.appendingPathComponent("Contents/PlugIns/KeychainLifecycleTests.xctest")
+        let hostSignature = try LivePreflight.signature(host)
+        let testSignature = try LivePreflight.signature(tests)
+        XCTAssertEqual(hostSignature.identifier, "com.keyrecord.phase1.probe.host")
+        XCTAssertEqual(testSignature.identifier, "com.keyrecord.phase1.probe.tests")
+        XCTAssertEqual(hostSignature.team, testSignature.team)
+        XCTAssertEqual(hostSignature.fingerprint, testSignature.fingerprint)
+        XCTAssertTrue(hostSignature.policyValid)
+        XCTAssertTrue(testSignature.policyValid)
+    }
+
+    func testHostedPluginUsesHostEntitlementsOnlyWithBundleCodeType() {
+        let headers = "MH_MAGIC_64 ARM64 ALL 0x00 BUNDLE 45 5544 FLAGS"
+        let id = "com.keyrecord.phase1.probe.tests"
+        XCTAssertTrue(LivePreflight.signingPolicyValid(identifier: id, team: "TEAM",
+            entitlements: nil, machHeaders: headers))
+        XCTAssertTrue(LivePreflight.signingPolicyValid(identifier: id, team: "TEAM",
+            entitlements: [:], machHeaders: headers))
+        XCTAssertFalse(LivePreflight.signingPolicyValid(identifier: id, team: "TEAM",
+            entitlements: ["keychain-access-groups": ["TEAM.com.keyrecord.phase1.probe.host"]], machHeaders: headers))
+        XCTAssertFalse(LivePreflight.signingPolicyValid(identifier: id, team: "TEAM",
+            entitlements: nil, machHeaders: headers.replacingOccurrences(of: "BUNDLE", with: "EXECUTE")))
+    }
+
+    func testHostStillRequiresExactProcessIdentityAndKeychainEntitlements() {
+        let id = "com.keyrecord.phase1.probe.host"
+        let headers = "MH_MAGIC_64 ARM64 ALL 0x00 EXECUTE 20 1952 FLAGS"
+        let entitlements: [String: Any] = ["com.apple.application-identifier": "TEAM." + id,
+            "com.apple.developer.team-identifier": "TEAM", "keychain-access-groups": ["TEAM." + id]]
+        XCTAssertTrue(LivePreflight.signingPolicyValid(identifier: id, team: "TEAM",
+            entitlements: entitlements, machHeaders: headers))
+        XCTAssertFalse(LivePreflight.signingPolicyValid(identifier: id, team: "TEAM",
+            entitlements: nil, machHeaders: headers))
+        for key in entitlements.keys {
+            var missing = entitlements
+            missing.removeValue(forKey: key)
+            XCTAssertFalse(LivePreflight.signingPolicyValid(identifier: id, team: "TEAM",
+                entitlements: missing, machHeaders: headers), key)
+            var wrong = entitlements
+            wrong[key] = key == "keychain-access-groups" ? ["TEAM.*"] : "OTHER"
+            XCTAssertFalse(LivePreflight.signingPolicyValid(identifier: id, team: "TEAM",
+                entitlements: wrong, machHeaders: headers), key)
+        }
+        XCTAssertFalse(LivePreflight.signingPolicyValid(identifier: id, team: "TEAM",
+            entitlements: entitlements, machHeaders: headers.replacingOccurrences(of: "EXECUTE", with: "BUNDLE")))
+    }
+
+    func testCodeRoleRejectsMissingMalformedAndMixedMachHeaders() {
+        let good = "MH_MAGIC_64 ARM64 ALL 0x00 BUNDLE 45 5544 FLAGS"
+        let wrong = good.replacingOccurrences(of: "BUNDLE", with: "EXECUTE")
+        for headers in ["", "Mach header\nmagic cputype cpusubtype caps filetype", "MH_MAGIC_64 ARM64",
+                        "MH_UNKNOWN ARM64 ALL 0x00 BUNDLE", good + "\n" + wrong,
+                        good + "\nMH_MAGIC_64 ARM64"] {
+            XCTAssertFalse(LivePreflight.signingPolicyValid(identifier: "com.keyrecord.phase1.probe.tests",
+                team: "TEAM", entitlements: nil, machHeaders: headers))
+        }
+        XCTAssertFalse(LivePreflight.signingPolicyValid(identifier: "com.keyrecord.other", team: "TEAM",
+            entitlements: nil, machHeaders: good))
+        XCTAssertFalse(LivePreflight.signingPolicyValid(identifier: "com.keyrecord.phase1.probe.tests", team: "",
+            entitlements: nil, machHeaders: good))
+    }
+
     func testHappyValidReadOnlyPreflight() throws {
         // Given
         let fixture = PreflightFixture()
@@ -68,14 +135,27 @@ final class HostedProbePreflightTests: XCTestCase {
         try assertBlocked(.attemptMismatch, data: PreflightFixture().data(changing: "attemptID", to: "replayed"))
     }
 
-    func testOperationAllowlistMismatch() throws {
+    func testKeychainOnlyManifestDoesNotRequireUnrelatedHostOperations() throws {
+        let fixture = PreflightFixture()
+        let verdict = Preflight.evaluate(data: try fixture.data(), context: fixture.context, now: now)
+        XCTAssertEqual(verdict, .ready)
+        let manifest = try JSONDecoder().decode(HostManifest.self, from: fixture.data())
+        XCTAssertEqual(manifest.operations, [.keychain])
+    }
+
+    func testEmptyAllowlistBlocksBeforeAnyEffect() throws {
         try assertBlocked(.operationAllowlistMismatch,
-                          data: PreflightFixture().data(changing: "operations", to: HostOperation.allCases.dropLast().map(\.rawValue)))
+                          data: PreflightFixture().data(changing: "operations", to: []))
+    }
+
+    func testUnrelatedOperationAloneBlocksBeforeAnyEffect() throws {
+        try assertBlocked(.operationAllowlistMismatch,
+                          data: PreflightFixture().data(changing: "operations", to: [HostOperation.screen.rawValue]))
     }
 
     func testOperationAllowlistMismatchWhenDuplicated() throws {
         try assertBlocked(.operationAllowlistMismatch,
-                          data: PreflightFixture().data(changing: "operations", to: (HostOperation.allCases + [.keychain]).map(\.rawValue)))
+                          data: PreflightFixture().data(changing: "operations", to: [HostOperation.keychain.rawValue, HostOperation.keychain.rawValue]))
     }
 
     func testControllerMissing() throws {

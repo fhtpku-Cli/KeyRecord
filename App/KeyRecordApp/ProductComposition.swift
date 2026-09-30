@@ -12,24 +12,22 @@ final class ProductMaintenanceHooks {
     var erased: () -> Void = {}
 }
 
-#if DEBUG
 /// Injectable seam over the distributed notification centre so lock/unlock observer
 /// registration is testable without touching the real system session (KR-01).
 @MainActor
 protocol LockNotificationCentering {
-    func addObserver(for name: Notification.Name, handler: @escaping @MainActor () -> Void) -> any NSObjectProtocol
+    func addObserver(for name: Notification.Name, handler: @escaping @Sendable () -> Void) -> any NSObjectProtocol
 }
 
 @MainActor
 struct DistributedLockNotifications: LockNotificationCentering {
     func addObserver(for name: Notification.Name,
-                     handler: @escaping @MainActor () -> Void) -> any NSObjectProtocol {
+                     handler: @escaping @Sendable () -> Void) -> any NSObjectProtocol {
         DistributedNotificationCenter.default().addObserver(forName: name, object: nil, queue: nil) { _ in
-            Task { @MainActor in handler() }
+            handler()
         }
     }
 }
-#endif
 
 /// What one manual capture entry decided. Carries nothing in Release.
 @MainActor
@@ -49,14 +47,17 @@ struct ProductHostBoundaries {
     let login: any LoginItemBackend
     #if DEBUG
     var localCapture: LocalDevelopmentCapture?
+    var terminate: @MainActor () -> Void = { NSApp.terminate(nil) }
+    #endif
+    var qualification: any CaptureQualification = UnqualifiedCapture()
     var sessionLock: any SessionLockProvider = UnqualifiedSessionLockProvider()
     var foreground: any FrontmostAppProvider = SystemForegroundProvider()
     var secureInput: any SecureInputProvider = SystemSecureInputProvider()
     var eventSource: @MainActor (CaptureQueue, any CaptureQualification, any SessionLockProvider) async
-        -> ListenOnlyEventSource
+        -> ListenOnlyEventSource = { queue, qualification, sessionLock in
+            await ListenOnlyEventSource.system(queue: queue, qualification: qualification, sessionLock: sessionLock)
+        }
     var lockNotifications: any LockNotificationCentering = DistributedLockNotifications()
-    var terminate: @MainActor () -> Void = { NSApp.terminate(nil) }
-    #endif
 }
 
 @MainActor
@@ -71,12 +72,14 @@ final class ProductComposition: NSObject, NSMenuDelegate {
     let store: ObjectStore
     #if DEBUG
     private(set) var localCapture: LocalDevelopmentCapture?
-    private(set) var localSessionLock: (any SessionLockProvider)?
-    private var lockNotifications: any LockNotificationCentering = DistributedLockNotifications()
     private var developerMenu: LocalDevelopmentCaptureMenu?
     #endif
+    private let qualification: any CaptureQualification
+    private(set) var localSessionLock: (any SessionLockProvider)?
+    private var lockNotifications: any LockNotificationCentering = DistributedLockNotifications()
     private var exclusionCandidates: any ExclusionCandidateSource = WorkspaceExclusionCandidates()
     private var runtimeCoordinator: CaptureRuntimeCoordinator?
+    private var runtimeReconciliations = 0
     private let manualRecoveryFence = ManualRecoveryFence()
     private var pausedPrivacyTask: Task<Void, Never>?
     private var secureInputMonitor: Task<Void, Never>?
@@ -121,13 +124,35 @@ final class ProductComposition: NSObject, NSMenuDelegate {
             appropriateFor: nil, create: false).appendingPathComponent("com.keyrecord.app/store", isDirectory: true)
     }
 
+    static func installation(bundleIdentifier: String?, applicationSupport: URL? = nil) throws
+        -> (namespace: KeychainNamespace, storeRoot: URL) {
+        guard let bundleIdentifier,
+              bundleIdentifier.split(separator: ".", omittingEmptySubsequences: false).count >= 2,
+              bundleIdentifier.split(separator: ".", omittingEmptySubsequences: false).allSatisfy({ !$0.isEmpty }) else {
+            throw KeyringError.invalidNamespace
+        }
+        let namespace = try KeychainNamespace(bundleIdentifier)
+        let support = try applicationSupport ?? FileManager.default.url(for: .applicationSupportDirectory,
+            in: .userDomainMask, appropriateFor: nil, create: false)
+        return (namespace, support.appendingPathComponent(namespace.service, isDirectory: true)
+            .appendingPathComponent("store", isDirectory: true))
+    }
+
+    static func productionBoundaries(platform: ObservedLockPlatform = .current,
+        bundleIdentifier: String? = Bundle.main.bundleIdentifier, applicationSupport: URL? = nil) throws -> ProductHostBoundaries {
+        let identity = try installation(bundleIdentifier: bundleIdentifier, applicationSupport: applicationSupport)
+        let backend: any KeychainBackend = platform.isObservedCandidate ? LocalKeychainBackend() : BlockedLiveKeychain()
+        return ProductHostBoundaries(storeRoot: identity.storeRoot, namespace: identity.namespace,
+            backend: backend, login: ProductLogin.make(),
+            qualification: ObservedPlatformCaptureQualification(platform: platform),
+            sessionLock: ObservedSessionLockProvider(platform: platform))
+    }
+
     static func make() async throws -> ProductComposition {
         #if DEBUG
         try await assemble(try systemBoundaries(storeRoot: nil, namespace: nil))
         #else
-        try await assemble(ProductHostBoundaries(storeRoot: try productionStoreRoot(),
-            namespace: try KeychainNamespace("com.keyrecord.app"), backend: BlockedLiveKeychain(),
-            login: ProductLogin.make()))
+        try await assemble(try productionBoundaries())
         #endif
     }
 
@@ -136,23 +161,59 @@ final class ProductComposition: NSObject, NSMenuDelegate {
         try await assemble(try systemBoundaries(storeRoot: storeRoot, namespace: namespace))
     }
 
+    static func makeTrialReplay(storeRoot: URL, namespace: String,
+                                controller: FixedReplayController) async throws -> ProductComposition {
+        var host = try systemBoundaries(storeRoot: storeRoot, namespace: namespace)
+        guard host.localCapture != nil else { throw CaptureStartError.unqualified }
+        let foreground = FixedReplayForegroundProvider()
+        let secureInput = host.secureInput
+        host.foreground = foreground
+        host.eventSource = { queue, qualification, sessionLock in
+            ListenOnlyEventSource.fixedReplay(queue: queue, qualification: qualification,
+                providers: CaptureProviderSet(foreground: foreground, secureInput: secureInput,
+                                              sessionLock: sessionLock), controller: controller,
+                permission: SystemInputMonitoringPermission())
+        }
+        return try await assemble(host)
+    }
+
+    func replayDurableKeyDownTotal(expectedAcceptedEvents: Int64) async throws -> Int64 {
+        guard lifecycle.phase == .collecting,
+              let cycleID = lifecycle.state.preferences?.currentCycleID,
+              expectedAcceptedEvents >= 0, expectedAcceptedEvents.isMultiple(of: 2) else {
+            throw CaptureStartError.unavailable
+        }
+        let clock = ContinuousClock()
+        let deadline = clock.now.advanced(by: .seconds(2))
+        while true {
+            let snapshot = try reduction.snapshot()
+            let total = (snapshot?.shortcutTotal ?? 0) + (snapshot?.bareKeyTotal ?? 0)
+            if capture.queue.pendingCount == 0 && total == expectedAcceptedEvents / 2 { break }
+            guard lifecycle.phase == .collecting, clock.now < deadline else {
+                throw CaptureStartError.unavailable
+            }
+            try await clock.sleep(for: .milliseconds(10))
+        }
+        try await flush.flushWhileUnlocked()
+        let restored = try await AggregatePersistence.restore(cycleID: cycleID, store: store, gate: gate)
+        let snapshot = try AggregateSnapshot(shortcuts: restored.shortcuts, bareKeys: restored.bareKeys)
+        return snapshot.shortcutTotal + snapshot.bareKeyTotal
+    }
+
     /// Hostless tests supply every host boundary; the wiring below is the production wiring.
     static func makeSynthetic(_ boundaries: ProductHostBoundaries) async throws -> ProductComposition {
         try await assemble(boundaries)
     }
 
     private static func systemBoundaries(storeRoot: URL?, namespace name: String?) throws -> ProductHostBoundaries {
-        // T7 has no qualified system-lock witness. Never replace this boundary with
-        // an environment switch, cached unlocked assumption, or fake-success backend.
         // DEBUG self-use: armed by the persistent Developer menu toggle (UserDefaults)
-        // or the KEYRECORD_LOCAL_CAPTURE=1 automation env. Non-armed Debug and all
-        // Release builds stay Blocked.
+        // or the KEYRECORD_LOCAL_CAPTURE=1 automation env. Non-armed Debug stays blocked.
         let localCapture: LocalDevelopmentCapture? = LocalDevelopmentCaptureArmament.isArmed
             ? LocalDevelopmentCapture() : nil
         let backend: any KeychainBackend = localCapture != nil ? LocalKeychainBackend() : BlockedLiveKeychain()
         return ProductHostBoundaries(
-            storeRoot: try storeRoot ?? productionStoreRoot(),
-            namespace: try KeychainNamespace(name ?? "com.keyrecord.app"),
+            storeRoot: try storeRoot ?? installation(bundleIdentifier: Bundle.main.bundleIdentifier).storeRoot,
+            namespace: try name.map(KeychainNamespace.init) ?? installation(bundleIdentifier: Bundle.main.bundleIdentifier).namespace,
             backend: backend, login: ProductLogin.make(),
             localCapture: localCapture,
             sessionLock: localCapture == nil ? UnqualifiedSessionLockProvider() : SystemSessionLockProvider(),
@@ -186,17 +247,15 @@ final class ProductComposition: NSObject, NSMenuDelegate {
         let queue = CaptureQueue()
         #if DEBUG
         let localCapture = host.localCapture
-        let qualification: any CaptureQualification = localCapture ?? UnqualifiedCapture()
+        let qualification: any CaptureQualification = localCapture ?? host.qualification
+        #else
+        let qualification = host.qualification
+        #endif
         let sessionLock = host.sessionLock
         let eventSource = await host.eventSource(queue, qualification, sessionLock)
         let capture = ProductCapture(source: eventSource, queue: queue, reduction: reduction,
             persistence: persistence, scheduler: scheduler, foreground: host.foreground,
             secureInput: host.secureInput, qualification: qualification, sessionLock: sessionLock)
-        #else
-        let eventSource = await ListenOnlyEventSource.system(queue: queue, qualification: UnqualifiedCapture())
-        let capture = ProductCapture(source: eventSource, queue: queue, reduction: reduction,
-            persistence: persistence, scheduler: scheduler, foreground: SystemForegroundProvider())
-        #endif
         let flush = ProductFlush(reduction: reduction, scheduler: scheduler)
         let login = host.login
         let deletion = LocalDeletionCoordinator(ownedRoot: root.path, fileSystem: FileSystemDeletionAdapter(),
@@ -210,26 +269,24 @@ final class ProductComposition: NSObject, NSMenuDelegate {
             afterFailure: { stage in await hooks.fail(stage) },
             afterErase: { hooks.erased() }, clear: { reduction.clear() })
         let flow = AppFlowObservable(flow: Phase1FlowModel(lifecycle: lifecycle,
-            cycleReset: destruction, localDataEraser: destruction))
-        #if DEBUG
-        // KR-01: the session-lock provider is handed to the initializer, NOT assigned after
-        // it returns. The old code ran `if let sessionLock = localSessionLock` inside the
-        // initializer while the property was still nil, so the screenIsLocked /
-        // screenIsUnlocked observers were never registered at all.
+            cycleReset: destruction, localDataEraser: destruction), protectedGate: gate)
         let composition = ProductComposition(lifecycle: lifecycle, flow: flow, gate: gate, reduction: reduction,
                                   scheduler: scheduler, flush: flush, capture: capture, store: store, hooks: hooks,
-                                  localCapture: localCapture,
-                                  localSessionLock: localCapture == nil ? nil : sessionLock,
+                                  qualification: qualification, sessionLock: sessionLock,
                                   notifications: host.lockNotifications)
+        #if DEBUG
+        composition.localCapture = localCapture
         composition.terminateApplication = host.terminate
-        #else
-        let composition = ProductComposition(lifecycle: lifecycle, flow: flow, gate: gate, reduction: reduction,
-                                  scheduler: scheduler, flush: flush, capture: capture, store: store, hooks: hooks)
         #endif
         composition.resumeSuspendedWriter = { try await destruction.resumeWriterIfIdle() }
         composition.completeRecoveredReset = { try await destruction.completeRecoveredReset() }
         #if DEBUG
+        composition.diagnostics.configureProtectedGateEntries { gate.diagnosticProtectedEntryCount }
+        composition.diagnostics.configureProtectedReadActivity { ProtectedReadActivity.process.snapshot }
+        composition.diagnostics.configureRevocationReadActivity { gate.diagnosticRevocationReadActivity }
+        composition.diagnostics.configureAdmissionState { (queue.isOpen, (try? gate.begin()) != nil) }
         reduction.configureDiagnostics(composition.diagnostics)
+        flow.configureDiagnostics(composition.diagnostics)
         await scheduler.setDiagnostics(composition.diagnostics)
         await eventSource.setDiagnostics(composition.diagnostics)
         composition.diagnostics.configureCounterInstrumentation()
@@ -237,37 +294,22 @@ final class ProductComposition: NSObject, NSMenuDelegate {
         return composition
     }
 
-    #if DEBUG
     private init(lifecycle: LifecycleOrchestrator, flow: AppFlowObservable, gate: KeyAvailabilityGate,
                  reduction: ProductReduction, scheduler: FlushScheduler, flush: ProductFlush,
                  capture: ProductCapture, store: ObjectStore, hooks: ProductMaintenanceHooks,
-                 localCapture: LocalDevelopmentCapture?, localSessionLock: (any SessionLockProvider)?,
+                 qualification: any CaptureQualification, sessionLock: any SessionLockProvider,
                  notifications: any LockNotificationCentering = DistributedLockNotifications()) {
         self.lifecycle = lifecycle; self.flow = flow; self.gate = gate; self.reduction = reduction
         self.scheduler = scheduler; self.flush = flush; self.capture = capture; self.store = store
         // Assigned BEFORE super.init()/observer registration so the lock wiring below sees them.
-        self.localCapture = localCapture
-        self.localSessionLock = localSessionLock
+        self.qualification = qualification
+        self.localSessionLock = sessionLock
         self.lockNotifications = notifications
         super.init()
         installActions(hooks: hooks)
         registerLifecycleObservers(hooks: hooks)
         sync()
     }
-    #endif
-
-    #if !DEBUG
-    private init(lifecycle: LifecycleOrchestrator, flow: AppFlowObservable, gate: KeyAvailabilityGate,
-                 reduction: ProductReduction, scheduler: FlushScheduler, flush: ProductFlush,
-                 capture: ProductCapture, store: ObjectStore, hooks: ProductMaintenanceHooks) {
-        self.lifecycle = lifecycle; self.flow = flow; self.gate = gate; self.reduction = reduction
-        self.scheduler = scheduler; self.flush = flush; self.capture = capture; self.store = store
-        super.init()
-        installActions(hooks: hooks)
-        registerLifecycleObservers(hooks: hooks)
-        sync()
-    }
-    #endif
 
     private func installActions(hooks: ProductMaintenanceHooks) {
         let lifecycle = self.lifecycle
@@ -338,33 +380,26 @@ final class ProductComposition: NSObject, NSMenuDelegate {
             forName: NSWorkspace.didWakeNotification, object: nil, queue: nil) { [weak self] _ in
                 Task { @MainActor in self?.handleRuntimeAvailable() }
             })
-        #if DEBUG
         // KR-01: registration now happens with a non-nil provider, because it was injected
         // into the initializer instead of assigned after the initializer returned.
         guard localSessionLock != nil else { return }
-        observers.append(lockNotifications.addObserver(for: Self.screenLockedNotification) { [weak self] in
+        observers.append(lockNotifications.addObserver(for: Self.screenLockedNotification) {
+            [weak self, reduction, queue, manualRecoveryFence] in
+            reduction.revokeProtectedState(queue: queue, recoveryFence: manualRecoveryFence)
             Task { @MainActor in await self?.handleSessionLocked() }
         })
         observers.append(lockNotifications.addObserver(for: Self.screenUnlockedNotification) { [weak self] in
             Task { @MainActor in await self?.handleSessionUnlocked() }
         })
-        #endif
     }
 
-    #if DEBUG
     static let screenLockedNotification = Notification.Name("com.apple.screenIsLocked")
     static let screenUnlockedNotification = Notification.Name("com.apple.screenIsUnlocked")
 
     /// Lock/sleep contract: revoke immediately, clear queued events and sensitive
     /// snapshots, close the scheduler and key gate, then stop the source.
     func handleSessionLocked() async {
-        diagnostics.notePrivacyTrigger("screenLockedNotification")
-        manualRecoveryFence.invalidate()
-        gate.update(.locked)
-        capture.queue.revoke()
-        reduction.clear()
-        lifecycle.requireRecovery(reason: .sessionLocked)
-        await closeProtectedState()
+        await closeForSessionLock(trigger: "screenLockedNotification")
     }
 
     /// KR-01/lock contract: unlock only exposes an explicit retry path. The key gate stays
@@ -373,7 +408,18 @@ final class ProductComposition: NSObject, NSMenuDelegate {
     func handleSessionUnlocked() async {
         handleRuntimeAvailable()
     }
-    #endif
+
+    private func closeForSessionLock(trigger: String) async {
+        #if DEBUG
+        diagnostics.notePrivacyTrigger(trigger)
+        #endif
+        manualRecoveryFence.invalidate()
+        gate.update(.locked)
+        capture.queue.revoke()
+        reduction.clear()
+        lifecycle.requireRecovery(reason: .sessionLocked)
+        await closeProtectedState()
+    }
 
     private func handleRuntimeAvailable() {
         syncRuntime()
@@ -408,42 +454,54 @@ final class ProductComposition: NSObject, NSMenuDelegate {
     }
 
     private func prepareExplicitCaptureStart(_ attempt: ManualRecoveryAttempt, trace: ManualEntryTrace) async -> Bool {
-        #if DEBUG
-        guard let sessionLock = localSessionLock else {
+        guard await qualification.liveCaptureQualified(), let sessionLock = localSessionLock else {
+            #if DEBUG
             trace.detail.prepareOutcome = "sessionLockProviderMissing"
             diagnostics.notePrivacyTrigger("sessionLockProviderMissing")
+            #endif
             await handlePrivacyInvalidation()
             return false
         }
         let lockState = await sessionLock.sessionLockState()
+        #if DEBUG
         trace.detail.prepareLockRead = String(describing: lockState)
+        #endif
         guard manualRecoveryFence.isCurrent(attempt) else {
+            #if DEBUG
             trace.detail.prepareOutcome = "fenceStaleAfterLockRead"
+            #endif
             return false
         }
         guard lockState == .unlocked else {
+            #if DEBUG
             trace.detail.prepareOutcome = "lockNotUnlocked"
             diagnostics.notePrivacyTrigger("sessionLockReadNotUnlocked")
-            await handlePrivacyInvalidation()
+            #endif
+            await handlePrivacyInvalidation(reason: .sessionLocked)
             return false
         }
-        gate.update(.unlocked)
+        #if DEBUG
+        diagnostics.endClosedInterval(cause: "protectedStoreReauthorized")
+        #endif
+        guard manualRecoveryFence.performIfCurrent(attempt, body: { gate.update(.unlocked) }) else {
+            return false
+        }
         let permission = await capture.requestInputMonitoringPermission()
+        #if DEBUG
         trace.detail.permissionStatus = String(describing: permission)
+        #endif
         guard manualRecoveryFence.isCurrent(attempt) else {
+            #if DEBUG
             trace.detail.prepareOutcome = "fenceStaleAfterPermission"
+            #endif
             return false
         }
         await runtimeCoordinator?.clearUserStop()
         let current = manualRecoveryFence.isCurrent(attempt)
+        #if DEBUG
         trace.detail.prepareOutcome = current ? "ready" : "fenceStaleAfterClearUserStop"
-        return current
-        #else
-        gate.update(.unknown)
-        lifecycle.requireRecovery(reason: .keyUnavailable)
-        syncRuntime()
-        return false
         #endif
+        return current
     }
 
     private func performManualCaptureEntry(trace: ManualEntryTrace,
@@ -492,16 +550,22 @@ final class ProductComposition: NSObject, NSMenuDelegate {
 
     /// Everything `boot` does before the status item exists.
     func restoreRuntime() async {
-        #if DEBUG
         // Prime the gate from the real session-lock state BEFORE restore() reloads
         // preferences (which calls gate.begin()); a locked/unknown Mac stays closed.
-        let armed = localCapture != nil
+        var armed = false
         var observedLock: SessionLockState?
-        if armed, let sessionLock = localSessionLock {
-            let state = await sessionLock.sessionLockState()
-            observedLock = state
-            if state == .unlocked { gate.update(.unlocked) }
-        }
+        _ = await manualRecoveryFence.perform(
+            prepare: { attempt in
+                armed = await qualification.liveCaptureQualified()
+                guard armed, let sessionLock = localSessionLock else { return false }
+                let state = await sessionLock.sessionLockState()
+                observedLock = state
+                guard state == .unlocked else { return false }
+                return manualRecoveryFence.performIfCurrent(attempt) { gate.update(.unlocked) }
+            },
+            start: {},
+            abort: { gate.update(.unknown) })
+        #if DEBUG
         // Record the startup inputs that decide whether protected data is readable at all.
         let primed = (try? gate.begin()) != nil
         diagnostics.record {
@@ -645,7 +709,7 @@ final class ProductComposition: NSObject, NSMenuDelegate {
                 // Authoritative: the session is gone, so the UI must stop claiming it.
                 await MainActor.run { self?.captureSessionLive = false }
             },
-            openSession: { [weak self] _ in
+            openSession: { [weak self] conditions in
                 guard let self else { return false }
                 guard let preferences = await self.currentPreferences() else { return false }
                 let exclusion = await capture.reapplyPolicy(preferences: preferences)
@@ -658,6 +722,10 @@ final class ProductComposition: NSObject, NSMenuDelegate {
                 }
                 await MainActor.run {
                     self.captureSessionLive = live
+                    if !live, self.lifecycle.phase == .collecting {
+                        self.lifecycle.observe(self.lifecycle.state.conditions.with(secureInput: conditions.secureInput))
+                        self.lastSecureInput = conditions.secureInput
+                    }
                     #if DEBUG
                     self.diagnostics.record { $0.captureSessionLive = live }
                     self.diagnostics.notePrivacyInterval()
@@ -677,15 +745,25 @@ final class ProductComposition: NSObject, NSMenuDelegate {
                     self?.diagnostics.notePrivacyTrigger("captureInvalidationNoAutoRecovery")
                     #endif
                     await self?.handlePrivacyInvalidation()
-                    await coordinator.handle(.invalidated(reason))
+                    await self?.reconcileCapture(.invalidated(reason), using: coordinator)
                 }
             } else {
                 Task { @MainActor in
-                    let outcome = await coordinator.handle(.invalidated(reason))
-                    await self?.settleFailedRecovery(outcome)
+                    guard let self else { return }
+                    await self.reconcileCapture(.invalidated(reason), using: coordinator)
                 }
             }
         }
+    }
+
+    @discardableResult
+    private func reconcileCapture(_ trigger: CaptureRuntimeTrigger,
+                                  using coordinator: CaptureRuntimeCoordinator) async -> CaptureRuntimeOutcome {
+        runtimeReconciliations += 1
+        defer { runtimeReconciliations -= 1 }
+        let outcome = await coordinator.handle(trigger)
+        await settleFailedRecovery(outcome)
+        return outcome
     }
 
     /// A failed automatic rebuild leaves no session and no trigger that would retry it, so
@@ -696,9 +774,12 @@ final class ProductComposition: NSObject, NSMenuDelegate {
         // Secure Input monitor retries once it clears.
         guard outcome == .blocked(.startFailed), lifecycle.phase == .collecting,
               !(await capture.hasLiveSession()) else { return }
+        let rebuildingSecureInput = lifecycle.state.conditions.secureInput
         let secureInput = await capture.secureInputState()
-        guard secureInput == .disabled else {
-            lastSecureInput = secureInput
+        // Clearing Secure Input during this read does not turn its rejected rebuild
+        // into a permanent failure. The monitor retries through fresh privacy checks.
+        guard rebuildingSecureInput == .disabled, secureInput == .disabled else {
+            lastSecureInput = rebuildingSecureInput != .disabled ? rebuildingSecureInput : secureInput
             return
         }
         try? await flush.flushWhileUnlocked()
@@ -771,7 +852,7 @@ final class ProductComposition: NSObject, NSMenuDelegate {
         if let runtimeCoordinator {
             // Same serial entry point as every invalidation (KR-02), so an exclusion change
             // cannot race a concurrent foreground/tap recovery.
-            await settleFailedRecovery(await runtimeCoordinator.handle(.exclusionsChanged))
+            await reconcileCapture(.exclusionsChanged, using: runtimeCoordinator)
         } else if let preferences = lifecycle.state.preferences {
             await capture.reapplyPolicy(preferences: preferences)
         }
@@ -790,8 +871,9 @@ final class ProductComposition: NSObject, NSMenuDelegate {
     }
 
     /// Capture reads Secure Input only when a session starts and macOS posts no change
-    /// notification, so a collecting lifecycle polls it. Turning on closes the session at
-    /// once; turning off asks the coordinator to rebuild it under fresh checks.
+    /// notification, so a collecting lifecycle polls it. The same poll checks Input
+    /// Monitoring authorization without prompting. Losing that grant closes the session
+    /// and requires an explicit Start even if authorization is later restored.
     /// The 250 ms sleep is the polling interval, not a guaranteed maximum response time.
     private func reconcileSecureInputMonitor() {
         guard lifecycle.phase == .collecting, !holdRuntimeTasks else {
@@ -804,14 +886,62 @@ final class ProductComposition: NSObject, NSMenuDelegate {
         secureInputMonitorStarts += 1
         #endif
         secureInputMonitor = Task { [weak self] in
+            #if DEBUG
+            var completedPermissionPolls = 0
+            #endif
             while !Task.isCancelled {
                 guard let self else { break }
+                let lockState = await self.capture.sessionLockState()
+                guard !Task.isCancelled, self.monitorIsCurrent(generation) else { break }
+                if lockState != .unlocked {
+                    await self.closeForSessionLock(trigger: "sessionLockMonitor-\(lockState)")
+                    break
+                }
+                let permission = await self.capture.inputMonitoringStatus()
+                guard !Task.isCancelled, self.monitorIsCurrent(generation) else { break }
+                #if DEBUG
+                if completedPermissionPolls.isMultiple(of: 16) || permission != .granted {
+                    self.recordPermissionWitness(permission)
+                }
+                completedPermissionPolls += 1
+                #endif
+                if permission != .granted {
+                    self.reduction.revokeProtectedState(queue: self.capture.queue,
+                                                       recoveryFence: self.manualRecoveryFence)
+                    #if DEBUG
+                    self.diagnostics.notePrivacyTrigger("inputMonitoringRevoked")
+                    #endif
+                    await self.handlePrivacyInvalidation()
+                    if let coordinator = self.runtimeCoordinator {
+                        await self.reconcileCapture(.invalidated(.permissionRevoked), using: coordinator)
+                    }
+                    break
+                }
                 let state = await self.capture.secureInputState()
                 guard !Task.isCancelled, self.monitorIsCurrent(generation) else { break }
                 let previous = self.lastSecureInput
                 self.lastSecureInput = state
-                let live = await self.capture.hasLiveSession()
+                let wasReconciling = self.runtimeReconciliations > 0
+                let captureGeneration = self.capture.queue.generation
+                let health = await self.capture.sessionHealth()
                 guard self.monitorIsCurrent(generation) else { break }
+                let healthIsStable = !wasReconciling && self.runtimeReconciliations == 0
+                    && self.capture.queue.generation == captureGeneration
+                let unexpectedStop = health == .stopped && state == .disabled
+                    && self.lifecycle.state.conditions.secureInput == .disabled
+                if healthIsStable && (health == .tapUnavailable || unexpectedStop) {
+                    self.reduction.revokeProtectedState(queue: self.capture.queue,
+                                                       recoveryFence: self.manualRecoveryFence)
+                    #if DEBUG
+                    self.diagnostics.notePrivacyTrigger(unexpectedStop ? "sourceStopped" : "tapUnavailable")
+                    #endif
+                    await self.handlePrivacyInvalidation()
+                    if let coordinator = self.runtimeCoordinator {
+                        await self.reconcileCapture(.invalidated(.tapUnavailable), using: coordinator)
+                    }
+                    break
+                }
+                let live = health == .active
                 if state != .disabled, live || self.flow.sensitiveContentVisible {
                     if live { self.capture.queue.revoke() }
                     self.captureSessionLive = false
@@ -820,8 +950,8 @@ final class ProductComposition: NSObject, NSMenuDelegate {
                     self.diagnostics.notePrivacyTrigger("secureInputMonitor-\(state)")
                     #endif
                     self.syncRuntime()
-                    if live {
-                        await self.runtimeCoordinator?.handle(.invalidated(.secureInputChanged))
+                    if live, let coordinator = self.runtimeCoordinator {
+                        await self.reconcileCapture(.invalidated(.secureInputChanged), using: coordinator)
                         guard self.monitorIsCurrent(generation) else { break }
                     }
                     let refreshedLive = await self.capture.hasLiveSession()
@@ -830,10 +960,8 @@ final class ProductComposition: NSObject, NSMenuDelegate {
                     self.syncRuntime()
                 } else if state == .disabled,
                           (previous != .disabled && !live) || self.lifecycle.state.conditions.secureInput != .disabled {
-                    if !live {
-                        let outcome = await self.runtimeCoordinator?.handle(.invalidated(.secureInputChanged))
-                        guard self.monitorIsCurrent(generation) else { break }
-                        if let outcome { await self.settleFailedRecovery(outcome) }
+                    if !live, let coordinator = self.runtimeCoordinator {
+                        await self.reconcileCapture(.invalidated(.secureInputChanged), using: coordinator)
                         guard self.monitorIsCurrent(generation) else { break }
                     }
                     let resumed = await self.capture.hasLiveSession()
@@ -1001,7 +1129,7 @@ final class ProductComposition: NSObject, NSMenuDelegate {
                         self.captureSessionLive = live
                         self.sync()
                     }
-                    let snapshot = try ProductSnapshotPublication.refresh(
+                    _ = try ProductSnapshotPublication.refresh(
                         flow: self.flow, state: self.lifecycle.state, captureSessionLive: live,
                         readSnapshot: {
                             do { return try self.reduction.snapshot() }
@@ -1015,13 +1143,7 @@ final class ProductComposition: NSObject, NSMenuDelegate {
                             guard let preferences = self.lifecycle.state.preferences else { return nil }
                             return try self.reduction.analysis(preferences: preferences)
                         })
-                    self.updateRecommendationBadge()
-                    #if DEBUG
-                    if let snapshot {
-                        self.diagnostics.recordPublication(shortcutTotal: snapshot.shortcutTotal,
-                                                           bareKeyTotal: snapshot.bareKeyTotal)
-                    }
-                    #endif
+                    self.updateMenuBarAccessibility()
                 }
                 catch is CountError {
                     await self.closeProtectedState()
@@ -1088,10 +1210,7 @@ final class ProductComposition: NSObject, NSMenuDelegate {
         statusItem?.title = Self.statusTitle(phase: lifecycle.phase,
                                             reason: lifecycle.state.blockedReason,
                                             gateOpen: gateOpen, captureSessionLive: sessionLive)
-        if flow.analysis?.topRecommendations.isEmpty == false {
-            statusItem?.title += " · " + text("phase2.newRecommendations")
-        }
-        updateRecommendationBadge()
+        updateMenuBarAccessibility()
         #if DEBUG
         if !sessionLive && !visible {
             // Written after revocation, so events already past the gate are not new input.
@@ -1108,6 +1227,15 @@ final class ProductComposition: NSObject, NSMenuDelegate {
     }
 
     #if DEBUG
+    private func recordPermissionWitness(_ permission: InputMonitoringStatus) {
+        let observation: CaptureInputMonitoringObservation = switch permission {
+        case .granted: .granted
+        case .denied: .denied
+        case .unknown: .unknown
+        }
+        diagnostics.recordInputMonitoringPreflightWitness(status: observation)
+    }
+
     func enablePrivacyIntervalJournal(path: String) {
         diagnostics.enablePrivacyIntervalJournal(path: path)
     }
@@ -1125,6 +1253,9 @@ final class ProductComposition: NSObject, NSMenuDelegate {
                 do { try await Task.sleep(for: .seconds(1)) } catch { return }
                 guard let self, !Task.isCancelled, self.diagnostics.hasOpenClosedInterval else { return }
                 let witness = await self.capture.diagnosticInputWitness()
+                let permission = await self.capture.inputMonitoringStatus()
+                guard !Task.isCancelled, self.diagnostics.hasOpenClosedInterval else { return }
+                self.recordPermissionWitness(permission)
                 self.diagnostics.observeClosedInterval(lockReadStatus: witness.lock,
                                                        secureInputReadStatus: witness.secure,
                                                        lockComponents: witness.lockComponents)
@@ -1182,15 +1313,14 @@ final class ProductComposition: NSObject, NSMenuDelegate {
                                         captureSessionLive: captureSessionLive)
     }
 
-    private func handlePrivacyInvalidation() async {
-        lifecycle.requireRecovery(reason: .sessionLocked)
+    private func handlePrivacyInvalidation(reason: BlockedReason = .privacyCheckRequired) async {
+        lifecycle.requireRecovery(reason: reason)
         await closeProtectedState()
     }
 
-    private func updateRecommendationBadge() {
-        let available = flow.analysis?.topRecommendations.isEmpty == false
-        menuBarButton?.title = available ? "•" : ""
-        menuBarButton?.setAccessibilityLabel(available ? text("phase2.newRecommendations") : text("app.name"))
+    private func updateMenuBarAccessibility() {
+        menuBarButton?.title = ""
+        menuBarButton?.setAccessibilityLabel(text("app.name"))
     }
 
     private func closeProtectedState() async {
@@ -1366,6 +1496,14 @@ final class ProductComposition: NSObject, NSMenuDelegate {
 }
 
 #if DEBUG
+private struct FixedReplayForegroundProvider: FrontmostAppProvider {
+    func foregroundState() async -> ForegroundState {
+        .attributable(bundleID: "com.keyrecord.performance.fixture")
+    }
+}
+#endif
+
+#if DEBUG
 extension ProductComposition: LocalCaptureTransacting {
     /// KR-05: a real stop. Revoke delivery, drop the pulse, close the scheduler and key
     /// gate, and stop the event source — all before the menu is allowed to read "Off".
@@ -1389,14 +1527,13 @@ extension ProductComposition: LocalCaptureTransacting {
 }
 #endif
 
-private struct ProductScreens: View {
+struct ProductScreens: View {
     @ObservedObject var flow: AppFlowObservable
     private var text: NativeText { NativeText(locale: flow.language) }
     var body: some View {
         TabView {
             ConsentFlowView(flow: flow, text: text).tabItem { Text(text("flowpreview.tab.consent")) }
-            AnalysisDashboardView(snapshot: flow.analysis, layout: flow.layout, text: text,
-                                  saveLayout: { await flow.saveLayout($0) })
+            AggregateFlowView(snapshot: flow.snapshot, text: text)
                 .tabItem { Text(text("flowpreview.tab.aggregates")) }
             SettingsFlowView(flow: flow, text: text).tabItem { Text(text("flowpreview.tab.settings")) }
         }

@@ -11,7 +11,7 @@ enum LocalizationAudit {
         "aggregates.locked", "aggregates.panel", "aggregates.row", "aggregates.shortcutTotal",
         "arrow.counterclockwise.circle", "capture.primary", "capture.status", "capture.symbol",
         "com.apple.screenIsLocked", "com.apple.screenIsUnlocked",
-        "com.example.chat", "com.example.editor", "com.keyrecord.app", "consent.panel",
+        "com.example.chat", "com.example.editor", "com.keyrecord.app", "com.keyrecord.performance.fixture", "consent.panel",
         "debug.localCaptureEnabled",
         "destructive.cancel", "destructive.panel", "dialog.cancel", "dialog.confirm", "dialog.message",
         "dialog.panel", "exclamationmark.triangle", "flow.notice", "harness.appearance", "lock.circle",

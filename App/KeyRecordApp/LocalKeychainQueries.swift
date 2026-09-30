@@ -1,4 +1,3 @@
-#if DEBUG
 import Foundation
 import Security
 
@@ -10,6 +9,12 @@ import Security
 enum LocalKeychainQueries {
     static var accessibleWhenUnlockedThisDeviceOnly: CFString {
         kSecAttrAccessibleWhenUnlockedThisDeviceOnly
+    }
+
+    static func productIdentity(service: String, account: String) -> [String: Any] {
+        var query = identityQuery(service: service, account: account, dataProtection: true)
+        query[kSecUseAuthenticationUI as String] = kSecUseAuthenticationUIFail
+        return query
     }
 
     static func identityQuery(service: String, account: String, dataProtection: Bool) -> [String: Any] {
@@ -37,6 +42,13 @@ enum LocalKeychainQueries {
         return query
     }
 
+    static func queryForReadingAttributes(identity: [String: Any]) -> [String: Any] {
+        var query = identity
+        query[kSecReturnAttributes as String] = kCFBooleanTrue
+        query[kSecMatchLimit as String] = kSecMatchLimitOne
+        return query
+    }
+
     static func attributesForUpdate(data: Data, accessible: CFString) -> [String: Any] {
         [
             kSecValueData as String: data,
@@ -44,4 +56,3 @@ enum LocalKeychainQueries {
         ]
     }
 }
-#endif

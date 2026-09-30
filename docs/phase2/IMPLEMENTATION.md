@@ -18,4 +18,11 @@ User authorization permits autonomous reversible decisions and synthetic-only va
 
 Fn unknown yields no trigger preview. Confirmed function keys and simpler command/control/option combinations are sketches only: backend capability/conflict validation is absent, and there is no apply or export action. Stateful shortcuts remain visible in statistics/all candidates with an explicit excluded status and no mapping controls. Unknown application buckets participate in weighted scope denominators. Reset summaries are not analyzed because they do not contain daily/source evidence. No new hashes, snapshots on disk or release gates were added.
 
-The engine accepts the reducer's explicit active-day encounter order. Current storage reconstruction sorts restored day labels, so a clock/date reversal across restart can change ordering; that inherited storage limitation is not repaired by inventing persisted ordinals in this Phase 2 branch. Ordinary chronological datasets reconstruct identically. Full physical geometry/transform evidence and firmware candidate paths remain deferred to qualified backend work.
+The engine accepts the reducer's explicit active-day encounter order. Phase 1's
+2026-09-29 persistence repair stores that daily order as a separate encrypted
+cycle object before aggregate shards. Restart retains encounter order across
+date rollback; cycle reset deletes the object with daily details. Legacy stores
+without this object retain the previous chronological fallback because their
+original encounter order was never stored. No historical order is reconstructed
+from guesses. Full physical geometry/transform evidence and firmware candidate
+paths remain deferred to qualified backend work.

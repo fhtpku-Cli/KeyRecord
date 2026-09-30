@@ -48,7 +48,7 @@ final class SignedEffectSourceTests: XCTestCase {
         XCTAssertFalse(parts[0].contains("SecItem"))
         XCTAssertTrue(parts[0].contains("try executor.perform(operation, namespace: namespace)"))
         XCTAssertTrue(parts[0].contains("store: SecurityCandidateEffectStore()"))
-        XCTAssertTrue(parts[1].contains("let query = request.foundationQuery as CFDictionary"))
+        XCTAssertTrue(parts[1].contains("let query = try HostedProductKeychainQuery.make(request) as CFDictionary"))
         XCTAssertEqual(try securitySymbols(in: parts[1]), ["SecItemAdd", "SecItemCopyMatching", "SecItemDelete"])
         XCTAssertEqual(parts[1].components(separatedBy: "SecItem").count - 1, 4)
     }

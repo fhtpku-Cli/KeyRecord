@@ -18,6 +18,16 @@ public final class ManualRecoveryFence: @unchecked Sendable {
         lock.withLock { attempt.epoch == epoch }
     }
 
+    /// Serializes a synchronous reopen with notification invalidation. The body must
+    /// not call back into this fence or suspend.
+    public func performIfCurrent(_ attempt: ManualRecoveryAttempt, body: () -> Void) -> Bool {
+        lock.withLock {
+            guard attempt.epoch == epoch else { return false }
+            body()
+            return true
+        }
+    }
+
     @MainActor
     public func perform(
         prepare: @MainActor (ManualRecoveryAttempt) async -> Bool,

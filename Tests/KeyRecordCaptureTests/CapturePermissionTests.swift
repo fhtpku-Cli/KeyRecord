@@ -65,6 +65,7 @@ final class CapturePermissionTests: XCTestCase {
         nonisolated func cachedProviders() -> CaptureProviderSnapshot {
             CaptureProviderSnapshot(.safe)
         }
+        func isEnabled() -> Bool { handoff != nil }
 
         func start(handoff: @escaping @Sendable (ObservedKeyEvent) -> EventHandoffResult) throws {
             guard permission.preflight() == .granted else { throw CaptureStartError.revoked }
@@ -246,6 +247,7 @@ final class CapturePermissionTests: XCTestCase {
         func subscribe(invalidate: @escaping @Sendable (CaptureInvalidation) -> Void) {}
         func readProviders() -> CaptureProviderSnapshot { cachedProviders() }
         nonisolated func cachedProviders() -> CaptureProviderSnapshot { CaptureProviderSnapshot(.safe) }
+        func isEnabled() -> Bool { false }
         func start(handoff: @escaping @Sendable (ObservedKeyEvent) -> EventHandoffResult) throws {
             throw CaptureStartError.revoked
         }

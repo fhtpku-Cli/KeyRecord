@@ -50,6 +50,7 @@ public enum LoginItemSystemRejection: Error, Equatable, Sendable {
 public enum BlockedReason: Equatable, Sendable {
     case keyUnavailable
     case sessionLocked
+    case privacyCheckRequired
     case secureInputActive
     case foregroundUnreliable
 }

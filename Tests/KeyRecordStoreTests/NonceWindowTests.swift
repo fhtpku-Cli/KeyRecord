@@ -21,6 +21,7 @@ final class NonceWindowTests: XCTestCase {
         XCTAssertEqual(fields, Set([
             "root", "fileSystem", "keySource", "journalSource", "configuredMigrationInjection",
             "phase", "manifestBox", "materialCache", "unresolvedArtifacts", "lease",
+            "protectedSessionToken",
             "cycleJournals", "configuredResetInjection", "$defaultActor"
         ]))
     }

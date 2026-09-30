@@ -54,9 +54,11 @@ extension ObjectStore {
 
     func retainedHashes(excluding oldCycle: CycleID) throws -> [RetainedObjectHash] {
         let summaryIdentity = CycleResetObjects.summary(oldCycle)
+        let dayOrderIdentity = try AggregateDayOrder.identity(oldCycle)
         var hashes: [RetainedObjectHash] = []
         for entry in try opened().entries {
             if entry.identity.objectType == CanonicalLogicalIdentity.shardObjectType { continue }
+            if entry.identity == dayOrderIdentity { continue }
             if entry.identity == CycleResetObjects.preferences
                 || entry.identity == CycleResetObjects.currentCycle
                 || entry.identity == summaryIdentity { continue }
@@ -114,7 +116,7 @@ extension ObjectStore {
     }
 
     func openPayload(_ entry: ManifestEntry) throws -> Data {
-        guard let material = materialCache[entry.keyVersion] else {
+        guard let material = cachedMaterial(entry.keyVersion) else {
             throw ObjectStoreError.corruption(.envelopeKeyMissing)
         }
         let bytes = try readEntryFile(entry)
@@ -129,13 +131,15 @@ extension ObjectStore {
     }
 
     func decodeStrict<T: Decodable>(_ type: T.Type, _ data: Data) throws -> T {
-        try JSONDecoder().decode(T.self, from: data)
+        try ProtectedProcessing.observe { try JSONDecoder().decode(T.self, from: data) }
     }
 
     func encodeJSON<T: Encodable>(_ value: T) throws -> Data {
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.sortedKeys]
-        return try encoder.encode(value)
+        try ProtectedProcessing.observe {
+            let encoder = JSONEncoder()
+            encoder.outputFormatting = [.sortedKeys]
+            return try encoder.encode(value)
+        }
     }
 
     func crashReset(_ point: ResetKillPoint?, _ expected: ResetKillPoint) {

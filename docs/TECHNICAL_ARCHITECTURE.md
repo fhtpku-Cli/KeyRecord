@@ -24,12 +24,14 @@
 
 文中所有常量与 PRD 对齐：14 个活跃日半衰期、原始计数不少于 20 次、不少于 2 个不同本机自然日、70% 作用域阈值、Top 5、每项不超过 3 个触发候选、Karabiner 滚动 10 份备份、macOS 14+、打字平均 CPU 低于 1%、空闲平均 CPU 低于 0.1%（单逻辑核）、内存低于 100 MB、每周一次更新检查。
 
+**2026-09-29 范围补充：** 本文原有双架构设计和 §12.4 双参考机协议描述完整 v1 目标。按 [PRD 的 MVP 范围决定](PRD.md)，当前采集 MVP 可先限 Apple Silicon；Intel 实机和 Intel 性能不计入该 MVP 的阻塞清单。Apple Silicon 上的产品实测、隐私和存储要求仍须满足。历史实验结果不因此变成当前候选的通过证据。
+
 ### 0.2 假设
 
 1. 单用户单机使用；无账号体系（非目标 N1）。
 2. Karabiner-Elements 由用户自行安装与授权；本产品不捆绑、不代装（K2）。
 3. 用户可经官方工具使用 VIA/Vial；本产品只生成导入产物，不替代官方工具。
-4. macOS 14 及以上为唯一支持系统；Universal 二进制（FR-S1）。
+4. macOS 14 及以上为目标系统；MVP 可限 Apple Silicon，完整 v1 的 FR-S1 目标为 Universal 二进制。
 5. 正式产品名待定（O1）；代码内命名空间使用 `KeyRecord`，不作为对外名称。
 6. 本文中出现的具体系统 API 名称用于说明意图；其可用性、行为与精度以第 13 章 spike 结论为准，spike 未通过前不得写入实现。
 
@@ -860,7 +862,7 @@ recordVerification(mapping, batch, artifact, method, result):
 | 真实设备测试 | 至少 3 款真实键盘（覆盖 VIA 与 Vial 目标设备），型号清单【待定 O3】 | 手动 + 录制 |
 | 可访问性测试 | 主流程全键盘完成；VoiceOver 朗读关键状态（FR-U4） | 手动 + AX 检查 |
 | 性能测试 | 按 12.4 基准协议执行：打字平均 CPU 低于 1%、空闲平均 CPU 低于 0.1%（单逻辑核）、内存低于 100 MB（FR-S2）；事件回调 O(1)、回调线程零 I/O；一键停用到失效 ≤ 2 秒（p95） | 仪器化基准 |
-| 构建验证 | Universal 二进制双架构安装运行（FR-S1）；无守护进程、无 CLI 目标的结构断言 | CI |
+| 构建验证 | MVP 在原生 Apple Silicon 安装运行；完整 v1 验证 Universal 二进制双架构安装运行（FR-S1）；无守护进程、无 CLI 目标的结构断言 | CI + 实机 |
 
 ### 12.2 关键测试接缝对照
 
@@ -872,9 +874,10 @@ recordVerification(mapping, batch, artifact, method, result):
 
 ### 12.4 性能基准协议（FR-S2 测量口径）
 
-- 参考设备：发布记录写明两台参考机（一台 Apple Silicon、一台 Intel）的型号、芯片、内存与 macOS 版本；两台均须达标。
+- 参考设备：Apple Silicon MVP 记录一台原生 Apple Silicon 参考机的型号、芯片、内存与 macOS 版本并达标；完整 v1 再记录一台原生 Intel 参考机，两台均须达标。
 - 负载：固定合成事件工作负载（录制事件流回放，覆盖打字突发与持续快捷键场景），负载文件随版本固定并可复现。
-- 流程：60 秒暖机后测量 10 分钟；每项测量重复 3 次取中位数；打字负载窗口与空闲窗口均在同一协议下测量。
+- 正式流程（2026-09-29 用户调整）：打字与空闲各测一次，每个窗口预热 30 秒、测量 120 秒。两次独立启动共约 5 分钟测量流程，另加启动/同意、各 2 秒排空与正常退出时间。报告每个窗口的 CPU 均值，不再默认重复三次或取跨轮中位数。
+- 复测：仅在中断、结果异常或性能相关改动后，针对受影响项安排有界复测。保留首次结果及复测原因，不挑选最好的一轮、不将长时间耐久测试作为默认验收前提。较短窗口不声称覆盖长期内存增长或热稳定性。
 - 口径：CPU 以单逻辑核归一（100% = 一个逻辑核满载）：打字负载窗口平均值须低于 1%，空闲窗口平均值须低于 0.1%；内存取物理占用（phys footprint）的窗口均值与峰值，均值与峰值均须低于 100 MB。
 - 一键停用：从菜单栏点击到受管规则失效 ≤ 2 秒（p95，支持版本范围内），由 SP-3 重载时延测试验证；不达标阻断 Karabiner 稳定发布。
 
@@ -920,7 +923,7 @@ recordVerification(mapping, batch, artifact, method, result):
 | FR-A1..A4 应用与回滚 | 状态展示、临时规则清理、一键停用、卸载准备 | 第 8 章状态机、9.1 停用与清理、9.5 固件对账、10.2 卸载 | 集成测试（含异常退出后启动清理与固件导出对账） |
 | FR-BK1..BK3 备份 | 滚动 10 份、固件备份保留、导出边界 | 5.1 BackupMetadata、5.4 KDF 信封 | 单元（滚动清理）、导出内容扫描 |
 | FR-U1..U5 UX | 菜单栏优先、通知克制、双语、可访问性、命名 | KeyRecordApp | 手动 + AX 测试、本地化覆盖率检查 |
-| FR-S1..S6 平台 | 双架构、资源预算、单进程、更新确认、无遥测、签名公证 | 模块结构、未来的 UpdateChecker、发布流程 | 构建验证、性能基准（12.4）、联网能力审计、发布物签名/公证验证 |
+| FR-S1..S6 平台 | MVP 原生 Apple Silicon；完整 v1 双架构；资源预算、单进程、更新确认、无遥测、签名公证 | 模块结构、未来的 UpdateChecker、发布流程 | 构建验证、性能基准（12.4）、联网能力审计、发布物签名/公证验证 |
 
 ### 14.2 非目标的结构执行
 
@@ -958,7 +961,7 @@ recordVerification(mapping, batch, artifact, method, result):
 
 ## 15. 分阶段交付与发布门禁
 
-> **Current-status note — status-release:** The Phase 0 writeback below is a historical static dependency description, not current acceptance. Use [projection](PROJECT_STATUS.md#parsed-current-state) `gates` and `retainedReleaseBlockers`: G0 PASS; lifecycle/G1_IMPLEMENTATION BLOCKED; KARABINER_STABLE, VIA_GENERATION, VIAL_BETA and FULL_BACKUP_FINAL_RELEASE retained. FR-P6 full password backup remains independently required. Even a future receipt-gate PASS does not alone prove normative G1: §12.4 ARM + Intel product-performance evidence remains additionally required, independently of SP6B KDF timing. No phase/release exit below is weakened.
+> **Current-status note — status-release:** The Phase 0 writeback below is a historical static dependency description, not current acceptance. Use [projection](PROJECT_STATUS.md#parsed-current-state) `gates` and `retainedReleaseBlockers`: G0 PASS; lifecycle/G1_IMPLEMENTATION BLOCKED; KARABINER_STABLE, VIA_GENERATION, VIAL_BETA and FULL_BACKUP_FINAL_RELEASE retained. FR-P6 full password backup remains independently required. The 2026-09-29 Apple Silicon MVP decision removes Intel evidence from MVP qualification, but does not turn the original full G1/v1 dual-architecture gate into PASS. A future receipt-gate PASS also does not alone prove the Apple Silicon product-performance requirement or the later Intel requirement. SP6B Intel KDF timing belongs to full backup/final release, not this MVP.
 
 风险驱动的交付顺序：先消除不确定性（spike），再建地基（隐私与存储），再做确定性分析，再做稳定后端，最后做 Beta 后端。
 
@@ -1008,7 +1011,7 @@ v1 发布门禁：PRD 第 15 章 17 项验收全部通过。
 | 首页推荐 | Top 5 + 全部候选 | R7 |
 | 触发候选 | 每项 ≤ 3 个 | R8 |
 | Karabiner 备份 | 滚动保留 10 份 | B1 |
-| 系统要求 | macOS 14+，Universal | 13.1 |
+| 系统要求 | MVP：已验证的 macOS 14+ Apple Silicon；完整 v1：macOS 14+ Universal | 13.1 |
 | 资源预算 | 打字平均 CPU < 1%，空闲平均 CPU < 0.1%（单逻辑核），内存 < 100 MB | 13.2 |
 | 更新检查 | 每周一次，安装前用户确认 | 6.4 |
 | VIA 目标格式 | 定义 JSON 格式 V2/V3（非设备协议版本） | 8.1 |

@@ -6,6 +6,13 @@ The remaining executable and owner-assisted work is in [PHASE1_ACCEPTANCE.md](PH
 Current status is in [PROJECT_STATUS.md](PROJECT_STATUS.md); behavioral requirements are in
 [PHASE1_CONTRACT.md](PHASE1_CONTRACT.md).
 
+**2026-09-29 applicability:** The first capture MVP targets Apple Silicon.
+The current PR #17 trial has not passed effective data-protection Keychain
+access or reached a qualified Collecting run. Do not use the older
+traditional-file-Keychain launch advice below as its setup, or interpret the
+historical universal-build instructions as an Intel MVP prerequisite. Prepare
+and verify the exact current candidate before a separately approved host round.
+
 ## What a bounded run may do
 
 Capture is keyboard monitoring, so a host run is bounded by construction, not by convention:
@@ -145,6 +152,8 @@ and later bounded trials are recorded in [PROJECT_STATUS.md](PROJECT_STATUS.md).
 ## Remaining host qualification
 
 A→B foreground transitions, Local Capture Off, permission changes, user switching, continuous
-privacy-boundary evidence, signed Release acceptance, real-keychain writes and ARM + Intel
-performance still need qualification. Older bounded exclusion and sleep/wake observations
-exist; they do not qualify the full matrix or the current candidate. G1 remains **BLOCKED**.
+privacy-boundary evidence, signed collecting Release acceptance, real data-protection
+Keychain access and native Apple Silicon product performance still need current-candidate
+qualification. Intel runtime/performance belongs to later complete G1/v1, outside the
+Apple Silicon MVP. Older bounded exclusion and sleep/wake observations exist; they do
+not qualify the full matrix or the current candidate. G1 remains **BLOCKED**.

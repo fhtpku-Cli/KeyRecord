@@ -64,13 +64,13 @@ actor ProductPersistence: LifecycleKeyProviding, PreferencesPersisting {
     }
 
     func provisionAfterConsent() async throws {
-        _ = try gate.begin()
+        let generation = try gate.begin()
         try AtomicFileSystem().preparePrivateRoot(at: ownedRoot.deletingLastPathComponent())
-        let state = try await store.bootstrap()
+        let state = try await gate.run(generation) { try await self.store.bootstrap() }
         await consent.authorize(fresh: state == .freshInstall)
         if state == .freshInstall {
             _ = try await keyring.bootstrap()
-            try await store.initializeFreshInstallation()
+            try await gate.run(generation) { try await self.store.initializeFreshInstallation() }
         } else { _ = try await keyring.open() }
         try await writer.resume()
     }
@@ -129,8 +129,8 @@ actor ProductPersistence: LifecycleKeyProviding, PreferencesPersisting {
 
     func load() async throws -> Preferences? {
         do {
-            _ = try gate.begin()
-            if try await store.bootstrap() == .freshInstall {
+            let generation = try gate.begin()
+            if try await gate.run(generation, operation: { try await self.store.bootstrap() }) == .freshInstall {
                 #if DEBUG
                 Self.lastLoadFailure = .freshInstall
                 #endif
@@ -138,12 +138,14 @@ actor ProductPersistence: LifecycleKeyProviding, PreferencesPersisting {
             }
             // Startup and every later load share this path. Finish the journal's own
             // operation before preferences are read, so a relaunch cannot collect over it.
-            _ = try await store.continueUnfinishedReset(day: ProductClock().day)
+            _ = try await gate.run(generation) {
+                try await self.store.continueUnfinishedReset(day: ProductClock().day)
+            }
             let data = try await store.readProtected(CycleResetObjects.preferences, gate: gate)
             #if DEBUG
             Self.lastLoadFailure = nil
             #endif
-            return try JSONDecoder().decode(Preferences.self, from: data)
+            return try gate.use(generation) { try JSONDecoder().decode(Preferences.self, from: data) }
         } catch {
             #if DEBUG
             Self.lastLoadFailure = Self.classify(error)
@@ -159,14 +161,18 @@ actor ProductPersistence: LifecycleKeyProviding, PreferencesPersisting {
     func save(_ preferences: Preferences) async throws {
         let generation = try gate.begin()
         // Privacy closure closes the protected store session; reopen it as `load()` does.
-        _ = try await store.bootstrap()
-        var objects = [FlushObject(identity: CycleResetObjects.preferences,
-                                   payload: try JSONEncoder().encode(preferences))]
-        let entries = try await store.entries()
+        _ = try await gate.run(generation) { try await self.store.bootstrap() }
+        var objects = try gate.use(generation) {
+            [FlushObject(identity: CycleResetObjects.preferences,
+                         payload: try JSONEncoder().encode(preferences))]
+        }
+        let entries = try await gate.run(generation) { try await self.store.entries() }
         if !entries.contains(where: { $0.identity == CycleResetObjects.currentCycle }) {
-            let cycle = CycleRecord(cycleID: preferences.currentCycleID, index: try Count(1),
-                                    createdDay: ProductClock().day, closedDay: nil, isCurrent: true)
-            objects.append(FlushObject(identity: CycleResetObjects.currentCycle, payload: try JSONEncoder().encode(cycle)))
+            try gate.use(generation) {
+                let cycle = CycleRecord(cycleID: preferences.currentCycleID, index: try Count(1),
+                                        createdDay: ProductClock().day, closedDay: nil, isCurrent: true)
+                objects.append(FlushObject(identity: CycleResetObjects.currentCycle, payload: try JSONEncoder().encode(cycle)))
+            }
         }
         try await writer.write(objects, generation: generation)
     }

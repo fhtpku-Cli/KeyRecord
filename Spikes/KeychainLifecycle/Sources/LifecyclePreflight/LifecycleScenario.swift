@@ -4,11 +4,19 @@ import CryptoKit
 public enum LifecycleStatus: String, Codable, Sendable { case pass = "PASS", fail = "FAIL", blocked = "BLOCKED" }
 public enum LifecycleStep: String, Codable, Sendable {
     case unlockedCRUD, lockBackground, unlockRevalidate, restartLocked, restartUnlocked
-    case logoutLogin, sleepWake, deleteMissing, cleanup, crossDeviceRestore
+    case logoutLogin, sleepWake, sleepClosed, wakeRevalidate, deleteMissing, cleanup, crossDeviceRestore
     var needsWitness: Bool {
         switch self {
-        case .unlockedCRUD, .unlockRevalidate, .restartLocked, .restartUnlocked, .logoutLogin, .sleepWake: true
-        case .lockBackground, .deleteMissing, .cleanup, .crossDeviceRestore: false
+        case .unlockedCRUD, .unlockRevalidate, .restartLocked, .restartUnlocked,
+             .logoutLogin, .sleepClosed, .wakeRevalidate: true
+        case .lockBackground, .sleepWake, .deleteMissing, .cleanup, .crossDeviceRestore: false
+        }
+    }
+    var needsProductObservation: Bool {
+        switch self {
+        case .unlockedCRUD, .deleteMissing, .cleanup: false
+        case .lockBackground, .unlockRevalidate, .restartLocked, .restartUnlocked,
+             .logoutLogin, .sleepWake, .sleepClosed, .wakeRevalidate, .crossDeviceRestore: true
         }
     }
 }
@@ -23,7 +31,7 @@ public enum LifecycleScenario: String, CaseIterable, Codable, Sendable {
         case .restartLocked: [.unlockedCRUD, .lockBackground, .restartLocked]
         case .restartUnlocked: [.unlockedCRUD, .restartUnlocked]
         case .logoutLogin: [.unlockedCRUD, .logoutLogin]
-        case .sleepWake: [.unlockedCRUD, .sleepWake]
+        case .sleepWake: [.unlockedCRUD, .sleepClosed, .wakeRevalidate]
         case .deleteMissing: [.unlockedCRUD, .deleteMissing]
         case .crossDeviceRestore: [.crossDeviceRestore]
         }
@@ -49,9 +57,9 @@ public struct LifecycleKeychainEvidence: Codable, Sendable {
 
 public struct LifecyclePolicyEvidence: Codable, Sendable {
     public let authoritativeWitness: Bool
-    public let protectedReadDelta: Int
-    public let publishDelta: Int
-    public let aggregateDelta: Int
+    public let protectedReadDelta: Int?
+    public let publishDelta: Int?
+    public let aggregateDelta: Int?
     public let generationFenced: Bool?
     public let captureClosed: Bool?
     public let witnessGeneration: UUID?
@@ -59,8 +67,8 @@ public struct LifecyclePolicyEvidence: Codable, Sendable {
     public let priorGeneration: UUID?
     public let witnessRejection: String?
 
-    public init(authoritativeWitness: Bool, protectedReadDelta: Int, publishDelta: Int,
-                aggregateDelta: Int, generationFenced: Bool?, captureClosed: Bool?,
+    public init(authoritativeWitness: Bool, protectedReadDelta: Int?, publishDelta: Int?,
+                aggregateDelta: Int?, generationFenced: Bool?, captureClosed: Bool?,
                 witnessGeneration: UUID? = nil, activeGeneration: UUID? = nil,
                 priorGeneration: UUID? = nil, witnessRejection: String? = nil) {
         self.authoritativeWitness = authoritativeWitness
@@ -134,7 +142,14 @@ public enum LifecycleScenarioMachine {
             case .pass:
                 if !valid(step, observation) {
                     status = .fail; reason = "stepContractFailed"
-                } else if observation.policy.protectedReadDelta != 0 || observation.policy.publishDelta != 0 || observation.policy.aggregateDelta != 0 {
+                } else if step.needsProductObservation &&
+                    (observation.policy.protectedReadDelta == nil || observation.policy.publishDelta == nil ||
+                     observation.policy.aggregateDelta == nil ||
+                     ([LifecycleStep.lockBackground, .restartLocked, .sleepClosed].contains(step)
+                      && observation.policy.captureClosed == nil)) {
+                    status = .blocked; reason = "productObservationMissing"
+                } else if [observation.policy.protectedReadDelta, observation.policy.publishDelta,
+                           observation.policy.aggregateDelta].compactMap({ $0 }).contains(where: { $0 != 0 }) {
                     status = .fail; reason = "protectedPolicyDelta"
                 } else if step.needsWitness && !observation.policy.authoritativeWitness {
                     status = .blocked; reason = "noAuthoritativeWitness"
@@ -147,6 +162,7 @@ public enum LifecycleScenarioMachine {
         switch cleanup.status {
         case .pass:
             if cleanup.keychain.cleanupComplete != true { status = .blocked; reason = "cleanupPending" }
+            else if cleanup.keychain.calls != 1 { status = .fail; reason = "cleanupFailed" }
         case .fail: status = .fail; reason = "cleanupFailed"
         case .blocked:
             if status != .fail { status = .blocked; reason = "cleanupPending" }
@@ -159,14 +175,20 @@ public enum LifecycleScenarioMachine {
         guard value.keychain.calls >= 0 else { return false }
         switch step {
         case .unlockedCRUD:
-            return value.keychain.rawStatus == 0 && value.keychain.accessibility == "aku" &&
+            return value.keychain.calls == 3 && value.keychain.rawStatus == 0 && value.keychain.accessibility == "aku" &&
                 value.keychain.synchronizable == false && value.keychain.valueMatched == true
-        case .deleteMissing: return value.keychain.itemMissing == true && value.keychain.rawStatus == -25300
-        case .lockBackground, .restartLocked, .sleepWake:
-            return value.policy.generationFenced == true && value.policy.captureClosed == true
-        case .restartUnlocked, .unlockRevalidate, .logoutLogin:
-            return value.policy.generationFenced == true
-        case .cleanup: return value.keychain.cleanupComplete == true
+        case .deleteMissing:
+            return value.keychain.calls == 2 && value.keychain.itemMissing == true &&
+                value.keychain.rawStatus == -25300
+        case .lockBackground, .restartLocked, .sleepClosed:
+            return value.keychain.calls == 1 && value.keychain.rawStatus != nil &&
+                (value.keychain.rawStatus != 0 || value.keychain.valueMatched == true) &&
+                value.policy.generationFenced == true && value.policy.captureClosed != false
+        case .restartUnlocked, .unlockRevalidate, .wakeRevalidate, .logoutLogin:
+            return value.keychain.calls == 1 && value.keychain.rawStatus == 0 &&
+                value.keychain.valueMatched == true && value.policy.generationFenced == true
+        case .sleepWake: return false
+        case .cleanup: return value.keychain.calls == 1 && value.keychain.cleanupComplete == true
         case .crossDeviceRestore: return true
         }
     }

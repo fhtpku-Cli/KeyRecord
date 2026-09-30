@@ -5,6 +5,88 @@ import KeyRecordCore
 import KeyRecordStore
 
 final class ProductReductionTests: XCTestCase {
+    func testReleasedCommandSequencePreservesSidesThroughQueueReductionAndDisplay() throws {
+        for releasedAtStart in [false, true] {
+            let queue = CaptureQueue()
+            let policy = inputs(bundleID: "com.apple.TextEdit")
+            queue.install(policy, for: queue.generation)
+            let reduction = makeReduction()
+            let cycle = CycleID(rawValue: "modifier-provenance")
+            reduction.open(AggregationReducer(cycleID: cycle), inputs: policy,
+                           generation: queue.generation)
+            var sequence: [(Int, KeyEventKind, ModifierSideState)] = []
+            if releasedAtStart { sequence.append((55, .flagsChanged, .none)) }
+            for _ in 0..<2 {
+                sequence += [(55, .flagsChanged, .activeSideUnknown),
+                             (0, .keyDown, .activeSideUnknown),
+                             (0, .keyUp, .activeSideUnknown), (55, .flagsChanged, .none)]
+            }
+            for (code, kind, command) in sequence {
+                queue.install(policy, for: queue.generation)
+                let event = ObservedKeyEvent(keyCode: try KeyCode(code), kind: kind,
+                    isAutoRepeat: false, modifiers: ModifierSet(command: command,
+                        option: .none, control: .none, shift: .none, fn: .none),
+                    source: .ordinaryObserved, generation: queue.generation)
+                XCTAssertEqual(queue.handoff(event), .accepted)
+                XCTAssertTrue(queue.deliverOne { reduction.deliver($0) })
+            }
+            let snapshot = try XCTUnwrap(reduction.analysis(preferences: Preferences(currentCycleID: cycle)))
+            let variants = AnalysisStatisticGroup.make(snapshot).flatMap(\.variants)
+            XCTAssertEqual(variants.reduce(0) { $0 + $1.sourceCounts.total.value }, 2)
+            XCTAssertEqual(variants.filter { $0.chord.modifiers.command == .left }
+                .reduce(0) { $0 + $1.sourceCounts.total.value }, releasedAtStart ? 2 : 1)
+            XCTAssertEqual(variants.filter { $0.chord.modifiers.command == .activeSideUnknown }
+                .reduce(0) { $0 + $1.sourceCounts.total.value }, releasedAtStart ? 0 : 1)
+            XCTAssertEqual(try XCTUnwrap(reduction.snapshot()).bareKeyTotal, 0)
+            XCTAssertEqual(total(in: try XCTUnwrap(reduction.snapshot()), bundleID: "com.apple.TextEdit"), 2)
+        }
+    }
+
+    func testFailedOrRevokedSerializationPreservesDirtyAggregateForRetry() throws {
+        let reduction = makeReduction()
+        reduction.open(AggregationReducer(cycleID: CycleID(rawValue: "serialization")),
+                       inputs: inputs(bundleID: "test.app"), generation: CaptureGeneration(rawValue: 12))
+        XCTAssertEqual(reduction.deliver(try bareEvent(generation: 12)), .accepted)
+        XCTAssertThrowsError(try reduction.take { _, _ -> [FlushObject] in
+            throw LifecycleFlushError.failed
+        })
+        XCTAssertTrue(reduction.hasUnflushedChanges())
+        XCTAssertThrowsError(try reduction.take { aggregate, _ in
+            reduction.gate.update(.locked)
+            return try AggregatePersistence.objects(aggregate)
+        })
+        XCTAssertTrue(reduction.hasUnflushedChanges())
+        reduction.gate.update(.unlocked)
+        let batch = try XCTUnwrap(reduction.take { aggregate, generation in
+            (objects: try AggregatePersistence.objects(aggregate), generation: generation)
+        })
+        XCTAssertEqual(batch.generation, try reduction.gate.begin())
+        XCTAssertEqual(batch.objects.count, 2)
+        XCTAssertFalse(reduction.hasUnflushedChanges())
+    }
+
+    #if DEBUG
+    func testStagingReadsAreObservedAndClosedOrEmptyStateDoesNotReadAggregates() throws {
+        let reduction = makeReduction()
+        reduction.open(AggregationReducer(cycleID: CycleID(rawValue: "observed-staging")),
+                       inputs: inputs(bundleID: "com.apple.TextEdit"), generation: CaptureGeneration(rawValue: 12))
+        XCTAssertEqual(reduction.deliver(try bareEvent(generation: 12)), .accepted)
+        let before = try XCTUnwrap(ProtectedReadActivity.process.snapshot)
+        XCTAssertNotNil(try reduction.take())
+        let after = try XCTUnwrap(ProtectedReadActivity.process.snapshot)
+        XCTAssertEqual(after.aggregateReadStarted - before.aggregateReadStarted, 1)
+        XCTAssertEqual(after.aggregateReadCompleted - before.aggregateReadCompleted, 1)
+        XCTAssertNil(try reduction.take())
+        reduction.gate.update(.locked)
+        XCTAssertThrowsError(try reduction.snapshot())
+        XCTAssertThrowsError(try reduction.take())
+        reduction.clear()
+        reduction.gate.update(.unlocked)
+        XCTAssertNil(try reduction.snapshot())
+        XCTAssertEqual(ProtectedReadActivity.process.snapshot?.aggregateReadStarted, after.aggregateReadStarted)
+    }
+    #endif
+
     func testRecoveryAttributesTheNextChordToTheFreshForeground() throws {
         // Given: one chord attributed to foreground A in source generation 11.
         let reduction = makeReduction()
@@ -109,7 +191,10 @@ final class ProductReductionTests: XCTestCase {
 
         // Then: the replacement writer receives the retained count without another key event.
         let objects = await writer.objects
-        let rows = try objects.flatMap { try JSONDecoder().decode([DailyBareKeyAggregate].self,
+        XCTAssertEqual(objects.map { $0.identity.objectType },
+            ["com.keyrecord.activeDayOrder", CanonicalLogicalIdentity.shardObjectType])
+        let rows = try objects.filter { $0.identity.objectType == CanonicalLogicalIdentity.shardObjectType }
+            .flatMap { try JSONDecoder().decode([DailyBareKeyAggregate].self,
                                                                   from: $0.payload) }
         XCTAssertEqual(rows.reduce(0) { $0 + $1.sourceCounts.total.value }, 1)
     }
@@ -139,7 +224,10 @@ final class ProductReductionTests: XCTestCase {
         try await scheduler.stage(AggregatePersistence.objects(try XCTUnwrap(reduction.take())))
         try await scheduler.flushWhileUnlocked()
         let objects = await writer.objects
-        let rows = try objects.flatMap { try JSONDecoder().decode([DailyBareKeyAggregate].self,
+        XCTAssertEqual(objects.map { $0.identity.objectType },
+            ["com.keyrecord.activeDayOrder", CanonicalLogicalIdentity.shardObjectType])
+        let rows = try objects.filter { $0.identity.objectType == CanonicalLogicalIdentity.shardObjectType }
+            .flatMap { try JSONDecoder().decode([DailyBareKeyAggregate].self,
                                                                   from: $0.payload) }
         XCTAssertEqual(rows.reduce(0) { $0 + $1.sourceCounts.total.value }, 1)
     }

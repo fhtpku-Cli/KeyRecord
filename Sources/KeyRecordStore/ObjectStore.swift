@@ -16,6 +16,7 @@ public actor ObjectStore {
     var materialCache: [UInt32: Data] = [UInt32: Data]()
     var unresolvedArtifacts: [String] = []
     var lease: UUID?
+    var protectedSessionToken = UUID()
     let cycleJournals: CycleResetJournalStore
     let configuredResetInjection: CycleResetInjection
 
@@ -36,7 +37,9 @@ public actor ObjectStore {
 
     public func bootstrap() async throws -> StoreBootstrapState {
         if let phase { return phase }
+        let sessionToken = protectedSessionToken
         let versions = try await keySource.namespaceKeyVersions()
+        try requireProtectedSession(sessionToken)
         let existed = fileSystem.rootExists(root)
         do {
             try fileSystem.preparePrivateRoot(at: root)
@@ -69,14 +72,19 @@ public actor ObjectStore {
                 phase = .freshInstall
                 return .freshInstall
             }
-            let manifest = try await recoverManifest(requiredVersions: versions)
+            let manifest = try await recoverManifest(requiredVersions: versions, sessionToken: sessionToken)
+            try requireProtectedSession(sessionToken)
             try await loadMaterial(Set([manifest.encryptionKeyVersion]
-                + manifest.manifest.entries.map(\.keyVersion)), known: versions)
+                + manifest.manifest.entries.map(\.keyVersion)), known: versions, sessionToken: sessionToken)
+            try requireProtectedSession(sessionToken)
             try validateReferencedFiles(manifest.manifest)
             let journalLocators = try await pendingJournalLocators(known: versions)
+            try requireProtectedSession(sessionToken)
             try await reconcileUnreferenced(classified.filter {
                 if case .manifest = $0.1 { return false } else { return true }
-            }, referenced: manifest.manifest.locators.union(journalLocators), known: versions)
+            }, referenced: manifest.manifest.locators.union(journalLocators), known: versions,
+               sessionToken: sessionToken)
+            try requireProtectedSession(sessionToken)
             manifestBox = manifest.manifest
             phase = .opened
             return .opened
@@ -86,29 +94,18 @@ public actor ObjectStore {
         }
     }
 
-    public func initializeFreshInstallation(version: KeyVersion = KeyVersion(rawValue: 1)) async throws {
-        guard phase == .some(.freshInstall), manifestBox == nil else {
-            throw phase == nil ? ObjectStoreError.storeNotInitialized : ObjectStoreError.alreadyInitialized
-        }
-        let manifest = try EncryptedManifest(currentKeyVersion: version.rawValue)
-        let material = try await material(version.rawValue, versions: nil)
-        let envelope = try EncryptedManifest.seal(manifest, material: material)
-        try fileSystem.commitFile(name: ManifestDiscovery.fileName, in: root, bytes: envelope,
-                                  phase: .manifest)
-        manifestBox = manifest
-        phase = .opened
-    }
-
     public func currentKeyVersion() throws -> KeyVersion {
-        guard let manifestBox, phase == .opened else { throw ObjectStoreError.storeNotInitialized }
+        guard phase == .opened, let manifestBox = cachedManifest() else { throw ObjectStoreError.storeNotInitialized }
         return KeyVersion(rawValue: manifestBox.currentKeyVersion)
     }
 
     public func put(identity: CanonicalLogicalIdentity, payload: Data,
                     injection: DurabilityInjection = .none) async throws -> ManifestEntry {
+        let sessionToken = protectedSessionToken
         let manifest = try opened()
         let version = manifest.currentKeyVersion
         let material = try await material(version, versions: nil)
+        try requireProtectedSession(sessionToken)
         let sealed: SealedObject
         do {
             sealed = try LocatorCodec.seal(identity: identity, payload: payload,
@@ -138,6 +135,7 @@ public actor ObjectStore {
     }
 
     public func read(_ identity: CanonicalLogicalIdentity) async throws -> Data {
+        let sessionToken = protectedSessionToken
         let manifest = try opened()
         guard let entry = manifest.entry(for: identity) else { throw ObjectStoreError.unknownObject }
         let bytes = try readEntryFile(entry)
@@ -146,6 +144,7 @@ public actor ObjectStore {
               parsed.header.keyVersion == entry.keyVersion
         else { throw ObjectStoreError.corruption(.manifestUnreadable) }
         let material = try await material(entry.keyVersion, versions: nil)
+        try requireProtectedSession(sessionToken)
         do {
             return try LocatorCodec.open(envelope: bytes, requested: identity,
                                         materialByVersion: [entry.keyVersion: material]).payload
@@ -158,10 +157,12 @@ public actor ObjectStore {
 
     public func delete(_ identity: CanonicalLogicalIdentity,
                        injection: DurabilityInjection = .none) async throws {
+        let sessionToken = protectedSessionToken
         let manifest = try opened()
         guard let entry = manifest.entry(for: identity) else { throw ObjectStoreError.unknownObject }
         let version = manifest.currentKeyVersion
         let material = try await material(version, versions: nil)
+        try requireProtectedSession(sessionToken)
         try commit({ $0.remove(identity) }, material: { material }, injection: injection)
         do {
             try fileSystem.removeFile(name: entry.locator.fileName, in: root)
@@ -177,7 +178,7 @@ public actor ObjectStore {
     public func invalidateTransientMaterial() { materialCache.removeAll() }
 
     func opened() throws -> EncryptedManifest {
-        guard phase == .opened, let manifestBox else { throw ObjectStoreError.storeNotInitialized }
+        guard phase == .opened, let manifestBox = cachedManifest() else { throw ObjectStoreError.storeNotInitialized }
         return manifestBox
     }
 
@@ -192,7 +193,7 @@ public actor ObjectStore {
                 encryptionVersion: UInt32,
                 material: () throws -> Data,
                 injection: DurabilityInjection) throws {
-        guard var manifest = manifestBox else { throw ObjectStoreError.storeNotInitialized }
+        guard var manifest = cachedManifest() else { throw ObjectStoreError.storeNotInitialized }
         try mutation(&manifest)
         let envelope: Data
         do {
@@ -229,12 +230,15 @@ public actor ObjectStore {
     }
 
     func material(_ raw: UInt32, versions known: Set<KeyVersion>?) async throws -> Data {
-        if let cached = materialCache[raw] { return cached }
+        if let cached = cachedMaterial(raw) { return cached }
         if let known, !known.contains(KeyVersion(rawValue: raw)) {
             throw ObjectStoreError.corruption(.envelopeKeyMissing)
         }
+        let sessionToken = protectedSessionToken
         let material = try await keySource.material(for: KeyVersion(rawValue: raw))
+        try requireProtectedSession(sessionToken)
         materialCache[raw] = material
         return material
     }
+
 }

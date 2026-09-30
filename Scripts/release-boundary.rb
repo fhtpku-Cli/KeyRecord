@@ -5,7 +5,7 @@ require 'find'
 class BoundaryFailure < StandardError; end
 
 module ReleaseBoundary
-  TOKENS = /KEYRECORD_(?:FLOW|QA|TEST|DEBUG|LOCAL_CAPTURE)|FlowTestComposition|FlowPreview|FlowFixture|FileFixturePreferences|JournalingKeyAndFlush|JournalingCapture|FixedReadiness|ConfiguredLogin|FixedCycleID|Fake[A-Z]\w*|Phase1QARunner|XCTest|XCUITest|KeyRecordTestSupport|LocalDevelopmentCapture(?:Armament|Menu)?|SystemSessionLockProvider|LocalKeychain(?:Backend|Queries)|debug\.localCaptureEnabled|task\d+-qa\.sh/
+  TOKENS = /KEYRECORD_(?:FLOW|QA|TEST|DEBUG|LOCAL_CAPTURE|SIGNED_HOSTED_TESTS)|FlowTestComposition|FlowPreview|FlowFixture|FileFixturePreferences|JournalingKeyAndFlush|JournalingCapture|FixedReadiness|ConfiguredLogin|FixedCycleID|Fake[A-Z]\w*|Phase1QARunner|XCTest|XCUITest|KeyRecordTestSupport|LocalDevelopmentCapture(?:Armament|Menu)?|SystemSessionLockProvider|CounterWindowProductObserver|LifecycleHosted|HostedLifecycleScenarioController|debug\.localCaptureEnabled|task\d+-qa\.sh/
   ENTITLEMENTS = /com\.apple\.security\.(?:network\.|device\.|files\.|temporary-exception\.|personal-information\.|automation\.|cs\.)/
   SPAWN = /\b(?:Process|NSTask|URLSession|URLRequest|NWConnection|NWListener)\s*[.(]|\b(?:posix_spawn\w*|execve|fork|popen|getenv)\s*\(|(?<!\.)(?<!func )\bsystem\s*\(|\bCommandLine\b|\/bin\/(?:sh|bash)|\bimport\s+(?:Network|CFNetwork)\b/
 
@@ -28,7 +28,7 @@ module ReleaseBoundary
     require_boundary(!text.b.match?(ENTITLEMENTS), "forbidden entitlement: #{path}")
   end
 
-  def self.bundle(app)
+  def self.bundle(app, expected_architectures: %w[arm64 x86_64])
     require_boundary(File.directory?(app), 'missing app')
     macos = File.join(app, 'Contents/MacOS')
     require_boundary(Dir.children(macos) == ['KeyRecordApp'], 'extra executable or missing product')
@@ -37,7 +37,8 @@ module ReleaseBoundary
     info = plist(File.join(app, 'Contents/Info.plist'))
     require_boundary(info['LSUIElement'] == true && info['CFBundleExecutable'] == 'KeyRecordApp', 'invalid agent plist')
     architectures = command('/usr/bin/lipo', '-archs', executable).split.sort
-    require_boundary(architectures == %w[arm64 x86_64], "not Universal: #{architectures}")
+    require_boundary(architectures == expected_architectures,
+      "architecture mismatch: expected #{expected_architectures}, got #{architectures}")
     architectures.each do |arch|
       symbols = command('/usr/bin/nm', '-arch', arch, executable)
       clean(symbols, "nm/#{arch}")
@@ -57,7 +58,7 @@ module ReleaseBoundary
       clean(plist(path).to_json, relative) if %w[.plist .entitlements .strings].include?(File.extname(path))
       count += 1
     end
-    puts "PASS unsigned-build-only architectures=#{architectures.join(',')} nm=2 strings_files=#{count} forbidden_tokens=0 executable_files=1 helpers=0; runtime_spawn_count=UNVERIFIED"
+    puts "PASS unsigned-build-only architectures=#{architectures.join(',')} nm=#{architectures.size} strings_files=#{count} forbidden_tokens=0 executable_files=1 helpers=0; runtime_spawn_count=UNVERIFIED"
   end
 
   def self.project(root)
@@ -93,7 +94,7 @@ module ReleaseBoundary
     paths.uniq.each do |path|
       require_boundary(!path.match?(/Tests\/|TestSupport\/|QARunner/), "test source compiled: #{path}")
       # unifdef understands nested preprocessor blocks and keeps unknown Swift platform guards.
-      code, error, status = Open3.capture3('/usr/bin/unifdef', '-UDEBUG', path)
+      code, error, status = Open3.capture3('/usr/bin/unifdef', '-UDEBUG', '-UKEYRECORD_SIGNED_HOSTED_TESTS', path)
       require_boundary([0, 1].include?(status.exitstatus), "unifdef: #{error}")
       clean(code, path)
       require_boundary(!code.b.match?(SPAWN), "spawn/network/CLI source: #{path}")
@@ -106,10 +107,11 @@ module ReleaseBoundary
 end
 
 begin
-  raise BoundaryFailure, 'usage: bundle APP | project ROOT' unless ARGV.size == 2
+  raise BoundaryFailure, 'usage: bundle APP | bundle-arm64 APP | project ROOT' unless ARGV.size == 2
   mode, path = ARGV
   case mode
   when 'bundle' then ReleaseBoundary.bundle(path)
+  when 'bundle-arm64' then ReleaseBoundary.bundle(path, expected_architectures: %w[arm64])
   when 'project' then ReleaseBoundary.project(path)
   else raise BoundaryFailure, 'unknown mode'
   end

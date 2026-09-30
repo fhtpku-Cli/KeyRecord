@@ -282,18 +282,24 @@ public struct CaptureRunSummary: Encodable, Sendable {
     public var flushWriteSucceeded: Int64 = 0
     /// Revoked logical outcomes, disjoint from durable, failed and timed out.
     public var flushInvalidated: Int64 = 0
+    /// Preparation attempts counted before tap activation, including attempts that later fail.
     public var sessionCount = 0
     public var snapshotPublicationCount = 0
+    public var analysisPublicationCount = 0
     public var snapshotReadFailureCount = 0
     public var lastPublishedShortcutTotal: Int64?
     public var lastPublishedBareKeyTotal: Int64?
     public var countersInstrumented = false
     public var captureSessionLive = false
+    public var captureQueueOpen: Bool?
+    public var keyGateOpen: Bool?
     public var sensitiveContentVisible = false
     public var protectedSnapshotAttempts: Int64 = 0
     public var protectedSnapshotRejected: Int64 = 0
     public var protectedAnalysisAttempts: Int64 = 0
     public var protectedAnalysisRejected: Int64 = 0
+    public var protectedGateEntries: Int64?
+    public var protectedReadActivity: ProtectedReadActivitySnapshot?
     public var privacyJournalWriteFailed = false
 }
 
@@ -316,6 +322,8 @@ public struct CapturePrivacyIntervalMark: Encodable, Sendable {
     public var privacyTrigger: String?
     public var boundaryCause: String?
     public var captureSessionLive: Bool
+    public var captureQueueOpen: Bool?
+    public var keyGateOpen: Bool?
     public var sensitiveContentVisible: Bool
     public var expectedCollecting: Bool?
     public var currentLockState: String?
@@ -329,6 +337,8 @@ public struct CapturePrivacyIntervalMark: Encodable, Sendable {
     public var actionSeq: Int?
     public var actionDetail: CapturePrivacyActionDetail?
     public var countersAreAtomicSnapshot: Bool
+    /// Cumulative preparation count; neither a successful-start count nor a lock witness.
+    public var sessionCount: Int
     public var aggregateDelta: Int64
     public var handoffAccepted: Int64
     public var handoffClosed: Int64
@@ -339,7 +349,12 @@ public struct CapturePrivacyIntervalMark: Encodable, Sendable {
     public var protectedSnapshotRejected: Int64
     public var protectedAnalysisAttempts: Int64
     public var protectedAnalysisRejected: Int64
+    public var protectedGateEntries: Int64?
+    public var protectedReadActivity: ProtectedReadActivitySnapshot?
+    public var protectedReadRevocationObserved: Bool?
+    public var protectedReadActivityAtRevocation: ProtectedReadActivitySnapshot?
     public var snapshotPublicationCount: Int
+    public var analysisPublicationCount: Int
     public var snapshotReadFailureCount: Int
 }
 
@@ -374,6 +389,10 @@ public struct CapturePrivacyActionDetail: Encodable, Sendable, Equatable {
     public init() {}
 }
 
+public enum CaptureInputMonitoringObservation: Sendable {
+    case granted, denied, unknown
+}
+
 /// Thread-safe collector. DEBUG-only by construction: the product wires it in `#if DEBUG`
 /// blocks, and `Phase1ReleaseIsolationTests` asserts Release cannot reach a control entry.
 ///
@@ -394,6 +413,26 @@ public final class CaptureDiagnosticsRecorder: @unchecked Sendable {
     private var actionSeq = 0
     private var journalWriteFailed = false
     private let journalWriteLock = NSLock()
+    private var protectedGateEntries: (@Sendable () -> Int64?)?
+    private var protectedReadActivity: (@Sendable () -> ProtectedReadActivitySnapshot?)?
+    private var revocationReadActivity: (@Sendable () -> (observed: Bool, activity: ProtectedReadActivitySnapshot?))?
+    private var admissionState: (@Sendable () -> (queueOpen: Bool, keyGateOpen: Bool))?
+
+    public func configureAdmissionState(_ read: @escaping @Sendable () -> (queueOpen: Bool, keyGateOpen: Bool)) {
+        lock.withLock { admissionState = read }
+    }
+
+    public func configureRevocationReadActivity(
+        _ read: @escaping @Sendable () -> (observed: Bool, activity: ProtectedReadActivitySnapshot?)
+    ) {
+        lock.withLock { revocationReadActivity = read }
+    }
+
+    public func configureProtectedReadActivity(
+        _ read: @escaping @Sendable () -> ProtectedReadActivitySnapshot?
+    ) {
+        lock.withLock { protectedReadActivity = read }
+    }
 
     public init() {
         counterBaseline = atomicCounters.snapshot()
@@ -427,14 +466,22 @@ public final class CaptureDiagnosticsRecorder: @unchecked Sendable {
     }
 
     public var runSummary: CaptureRunSummary {
-        var result = lock.withLock {
+        let (base, gateEntries) = lock.withLock {
             var result = run
             result.countersInstrumented = counters.countersInstrumented
             result.captureSessionLive = counters.captureSessionLive
             result.sensitiveContentVisible = counters.sensitiveContentVisible
             result.privacyJournalWriteFailed = journalWriteFailed
-            return result
+            return (result, protectedGateEntries)
         }
+        var result = base
+        result.protectedGateEntries = gateEntries?()
+        let readActivity = lock.withLock { protectedReadActivity }
+        result.protectedReadActivity = readActivity?()
+        let readAdmission = lock.withLock { admissionState }
+        let admission = readAdmission?()
+        result.captureQueueOpen = admission?.queueOpen
+        result.keyGateOpen = admission?.keyGateOpen
         let values = atomicCounters.snapshot()
         result.tapCallbackKeyDown = values[CaptureDiagnosticCounter.tapCallbackKeyDown.rawValue]
         result.tapCallbackKeyUp = values[CaptureDiagnosticCounter.tapCallbackKeyUp.rawValue]
@@ -464,6 +511,10 @@ public final class CaptureDiagnosticsRecorder: @unchecked Sendable {
         }
     }
 
+    public func recordAnalysisPublication() {
+        lock.withLock { run.analysisPublicationCount += 1 }
+    }
+
     public func recordSnapshotReadFailure() {
         lock.withLock { run.snapshotReadFailureCount += 1 }
     }
@@ -480,6 +531,10 @@ public final class CaptureDiagnosticsRecorder: @unchecked Sendable {
             run.protectedAnalysisAttempts += 1
             if rejected { run.protectedAnalysisRejected += 1 }
         }
+    }
+
+    public func configureProtectedGateEntries(_ read: @escaping @Sendable () -> Int64?) {
+        lock.withLock { protectedGateEntries = read }
     }
 
     public var privacyJournalEnabled: Bool { lock.withLock { intervalPath != nil } }
@@ -537,7 +592,7 @@ public final class CaptureDiagnosticsRecorder: @unchecked Sendable {
                lockComponents: lockComponents)
     }
 
-    /// Ends the interval at the product step that re-authorizes input or protected display,
+    /// Ends the interval when input, store access or protected display is re-authorized,
     /// before that step can move any counter. Causes are fixed call-site names.
     public func endClosedInterval(cause: String) {
         let open = lock.withLock { () -> Bool in
@@ -578,6 +633,16 @@ public final class CaptureDiagnosticsRecorder: @unchecked Sendable {
                cachedLockState: cachedLockState, cachedSecureInputState: cachedSecureInputState)
     }
 
+    public func recordInputMonitoringPreflightWitness(status: CaptureInputMonitoringObservation) {
+        guard lock.withLock({ intervalPath }) != nil else { return }
+        let cause: String = switch status {
+        case .granted: "inputMonitoringPreflightGranted"
+        case .denied: "inputMonitoringPreflightDenied"
+        case .unknown: "inputMonitoringPreflightUnknown"
+        }
+        append(role: "witness", boundaryCause: cause)
+    }
+
     private func append(role: String, boundaryCause: String? = nil,
                         lockReadStatus: String = "notChecked", secureInputReadStatus: String = "notChecked",
                         lockComponents: String? = nil,
@@ -588,6 +653,8 @@ public final class CaptureDiagnosticsRecorder: @unchecked Sendable {
         // than the previous line's.
         journalWriteLock.lock()
         defer { journalWriteLock.unlock() }
+        let revocationRead = lock.withLock { role == "begin" ? revocationReadActivity : nil }
+        let revocation = revocationRead?()
         let state = snapshot
         let summary = runSummary
         let reserved = lock.withLock { () -> (path: String, seq: Int, trigger: String?)? in
@@ -602,13 +669,14 @@ public final class CaptureDiagnosticsRecorder: @unchecked Sendable {
             blockedReason: state.blockedReason.map { String(describing: $0) },
             privacyTrigger: reserved.trigger, boundaryCause: boundaryCause,
             captureSessionLive: state.captureSessionLive,
+            captureQueueOpen: summary.captureQueueOpen, keyGateOpen: summary.keyGateOpen,
             sensitiveContentVisible: state.sensitiveContentVisible,
             expectedCollecting: state.loadedExpectedCollecting,
             currentLockState: freshLock ? lockReadStatus : nil,
             lockReadStatus: lockReadStatus, secureInputReadStatus: secureInputReadStatus,
             lockComponents: lockComponents, cachedLockState: cachedLockState, cachedSecureInputState: cachedSecureInputState,
             action: action, actionSeq: actionSeq, actionDetail: actionDetail,
-            countersAreAtomicSnapshot: false,
+            countersAreAtomicSnapshot: false, sessionCount: summary.sessionCount,
             aggregateDelta: summary.aggregateDelta, handoffAccepted: summary.handoffAccepted,
             handoffClosed: summary.handoffClosed, normalizationOutput: summary.normalizationOutput,
             flushDurable: summary.flushDurable, flushInvalidated: summary.flushInvalidated,
@@ -616,7 +684,12 @@ public final class CaptureDiagnosticsRecorder: @unchecked Sendable {
             protectedSnapshotRejected: summary.protectedSnapshotRejected,
             protectedAnalysisAttempts: summary.protectedAnalysisAttempts,
             protectedAnalysisRejected: summary.protectedAnalysisRejected,
+            protectedGateEntries: summary.protectedGateEntries,
+            protectedReadActivity: summary.protectedReadActivity,
+            protectedReadRevocationObserved: revocation?.observed,
+            protectedReadActivityAtRevocation: revocation?.activity,
             snapshotPublicationCount: summary.snapshotPublicationCount,
+            analysisPublicationCount: summary.analysisPublicationCount,
             snapshotReadFailureCount: summary.snapshotReadFailureCount)
         guard let line = try? JSONEncoder().encode(mark) else {
             lock.withLock { journalWriteFailed = true }
@@ -690,6 +763,9 @@ public final class CaptureDiagnosticsRecorder: @unchecked Sendable {
             counters.flushInvalidated = 0
             counters.sessionGeneration = generation
             counterBaseline = baseline
+        }
+        if privacyJournalEnabled {
+            append(role: "change", boundaryCause: "captureSessionPrepared")
         }
     }
 }

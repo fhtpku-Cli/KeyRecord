@@ -99,6 +99,8 @@
 "phase2.applications" = "应用分布 · 仅快捷键";
 "phase2.bare" = "裸键使用强度";
 "phase2.bareNote" = "按键码展示相对次数，不代表键盘物理位置。裸键不关联应用、不保存序列或精确时间戳。";
+"phase2.shortcutsEmpty" = "本周期尚未记录快捷键。";
+"phase2.bareEmpty" = "本周期尚未记录裸键。";
 "phase2.sources" = "共 %lld 次 · 普通 %lld 次 · 疑似注入 %lld 次";
 "phase2.top5" = "前 5 项推荐";
 "phase2.all" = "全部候选";

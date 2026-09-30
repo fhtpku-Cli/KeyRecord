@@ -4,6 +4,29 @@ import KeyRecordCore
 @testable import KeyRecordStore
 
 final class ObjectStoreTests: XCTestCase {
+    #if DEBUG
+    func testCachedMetadataAndMaterialReadsAreObservedWithoutDecryptingAgain() async throws {
+        try await withHarness { harness in
+            let store = try await harness.bootFresh()
+            _ = try await store.material(1, versions: nil)
+            let before = try XCTUnwrap(ProtectedReadActivity.process.snapshot)
+            _ = try await store.entries()
+            _ = try await store.currentKeyVersion()
+            _ = try await store.material(1, versions: nil)
+            let after = try XCTUnwrap(ProtectedReadActivity.process.snapshot)
+            XCTAssertEqual(after.storeCacheReadStarted - before.storeCacheReadStarted, 3)
+            XCTAssertEqual(after.storeCacheReadCompleted - before.storeCacheReadCompleted, 3)
+            XCTAssertEqual(after.decryptionStarted, before.decryptionStarted)
+            await store.closeProtectedSession()
+            do {
+                _ = try await store.entries()
+                XCTFail("closed store returned metadata")
+            } catch { XCTAssertEqual(error as? ObjectStoreError, .storeNotInitialized) }
+            XCTAssertEqual(ProtectedReadActivity.process.snapshot?.storeCacheReadStarted, after.storeCacheReadStarted)
+        }
+    }
+    #endif
+
     private let payload = Data("cycle-prefs-payload-2026".utf8)
     private let canary = Data("cycle-prefs-payload-2026".utf8)
 

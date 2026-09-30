@@ -4,6 +4,7 @@ import CoreGraphics
 import XCTest
 import KeyRecordCore
 import KeyRecordCapture
+import KeyRecordStore
 
 @MainActor
 final class Phase1ReleaseIsolationTests: XCTestCase {
@@ -11,7 +12,8 @@ final class Phase1ReleaseIsolationTests: XCTestCase {
         .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
     private let forbiddenReleaseTokens = [
         "KEYRECORD_LOCAL_CAPTURE", "LocalDevelopmentCapture", "SystemSessionLockProvider",
-        "LocalKeychainBackend", "LocalKeychainQueries", "debug.localCaptureEnabled",
+        "debug.localCaptureEnabled",
+        "CounterWindowProductObserver", "LifecycleHosted", "HostedLifecycleScenarioController",
     ]
 
     func testLocalCaptureArmamentRequiresExactEnvValue() {
@@ -72,6 +74,37 @@ final class Phase1ReleaseIsolationTests: XCTestCase {
         let state = await provider.sessionLockState()
         // Then the unavailable witness cannot qualify local capture.
         assertSessionLockState(state, is: .unknown)
+    }
+
+    func testObservedPlatformRequiresExactNativeVersionAndBuild() async {
+        let supported = ObservedLockPlatform(version: .init(majorVersion: 27, minorVersion: 0, patchVersion: 0),
+                                             build: "26A428", architecture: "arm64")
+        XCTAssertTrue(supported.isObservedCandidate)
+        let unsupported = [
+            ObservedLockPlatform(version: supported.version, build: "26A429", architecture: "arm64"),
+            ObservedLockPlatform(version: supported.version, build: "", architecture: "arm64"),
+            ObservedLockPlatform(version: supported.version, build: "26A428", architecture: "x86_64"),
+            ObservedLockPlatform(version: .init(majorVersion: 26, minorVersion: 0, patchVersion: 0),
+                                 build: "26A428", architecture: "arm64"),
+            ObservedLockPlatform(version: .init(majorVersion: 27, minorVersion: 1, patchVersion: 0),
+                                 build: "26A428", architecture: "arm64"),
+            ObservedLockPlatform(version: .init(majorVersion: 27, minorVersion: 0, patchVersion: 1),
+                                 build: "26A428", architecture: "arm64"),
+        ]
+        for platform in unsupported {
+            XCTAssertFalse(platform.isObservedCandidate)
+            let provider = ObservedSessionLockProvider(platform: platform)
+            assertSessionLockState(await provider.sessionLockState(), is: .unknown)
+        }
+    }
+
+    func testReleaseObservedProviderHasNoArmingOrDiagnosticsSurface() throws {
+        let code = try releasePreprocessed(root.appendingPathComponent(
+            "App/KeyRecordApp/ObservedSessionLockProvider.swift"))
+        XCTAssertFalse(code.contains("diagnosticLockComponents"))
+        XCTAssertFalse(code.contains("SessionLockDiagnosing"))
+        XCTAssertFalse(code.contains("environment["))
+        XCTAssertFalse(code.contains("UserDefaults"))
     }
 
     func testSystemSessionLockProviderReturnsUnknownForMalformedSessionLockValue() async {
@@ -272,28 +305,59 @@ final class Phase1ReleaseIsolationTests: XCTestCase {
             "App/KeyRecordApp/LocalDevelopmentCapture.swift"))
         XCTAssertTrue(localFile.allSatisfy { $0.isWhitespace },
                       "LocalDevelopmentCapture.swift must compile to nothing in Release")
-        for name in ["LocalKeychainBackend.swift", "LocalKeychainQueries.swift"] {
-            let file = try releasePreprocessed(root.appendingPathComponent("App/KeyRecordApp/\(name)"))
-            XCTAssertTrue(file.allSatisfy { $0.isWhitespace }, "\(name) must compile to nothing in Release")
-        }
     }
 
-    func testReleaseCompositionKeepsUnqualifiedAssembly() throws {
-        // Given ProductComposition.swift with DEBUG undefined.
+    func testReleaseCompositionUsesPlatformQualificationWithoutDeveloperArming() throws {
         let code = try releasePreprocessed(root.appendingPathComponent("App/KeyRecordApp/ProductComposition.swift"))
-        // When / Then: the Release assembly is the unqualified path with no environment surface.
-        XCTAssertTrue(code.contains("qualification: UnqualifiedCapture()"))
-        XCTAssertTrue(code.contains("BlockedLiveKeychain()"))
         XCTAssertFalse(code.contains("ProcessInfo"))
         XCTAssertFalse(code.contains("LocalDevelopmentCapture"))
         XCTAssertFalse(code.contains("SystemSessionLockProvider"))
-        XCTAssertFalse(code.contains("LocalKeychainBackend"))
-        XCTAssertFalse(code.contains("LocalKeychainQueries"))
         // Given the DEBUG-neutral ProductCapture initializer, its defaults stay unqualified.
         let productCapture = try String(contentsOf: root.appendingPathComponent(
             "App/KeyRecordApp/ProductCapture.swift"), encoding: .utf8)
         XCTAssertTrue(productCapture.contains("any CaptureQualification = UnqualifiedCapture()"))
         XCTAssertTrue(productCapture.contains("any SessionLockProvider = UnqualifiedSessionLockProvider()"))
+    }
+
+    func testProductionFactorySelectsOnlyObservedPlatformAndIsolatesBundleIdentity() async throws {
+        let supported = ObservedLockPlatform(version: .init(majorVersion: 27, minorVersion: 0, patchVersion: 0),
+                                             build: "26A428", architecture: "arm64")
+        let unsupported = ObservedLockPlatform(version: supported.version, build: "26A429", architecture: "arm64")
+        let base = FileManager.default.temporaryDirectory.appendingPathComponent("keyrecord-factory-\(UUID())")
+        let trial = try ProductComposition.productionBoundaries(platform: supported,
+            bundleIdentifier: "com.keyrecord.trial.mvp20260929", applicationSupport: base)
+        let daily = try ProductComposition.productionBoundaries(platform: supported,
+            bundleIdentifier: "com.keyrecord.app", applicationSupport: base)
+        let blocked = try ProductComposition.productionBoundaries(platform: unsupported,
+            bundleIdentifier: "com.keyrecord.trial.mvp20260929", applicationSupport: base)
+        let qualified = await trial.qualification.liveCaptureQualified()
+        let unqualified = await blocked.qualification.liveCaptureQualified()
+        XCTAssertTrue(qualified)
+        XCTAssertFalse(unqualified)
+        XCTAssertTrue(trial.backend is LocalKeychainBackend)
+        XCTAssertTrue(blocked.backend is BlockedLiveKeychain)
+        assertSessionLockState(await blocked.sessionLock.sessionLockState(), is: .unknown)
+        XCTAssertEqual(trial.namespace.service, "com.keyrecord.trial.mvp20260929")
+        XCTAssertEqual(trial.storeRoot, base.appendingPathComponent("com.keyrecord.trial.mvp20260929", isDirectory: true)
+            .appendingPathComponent("store", isDirectory: true))
+        XCTAssertNotEqual(trial.namespace, daily.namespace)
+        XCTAssertNotEqual(trial.storeRoot, daily.storeRoot)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: base.path), "constructing dependencies must not touch data")
+    }
+
+    func testProductionIdentityRejectsMissingMalformedAndTraversalIdentifiers() {
+        for identifier in [nil, "", ".", "..", "../com.keyrecord.app", "com..keyrecord", "com.keyrecord.", "com/keyrecord"] {
+            XCTAssertThrowsError(try ProductComposition.installation(bundleIdentifier: identifier))
+        }
+    }
+
+    func testTrialDefaultDoesNotChangeDailyStoreExclusion() throws {
+        let daily = try ProductComposition.productionStoreRoot()
+        XCTAssertEqual(daily.deletingLastPathComponent().lastPathComponent, "com.keyrecord.app")
+        for location in [daily, daily.deletingLastPathComponent(), daily.appendingPathComponent("child")] {
+            XCTAssertEqual(DebugTrialIsolation.select(store: location.path,
+                namespace: "com.keyrecord.trial.mvp20260929", realStoreRoot: daily), .rejected)
+        }
     }
 
     func testReleaseAppBinaryHasNoLocalCaptureTokens() throws {
@@ -338,7 +402,7 @@ final class Phase1ReleaseIsolationTests: XCTestCase {
     }
 
     private func releasePreprocessed(_ file: URL) throws -> String {
-        let result = try run("/usr/bin/unifdef", ["-UDEBUG", file.path])
+        let result = try run("/usr/bin/unifdef", ["-UDEBUG", "-UKEYRECORD_SIGNED_HOSTED_TESTS", file.path])
         XCTAssertTrue([0, 1].contains(result.status), "\(file.lastPathComponent): \(result.error)")
         return result.output
     }

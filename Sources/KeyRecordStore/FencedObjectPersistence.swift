@@ -84,6 +84,7 @@ extension ObjectStore {
     }
 
     public func closeProtectedSession() {
+        protectedSessionToken = UUID()
         materialCache.removeAll()
         manifestBox = nil
         phase = nil

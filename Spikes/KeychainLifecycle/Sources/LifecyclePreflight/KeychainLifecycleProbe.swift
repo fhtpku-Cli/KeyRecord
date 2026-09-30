@@ -14,6 +14,7 @@ public struct CandidateObservation: Codable, Sendable {
 }
 
 public protocol CandidateBackend {
+    var calls: Int { get }
     func perform(_ operation: CandidateOperation, namespace: ProbeNamespace) throws -> CandidateObservation
 }
 

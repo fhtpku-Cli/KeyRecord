@@ -1,7 +1,10 @@
 import Foundation
 import XCTest
 import AppKit
+import Security
 import KeyRecordCore
+import LifecycleHosted
+import LifecyclePreflight
 @testable import KeyRecordCapture
 @testable import KeyRecordStore
 
@@ -13,11 +16,13 @@ import KeyRecordCore
 
 private actor MemoryKeychain: KeychainBackend {
     private var items: [KeychainItemID: Data] = [:]
+    private var unavailable = false
     private var holdingDeletes = false
     private var failNextDelete = false
     private var heldDeletes: [CheckedContinuation<Void, Never>] = []
     private(set) var deleteAttempts = 0
     var itemCount: Int { items.count }
+    func setUnavailable(_ value: Bool) { unavailable = value }
     /// Parks every delete until released, to pause erase in the middle of maintenance.
     func holdDeletes() { holdingDeletes = true }
     func failNextDeleteOnce() { failNextDelete = true }
@@ -26,7 +31,10 @@ private actor MemoryKeychain: KeychainBackend {
         heldDeletes.forEach { $0.resume() }
         heldDeletes.removeAll()
     }
-    func read(_ id: KeychainItemID) async throws -> Data? { items[id] }
+    func read(_ id: KeychainItemID) async throws -> Data? {
+        if unavailable { throw KeyringError.backendUnavailable }
+        return items[id]
+    }
     func versions(in namespace: KeychainNamespace) async throws -> Set<KeyVersion> {
         Set(items.keys.filter { $0.namespace == namespace }.compactMap(\.version))
     }
@@ -51,11 +59,29 @@ private struct SilentLogin: LoginItemBackend {
     func unregister() async throws {}
 }
 
+private struct SyntheticQualification: CaptureQualification {
+    func liveCaptureQualified() async -> Bool { true }
+}
+
+private actor SuspendedStartupLock: SessionLockProvider {
+    private var pending: CheckedContinuation<SessionLockState, Never>?
+    private(set) var waiting = false
+    func sessionLockState() async -> SessionLockState {
+        if waiting { return .locked }
+        waiting = true
+        return await withCheckedContinuation { pending = $0 }
+    }
+    func releaseStaleUnlocked() {
+        pending?.resume(returning: .unlocked)
+        pending = nil
+    }
+}
+
 @MainActor
 private final class ManualLockNotifications: LockNotificationCentering {
-    private var handlers: [Notification.Name: [@MainActor () -> Void]] = [:]
+    private var handlers: [Notification.Name: [@Sendable () -> Void]] = [:]
     func addObserver(for name: Notification.Name,
-                     handler: @escaping @MainActor () -> Void) -> any NSObjectProtocol {
+                     handler: @escaping @Sendable () -> Void) -> any NSObjectProtocol {
         handlers[name, default: []].append(handler)
         return NSObject()
     }
@@ -72,6 +98,8 @@ private final class SyntheticHost: FrontmostAppProvider, SecureInputProvider, Se
     private var secure: SecureInputState = .disabled
     private var secureAfterNextTapStart: SecureInputState?
     private var secureInputReadsToHold = 0
+    private var scriptedSecureInputReads: [SecureInputState?] = []
+    private var secureReadCount = 0
     private var heldSecureInputReads: [CheckedContinuation<SecureInputState, Never>] = []
     private var foreground: ForegroundState = .attributable(bundleID: "synthetic.editor")
     private var scriptedForegroundReads: [ForegroundState] = []
@@ -96,6 +124,11 @@ private final class SyntheticHost: FrontmostAppProvider, SecureInputProvider, Se
     /// Parks the next `count` Secure Input reads so a stale poller can finish after replacement
     /// without also blocking Start/Resume readiness reads.
     func holdNextSecureInputReads(_ count: Int) { mutex.withLock { secureInputReadsToHold = count } }
+    /// A nil entry parks that read; other entries return the supplied state.
+    func scriptSecureInputReads(_ states: [SecureInputState?]) {
+        mutex.withLock { scriptedSecureInputReads = states }
+    }
+    var secureInputReadCount: Int { mutex.withLock { secureReadCount } }
     var parkedSecureInputReads: Int { mutex.withLock { heldSecureInputReads.count } }
     func completeNextSecureInputRead(_ state: SecureInputState) {
         let continuation: CheckedContinuation<SecureInputState, Never>? = mutex.withLock {
@@ -127,9 +160,16 @@ private final class SyntheticHost: FrontmostAppProvider, SecureInputProvider, Se
     func secureInputState() async -> SecureInputState {
         await withCheckedContinuation { continuation in
             mutex.withLock {
+                secureReadCount += 1
                 if secureInputReadsToHold > 0 {
                     secureInputReadsToHold -= 1
                     heldSecureInputReads.append(continuation)
+                } else if !scriptedSecureInputReads.isEmpty {
+                    if let state = scriptedSecureInputReads.removeFirst() {
+                        continuation.resume(returning: state)
+                    } else {
+                        heldSecureInputReads.append(continuation)
+                    }
                 } else {
                     continuation.resume(returning: secure)
                 }
@@ -163,6 +203,21 @@ private final class SyntheticTap: CaptureTapBackend, @unchecked Sendable {
     private var invalidate: (@Sendable (CaptureInvalidation) -> Void)?
     private var handoff: (@Sendable (ObservedKeyEvent) -> EventHandoffResult)?
     private var cached = CaptureProviderSnapshot.unknown
+    private var enabled = false
+    private var holdStart = false
+    private var heldStart: CheckedContinuation<Void, Never>?
+
+    func holdNextStart() { mutex.withLock { holdStart = true } }
+    var startIsHeld: Bool { mutex.withLock { heldStart != nil } }
+    func releaseStart() {
+        let continuation = mutex.withLock {
+            let continuation = heldStart
+            heldStart = nil
+            holdStart = false
+            return continuation
+        }
+        continuation?.resume()
+    }
 
     init(host: SyntheticHost, queue: CaptureQueue) { self.host = host; self.queue = queue }
 
@@ -180,14 +235,23 @@ private final class SyntheticTap: CaptureTapBackend, @unchecked Sendable {
         return current
     }
     func cachedProviders() -> CaptureProviderSnapshot { mutex.withLock { cached } }
+    func isEnabled() -> Bool { mutex.withLock { enabled && handoff != nil } }
     func start(handoff: @escaping @Sendable (ObservedKeyEvent) -> EventHandoffResult) async throws {
-        mutex.withLock { self.handoff = handoff }
+        await withCheckedContinuation { continuation in
+            mutex.withLock {
+                if holdStart { heldStart = continuation }
+                else { continuation.resume() }
+            }
+        }
+        mutex.withLock { self.handoff = handoff; enabled = true }
         host.tapDidStart()
     }
     func stop() async {
         queue.revoke()
-        mutex.withLock { handoff = nil; invalidate = nil; cached = .unknown }
+        mutex.withLock { handoff = nil; invalidate = nil; cached = .unknown; enabled = false }
     }
+
+    func disableWithoutCallback() { mutex.withLock { enabled = false } }
 
     /// Delivers an invalidation the way the workspace fence does; false once the fence is gone.
     @discardableResult
@@ -200,7 +264,7 @@ private final class SyntheticTap: CaptureTapBackend, @unchecked Sendable {
     /// One bare key press, delivered the way the tap callback delivers it.
     @discardableResult
     func press(_ key: Int = 0) throws -> EventHandoffResult {
-        guard let handoff = mutex.withLock({ handoff }) else { return .closed }
+        guard let handoff = mutex.withLock({ enabled ? handoff : nil }) else { return .closed }
         let code = try KeyCode(key)
         // What `decodeCaptureEvent` produces for a key with no modifier flag set.
         let modifiers = ModifierSet(command: .none, option: .none, control: .none, shift: .none, fn: .none)
@@ -218,10 +282,13 @@ private final class SyntheticTap: CaptureTapBackend, @unchecked Sendable {
 private final class SyntheticProduct {
     let host = SyntheticHost()
     let keychain: MemoryKeychain
+    var backendOverride: (any KeychainBackend)?
+    var qualification: any CaptureQualification = SyntheticQualification()
     let notifications = ManualLockNotifications()
     let root: URL
     let journal: URL
     private(set) var tap: SyntheticTap?
+    var replayController: FixedReplayController?
     /// Replaces the synthetic host as the product's lock provider when set before boot.
     var lockProvider: (any SessionLockProvider)?
     private(set) var terminateRequests = 0
@@ -244,17 +311,29 @@ private final class SyntheticProduct {
     }
 
     /// A later launch against the same synthetic store and keychain.
-    func relaunch() -> SyntheticProduct { SyntheticProduct(root: root, keychain: keychain) }
+    func relaunch() -> SyntheticProduct {
+        let next = SyntheticProduct(root: root, keychain: keychain)
+        next.backendOverride = backendOverride
+        next.qualification = qualification
+        return next
+    }
 
     var storeRoot: URL { root.appendingPathComponent("app/store", isDirectory: true) }
 
     func boot(journal enabled: Bool = true) async throws {
         let host = self.host
+        let replayController = self.replayController
         var boundaries = ProductHostBoundaries(
             storeRoot: storeRoot, namespace: try KeychainNamespace("com.keyrecord.synthetic"),
-            backend: keychain, login: SilentLogin(),
-            localCapture: LocalDevelopmentCapture(armed: true),
+            backend: backendOverride ?? keychain, login: SilentLogin(),
+            qualification: qualification,
             eventSource: { [weak self] queue, qualification, _ in
+                if let replayController {
+                    return ListenOnlyEventSource.fixedReplay(queue: queue, qualification: qualification,
+                        providers: CaptureProviderSet(foreground: host, secureInput: host,
+                                                      sessionLock: host), controller: replayController,
+                        permission: host)
+                }
                 let tap = SyntheticTap(host: host, queue: queue)
                 self?.tap = tap
                 return ListenOnlyEventSource(queue: queue, qualification: qualification, backend: tap,
@@ -417,10 +496,11 @@ final class ProductRecoveryQuitTests: XCTestCase {
         products.removeAll()
     }
 
-    private func collecting() async throws -> SyntheticProduct {
+    private func collecting(journal: Bool = true, backend: (any KeychainBackend)? = nil) async throws -> SyntheticProduct {
         let product = try SyntheticProduct.fresh()
+        product.backendOverride = backend
         products.append(product)
-        try await product.boot()
+        try await product.boot(journal: journal)
         // Fresh install: Start opens consent, then the consent screen's Accept starts capture.
         await product.composition.startOrRetry()
         XCTAssertEqual(product.phase, .consent)
@@ -439,27 +519,217 @@ final class ProductRecoveryQuitTests: XCTestCase {
 
     // MARK: - Recovery
 
-    func testExplicitStartAfterLockAndUnlockReestablishesCollecting() async throws {
+    func testUnqualifiedSharedCompositionNeverOpensStoreOrCapture() async throws {
+        let product = try SyntheticProduct.fresh()
+        products.append(product)
+        let client = MemoryLocalKeychainClient()
+        product.backendOverride = LocalKeychainBackend(client: client)
+        product.qualification = UnqualifiedCapture()
+        try await product.boot()
+        XCTAssertNil(product.composition.localCapture)
+        XCTAssertFalse(product.keyGateOpen)
+        await product.composition.startOrRetry()
+        await product.composition.flow.accept()
+        XCTAssertFalse(product.keyGateOpen)
+        let live = await product.live
+        XCTAssertFalse(live)
+        XCTAssertFalse(product.composition.capture.queue.isOpen)
+        XCTAssertTrue(client.queries.isEmpty)
+    }
+
+    func testStartupLockNotificationRejectsSuspendedUnlockedReply() async throws {
+        let product = try SyntheticProduct.fresh()
+        products.append(product)
+        let client = MemoryLocalKeychainClient()
+        product.backendOverride = LocalKeychainBackend(client: client)
+        let provider = SuspendedStartupLock()
+        product.lockProvider = provider
+        let startup = Task { try await product.boot() }
+        try await waitUntil("startup lock read suspended") { await provider.waiting }
+        product.notifications.post(ProductComposition.screenLockedNotification)
+        XCTAssertFalse(product.keyGateOpen)
+        await provider.releaseStaleUnlocked()
+        try await startup.value
+        XCTAssertFalse(product.keyGateOpen)
+        XCTAssertTrue(client.queries.isEmpty, "stale startup observation must not authorize a protected read")
+        let live = await product.live
+        XCTAssertFalse(live)
+        XCTAssertFalse(product.composition.capture.queue.isOpen)
+    }
+
+    func testUnavailableKeychainBlocksFreshProductBeforeCapture() async throws {
+        let product = try SyntheticProduct.fresh()
+        products.append(product)
+        await product.keychain.setUnavailable(true)
+        try await product.boot()
+        await product.composition.startOrRetry()
+        XCTAssertEqual(product.phase, .consent)
+        await product.composition.flow.accept()
+        XCTAssertEqual(product.phase, .failed)
+        let live = await product.live
+        XCTAssertFalse(live)
+        XCTAssertFalse(product.composition.flow.sensitiveContentVisible)
+        let itemCount = await product.keychain.itemCount
+        XCTAssertEqual(itemCount, 0)
+    }
+
+    func testExistingStoreWithMissingKeychainNamespaceStaysUntouched() async throws {
         let product = try await collecting()
         try await product.press(2)
         try await product.waitDurable()
+        await product.composition.requestQuit()
+
+        let manifest = product.storeRoot.appendingPathComponent("manifest.krenc")
+        let before = try Data(contentsOf: manifest)
+        let next = SyntheticProduct(root: product.root, keychain: MemoryKeychain())
+        products.append(next)
+        try await next.boot()
+
+        XCTAssertNotEqual(next.phase, .collecting)
+        let live = await next.live
+        XCTAssertFalse(live)
+        XCTAssertFalse(next.composition.flow.sensitiveContentVisible)
+        let newItemCount = await next.keychain.itemCount
+        XCTAssertEqual(newItemCount, 0)
+        XCTAssertEqual(try Data(contentsOf: manifest), before)
+    }
+
+    func testFixedReplayTraversesProductReductionAndEncryptedStore() async throws {
+        let product = try SyntheticProduct.fresh()
+        let controller = FixedReplayController()
+        product.replayController = controller
+        products.append(product)
+        try await product.boot()
+        await product.composition.startOrRetry()
+        await product.composition.flow.accept()
+        try await waitUntil("replay source collecting") {
+            let live = await product.live
+            return product.phase == .collecting && live
+        }
+
+        XCTAssertEqual(controller.emit(tick: 0), 16)
+        let durableTotal = try await product.composition.replayDurableKeyDownTotal(expectedAcceptedEvents: 16)
+        XCTAssertEqual(durableTotal, 8)
+        let cycle = try XCTUnwrap(product.composition.lifecycle.state.preferences?.currentCycleID)
+        let aggregate = try await AggregatePersistence.restore(
+            cycleID: cycle, store: product.composition.store, gate: product.composition.gate)
+        let snapshot = try AggregateSnapshot(shortcuts: aggregate.shortcuts, bareKeys: aggregate.bareKeys)
+        XCTAssertEqual(snapshot.shortcutTotal, 8)
+        XCTAssertEqual(FixedReplayController.expectedEvents(tick: FixedReplayController.activeTicks), 0)
+        XCTAssertEqual(controller.emit(tick: FixedReplayController.activeTicks), 0)
+        await product.composition.flow.pause()
+        XCTAssertEqual(controller.emit(tick: 1), 0)
+    }
+
+    func testProductBackendMissingMaterialPreservesStoreAndRecoversOriginalData() async throws {
+        let client = MemoryLocalKeychainClient()
+        let backend = LocalKeychainBackend(client: client)
+        let product = try await collecting(backend: backend)
+        try await product.press(2)
+        try await product.waitDurable()
+        await product.composition.requestQuit()
+
+        let namespace = try KeychainNamespace("com.keyrecord.synthetic")
+        let storedMetadata = try await backend.read(.metadata(namespace))
+        let metadata = try XCTUnwrap(storedMetadata)
+        let current = try KeyringMetadata.decode(metadata).current
+        let storedMaterial = try await backend.read(.key(namespace, current))
+        let originalMaterial = try XCTUnwrap(storedMaterial)
+        try await backend.delete(.key(namespace, current))
+        func encryptedFiles() throws -> [String: Data] {
+            var files: [String: Data] = [:]
+            for name in try FileManager.default.subpathsOfDirectory(atPath: product.storeRoot.path) {
+                let url = product.storeRoot.appendingPathComponent(name)
+                if try url.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile == true {
+                    files[name] = try Data(contentsOf: url)
+                }
+            }
+            return files
+        }
+        let encryptedBefore = try encryptedFiles()
+        XCTAssertFalse(encryptedBefore.isEmpty)
+        let beforeRestartQueries = client.queries.count
+
+        let next = product.relaunch()
+        products.append(next)
+        try await next.boot()
+        await next.composition.startOrRetry()
+        XCTAssertNotEqual(next.phase, .collecting)
+        let live = await next.live
+        XCTAssertFalse(live)
+        XCTAssertFalse(next.keyGateOpen)
+        XCTAssertFalse(next.composition.flow.sensitiveContentVisible)
+        XCTAssertEqual(try encryptedFiles(), encryptedBefore)
+        XCTAssertFalse(client.queries.dropFirst(beforeRestartQueries).contains {
+            $0[kSecValueData as String] != nil
+        }, "Existing encrypted data must not trigger replacement key creation")
+        let retainedMetadata = try await backend.read(.metadata(namespace))
+        let missingMaterial = try await backend.read(.key(namespace, current))
+        XCTAssertTrue(retainedMetadata == metadata)
+        XCTAssertNil(missingMaterial)
+
+        try await backend.add(.init(id: .key(namespace, current), material: originalMaterial,
+                                    policy: .candidateWhenUnlockedThisDeviceOnly))
+        await next.composition.startOrRetry()
+        XCTAssertEqual(next.phase, .collecting)
+        let recoveredTotal = try await next.diskBareTotal()
+        XCTAssertEqual(recoveredTotal, 2)
+        try await next.press(1)
+        try await next.waitDurable()
+        let continuedTotal = try await next.diskBareTotal()
+        XCTAssertEqual(continuedTotal, 3)
+    }
+
+    func testExplicitStartAfterLockAndUnlockReestablishesCollecting() async throws {
+        let client = MemoryLocalKeychainClient()
+        let initialReads = try XCTUnwrap(ProtectedReadActivity.process.snapshot).keychainReadStarted
+        let product = try await collecting(backend: LocalKeychainBackend(client: client))
+        try await product.press(2)
+        try await product.waitDurable()
+        XCTAssertGreaterThan(try XCTUnwrap(ProtectedReadActivity.process.snapshot).keychainReadStarted, initialReads)
 
         try await product.lockScreen()
         XCTAssertEqual(product.phase, .blocked)
         XCTAssertEqual(product.composition.lifecycle.state.blockedReason, .sessionLocked)
         XCTAssertFalse(product.keyGateOpen)
         XCTAssertEqual(try product.tap?.press(), .closed, "no delivery while closed")
+        let closedQueryCount = client.queries.count
+
+        let observer = try XCTUnwrap(CounterWindowProductObserver(
+            recorder: product.composition.diagnostics, interval: 0.02))
+        var authority = SessionLockQualification(supported: true)
+        let lockedTransition = try authority.advance(
+            .init(challenge: authority.challenge, unlocked: false), expectedUnlocked: false).get()
+        let closed = await Task.detached {
+            observer.observe(step: .lockBackground, transition: lockedTransition)
+        }.value
+        XCTAssertEqual(closed?.captureClosed, true)
+        XCTAssertEqual(closed?.protectedReadDelta, 0)
+        XCTAssertEqual(closed?.publishDelta, 0)
+        XCTAssertEqual(closed?.aggregateDelta, 0)
 
         try await product.unlockScreen()
         XCTAssertEqual(product.phase, .blocked, "unlock alone must not resume")
         let liveAfterUnlock = await product.live
         XCTAssertFalse(liveAfterUnlock)
 
+        let unlockedTransition = try authority.advance(
+            .init(challenge: authority.challenge, unlocked: true), expectedUnlocked: true).get()
+        let waitingForStart = await Task.detached {
+            observer.observe(step: .unlockRevalidate, transition: unlockedTransition)
+        }.value
+        XCTAssertEqual(waitingForStart?.captureClosed, true)
+        XCTAssertEqual(waitingForStart?.protectedReadDelta, 0)
+        XCTAssertEqual(waitingForStart?.publishDelta, 0)
+        XCTAssertEqual(waitingForStart?.aggregateDelta, 0)
+        XCTAssertEqual(client.queries.count, closedQueryCount)
+
         await product.composition.startOrRetry()
         XCTAssertEqual(product.phase, .collecting)
         let liveAfterStart = await product.live
         XCTAssertTrue(liveAfterStart)
         XCTAssertTrue(product.composition.flow.sensitiveContentVisible)
+        XCTAssertGreaterThan(client.queries.count, closedQueryCount)
         try await product.press(1)
 
         let start = try XCTUnwrap(product.actionEnds("start").last)
@@ -470,6 +740,45 @@ final class ProductRecoveryQuitTests: XCTestCase {
         XCTAssertEqual(start["sessionLiveAfter"] as? Bool, true)
         XCTAssertEqual(start["readinessOutcome"] as? String,
                        "lock=unlocked,secure=disabled,foreground=attributable")
+    }
+
+    func testLockNotificationClosesGateBeforeAsyncCleanup() async throws {
+        let product = try await collecting()
+        product.host.setLock(.locked)
+        product.notifications.post(ProductComposition.screenLockedNotification)
+
+        XCTAssertFalse(product.keyGateOpen)
+        XCTAssertFalse(product.composition.capture.queue.isOpen)
+        XCTAssertEqual(try product.tap?.press(), .closed)
+
+        try await waitUntil("blocked after lock notification") {
+            let live = await product.live
+            return product.phase == .blocked && !live
+        }
+    }
+
+    func testCollectingPollClosesWhenLockNotificationIsMissing() async throws {
+        for lockState in [SessionLockState.locked, .unknown] {
+            let product = try await collecting()
+            product.host.setLock(lockState)
+            try await waitUntil("closed after missed \(lockState) notification") {
+                let live = await product.live
+                return product.phase == .blocked && !live && !product.keyGateOpen
+            }
+            XCTAssertFalse(product.composition.flow.sensitiveContentVisible)
+            XCTAssertEqual(try product.tap?.press(), .closed)
+            let marks = try product.marks()
+            XCTAssertTrue(marks.contains {
+                $0["role"] as? String == "begin"
+                    && $0["privacyTrigger"] as? String == "sessionLockMonitor-\(lockState)"
+            })
+
+            product.host.setLock(.unlocked)
+            try await Task.sleep(for: .milliseconds(400))
+            XCTAssertEqual(product.phase, .blocked)
+            await product.composition.startOrRetry()
+            XCTAssertEqual(product.phase, .collecting)
+        }
     }
 
     func testClosedIntervalBoundariesComeFromTheProductPath() async throws {
@@ -490,20 +799,123 @@ final class ProductRecoveryQuitTests: XCTestCase {
         let end = try XCTUnwrap(marks.first { $0["role"] as? String == "end" && ($0["seq"] as? Int ?? 0) > beginSeq })
         let endSeq = try XCTUnwrap(end["seq"] as? Int)
         XCTAssertEqual(begin["privacyTrigger"] as? String, "screenLockedNotification")
+        XCTAssertEqual(begin["protectedReadRevocationObserved"] as? Bool, true)
+        XCTAssertNotNil(begin["protectedReadActivityAtRevocation"])
         XCTAssertEqual(begin["captureSessionLive"] as? Bool, false)
-        XCTAssertEqual(end["boundaryCause"] as? String, "captureSessionStarting",
-                       "the interval ends before the new session can accept input")
+        XCTAssertEqual(end["boundaryCause"] as? String, "protectedStoreReauthorized",
+                       "the interval ends before explicit unlocked recovery reads the store")
         let observes = marks.filter {
             $0["role"] as? String == "observe" && (beginSeq..<endSeq).contains($0["seq"] as? Int ?? -1)
         }
         XCTAssertFalse(observes.isEmpty)
         XCTAssertTrue(observes.allSatisfy { $0["lockReadStatus"] as? String != "notChecked" })
-        for counter in ["aggregateDelta", "normalizationOutput", "handoffAccepted", "flushDurable"] {
+        for counter in ["aggregateDelta", "normalizationOutput", "handoffAccepted", "flushDurable",
+                        "protectedGateEntries", "snapshotPublicationCount", "analysisPublicationCount"] {
             XCTAssertEqual(end[counter] as? Int, begin[counter] as? Int, "\(counter) moved while closed")
+        }
+        let readsAtClosure = try XCTUnwrap(begin["protectedReadActivity"] as? [String: Int])
+        let readKinds = ["decryption", "keychainRead", "storeCacheRead", "aggregateRead", "plaintextProcessing"]
+        XCTAssertEqual(readsAtClosure.count, readKinds.count * 2)
+        for mark in [begin] + observes + [end] {
+            XCTAssertEqual(mark["captureQueueOpen"] as? Bool, false)
+            XCTAssertEqual(mark["keyGateOpen"] as? Bool, false)
+            let reads = try XCTUnwrap(mark["protectedReadActivity"] as? [String: Int])
+            for kind in readKinds {
+                let started = try XCTUnwrap(reads[kind + "Started"])
+                let completed = try XCTUnwrap(reads[kind + "Completed"])
+                XCTAssertEqual(started, completed, "\(kind) was in flight while closed")
+                XCTAssertEqual(started, readsAtClosure[kind + "Started"], "\(kind) started while closed")
+                XCTAssertEqual(completed, readsAtClosure[kind + "Completed"], "\(kind) completed while closed")
+            }
         }
         XCTAssertEqual(product.aggregateDelta, Int64(end["aggregateDelta"] as? Int ?? -1) + 2,
                        "input after reopening is outside the closed interval")
         XCTAssertEqual(try product.actionEnds("start").last?["phaseAfter"] as? String, "collecting")
+    }
+
+    func testAdmissionObservationDoesNotReuseDelayedLifecycleState() async throws {
+        let product = try await collecting()
+        let composition = product.composition!
+        func observation() throws -> [String: Any] {
+            let data = try JSONEncoder().encode(composition.diagnostics.runSummary)
+            return try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        }
+        XCTAssertEqual(try observation()["captureQueueOpen"] as? Bool, true)
+        XCTAssertEqual(try observation()["keyGateOpen"] as? Bool, true)
+        composition.gate.update(.locked)
+        XCTAssertTrue(composition.diagnostics.runSummary.captureSessionLive)
+        XCTAssertEqual(try observation()["captureQueueOpen"] as? Bool, true)
+        XCTAssertEqual(try observation()["keyGateOpen"] as? Bool, false)
+        composition.capture.queue.revoke()
+        XCTAssertTrue(composition.diagnostics.runSummary.captureSessionLive)
+        XCTAssertEqual(try observation()["captureQueueOpen"] as? Bool, false)
+        XCTAssertEqual(try observation()["keyGateOpen"] as? Bool, false)
+    }
+
+    func testRevocationObservationPrecedesDelayedMainActorClosure() async throws {
+        let product = try await collecting()
+        try await product.press(1)
+        try await product.waitDurable()
+        let composition = product.composition!
+        let before = try XCTUnwrap(composition.diagnostics.runSummary.protectedReadActivity)
+
+        composition.gate.update(.locked)
+        XCTAssertEqual(composition.lifecycle.phase, .collecting)
+        // Deliberately encrypt synthetic bytes in the gap before cleanup.
+        // The observer must retain this evidence even though the delayed begin is quiet.
+        _ = try LocatorCodec.seal(identity: CycleResetObjects.preferences, payload: Data([1]),
+                                  keyVersion: 1, material: Data(repeating: 12, count: 32))
+        composition.gate.update(.unknown)
+        composition.diagnostics.beginClosedInterval(cause: "protectedStateClosed")
+        let begin = try XCTUnwrap(product.marks().last { $0["role"] as? String == "begin" })
+        XCTAssertEqual(begin["protectedReadRevocationObserved"] as? Bool, true)
+        let atRevocation = try XCTUnwrap(begin["protectedReadActivityAtRevocation"] as? [String: Int])
+        let atBegin = try XCTUnwrap(begin["protectedReadActivity"] as? [String: Int])
+        XCTAssertEqual(atRevocation["plaintextProcessingStarted"], Int(before.plaintextProcessingStarted))
+        XCTAssertGreaterThan(try XCTUnwrap(atBegin["plaintextProcessingStarted"]),
+                             try XCTUnwrap(atRevocation["plaintextProcessingStarted"]))
+    }
+
+    func testKeyRevocationHidesCachedPresentationBeforeLifecycleCatchesUp() async throws {
+        let product = try await collecting()
+        try await product.press(1)
+        try await product.waitDurable()
+        let composition = product.composition!
+        let flow = composition.flow
+        let aggregate = try XCTUnwrap(composition.reduction.snapshot())
+        let preferences = try XCTUnwrap(composition.lifecycle.state.preferences)
+        let analysis = try XCTUnwrap(composition.reduction.analysis(preferences: preferences))
+        flow.snapshot = aggregate
+        flow.publishAnalysis(analysis)
+        XCTAssertNotNil(flow.snapshot)
+        XCTAssertNotNil(flow.analysis)
+        let before = composition.diagnostics.runSummary
+
+        composition.gate.update(.locked)
+        XCTAssertEqual(composition.lifecycle.phase, .collecting)
+        XCTAssertFalse(flow.sensitiveContentVisible)
+        XCTAssertNil(flow.snapshot)
+        XCTAssertNil(flow.analysis)
+        flow.snapshot = aggregate
+        flow.publishAnalysis(analysis)
+        XCTAssertNil(flow.snapshot)
+        XCTAssertNil(flow.analysis)
+        let after = composition.diagnostics.runSummary
+        XCTAssertEqual(after.snapshotPublicationCount, before.snapshotPublicationCount)
+        XCTAssertEqual(after.analysisPublicationCount, before.analysisPublicationCount)
+        XCTAssertEqual(after.protectedReadActivity, before.protectedReadActivity)
+
+        composition.gate.update(.unlocked)
+        XCTAssertNil(flow.snapshot)
+        XCTAssertNil(flow.analysis)
+        flow.snapshot = aggregate
+        flow.publishAnalysis(analysis)
+        XCTAssertNotNil(flow.snapshot)
+        XCTAssertNotNil(flow.analysis)
+        composition.gate.update(.locked)
+        composition.gate.update(.unlocked)
+        XCTAssertNil(flow.snapshot, "reopening alone must not expose the previous generation")
+        XCTAssertNil(flow.analysis)
     }
 
     func testStartWhileLockIsLockedOrUnknownRefusesEveryTime() async throws {
@@ -527,6 +939,11 @@ final class ProductRecoveryQuitTests: XCTestCase {
         XCTAssertEqual(ends.suffix(3).map { $0["lifecycleCommandRun"] as? Bool }, [nil, nil, nil])
         XCTAssertEqual(ends.suffix(3).map { $0["abortRun"] as? Bool }, [true, true, true])
         XCTAssertEqual(Set(begins.suffix(3).compactMap { $0["actionSeq"] as? Int }).count, 3)
+        let firstRejectedStart = try XCTUnwrap(begins.suffix(3).first?["seq"] as? Int)
+        XCTAssertFalse(try product.marks().contains {
+            $0["role"] as? String == "end" && $0["boundaryCause"] as? String == "protectedStoreReauthorized"
+                && ($0["seq"] as? Int ?? 0) > firstRejectedStart
+        }, "a rejected locked or unknown Start must not end the protected interval")
     }
 
     func testLockReturningDuringRecoveryKeepsCaptureClosed() async throws {
@@ -616,6 +1033,36 @@ final class ProductRecoveryQuitTests: XCTestCase {
         XCTAssertEqual(product.terminateRequests, 1)
     }
 
+    func testPermissionPollClosesWithoutTapInvalidationAndRegrantDoesNotRestart() async throws {
+        let product = try await collecting()
+        let oldTap = try XCTUnwrap(product.tap)
+
+        product.host.setPermission(.denied)
+        try await waitUntil("permission poll closes product") {
+            let live = await product.live
+            return product.phase == .blocked && !live && !product.keyGateOpen
+                && !product.composition.flow.sensitiveContentVisible
+        }
+        XCTAssertEqual(product.composition.lifecycle.state.blockedReason, .privacyCheckRequired,
+                       "Permission loss on an unlocked host must not be reported as a session lock")
+        XCTAssertTrue(try product.marks().contains {
+            $0["boundaryCause"] as? String == "inputMonitoringPreflightDenied"
+                && $0["phase"] as? String == "collecting"
+        })
+        XCTAssertEqual(try oldTap.press(), .closed)
+
+        product.host.setPermission(.granted)
+        try await Task.sleep(for: .milliseconds(600))
+        let grantedLive = await product.live
+        XCTAssertFalse(grantedLive)
+        XCTAssertNotEqual(product.phase, .collecting)
+
+        await product.composition.startOrRetry()
+        let restartedLive = await product.live
+        XCTAssertTrue(restartedLive)
+        XCTAssertEqual(product.phase, .collecting)
+    }
+
     func testPausedIntentSurvivesLockAndOnlyResumeReopens() async throws {
         let product = try await collecting()
         await product.composition.flow.pause()
@@ -703,6 +1150,43 @@ final class ProductRecoveryQuitTests: XCTestCase {
         XCTAssertTrue(live)
     }
 
+    func testForegroundRebuildDoesNotLookLikeAnUnexpectedSourceStop() async throws {
+        let product = try await collecting()
+        try await product.press(1)
+        let tap = try XCTUnwrap(product.tap)
+        tap.holdNextStart()
+        defer { tap.releaseStart() }
+        XCTAssertTrue(tap.report(.foregroundChanged))
+        try await waitUntil("rebuild start held") { tap.startIsHeld }
+        // Cross multiple health polls while the real source is deliberately rebuilding.
+        try await Task.sleep(for: .milliseconds(800))
+        XCTAssertEqual(product.phase, .collecting)
+        XCTAssertTrue(product.keyGateOpen)
+        tap.releaseStart()
+        try await waitUntil("foreground rebuild completed") { await product.live }
+        try await product.press(1)
+        XCTAssertEqual(product.aggregateDelta, 2)
+    }
+
+    func testPermissionLossStillClosesWhileForegroundRebuildIsHeld() async throws {
+        let product = try await collecting()
+        let tap = try XCTUnwrap(product.tap)
+        tap.holdNextStart()
+        defer { tap.releaseStart() }
+        XCTAssertTrue(tap.report(.foregroundChanged))
+        try await waitUntil("rebuild start held") { tap.startIsHeld }
+        product.host.setPermission(.denied)
+        try await waitUntil("permission loss closes protected state") {
+            product.phase == .blocked && !product.keyGateOpen
+        }
+        tap.releaseStart()
+        try await Task.sleep(for: .milliseconds(600))
+        let live = await product.live
+        XCTAssertFalse(live)
+        XCTAssertFalse(product.keyGateOpen)
+        XCTAssertEqual(product.phase, .blocked)
+    }
+
     func testFailedAutomaticRecoveryLeavesAnActionableState() async throws {
         let product = try await collecting()
         try await product.press(1)
@@ -729,6 +1213,66 @@ final class ProductRecoveryQuitTests: XCTestCase {
 
         await product.composition.requestQuit()
         XCTAssertEqual(product.terminateRequests, 1)
+    }
+
+    func testHealthPollDoesNotRevokeWhileFailedRecoveryIsSettling() async throws {
+        let product = try await collecting(journal: false)
+        try await product.press(1)
+        product.host.holdNextSecureInputReads(1)
+        defer { product.host.releaseSecureInputReads() }
+        try await waitUntil("monitor read parked") { product.host.parkedSecureInputReads == 1 }
+        // Recovery reads: fresh conditions, policy refresh, resume readiness, then settlement.
+        product.host.scriptSecureInputReads([.disabled, .disabled, .disabled, nil])
+        product.host.scriptForegroundReads(Array(repeating: .attributable(bundleID: "synthetic.browser"), count: 3))
+        product.host.setForeground(.attributable(bundleID: "synthetic.editor2"))
+        XCTAssertEqual(product.tap?.report(.foregroundChanged), true)
+        try await waitUntil("failed recovery settlement parked") { product.host.parkedSecureInputReads == 2 }
+        let liveDuringSettlement = await product.live
+        XCTAssertFalse(liveDuringSettlement)
+        let readsBeforeMonitor = product.host.secureInputReadCount
+        product.host.completeNextSecureInputRead(.disabled)
+        // Observe another poll (or premature closure), rather than assuming a sleep is enough.
+        try await waitUntil("health poll crossed settlement") {
+            product.host.secureInputReadCount > readsBeforeMonitor || product.phase == .blocked
+        }
+        XCTAssertEqual(product.phase, .collecting)
+        XCTAssertTrue(product.keyGateOpen, "a known recovery stop must not revoke retained counts")
+        product.host.completeNextSecureInputRead(.disabled)
+        try await waitUntil("settlement hands over to Start") { product.phase == .blocked }
+        XCTAssertEqual(product.composition.lifecycle.state.blockedReason, .keyUnavailable)
+        await product.composition.startOrRetry()
+        XCTAssertEqual(product.phase, .collecting)
+        try await product.press(1)
+        try await product.waitDurable()
+        let total = try await product.diskBareTotal()
+        XCTAssertEqual(total, 2)
+        await product.composition.requestQuit()
+    }
+
+    func testPermissionLossStillClosesWhileFailedRecoveryIsSettling() async throws {
+        let product = try await collecting(journal: false)
+        product.host.holdNextSecureInputReads(1)
+        defer { product.host.releaseSecureInputReads() }
+        try await waitUntil("monitor read parked") { product.host.parkedSecureInputReads == 1 }
+        product.host.scriptSecureInputReads([.disabled, .disabled, .disabled, nil])
+        product.host.scriptForegroundReads(Array(repeating: .attributable(bundleID: "synthetic.browser"), count: 3))
+        product.host.setForeground(.attributable(bundleID: "synthetic.editor2"))
+        XCTAssertEqual(product.tap?.report(.foregroundChanged), true)
+        try await waitUntil("failed recovery settlement parked") { product.host.parkedSecureInputReads == 2 }
+        product.host.setPermission(.denied)
+        product.host.completeNextSecureInputRead(.disabled)
+        try await waitUntil("permission loss takes priority over settlement") {
+            product.phase == .blocked && !product.keyGateOpen
+        }
+        XCTAssertEqual(product.composition.lifecycle.state.blockedReason, .privacyCheckRequired)
+        product.host.completeNextSecureInputRead(.disabled)
+        await product.composition.startOrRetry()
+        XCTAssertEqual(product.phase, .failed)
+        XCTAssertFalse(product.keyGateOpen)
+        let live = await product.live
+        XCTAssertFalse(live)
+        XCTAssertFalse(product.composition.flow.sensitiveContentVisible)
+        await product.composition.requestQuit()
     }
 
     // MARK: - Quit
@@ -940,6 +1484,30 @@ final class ProductRecoveryQuitTests: XCTestCase {
         try await product.press(1)
     }
 
+    func testSecureInputClearingDuringFailedRebuildSettlementStillRecoversAutomatically() async throws {
+        let product = try await collecting(journal: false)
+        try await product.press(2)
+        await product.composition.stopBackgroundMaintenanceForFixture()
+        product.host.setSecureInput(.enabled)
+        product.host.scriptSecureInputReads([.enabled, .enabled, .enabled, nil])
+        defer { product.host.releaseSecureInputReads() }
+        let rebuild = Task { await product.composition.applyExclusions([]) }
+        try await waitUntil("failed rebuild reached settlement read") {
+            product.host.parkedSecureInputReads == 1
+        }
+        product.host.setSecureInput(.disabled)
+        product.host.completeNextSecureInputRead(.disabled)
+        await rebuild.value
+        try await waitUntil("cleared Secure Input automatically recovers failed rebuild") {
+            let live = await product.live
+            return live && product.phase == .collecting
+        }
+        try await product.press(1)
+        try await product.waitDurable()
+        let total = try await product.diskBareTotal()
+        XCTAssertEqual(total, 3)
+    }
+
     func testUnknownSecureInputStaysClosed() async throws {
         let product = try await collecting()
         product.host.setSecureInput(.unknown)
@@ -951,6 +1519,131 @@ final class ProductRecoveryQuitTests: XCTestCase {
         let live = await product.live
         XCTAssertFalse(live, "unknown is never treated as disabled")
         XCTAssertEqual(try product.tap?.press(), .closed)
+    }
+
+    func testDisabledTapWithoutCallbackStopsCollectingUntilExplicitStart() async throws {
+        let product = try await collecting()
+        try await product.press(1)
+        product.tap?.disableWithoutCallback()
+        try await waitUntil("disabled tap blocks collecting") {
+            let live = await product.live
+            return product.phase == .blocked && !live
+        }
+        XCTAssertEqual(product.composition.lifecycle.state.blockedReason, .privacyCheckRequired)
+        XCTAssertEqual(try product.tap?.press(), .closed)
+        XCTAssertFalse(product.composition.flow.sensitiveContentVisible)
+
+        await product.composition.startOrRetry()
+        try await waitUntil("explicit Start restores a live session") {
+            let live = await product.live
+            return product.phase == .collecting && live
+        }
+        try await product.press(1)
+    }
+
+    func testClosedJournalReadsPermissionAfterTapFailureWithoutReopening() async throws {
+        let product = try await collecting()
+        product.tap?.disableWithoutCallback()
+        try await waitUntil("tap failure closes before permission changes") {
+            let live = await product.live
+            return product.phase == .blocked && !live && !product.keyGateOpen
+        }
+        product.host.setPermission(.denied)
+        try await waitUntil("closed journal observes denied permission") {
+            (try? product.marks().contains {
+                $0["boundaryCause"] as? String == "inputMonitoringPreflightDenied"
+                    && $0["phase"] as? String == "blocked"
+            }) == true
+        }
+        let deniedSeq = try XCTUnwrap(product.marks().last?["seq"] as? Int)
+        product.host.setPermission(.granted)
+        try await waitUntil("closed journal observes regrant without reopening") {
+            (try? product.marks().contains {
+                ($0["seq"] as? Int ?? 0) > deniedSeq
+                    && $0["boundaryCause"] as? String == "inputMonitoringPreflightGranted"
+                    && $0["phase"] as? String == "blocked"
+            }) == true
+        }
+        let live = await product.live
+        XCTAssertFalse(live)
+        XCTAssertFalse(product.keyGateOpen)
+        XCTAssertFalse(product.composition.flow.sensitiveContentVisible)
+        XCTAssertEqual(product.aggregateDelta, 0)
+    }
+
+    func testClosedJournalKeepsUnknownPermissionDistinctFromDenial() async throws {
+        let product = try await collecting()
+        product.tap?.disableWithoutCallback()
+        try await waitUntil("tap failure closes before unknown permission") {
+            let live = await product.live
+            return product.phase == .blocked && !live && !product.keyGateOpen
+        }
+        product.host.setPermission(.unknown)
+        try await waitUntil("closed journal retains unknown permission") {
+            (try? product.marks().contains {
+                $0["boundaryCause"] as? String == "inputMonitoringPreflightUnknown"
+                    && $0["phase"] as? String == "blocked"
+            }) == true
+        }
+        XCTAssertFalse(try product.marks().contains {
+            $0["boundaryCause"] as? String == "inputMonitoringPreflightDenied"
+        })
+        let live = await product.live
+        XCTAssertFalse(live)
+        XCTAssertFalse(product.keyGateOpen)
+        XCTAssertFalse(product.composition.flow.sensitiveContentVisible)
+        XCTAssertEqual(product.aggregateDelta, 0)
+    }
+
+    func testStoppedSourceWithoutCallbackStopsCollectingUntilExplicitStart() async throws {
+        let product = try await collecting()
+        let oldTap = try XCTUnwrap(product.tap)
+        await product.composition.capture.source.stop()
+
+        try await waitUntil("stopped source blocks collecting") {
+            let live = await product.live
+            return product.phase == .blocked && !live && !product.keyGateOpen
+        }
+        XCTAssertEqual(product.composition.lifecycle.state.blockedReason, .privacyCheckRequired,
+                       "A stopped event source does not establish that the session is locked")
+        XCTAssertEqual(try oldTap.press(), .closed)
+        XCTAssertFalse(product.composition.flow.sensitiveContentVisible)
+
+        await product.composition.startOrRetry()
+        try await waitUntil("explicit Start restores stopped source") {
+            let live = await product.live
+            return product.phase == .collecting && live
+        }
+        try await product.press(1)
+    }
+
+    func testSleepInvalidationRequiresExplicitStartAfterAvailabilityReturns() async throws {
+        let product = try await collecting()
+        try await product.press(1)
+        try await product.waitDurable()
+        XCTAssertEqual(product.tap?.report(.sleep), true)
+        try await waitUntil("sleep closes capture and protected state") {
+            let live = await product.live
+            return product.phase == .blocked && !live && !product.keyGateOpen
+        }
+        XCTAssertFalse(product.composition.flow.sensitiveContentVisible)
+        XCTAssertEqual(try product.tap?.press(), .closed)
+        try await product.unlockScreen()
+        try await Task.sleep(for: .milliseconds(600))
+        let liveBeforeStart = await product.live
+        XCTAssertFalse(liveBeforeStart)
+        XCTAssertFalse(product.keyGateOpen)
+        XCTAssertEqual(product.phase, .blocked)
+        XCTAssertEqual(product.aggregateDelta, 1)
+        await product.composition.startOrRetry()
+        XCTAssertEqual(product.phase, .collecting)
+        try await product.press(1)
+        try await product.waitDurable()
+        let restoredTotal = try await product.diskBareTotal()
+        XCTAssertEqual(restoredTotal, 2)
+        XCTAssertTrue(try product.marks().contains {
+            $0["role"] as? String == "end" && $0["boundaryCause"] as? String == "protectedStoreReauthorized"
+        })
     }
 
     func testLockDuringSecureInputStillNeedsExplicitStart() async throws {

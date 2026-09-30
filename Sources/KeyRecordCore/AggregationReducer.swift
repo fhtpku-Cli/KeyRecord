@@ -4,6 +4,7 @@ public enum AggregationError: Error, Equatable, Sendable {
     case invalidLocalDate
     case cycleMismatch
     case inconsistentTotal
+    case invalidActiveDayOrder
 }
 
 /// Feed control updates before normalized events, including closures that produce no event output.
@@ -35,7 +36,7 @@ public struct AggregationReducer: Sendable {
     public init(cycleID: CycleID) { self.cycleID = cycleID }
 
     public init(cycleID: CycleID, shortcuts: [DailyShortcutAggregate],
-                bareKeys: [DailyBareKeyAggregate]) throws {
+                bareKeys: [DailyBareKeyAggregate], activeDays: [LocalDay]? = nil) throws {
         self.init(cycleID: cycleID)
         for row in shortcuts {
             guard row.cycleID == cycleID else { throw AggregationError.cycleMismatch }
@@ -53,7 +54,13 @@ public struct AggregationReducer: Sendable {
             bareRows[key] = row
             encounteredDays.insert(row.day)
         }
-        activeDays = encounteredDays.sorted { $0.label < $1.label }
+        if let activeDays {
+            guard activeDays.count == encounteredDays.count,
+                  Set(activeDays) == encounteredDays else { throw AggregationError.invalidActiveDayOrder }
+            self.activeDays = activeDays
+        } else {
+            self.activeDays = encounteredDays.sorted { $0.label < $1.label }
+        }
     }
 
     public var distinctActiveDays: ActiveDayOrdinal {

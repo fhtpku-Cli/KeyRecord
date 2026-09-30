@@ -12,7 +12,18 @@ private struct ProductReductionClock: LocalClock {
 
 final class ProductReduction: @unchecked Sendable {
     private let mutex = NSLock()
+    #if DEBUG
+    private var storedAggregate: AggregationReducer?
+    private var aggregate: AggregationReducer? {
+        get {
+            guard storedAggregate != nil else { return nil }
+            return ProtectedReadActivity.process.observe(.aggregate) { storedAggregate }
+        }
+        set { storedAggregate = newValue }
+    }
+    #else
     private var aggregate: AggregationReducer?
+    #endif
     private var normalizer = ChordNormalizer()
     private var sourceGeneration: CaptureGeneration?
     private var changed = false
@@ -99,13 +110,19 @@ final class ProductReduction: @unchecked Sendable {
     }
 
     func take() throws -> AggregationReducer? {
+        try take { aggregate, _ in aggregate }
+    }
+
+    func take<T>(_ transform: (AggregationReducer, CaptureGeneration) throws -> T) throws -> T? {
         try mutex.withLock {
             let generation = try gate.begin()
-            return try gate.use(generation) {
-                guard changed else { return nil }
-                changed = false
-                return aggregate
+            guard changed else { return nil }
+            let result = try gate.use(generation) {
+                guard let aggregate else { return nil as T? }
+                return try transform(aggregate, generation)
             }
+            changed = false
+            return result
         }
     }
 

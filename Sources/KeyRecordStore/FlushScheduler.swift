@@ -82,6 +82,11 @@ public actor FlushScheduler: LifecycleFlushing {
 
     public func stage(_ objects: [FlushObject]) throws {
         guard let generation = schedule.generation else { throw LifecycleFlushError.locked }
+        try stage(objects, generation: generation)
+    }
+
+    public func stage(_ objects: [FlushObject], generation: CaptureGeneration) throws {
+        guard schedule.generation == generation else { throw KeyringError.staleGeneration }
         try gate.use(generation) {
             pending = objects
             schedule.markDirty()

@@ -48,15 +48,18 @@ public struct ResourceWindowRequest: Equatable, Sendable {
     public var warmupSeconds: Double
     public var measureSeconds: Double
     public var intervalSeconds: Double
+    public var originUptimeSeconds: Double?
     public var samples: [ProcessResourceSample]
 
     public init(protocolKind: ResourceProtocolKind, phase: String, warmupSeconds: Double,
-                measureSeconds: Double, intervalSeconds: Double, samples: [ProcessResourceSample]) {
+                measureSeconds: Double, intervalSeconds: Double, originUptimeSeconds: Double? = nil,
+                samples: [ProcessResourceSample]) {
         self.protocolKind = protocolKind
         self.phase = phase
         self.warmupSeconds = warmupSeconds
         self.measureSeconds = measureSeconds
         self.intervalSeconds = intervalSeconds
+        self.originUptimeSeconds = originUptimeSeconds
         self.samples = samples
     }
 }
@@ -100,24 +103,36 @@ public enum ResourceEvaluator {
         }
 
         if request.protocolKind == .formalFRS2,
-           request.warmupSeconds != 60 || request.measureSeconds != 600 || request.samples.isEmpty {
-            return finish("invalid", "formal-protocol-requires-60s-warmup-and-600s-measure")
+           request.warmupSeconds != ReplayWorkload.warmupSeconds || request.measureSeconds != ReplayWorkload.measureSeconds || request.samples.isEmpty {
+            return finish("invalid", "formal-protocol-requires-30s-warmup-and-120s-measure")
         }
         if request.protocolKind == .pausedMonitorCandidate,
            (request.warmupSeconds < 60 || request.measureSeconds < 600) {
             return finish("invalid", "paused-monitor-candidate-requires-60s-warmup-and-600s-measure")
         }
-        guard request.intervalSeconds > 0, request.warmupSeconds >= 0, request.measureSeconds > 0 else {
+        guard request.intervalSeconds.isFinite, request.warmupSeconds.isFinite,
+              request.measureSeconds.isFinite, request.intervalSeconds > 0,
+              request.warmupSeconds >= 0, request.measureSeconds > 0,
+              (request.warmupSeconds + request.measureSeconds).isFinite else {
             return finish("invalid", "bad-duration")
         }
         guard let first = request.samples.first, !first.failed, !first.exited else {
             return finish("invalid", "sample-missing")
+        }
+        let origin = request.originUptimeSeconds ?? first.uptimeSeconds
+        guard origin.isFinite, first.uptimeSeconds.isFinite, origin >= 0,
+              origin <= first.uptimeSeconds,
+              first.uptimeSeconds - origin <= request.intervalSeconds * 1.5 else {
+            return finish("invalid", "origin-misaligned")
         }
         var childDelta: UInt64 = 0
         for index in request.samples.indices {
             let sample = request.samples[index]
             if sample.failed { return finish("invalid", "sample-missing") }
             if sample.exited { return finish("interrupted", "process-exited") }
+            if !sample.uptimeSeconds.isFinite || !sample.monotonicSeconds.isFinite {
+                return finish("invalid", "sample-clock-invalid")
+            }
             if sample.pid != first.pid || sample.startAbstime != first.startAbstime || sample.executablePath != first.executablePath {
                 return finish("invalid", "pid-reused")
             }
@@ -128,21 +143,33 @@ public enum ResourceEvaluator {
                 let previous = request.samples[index - 1]
                 let uptime = sample.uptimeSeconds - previous.uptimeSeconds
                 let monotonic = sample.monotonicSeconds - previous.monotonicSeconds
+                if uptime <= 0 || monotonic <= 0 { return finish("invalid", "sample-clock-regressed") }
+                if sample.cpuNanoseconds < previous.cpuNanoseconds {
+                    return finish("invalid", "cpu-counter-regressed")
+                }
+                if sample.childCPUNanoseconds < previous.childCPUNanoseconds {
+                    return finish("invalid", "child-cpu-counter-regressed")
+                }
                 if monotonic - uptime > 0.5 { return finish("interrupted", "sleep") }
                 if uptime > request.intervalSeconds * 2.5 && monotonic > request.intervalSeconds * 2.5 {
                     return finish("invalid", "sample-missing")
                 }
-                if sample.childCPUNanoseconds >= previous.childCPUNanoseconds {
-                    childDelta = sample.childCPUNanoseconds - request.samples[0].childCPUNanoseconds
-                }
+                childDelta = sample.childCPUNanoseconds - request.samples[0].childCPUNanoseconds
             }
         }
-        let origin = first.uptimeSeconds
         let measureStart = origin + request.warmupSeconds
         let measureEnd = measureStart + request.measureSeconds
-        let measured = request.samples.filter { $0.uptimeSeconds >= measureStart && $0.uptimeSeconds <= measureEnd + request.intervalSeconds * 0.25 }
+        let afterWarmup = request.samples.filter { $0.uptimeSeconds >= measureStart }
+        let lastIndex = afterWarmup.firstIndex { $0.uptimeSeconds >= measureEnd } ?? afterWarmup.indices.last
+        let measured = lastIndex.map { Array(afterWarmup[...$0]) } ?? []
         guard measured.count >= 2, let start = measured.first, let end = measured.last else {
             return finish("invalid", "sample-missing", child: childDelta)
+        }
+        if end.uptimeSeconds > measureEnd + request.intervalSeconds * 1.5 {
+            return finish("invalid", "sample-missing", child: childDelta)
+        }
+        if request.protocolKind == .formalFRS2 && end.uptimeSeconds < measureEnd {
+            return finish("interrupted", "duration-short", child: childDelta)
         }
         let covered = end.uptimeSeconds - measureStart
         if covered + request.intervalSeconds * 0.5 < request.measureSeconds {
@@ -164,7 +191,8 @@ public enum ResourceEvaluator {
         evaluate(ResourceWindowRequest(
             protocolKind: archive.protocolKind, phase: archive.phase,
             warmupSeconds: archive.requestedWarmupSeconds, measureSeconds: archive.requestedMeasureSeconds,
-            intervalSeconds: archive.requestedIntervalSeconds, samples: archive.samples))
+            intervalSeconds: archive.requestedIntervalSeconds,
+            originUptimeSeconds: archive.originUptimeSeconds, samples: archive.samples))
     }
 }
 
@@ -174,6 +202,7 @@ public struct ResourceMeasurementArchive: Equatable, Sendable, Codable {
     public var requestedWarmupSeconds: Double
     public var requestedMeasureSeconds: Double
     public var requestedIntervalSeconds: Double
+    public var originUptimeSeconds: Double?
     public var effectiveMeasureSeconds: Double?
     public var retainedSampleCount: Int
     public var interruptReason: String?
@@ -195,6 +224,7 @@ public struct ResourceMeasurementArchive: Equatable, Sendable, Codable {
         requestedWarmupSeconds = request.warmupSeconds
         requestedMeasureSeconds = request.measureSeconds
         requestedIntervalSeconds = request.intervalSeconds
+        originUptimeSeconds = request.originUptimeSeconds
         samples = request.samples
         retainedSampleCount = request.samples.count
         interruptReason = result.reason
@@ -207,15 +237,42 @@ public struct ResourceMeasurementArchive: Equatable, Sendable, Codable {
         formula = result.formula
         rssUsedAsFootprint = false
         self.result = result
-        if result.outcome == "measured", let first = request.samples.first,
-           let last = request.samples.last(where: {
-               $0.uptimeSeconds >= first.uptimeSeconds + request.warmupSeconds
-                   && $0.uptimeSeconds <= first.uptimeSeconds + request.warmupSeconds + request.measureSeconds + request.intervalSeconds * 0.25
-           }) {
-            effectiveMeasureSeconds = last.uptimeSeconds - (first.uptimeSeconds + request.warmupSeconds)
+        if result.outcome == "measured", let first = request.samples.first {
+            let start = (request.originUptimeSeconds ?? first.uptimeSeconds) + request.warmupSeconds
+            let end = start + request.measureSeconds
+            let afterWarmup = request.samples.filter { $0.uptimeSeconds >= start }
+            let endpoint = afterWarmup.first { $0.uptimeSeconds >= end } ?? afterWarmup.last
+            effectiveMeasureSeconds = endpoint.map { $0.uptimeSeconds - start }
         } else {
             effectiveMeasureSeconds = nil
         }
+    }
+}
+
+public struct PrivacyReadActivity: Equatable, Sendable, Decodable {
+    public var decryptionStarted: Int64
+    public var decryptionCompleted: Int64
+    public var keychainReadStarted: Int64
+    public var keychainReadCompleted: Int64
+    public var storeCacheReadStarted: Int64?
+    public var storeCacheReadCompleted: Int64?
+    public var aggregateReadStarted: Int64?
+    public var aggregateReadCompleted: Int64?
+    public var plaintextProcessingStarted: Int64?
+    public var plaintextProcessingCompleted: Int64?
+
+    fileprivate var completeCoverage: Bool {
+        let cached = [storeCacheReadStarted, storeCacheReadCompleted, aggregateReadStarted, aggregateReadCompleted]
+            .compactMap { $0 }.count
+        let processing = [plaintextProcessingStarted, plaintextProcessingCompleted].compactMap { $0 }.count
+        return (cached == 0 && processing == 0) || (cached == 4 && (processing == 0 || processing == 2))
+    }
+
+    fileprivate var values: [Int64] {
+        [decryptionStarted, decryptionCompleted, keychainReadStarted, keychainReadCompleted]
+            + [storeCacheReadStarted, storeCacheReadCompleted, aggregateReadStarted, aggregateReadCompleted,
+               plaintextProcessingStarted, plaintextProcessingCompleted]
+                .compactMap { $0 }
     }
 }
 
@@ -224,6 +281,8 @@ public struct PrivacyIntervalMark: Equatable, Sendable, Decodable {
     public var role: String
     public var phase: String
     public var captureSessionLive: Bool
+    public var captureQueueOpen: Bool?
+    public var keyGateOpen: Bool?
     public var sensitiveContentVisible: Bool
     public var expectedCollecting: Bool?
     public var aggregateDelta: Int64
@@ -236,7 +295,12 @@ public struct PrivacyIntervalMark: Equatable, Sendable, Decodable {
     public var protectedSnapshotRejected: Int64
     public var protectedAnalysisAttempts: Int64
     public var protectedAnalysisRejected: Int64
+    public var protectedGateEntries: Int64?
+    public var protectedReadActivity: PrivacyReadActivity?
+    public var protectedReadRevocationObserved: Bool?
+    public var protectedReadActivityAtRevocation: PrivacyReadActivity?
     public var snapshotPublicationCount: Int64
+    public var analysisPublicationCount: Int64?
 
     public var lockReadStatus: String
     public var secureInputReadStatus: String
@@ -250,7 +314,9 @@ public struct PrivacyIntervalMark: Equatable, Sendable, Decodable {
                 handoffClosed: Int64, normalizationOutput: Int64, flushDurable: Int64,
                 flushInvalidated: Int64, protectedSnapshotAttempts: Int64, protectedSnapshotRejected: Int64,
                 protectedAnalysisAttempts: Int64, protectedAnalysisRejected: Int64,
-                snapshotPublicationCount: Int64, role: String = "change",
+                snapshotPublicationCount: Int64, analysisPublicationCount: Int64? = nil,
+                protectedGateEntries: Int64? = nil,
+                role: String = "change",
                 lockReadStatus: String = "notChecked", secureInputReadStatus: String = "notChecked",
                 countersAreAtomicSnapshot: Bool = false, action: String? = nil,
                 actionSeq: Int? = nil, boundaryCause: String? = nil) {
@@ -276,7 +342,10 @@ public struct PrivacyIntervalMark: Equatable, Sendable, Decodable {
         self.protectedSnapshotRejected = protectedSnapshotRejected
         self.protectedAnalysisAttempts = protectedAnalysisAttempts
         self.protectedAnalysisRejected = protectedAnalysisRejected
+        self.protectedGateEntries = protectedGateEntries
+        self.protectedReadActivity = nil
         self.snapshotPublicationCount = snapshotPublicationCount
+        self.analysisPublicationCount = analysisPublicationCount
     }
 }
 
@@ -295,7 +364,9 @@ public struct PrivacySpanDelta: Equatable, Sendable, Codable {
     public var protectedSnapshotAttempts: Int64
     public var protectedSnapshotRejected: Int64
     public var protectedAnalysisAttempts: Int64
+    public var protectedGateEntries: Int64?
     public var snapshotPublicationCount: Int64
+    public var analysisPublicationCount: Int64?
 }
 
 public struct PrivacyIntervalReport: Equatable, Sendable, Codable {
@@ -330,6 +401,10 @@ public enum PrivacyIntervalEvaluator {
             if start.expectedCollecting == false { paused = true }
             if paused && end.captureSessionLive && end.expectedCollecting == false { unexpected = true }
             func delta(_ later: Int64, _ earlier: Int64) -> Int64 { later - earlier }
+            func optionalDelta(_ later: Int64?, _ earlier: Int64?) -> Int64? {
+                guard let later, let earlier else { return nil }
+                return later - earlier
+            }
             spans.append(PrivacySpanDelta(
                 fromSeq: start.seq, toSeq: end.seq, phase: start.phase,
                 captureSessionLive: start.captureSessionLive,
@@ -343,7 +418,9 @@ public enum PrivacyIntervalEvaluator {
                 protectedSnapshotAttempts: delta(end.protectedSnapshotAttempts, start.protectedSnapshotAttempts),
                 protectedSnapshotRejected: delta(end.protectedSnapshotRejected, start.protectedSnapshotRejected),
                 protectedAnalysisAttempts: delta(end.protectedAnalysisAttempts, start.protectedAnalysisAttempts),
-                snapshotPublicationCount: delta(end.snapshotPublicationCount, start.snapshotPublicationCount)))
+                protectedGateEntries: optionalDelta(end.protectedGateEntries, start.protectedGateEntries),
+                snapshotPublicationCount: delta(end.snapshotPublicationCount, start.snapshotPublicationCount),
+                analysisPublicationCount: optionalDelta(end.analysisPublicationCount, start.analysisPublicationCount)))
         }
         let closed = spans.filter { !$0.captureSessionLive && !$0.sensitiveContentVisible }
         if closed.isEmpty {
@@ -356,9 +433,11 @@ public enum PrivacyIntervalEvaluator {
             provesRendering: false, provesEveryProtectedRead: false)
     }
 
-    /// End causes recorded at the product step that re-authorizes input or display, before
+    /// End causes recorded when input, store access or display is re-authorized, before
     /// that step can move a counter. Other causes mean the boundary position is unknown.
-    public static let reliableEndCauses: Set<String> = ["captureSessionStarting", "protectedDisplayReauthorized"]
+    public static let reliableEndCauses: Set<String> = [
+        "captureSessionStarting", "protectedDisplayReauthorized", "protectedStoreReauthorized"
+    ]
 
     /// Evaluates the last closed interval opened by `beginCause` (nil accepts any cause).
     /// Requires begin, at least one observe and the first end after that begin. Deltas are
@@ -390,14 +469,47 @@ public enum PrivacyIntervalEvaluator {
         }
         let during = marks.filter { $0.role == "observe" && $0.seq > begin.seq && $0.seq < end.seq }
         guard !during.isEmpty else { return report("inconclusive", "missing-boundary", begin: begin, end: end) }
+        guard ([begin] + during + [end]).allSatisfy({ $0.analysisPublicationCount != nil }) else {
+            return report("inconclusive", "analysis-publication-counter-missing", begin: begin, end: end)
+        }
+        let intervalMarks = [begin] + during + [end]
+        let allIntervalMarks = marks.filter { $0.seq >= begin.seq && $0.seq <= end.seq }
+        if allIntervalMarks.contains(where: { $0.captureQueueOpen != nil || $0.keyGateOpen != nil }) {
+            guard allIntervalMarks.allSatisfy({ $0.captureQueueOpen != nil && $0.keyGateOpen != nil }) else {
+                return report("inconclusive", "admission-state-missing", begin: begin, end: end)
+            }
+            if allIntervalMarks.contains(where: { $0.captureQueueOpen == true }) {
+                return report("observed", "closed-interval-capture-queue-open", begin: begin, end: end)
+            }
+            if allIntervalMarks.contains(where: { $0.keyGateOpen == true }) {
+                return report("observed", "closed-interval-key-gate-open", begin: begin, end: end)
+            }
+        }
+        if let problem = readActivityProblem(allIntervalMarks) {
+            return report(problem.outcome, problem.reason, begin: begin, end: end)
+        }
+        guard intervalMarks.allSatisfy({ $0.protectedGateEntries != nil }) else {
+            return report("inconclusive", "protected-gate-counter-missing", begin: begin, end: end)
+        }
+        if zip(intervalMarks, intervalMarks.dropFirst()).contains(where: {
+            ($0.1.protectedGateEntries ?? 0) < ($0.0.protectedGateEntries ?? 0)
+        }) {
+            return report("invalid", "counter-decreased", begin: begin, end: end)
+        }
         if end.aggregateDelta < begin.aggregateDelta || end.handoffAccepted < begin.handoffAccepted
             || end.normalizationOutput < begin.normalizationOutput
             || end.flushDurable < begin.flushDurable || end.flushInvalidated < begin.flushInvalidated
             || end.protectedSnapshotAttempts < begin.protectedSnapshotAttempts
-            || end.protectedAnalysisAttempts < begin.protectedAnalysisAttempts {
+            || end.protectedAnalysisAttempts < begin.protectedAnalysisAttempts
+            || end.snapshotPublicationCount < begin.snapshotPublicationCount
+            || (end.analysisPublicationCount ?? 0) < (begin.analysisPublicationCount ?? 0) {
             return report("invalid", "counter-decreased", begin: begin, end: end)
         }
         func delta(_ later: Int64, _ earlier: Int64) -> Int64 { later - earlier }
+        func optionalDelta(_ later: Int64?, _ earlier: Int64?) -> Int64? {
+            guard let later, let earlier else { return nil }
+            return later - earlier
+        }
         func span(_ from: PrivacyIntervalMark, _ to: PrivacyIntervalMark) -> PrivacySpanDelta {
             PrivacySpanDelta(
                 fromSeq: from.seq, toSeq: to.seq, phase: from.phase,
@@ -411,7 +523,9 @@ public enum PrivacyIntervalEvaluator {
                 protectedSnapshotAttempts: delta(to.protectedSnapshotAttempts, from.protectedSnapshotAttempts),
                 protectedSnapshotRejected: delta(to.protectedSnapshotRejected, from.protectedSnapshotRejected),
                 protectedAnalysisAttempts: delta(to.protectedAnalysisAttempts, from.protectedAnalysisAttempts),
-                snapshotPublicationCount: delta(to.snapshotPublicationCount, from.snapshotPublicationCount))
+                protectedGateEntries: optionalDelta(to.protectedGateEntries, from.protectedGateEntries),
+                snapshotPublicationCount: delta(to.snapshotPublicationCount, from.snapshotPublicationCount),
+                analysisPublicationCount: optionalDelta(to.analysisPublicationCount, from.analysisPublicationCount))
         }
         let closed = span(begin, end)
         var spans = [closed]
@@ -422,7 +536,10 @@ public enum PrivacyIntervalEvaluator {
         var violations: [String] = []
         if closed.aggregateDelta > 0 || closed.normalizationOutput > 0 { violations.append("closed-interval-input-counted") }
         if protectedReadsSucceeded > 0 { violations.append("closed-interval-protected-read-succeeded") }
-        if closed.snapshotPublicationCount > 0 { violations.append("closed-interval-publication") }
+        if (closed.protectedGateEntries ?? 0) > 0 { violations.append("closed-interval-protected-gate-entry") }
+        if closed.snapshotPublicationCount > 0 || (closed.analysisPublicationCount ?? 0) > 0 {
+            violations.append("closed-interval-publication")
+        }
         if closed.flushDurable > 0 { violations.append("closed-interval-durable-acknowledgment") }
         let inFlight = closed.flushInvalidated
         if !violations.isEmpty {
@@ -436,5 +553,49 @@ public enum PrivacyIntervalEvaluator {
                           inFlight: inFlight)
         }
         return report("observed", nil, spans: spans, begin: begin, end: end, inFlight: inFlight)
+    }
+
+    private static func readActivityProblem(_ marks: [PrivacyIntervalMark]) -> (outcome: String, reason: String)? {
+        var reads = marks.compactMap(\.protectedReadActivity)
+        let begin = marks.first
+        let hasRevocationFields = begin?.protectedReadRevocationObserved != nil
+            || begin?.protectedReadActivityAtRevocation != nil
+        if hasRevocationFields && (begin?.protectedReadRevocationObserved != true
+                                  || begin?.protectedReadActivityAtRevocation == nil) {
+            return ("inconclusive", "protected-read-revocation-missing")
+        }
+        if hasRevocationFields && reads.isEmpty {
+            return ("inconclusive", "protected-read-activity-missing")
+        }
+        guard !reads.isEmpty else { return nil }
+        guard reads.count == marks.count else { return ("inconclusive", "protected-read-activity-missing") }
+        if let atRevocation = begin?.protectedReadActivityAtRevocation { reads.insert(atRevocation, at: 0) }
+        let widths = Set(reads.map { $0.values.count })
+        guard widths.count == 1, reads.allSatisfy(\.completeCoverage) else {
+            return ("inconclusive", "protected-read-coverage-missing")
+        }
+        guard reads.allSatisfy({
+            let values = $0.values
+            return values.allSatisfy { $0 >= 0 } && stride(from: 0, to: values.count, by: 2)
+                .allSatisfy { values[$0 + 1] <= values[$0] }
+        }) else { return ("invalid", "protected-read-activity-inconsistent") }
+        if zip(reads, reads.dropFirst()).contains(where: { before, after in
+            zip(before.values, after.values).contains { $1 < $0 }
+        }) { return ("invalid", "counter-decreased") }
+        guard let first = reads.first, let last = reads.last else { return nil }
+        if last.decryptionStarted > first.decryptionStarted || last.keychainReadStarted > first.keychainReadStarted {
+            return ("observed", "closed-interval-decryption-or-keychain-read")
+        }
+        if first.values.count >= 8 && (last.values[4] > first.values[4] || last.values[6] > first.values[6]) {
+            return ("observed", "closed-interval-cached-or-aggregate-read")
+        }
+        if first.values.count == 10 && last.values[8] > first.values[8] {
+            return ("observed", "closed-interval-plaintext-processing")
+        }
+        if reads.contains(where: {
+            let values = $0.values
+            return stride(from: 0, to: values.count, by: 2).contains { values[$0] != values[$0 + 1] }
+        }) { return ("inconclusive", "protected-read-in-flight") }
+        return nil
     }
 }

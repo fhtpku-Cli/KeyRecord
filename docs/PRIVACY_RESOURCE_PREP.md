@@ -4,6 +4,8 @@
 `64590a0e9b57a55af9a23921983f2c16bb59c62e` 的单页安全输入回归见
 [专门记录](PR10_SINGLEPAGE_REGRESSION.md)。下方旧结果各自绑定历史候选，不是当前性能验收。
 
+**2026-09-29 适用范围：** 本文的资源与隐私实机方案绑定旧候选，不能直接作为 PR #17 的操作指令。当前 MVP 只需 Apple Silicon 实机资格；Intel 延后。PR #17 的隔离候选已进入 Collecting 并完成短时保存和恢复验证，但当前候选的实测资源窗口仍未完成。下轮按[单独的锁屏恢复方案](NEXT_HOST_ROUND_20260929.md)准备，等待明确就绪再启动。旧版关于传统文件钥匙串的诊断不适用于当前使用数据保护钥匙串的候选。
+
 ## 当前 Debug 试验隔离
 
 同时配置 `KEYRECORD_TRIAL_STORE`（私有临时目录）和 `KEYRECORD_TRIAL_NAMESPACE`
@@ -23,7 +25,7 @@
 
 - 结束摘要：Debug 进程在正常退出时，若设置了 `KEYRECORD_DIAGNOSTIC_SUMMARY_PATH`，写入累计计数。它包含全程合计及缓存状态；退出时通用 `captureSessionLive` 可能陈旧，需结合 Quit 的 `sessionLiveAfter`、摘要和进程退出核对。
 - 分层计数：tap、handoff、normalization、aggregate、flush 的 issued/durable/failed/timeout/returned/succeeded/invalidated。`flushInvalidated` 表示迟到写回被作废。
-- 发布计数：`snapshotPublicationCount` 是模型发布，不是屏幕像素。
+- 发布计数：`snapshotPublicationCount` 与 `analysisPublicationCount` 分别记录统计快照和分析内容实际写入可见 flow 模型的次数，不是屏幕像素。
 - 暂停隐私监视：暂停且统计仍可见时，约每 250ms 复查；条件不明或不可用则关闭受保护状态，不自动恢复采集。
 - 资源采样：`KeyRecordResourceSampler` 用 `proc_pid_rusage` 的 `ri_phys_footprint`。不读 RSS，不把 RSS 当成物理占用。
 
@@ -41,7 +43,7 @@
 - `witness`：只有设置了 `KEYRECORD_SYSTEM_WITNESS_SECONDS`（1–300）且日记已启用时才写，每秒一次，到时自动停止，每次启动只开一个窗口。它在任何阶段都读，包括采集中，所以不依赖产品是否关闭。只读锁屏和安全输入的粗状态，不读密码、按键或受保护统计。
 - `privacyTrigger` 是关闭调用点的名字。生命周期里的 `blockedReason` 仍可能是 `sessionLocked`，不能只用这个标签判断真的锁屏。
 - `lockReadStatus` / `secureInputReadStatus`：`notChecked`、`unknown`、`locked`/`unlocked`、`enabled`/`disabled`。`notChecked` 不是安全。`unknown` 也不是安全。
-- 计数是逐项拷贝，不是原子快照。写入串行化，文件顺序与 `seq` 一致。写文件失败时 `privacyJournalWriteFailed` 为真（也写进结束摘要），评估结果是 `invalid`。缺 begin 或 observe 是 `inconclusive`，缺 end 是 `interval-not-ended`。关闭段里只增加了 `handoffAccepted`、其他输入计数不变时是 `inconclusive`（可能是边界前的在途事件）。`flushInvalidated` 记为边界前在途写回被作废，不算关闭期间的新输入。关闭期间成功的受保护读取、发布或 durable 确认都算异常。有限的 observe 不能证明每个时刻都关闭。
+- 计数是逐项拷贝，不是原子快照。写入串行化，文件顺序与 `seq` 一致。写文件失败时 `privacyJournalWriteFailed` 为真（也写进结束摘要），评估结果是 `invalid`。缺 begin 或 observe 是 `inconclusive`，缺 end 是 `interval-not-ended`；旧日记缺 `analysisPublicationCount` 也按 `inconclusive` 处理。关闭段里只增加了 `handoffAccepted`、其他输入计数不变时是 `inconclusive`（可能是边界前的在途事件）。`flushInvalidated` 记为边界前在途写回被作废，不算关闭期间的新输入。关闭期间成功的受保护读取、发布或 durable 确认都算异常。有限的 observe 不能证明每个时刻都关闭。
 
 当前 Debug 采集路径由 `secureInputMonitor` 约每 250 ms 复查安全输入；enabled/unknown 关闭采集和受保护展示，恢复需新鲜的安全条件与既有采集意图。250 ms 是轮询间隔，不是严格最大响应时间。仍需独立 `witness` 确认 enabled，不能只用产品是否关闭或密码框外观判断。
 
@@ -64,8 +66,8 @@ CPU = 100 × 目标进程自身 user+system 纳秒增量 / 1e9 / `CLOCK_MONOTONI
 | 协议 | 时长 | 结果含义 |
 | --- | --- | --- |
 | `exploratory` | 调用者指定的短窗口 | 只说明工具跑通，不是验收 |
-| `pausedMonitorCandidate` | 预热 60 秒，测量 600 秒 | 暂停监视开销的候选测量，不是 FR-S2 |
-| `formalFRS2` | 每个窗口预热 60 秒、测量 600 秒；打字与空闲各 3 次 | 短于该时长会被拒绝。单机结果仍不能代替 Intel 或其他系统版本 |
+| `pausedMonitorCandidate` | 历史协议：预热 60 秒，测量 600 秒 | 保留历史暂停监视测量口径，不是 FR-S2，也不是当前默认验收前提 |
+| `formalFRS2` | 每个窗口预热 30 秒、测量 120 秒；打字与空闲各 1 次 | 2026-09-29 用户调整后的正式协议，共约 5 分钟测量流程，另加启动与退出。只在异常时定向复测。仍拒绝未覆盖完整测量终点的样本；不能外推到其他系统/架构或长期耐久性 |
 
 入口：
 
@@ -122,7 +124,7 @@ bash Scripts/measure-process-resources.sh \
 
 ### 不做在本方案里的场景
 
-权限变化、快速用户切换、网络抓包、Intel 正式性能、Release 真采集。它们各自需要单独批准。
+权限变化、快速用户切换、Release 真采集均不在这份旧方案里。Intel 正式性能属于后续完整 v1；FR-P1 网络抓包已结束，不再安排。新的实机操作须按当前候选另定范围。
 
 ## 已观察的旧结果
 
@@ -140,7 +142,7 @@ bash Scripts/measure-process-resources.sh \
 
 - `swift test --filter 'ResourceEvaluationTests|CaptureDiagnosticCounterTests|PrivacySerializationTests'`：通过。资源评估 5 项、诊断计数 9 项、隐私序列化测试均无失败。
 - `KeyRecordResourceSampler --self-check`：退出 0。合成进程物理占用均值 35324384 字节，`qualification=not-a-product-pass`。日志：`self-check.txt`。
-- 正式协议若预热不是 60 秒或测量不是 600 秒，在采样前退出 2，输出 `formal-fr-s2 refuses short windows`。日志：`formal-short.txt`。
+- 当时的正式协议要求 60/600 秒，否则在采样前退出 2，输出 `formal-fr-s2 refuses short windows`。日志：`formal-short.txt`。这是旧协议的历史结果；当前正式协议已改为 30/120 秒、每种状态一次。
 
 本轮没有启动 KeyRecord，没有签名。Release 检查见下。
 

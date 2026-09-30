@@ -3,6 +3,239 @@ import KeyRecordCore
 import KeyRecordMeasurement
 
 final class ResourceEvaluationTests: XCTestCase {
+    func testClosedEvaluationUsesActualAdmissionDespiteCachedStoppedState() throws {
+        let marks = try recorderMarks { recorder in
+            recorder.configureAdmissionState { (false, false) }
+            recorder.beginClosedInterval(cause: "protectedStateClosed")
+            recorder.observeClosedInterval()
+            recorder.endClosedInterval(cause: "protectedStoreReauthorized")
+        }
+        XCTAssertNil(PrivacyIntervalEvaluator.evaluateClosed(marks, journalWriteFailed: false).reason)
+        let index = try XCTUnwrap(marks.firstIndex { $0.role == "observe" })
+        XCTAssertFalse(marks[index].captureSessionLive)
+        var openQueue = marks
+        openQueue[index].captureQueueOpen = true
+        XCTAssertEqual(PrivacyIntervalEvaluator.evaluateClosed(openQueue, journalWriteFailed: false).reason,
+                       "closed-interval-capture-queue-open")
+        var openKey = marks
+        openKey[index].keyGateOpen = true
+        XCTAssertEqual(PrivacyIntervalEvaluator.evaluateClosed(openKey, journalWriteFailed: false).reason,
+                       "closed-interval-key-gate-open")
+        var missing = marks
+        missing[index].keyGateOpen = nil
+        XCTAssertEqual(PrivacyIntervalEvaluator.evaluateClosed(missing, journalWriteFailed: false).reason,
+                       "admission-state-missing")
+        for index in missing.indices {
+            missing[index].captureQueueOpen = nil
+            missing[index].keyGateOpen = nil
+        }
+        let legacy = PrivacyIntervalEvaluator.evaluateClosed(missing, journalWriteFailed: false)
+        XCTAssertNil(legacy.reason)
+        XCTAssertFalse(legacy.provesContinuousClosedInterval)
+    }
+
+    func testStableRevocationCountsAndUnobservedClosureStayDistinct() throws {
+        let activity = ProtectedReadActivity()
+        let atRevocation = activity.snapshot
+        for observed in [true, false] {
+            let marks = try recorderMarks { recorder in
+                recorder.configureProtectedReadActivity { activity.snapshot }
+                recorder.configureRevocationReadActivity { (observed, observed ? atRevocation : nil) }
+                recorder.beginClosedInterval(cause: "protectedStateClosed")
+                recorder.observeClosedInterval()
+                recorder.endClosedInterval(cause: "protectedStoreReauthorized")
+            }
+            let report = PrivacyIntervalEvaluator.evaluateClosed(marks, journalWriteFailed: false)
+            XCTAssertEqual(report.reason, observed ? nil : "protected-read-revocation-missing")
+            XCTAssertFalse(report.provesEveryProtectedRead)
+        }
+    }
+
+    func testReadsBetweenRevocationAndDelayedBeginAreObserved() throws {
+        let cases: [(ProtectedReadActivity.Kind, String)] = [
+            (.decryption, "closed-interval-decryption-or-keychain-read"),
+            (.keychain, "closed-interval-decryption-or-keychain-read"),
+            (.storeCache, "closed-interval-cached-or-aggregate-read"),
+            (.aggregate, "closed-interval-cached-or-aggregate-read"),
+            (.plaintextProcessing, "closed-interval-plaintext-processing")
+        ]
+        for (kind, reason) in cases {
+            let activity = ProtectedReadActivity()
+            let atRevocation = activity.snapshot
+            let marks = try recorderMarks { recorder in
+                recorder.configureProtectedReadActivity { activity.snapshot }
+                recorder.configureRevocationReadActivity { (true, atRevocation) }
+                activity.observe(kind) {}
+                recorder.beginClosedInterval(cause: "protectedStateClosed")
+                recorder.observeClosedInterval()
+                recorder.endClosedInterval(cause: "protectedStoreReauthorized")
+            }
+            let report = PrivacyIntervalEvaluator.evaluateClosed(marks, journalWriteFailed: false)
+            XCTAssertEqual(report.reason, reason)
+            XCTAssertFalse(report.provesEveryProtectedRead)
+            XCTAssertFalse(report.provesContinuousClosedInterval)
+        }
+    }
+
+    func testRevocationObservationRejectsMissingCoverageAndRetainsInFlightWork() throws {
+        let activity = ProtectedReadActivity()
+        let atRevocation = activity.observe(.plaintextProcessing) { activity.snapshot }
+        let marks = try recorderMarks { recorder in
+            recorder.configureProtectedReadActivity { activity.snapshot }
+            recorder.configureRevocationReadActivity { (true, atRevocation) }
+            recorder.beginClosedInterval(cause: "protectedStateClosed")
+            recorder.observeClosedInterval()
+            recorder.endClosedInterval(cause: "protectedStoreReauthorized")
+        }
+        XCTAssertEqual(PrivacyIntervalEvaluator.evaluateClosed(marks, journalWriteFailed: false).reason,
+                       "protected-read-in-flight")
+        let beginIndex = try XCTUnwrap(marks.firstIndex { $0.role == "begin" })
+        var missing = marks
+        missing[beginIndex].protectedReadRevocationObserved = false
+        XCTAssertEqual(PrivacyIntervalEvaluator.evaluateClosed(missing, journalWriteFailed: false).reason,
+                       "protected-read-revocation-missing")
+        missing[beginIndex].protectedReadRevocationObserved = true
+        missing[beginIndex].protectedReadActivityAtRevocation = nil
+        XCTAssertEqual(PrivacyIntervalEvaluator.evaluateClosed(missing, journalWriteFailed: false).reason,
+                       "protected-read-revocation-missing")
+        var partial = marks
+        partial[beginIndex].protectedReadActivityAtRevocation?.plaintextProcessingStarted = nil
+        XCTAssertEqual(PrivacyIntervalEvaluator.evaluateClosed(partial, journalWriteFailed: false).reason,
+                       "protected-read-coverage-missing")
+        var decreased = marks
+        decreased[beginIndex].protectedReadActivityAtRevocation?.decryptionStarted = 10
+        XCTAssertEqual(PrivacyIntervalEvaluator.evaluateClosed(decreased, journalWriteFailed: false).reason,
+                       "counter-decreased")
+    }
+
+    func testPlaintextProcessingAndIncompleteCoverageCannotBeZeroReads() throws {
+        let activity = ProtectedReadActivity()
+        var marks = try recorderMarks { recorder in
+            recorder.configureProtectedReadActivity { activity.snapshot }
+            recorder.beginClosedInterval(cause: "protectedStateClosed")
+            activity.observe(.plaintextProcessing) {}
+            recorder.observeClosedInterval()
+            recorder.endClosedInterval(cause: "protectedStoreReauthorized")
+        }
+        let report = PrivacyIntervalEvaluator.evaluateClosed(marks, journalWriteFailed: false)
+        XCTAssertEqual(report.reason, "closed-interval-plaintext-processing")
+        XCTAssertFalse(report.provesEveryProtectedRead)
+        for index in marks.indices {
+            marks[index].protectedReadActivity?.aggregateReadStarted = nil
+            marks[index].protectedReadActivity?.aggregateReadCompleted = nil
+        }
+        XCTAssertEqual(PrivacyIntervalEvaluator.evaluateClosed(marks, journalWriteFailed: false).reason,
+                       "protected-read-coverage-missing")
+    }
+
+    func testInFlightProcessingAndLegacyCounterGroupsRetainTheirLimits() throws {
+        let activity = ProtectedReadActivity()
+        let pending = try recorderMarks { recorder in
+            recorder.configureProtectedReadActivity { activity.snapshot }
+            activity.observe(.plaintextProcessing) {
+                recorder.beginClosedInterval(cause: "protectedStateClosed")
+                recorder.observeClosedInterval()
+            }
+            recorder.endClosedInterval(cause: "protectedStoreReauthorized")
+        }
+        XCTAssertEqual(PrivacyIntervalEvaluator.evaluateClosed(pending, journalWriteFailed: false).reason,
+                       "protected-read-in-flight")
+        var legacy = try recorderMarks { recorder in
+            recorder.configureProtectedReadActivity { activity.snapshot }
+            recorder.beginClosedInterval(cause: "protectedStateClosed")
+            recorder.observeClosedInterval()
+            recorder.endClosedInterval(cause: "protectedStoreReauthorized")
+        }
+        for index in legacy.indices {
+            legacy[index].protectedReadActivity?.plaintextProcessingStarted = nil
+            legacy[index].protectedReadActivity?.plaintextProcessingCompleted = nil
+        }
+        XCTAssertNil(PrivacyIntervalEvaluator.evaluateClosed(legacy, journalWriteFailed: false).reason)
+        for index in legacy.indices {
+            legacy[index].protectedReadActivity?.storeCacheReadStarted = nil
+            legacy[index].protectedReadActivity?.storeCacheReadCompleted = nil
+            legacy[index].protectedReadActivity?.aggregateReadStarted = nil
+            legacy[index].protectedReadActivity?.aggregateReadCompleted = nil
+        }
+        let report = PrivacyIntervalEvaluator.evaluateClosed(legacy, journalWriteFailed: false)
+        XCTAssertNil(report.reason)
+        XCTAssertFalse(report.provesEveryProtectedRead)
+    }
+
+    func testCachedAndAggregateReadsAreNotMissedByClosedEvaluation() throws {
+        for kind in [ProtectedReadActivity.Kind.storeCache, .aggregate] {
+            let activity = ProtectedReadActivity()
+            var marks = try recorderMarks { recorder in
+                recorder.configureProtectedReadActivity { activity.snapshot }
+                recorder.beginClosedInterval(cause: "protectedStateClosed")
+                activity.observe(kind) {}
+                recorder.observeClosedInterval()
+                recorder.endClosedInterval(cause: "protectedStoreReauthorized")
+            }
+            XCTAssertEqual(PrivacyIntervalEvaluator.evaluateClosed(marks, journalWriteFailed: false).reason,
+                           "closed-interval-cached-or-aggregate-read")
+            marks[1].protectedReadActivity?.aggregateReadCompleted = nil
+            XCTAssertEqual(PrivacyIntervalEvaluator.evaluateClosed(marks, journalWriteFailed: false).reason,
+                           "protected-read-coverage-missing")
+        }
+    }
+
+    func testClosedIntervalDetectsActualBoundaryReads() throws {
+        for kind in [ProtectedReadActivity.Kind.decryption, .keychain] {
+            let activity = ProtectedReadActivity()
+            let marks = try recorderMarks { recorder in
+                recorder.configureProtectedReadActivity { activity.snapshot }
+                recorder.beginClosedInterval(cause: "protectedStateClosed")
+                activity.observe(kind) {}
+                recorder.observeClosedInterval()
+                recorder.endClosedInterval(cause: "protectedStoreReauthorized")
+            }
+            let report = PrivacyIntervalEvaluator.evaluateClosed(marks, journalWriteFailed: false)
+            XCTAssertEqual(report.reason, "closed-interval-decryption-or-keychain-read")
+            XCTAssertFalse(report.provesEveryProtectedRead)
+        }
+    }
+
+    func testReadStartedBeforeClosureCannotDisappearFromObservation() throws {
+        let activity = ProtectedReadActivity()
+        let marks = try recorderMarks { recorder in
+            recorder.configureProtectedReadActivity { activity.snapshot }
+            activity.observe(.keychain) {
+                recorder.beginClosedInterval(cause: "protectedStateClosed")
+                recorder.observeClosedInterval()
+            }
+            recorder.endClosedInterval(cause: "protectedStoreReauthorized")
+        }
+        let report = PrivacyIntervalEvaluator.evaluateClosed(marks, journalWriteFailed: false)
+        XCTAssertEqual(report.outcome, "inconclusive")
+        XCTAssertEqual(report.reason, "protected-read-in-flight")
+    }
+
+    func testReadActivityRejectsMissingMalformedAndDecreasingCounters() throws {
+        let activity = ProtectedReadActivity()
+        activity.observe(.decryption) {}
+        let marks = try recorderMarks { recorder in
+            recorder.configureProtectedReadActivity { activity.snapshot }
+            recorder.beginClosedInterval(cause: "protectedStateClosed")
+            recorder.observeClosedInterval()
+            recorder.endClosedInterval(cause: "protectedStoreReauthorized")
+        }
+        XCTAssertNil(PrivacyIntervalEvaluator.evaluateClosed(marks, journalWriteFailed: false).reason)
+        var missing = marks
+        missing[1].protectedReadActivity = nil
+        XCTAssertEqual(PrivacyIntervalEvaluator.evaluateClosed(missing, journalWriteFailed: false).reason,
+                       "protected-read-activity-missing")
+        var malformed = marks
+        malformed[1].protectedReadActivity?.decryptionCompleted = 2
+        XCTAssertEqual(PrivacyIntervalEvaluator.evaluateClosed(malformed, journalWriteFailed: false).reason,
+                       "protected-read-activity-inconsistent")
+        var decreased = marks
+        decreased[2].protectedReadActivity?.decryptionStarted = 0
+        decreased[2].protectedReadActivity?.decryptionCompleted = 0
+        XCTAssertEqual(PrivacyIntervalEvaluator.evaluateClosed(decreased, journalWriteFailed: false).reason,
+                       "counter-decreased")
+    }
+
     func testExploratoryWindowReportsMeanAndSampledPeakWithoutPass() {
         let result = ResourceEvaluator.evaluate(request(samples: series()))
         XCTAssertEqual(result.outcome, "measured")
@@ -15,6 +248,49 @@ final class ResourceEvaluationTests: XCTestCase {
         XCTAssertEqual(result.footprintSampledPeakBytes, 40)
         XCTAssertEqual(result.footprintSampleCount, 2)
         XCTAssertFalse(result.formula.contains("RSS"))
+    }
+
+    func testFirstSampleAfterWindowEndCompletesMeasuredDuration() {
+        let times: [Double] = [0, 0.208, 0.416, 0.624, 0.832, 1.040, 1.248, 1.456, 1.664]
+        let samples = times.map { sample(t: $0, cpu: UInt64($0 * 100_000_000), bytes: 32_000_000) }
+        let request = ResourceWindowRequest(protocolKind: .exploratory, phase: "synthetic",
+            warmupSeconds: 0.4, measureSeconds: 1.2, intervalSeconds: 0.2, samples: samples)
+        let result = ResourceEvaluator.evaluate(request)
+        XCTAssertEqual(result.outcome, "measured")
+        let archive = ResourceMeasurementArchive(request: request, result: result, architecture: "arm64",
+            operatingSystem: "fixture", diagnosticsEnabled: false)
+        XCTAssertEqual(archive.effectiveMeasureSeconds!, 1.264, accuracy: 0.0001)
+
+        var incomplete = request
+        incomplete.samples.removeLast()
+        let short = ResourceEvaluator.evaluate(incomplete)
+        XCTAssertEqual(short.outcome, "interrupted")
+        XCTAssertEqual(short.reason, "duration-short")
+
+        var tooLate = request
+        tooLate.samples[8] = sample(t: 1.95, cpu: 195_000_000, bytes: 32_000_000)
+        XCTAssertEqual(ResourceEvaluator.evaluate(tooLate).reason, "sample-missing")
+    }
+
+    func testExplicitReplayOriginAlignsWindowAndSurvivesRecompute() {
+        let times: [Double] = [0.208, 0.416, 0.624, 0.832, 1.040, 1.248, 1.456, 1.664, 1.872]
+        let samples = times.map { sample(t: $0, cpu: UInt64($0 * 100_000_000), bytes: 32_000_000) }
+        let request = ResourceWindowRequest(protocolKind: .exploratory, phase: "typing",
+            warmupSeconds: 0.4, measureSeconds: 1.2, intervalSeconds: 0.2,
+            originUptimeSeconds: 0.1, samples: samples)
+        let result = ResourceEvaluator.evaluate(request)
+        XCTAssertEqual(result.outcome, "measured")
+        let archive = ResourceMeasurementArchive(request: request, result: result, architecture: "arm64",
+            operatingSystem: "fixture", diagnosticsEnabled: false)
+        XCTAssertEqual(archive.originUptimeSeconds, 0.1)
+        XCTAssertEqual(archive.effectiveMeasureSeconds!, 1.372, accuracy: 0.0001)
+        XCTAssertEqual(ResourceEvaluator.recompute(archive), result)
+
+        var stale = request
+        stale.originUptimeSeconds = -1
+        XCTAssertEqual(ResourceEvaluator.evaluate(stale).reason, "origin-misaligned")
+        stale.originUptimeSeconds = 0.5
+        XCTAssertEqual(ResourceEvaluator.evaluate(stale).reason, "origin-misaligned")
     }
 
     func testMissingSampleSleepExitReuseAndSessionDoNotPass() {
@@ -44,13 +320,77 @@ final class ResourceEvaluationTests: XCTestCase {
         }
     }
 
+    func testClockAndCPUCounterRegressionCannotProduceMeasuredWindow() {
+        var backwardTime = [
+            sample(t: 0, cpu: 0, bytes: 10),
+            sample(t: 1, cpu: 100_000_000, bytes: 10),
+            sample(t: 0.8, cpu: 120_000_000, bytes: 10),
+            sample(t: 2, cpu: 200_000_000, bytes: 10)
+        ]
+        XCTAssertEqual(ResourceEvaluator.evaluate(request(samples: backwardTime)).reason,
+                       "sample-clock-regressed")
+
+        backwardTime[2] = sample(t: 1.5, cpu: 20_000_000, bytes: 10)
+        backwardTime[3] = sample(t: 2, cpu: 100_000_000, bytes: 10)
+        XCTAssertEqual(ResourceEvaluator.evaluate(request(samples: backwardTime)).reason,
+                       "cpu-counter-regressed")
+
+        var childCounter = series()
+        childCounter[0].childCPUNanoseconds = 5
+        childCounter[1].childCPUNanoseconds = 4
+        childCounter[2].childCPUNanoseconds = 5
+        XCTAssertEqual(ResourceEvaluator.evaluate(request(samples: childCounter)).reason,
+                       "child-cpu-counter-regressed")
+
+        var backwardMonotonic = series()
+        backwardMonotonic[1].monotonicSeconds = -0.2
+        XCTAssertEqual(ResourceEvaluator.evaluate(request(samples: backwardMonotonic)).reason,
+                       "sample-clock-regressed")
+
+        var nonfinite = series()
+        nonfinite[1].uptimeSeconds = .nan
+        XCTAssertEqual(ResourceEvaluator.evaluate(request(samples: nonfinite)).reason,
+                       "sample-clock-invalid")
+
+        var nonfiniteInterval = request(samples: series())
+        nonfiniteInterval.intervalSeconds = .infinity
+        XCTAssertEqual(ResourceEvaluator.evaluate(nonfiniteInterval).reason, "bad-duration")
+    }
+
     func testShortFormalAndPausedProtocolsStayInvalid() {
         let formal = ResourceWindowRequest(protocolKind: .formalFRS2, phase: "typing",
             warmupSeconds: 1, measureSeconds: 2, intervalSeconds: 1, samples: series())
-        XCTAssertEqual(ResourceEvaluator.evaluate(formal).reason, "formal-protocol-requires-60s-warmup-and-600s-measure")
+        XCTAssertEqual(ResourceEvaluator.evaluate(formal).reason, "formal-protocol-requires-30s-warmup-and-120s-measure")
         let paused = ResourceWindowRequest(protocolKind: .pausedMonitorCandidate, phase: "paused",
             warmupSeconds: 5, measureSeconds: 30, intervalSeconds: 1, samples: series())
         XCTAssertEqual(ResourceEvaluator.evaluate(paused).reason, "paused-monitor-candidate-requires-60s-warmup-and-600s-measure")
+    }
+
+    func testFormalWindowRequiresAnObservedEndpointAtOrAfterTwoMinutes() {
+        let origin = 100.0
+        let times = stride(from: origin, through: 249.5, by: 0.5).map { $0 } + [249.8]
+        let samples = times.map { sample(t: $0, cpu: UInt64($0 * 1_000_000), bytes: 32_000_000) }
+        var request = ResourceWindowRequest(protocolKind: .formalFRS2, phase: "typing",
+            warmupSeconds: 30, measureSeconds: 120, intervalSeconds: 0.5,
+            originUptimeSeconds: origin, samples: samples)
+        let short = ResourceEvaluator.evaluate(request)
+        XCTAssertEqual(short.outcome, "interrupted")
+        XCTAssertEqual(short.reason, "duration-short")
+
+        request.samples.append(sample(t: 250.1, cpu: 250_100_000, bytes: 32_000_000))
+        let full = ResourceEvaluator.evaluate(request)
+        XCTAssertEqual(full.outcome, "measured")
+        let archive = ResourceMeasurementArchive(request: request, result: full,
+            architecture: "arm64", operatingSystem: "fixture", diagnosticsEnabled: false)
+        XCTAssertGreaterThanOrEqual(archive.effectiveMeasureSeconds ?? 0, 120)
+        XCTAssertEqual(ResourceEvaluator.recompute(archive), full)
+    }
+
+    func testHistoricalDurationIsNotSilentlyRequalifiedAsCurrentFormalWindow() {
+        let legacy = ResourceWindowRequest(protocolKind: .formalFRS2, phase: "typing",
+            warmupSeconds: 60, measureSeconds: 600, intervalSeconds: 0.5, samples: series())
+        XCTAssertEqual(ResourceEvaluator.evaluate(legacy).reason,
+                       "formal-protocol-requires-30s-warmup-and-120s-measure")
     }
 
     func testClosedIntervalDeltasAreSeparatedFromEndpointEquality() {
@@ -91,6 +431,7 @@ final class ResourceEvaluationTests: XCTestCase {
         XCTAssertEqual(stableReport.spans.last?.aggregateDelta, 1, "input after the session boundary is not closed input")
         XCTAssertFalse(stableReport.provesContinuousClosedInterval)
         XCTAssertFalse(stableReport.countersAreAtomicSnapshot)
+        XCTAssertEqual(stableReport.spans.first?.protectedGateEntries, 0)
 
         let anomaly = try recorderMarks { recorder in
             recorder.record { $0.captureSessionLive = false; $0.sensitiveContentVisible = false }
@@ -120,6 +461,37 @@ final class ResourceEvaluationTests: XCTestCase {
         XCTAssertTrue(recorder.privacyJournalWriteFailed)
         XCTAssertTrue(recorder.runSummary.privacyJournalWriteFailed)
         XCTAssertEqual(PrivacyIntervalEvaluator.evaluateClosed([], journalWriteFailed: recorder.privacyJournalWriteFailed).outcome, "invalid")
+    }
+
+    func testClosedIntervalRejectsMissingOrAdvancingGateCounter() throws {
+        let marks = try recorderMarks { recorder in
+            recorder.record { $0.phase = .blocked; $0.captureSessionLive = false; $0.sensitiveContentVisible = false }
+            recorder.beginClosedInterval(cause: "protectedStateClosed")
+            recorder.observeClosedInterval()
+            recorder.endClosedInterval(cause: "captureSessionStarting")
+        }
+        XCTAssertEqual(PrivacyIntervalEvaluator.evaluateClosed(marks, journalWriteFailed: false).outcome, "observed")
+        let observeIndex = try XCTUnwrap(marks.firstIndex(where: { $0.role == "observe" }))
+        let endIndex = try XCTUnwrap(marks.firstIndex(where: { $0.role == "end" }))
+
+        var missing = marks
+        missing[observeIndex].protectedGateEntries = nil
+        XCTAssertEqual(PrivacyIntervalEvaluator.evaluateClosed(missing, journalWriteFailed: false).reason,
+                       "protected-gate-counter-missing")
+
+        var admitted = marks
+        admitted[observeIndex].protectedGateEntries = 1
+        admitted[endIndex].protectedGateEntries = 1
+        let admittedReport = PrivacyIntervalEvaluator.evaluateClosed(admitted, journalWriteFailed: false)
+        XCTAssertEqual(admittedReport.reason, "closed-interval-protected-gate-entry")
+        XCTAssertEqual(admittedReport.spans.first?.protectedGateEntries, 1)
+        XCTAssertFalse(admittedReport.provesEveryProtectedRead)
+
+        var decreased = marks
+        decreased[observeIndex].protectedGateEntries = 2
+        decreased[endIndex].protectedGateEntries = 1
+        XCTAssertEqual(PrivacyIntervalEvaluator.evaluateClosed(decreased, journalWriteFailed: false).reason,
+                       "counter-decreased")
     }
 
     func testClosedIntervalSeparatesBoundaryWorkFromClosedInput() throws {
@@ -155,6 +527,19 @@ final class ResourceEvaluationTests: XCTestCase {
         XCTAssertEqual(PrivacyIntervalEvaluator.evaluateClosed(read, journalWriteFailed: false).reason,
                        "closed-interval-protected-read-succeeded")
 
+        let analysisPublication = try recorderMarks { recorder in
+            recorder.beginClosedInterval(cause: "protectedStateClosed")
+            recorder.recordAnalysisPublication()
+            recorder.observeClosedInterval()
+            recorder.endClosedInterval(cause: "captureSessionStarting")
+        }
+        XCTAssertEqual(PrivacyIntervalEvaluator.evaluateClosed(analysisPublication, journalWriteFailed: false).reason,
+                       "closed-interval-publication")
+        var legacy = analysisPublication
+        legacy[1].analysisPublicationCount = nil
+        XCTAssertEqual(PrivacyIntervalEvaluator.evaluateClosed(legacy, journalWriteFailed: false).reason,
+                       "analysis-publication-counter-missing")
+
         let unattributable = try recorderMarks { recorder in
             recorder.beginClosedInterval(cause: "protectedStateClosed")
             recorder.observeClosedInterval()
@@ -172,6 +557,24 @@ final class ResourceEvaluationTests: XCTestCase {
         XCTAssertEqual(PrivacyIntervalEvaluator.evaluateClosed(startup, journalWriteFailed: false).reason, "missing-boundary")
         XCTAssertEqual(PrivacyIntervalEvaluator.evaluateClosed(startup, journalWriteFailed: false, beginCause: nil).outcome,
                        "observed")
+    }
+
+    func testExplicitStoreReauthorizationSeparatesRecoveryReadsFromClosure() throws {
+        let marks = try recorderMarks { recorder in
+            recorder.beginClosedInterval(cause: "protectedStateClosed")
+            recorder.observeClosedInterval(lockReadStatus: "locked")
+            recorder.observeClosedInterval(lockReadStatus: "unlocked")
+            recorder.endClosedInterval(cause: "protectedStoreReauthorized")
+            recorder.recordProtectedSnapshot(rejected: false)
+            recorder.beginAction("recovery-finished")
+        }
+        let report = PrivacyIntervalEvaluator.evaluateClosed(marks, journalWriteFailed: false)
+        XCTAssertEqual(report.outcome, "observed")
+        XCTAssertNil(report.reason)
+        XCTAssertEqual(report.spans.first?.protectedSnapshotAttempts, 0)
+        XCTAssertEqual(report.spans.last?.protectedSnapshotAttempts, 1)
+        XCTAssertFalse(report.provesContinuousClosedInterval)
+        XCTAssertFalse(report.provesEveryProtectedRead)
     }
 
     func testSavedSamplesRecomputeToTheSameResult() {
@@ -222,6 +625,7 @@ final class ResourceEvaluationTests: XCTestCase {
 
     private func recorderMarks(_ body: (CaptureDiagnosticsRecorder) -> Void) throws -> [PrivacyIntervalMark] {
         let recorder = CaptureDiagnosticsRecorder()
+        recorder.configureProtectedGateEntries { 0 }
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: root) }
@@ -261,6 +665,6 @@ final class ResourceEvaluationTests: XCTestCase {
             normalizationOutput: aggregate, flushDurable: 0, flushInvalidated: 0,
             protectedSnapshotAttempts: attempts, protectedSnapshotRejected: rejected,
             protectedAnalysisAttempts: attempts, protectedAnalysisRejected: rejected,
-            snapshotPublicationCount: attempts - rejected)
+            snapshotPublicationCount: attempts - rejected, analysisPublicationCount: 0)
     }
 }

@@ -28,7 +28,7 @@ public enum LivePreflight {
                 certificateSHA256: hostSignature.fingerprint, teamID: hostSignature.team,
                 bundleIDs: [hostSignature.identifier, testSignature.identifier],
                 signatureValid: hostSignature.fingerprint == testSignature.fingerprint && hostSignature.team == testSignature.team,
-                entitlementsValid: hostSignature.entitled && testSignature.entitled)
+                entitlementsValid: hostSignature.policyValid && testSignature.policyValid)
             let context = PreflightContext(identity: identity, attemptID: attempt.lastPathComponent, scratchRoot: attempt.path,
                                            controllerSHA256: sha256(bytes), controllerExecutable: true,
                                            controllerExists: true, controllerRegular: true)
@@ -37,14 +37,14 @@ public enum LivePreflight {
         catch { return .blocked(.unavailableIdentity) }
     }
 
-    private struct Signature {
+    struct Signature {
         let fingerprint: String
         let team: String
         let identifier: String
-        let entitled: Bool
+        let policyValid: Bool
     }
 
-    private static func signature(_ url: URL) throws -> Signature {
+    static func signature(_ url: URL) throws -> Signature {
         // codesign verifies the disk bundle read-only; Security extracts certificate DER and entitlements.
         _ = try read("/usr/bin/codesign", ["--verify", "--strict", url.path])
         var code: SecStaticCode?
@@ -56,12 +56,37 @@ public enum LivePreflight {
               let team = info[kSecCodeInfoTeamIdentifier as String] as? String,
               let identifier = info[kSecCodeInfoIdentifier as String] as? String else { throw PreflightBlock.unavailableIdentity }
         let entitlements = info[kSecCodeInfoEntitlementsDict as String] as? [String: Any]
-        let applicationID = entitlements?["com.apple.application-identifier"] as? String
-        let entitlementTeam = entitlements?["com.apple.developer.team-identifier"] as? String
-        let groups = entitlements?["keychain-access-groups"] as? [String]
-        let expectedGroup = team + ".com.keyrecord.phase1.probe.host"
+        guard let executable = Bundle(url: url)?.executableURL else { throw PreflightBlock.unavailableIdentity }
+        let headers = try read("/usr/bin/otool", ["-hv", executable.path])
         return Signature(fingerprint: sha256(SecCertificateCopyData(leaf) as Data), team: team, identifier: identifier,
-                         entitled: applicationID == team + "." + identifier && entitlementTeam == team && groups == [expectedGroup])
+                         policyValid: signingPolicyValid(identifier: identifier, team: team,
+                                                         entitlements: entitlements, machHeaders: headers))
+    }
+
+    static func signingPolicyValid(identifier: String, team: String,
+                                   entitlements: [String: Any]?, machHeaders: String) -> Bool {
+        guard !team.isEmpty else { return false }
+        let types = machHeaders.split(separator: "\n").compactMap { line -> String? in
+            let columns = line.split(whereSeparator: { $0.isWhitespace })
+            guard let magic = columns.first, magic.hasPrefix("MH_") else { return nil }
+            guard ["MH_MAGIC", "MH_CIGAM", "MH_MAGIC_64", "MH_CIGAM_64"].contains(String(magic)),
+                  columns.count > 4 else { return "" }
+            return String(columns[4])
+        }
+        guard !types.isEmpty else { return false }
+        switch identifier {
+        case "com.keyrecord.phase1.probe.host":
+            return types.allSatisfy { $0 == "EXECUTE" } &&
+                entitlements?["com.apple.application-identifier"] as? String == team + "." + identifier &&
+                entitlements?["com.apple.developer.team-identifier"] as? String == team &&
+                entitlements?["keychain-access-groups"] as? [String] == [team + "." + identifier]
+        case "com.keyrecord.phase1.probe.tests":
+            // The in-process test plug-in uses the verified host's entitlements.
+            // Its own signature/team/certificate and bundle identity remain mandatory.
+            return types.allSatisfy { $0 == "BUNDLE" } && (entitlements?.isEmpty ?? true)
+        default:
+            return false
+        }
     }
 
     private static func read(_ executable: String, _ arguments: [String]) throws -> String {

@@ -36,14 +36,17 @@ enum SamplerCLI {
             return
         }
         let options = try Options(arguments)
-        guard options.protocolKind != .formalFRS2 || (options.warmup == 60 && options.measure == 600) else {
-            throw SamplerFailure("formal-fr-s2 refuses short windows")
+        guard options.protocolKind != .formalFRS2 ||
+            (options.warmup == ReplayWorkload.warmupSeconds && options.measure == ReplayWorkload.measureSeconds) else {
+            throw SamplerFailure("formal-fr-s2 requires 30s warmup and 120s measure")
         }
-        let samples = try sample(options)
+        let run = try options.startMarker.map { try sampleFromReplayMarker(options, path: $0) }
+            ?? (samples: sample(options), origin: nil)
+        let samples = run.samples
         let request = ResourceWindowRequest(
             protocolKind: options.protocolKind, phase: options.phase,
             warmupSeconds: options.warmup, measureSeconds: options.measure,
-            intervalSeconds: options.interval,
+            intervalSeconds: options.interval, originUptimeSeconds: run.origin,
             samples: samples.map {
                 ProcessResourceSample(uptimeSeconds: $0.uptimeSeconds, monotonicSeconds: $0.monotonicSeconds,
                     cpuNanoseconds: $0.cpuNanoseconds, childCPUNanoseconds: $0.childCPUNanoseconds,
@@ -67,11 +70,11 @@ enum SamplerCLI {
     static let usage = """
     KeyRecordResourceSampler samples one existing process. It does not launch KeyRecord, inject input, or prevent sleep.
     --pid <pid> --expect-path <executable> --protocol exploratory|pausedMonitorCandidate|formalFRS2 \
-    --phase <label> --warmup-seconds <n> --measure-seconds <n> --interval-seconds <n> --output <file> [--diagnostics-enabled]
+    --phase <label> --warmup-seconds <n> --measure-seconds <n> --interval-seconds <n> --output <file> [--start-marker <private-performance-replay.json>] [--diagnostics-enabled]
     --recompute <archive.json> repeats the saved-sample calculation.
     --self-check runs the offline fixture and does not attach to KeyRecord.
     --diagnostics-enabled means the target process is writing diagnostics, so that overhead is inside the measurement.
-    Short windows stay exploratory. formalFRS2 requires 60s warmup and 600s measure. Outcome is never a product pass.
+    formalFRS2 requires 30s warmup and 120s measure. Other durations stay exploratory. Outcome is never a product pass.
     """
 
     static func selfCheck() throws {
@@ -125,7 +128,21 @@ enum SamplerCLI {
               result.rssUsedAsFootprint == false, result.formalFRS2Qualification == false else {
             throw SamplerFailure("self-check-rejected \(result.outcome) \(result.reason ?? "") mean=\(result.footprintMeanBytes ?? -1)")
         }
-        print("self-check outcome=measured footprintMeanBytes=\(mean) qualification=not-a-product-pass recomputed=match")
+        let marker = directory.appendingPathComponent("performance-replay.json")
+        let start = clock(.uptime)
+        try JSONSerialization.data(withJSONObject: ["mode": "typing", "outcome": "running",
+            "startedUptimeSeconds": start]).write(to: marker, options: .atomic)
+        let markerOptions = Options(pid: child.processIdentifier, path: binary.path, protocolKind: .exploratory,
+                                    phase: "typing", warmup: 0.4, measure: 1.2, interval: 0.2,
+                                    output: output.path, startMarker: marker.path)
+        let markerRun = try sampleFromReplayMarker(markerOptions, path: marker.path)
+        let aligned = ResourceEvaluator.evaluate(ResourceWindowRequest(protocolKind: .exploratory,
+            phase: "typing", warmupSeconds: 0.4, measureSeconds: 1.2, intervalSeconds: 0.2,
+            originUptimeSeconds: markerRun.origin, samples: markerRun.samples.map(sampleRecord)))
+        guard aligned.outcome == "measured" else {
+            throw SamplerFailure("marker-self-check-rejected \(aligned.reason ?? aligned.outcome)")
+        }
+        print("self-check outcome=measured footprintMeanBytes=\(mean) qualification=not-a-product-pass recomputed=match markerAligned=measured")
     }
 
     static func recompute(path: String) throws {
@@ -169,9 +186,11 @@ struct Options {
     var interval: Double
     var output: String
     var diagnosticsEnabled: Bool
+    var startMarker: String?
 
     init(pid: Int32, path: String, protocolKind: ResourceProtocolKind, phase: String,
-         warmup: Double, measure: Double, interval: Double, output: String, diagnosticsEnabled: Bool = false) {
+         warmup: Double, measure: Double, interval: Double, output: String,
+         diagnosticsEnabled: Bool = false, startMarker: String? = nil) {
         self.pid = pid
         self.path = path
         self.protocolKind = protocolKind
@@ -181,6 +200,7 @@ struct Options {
         self.interval = interval
         self.output = output
         self.diagnosticsEnabled = diagnosticsEnabled
+        self.startMarker = startMarker
     }
 
     init(_ arguments: [String]) throws {
@@ -197,11 +217,81 @@ struct Options {
               let kind = ResourceProtocolKind(rawValue: try value("--protocol")) else {
             throw SamplerFailure("bad arguments")
         }
+        let sleepMicroseconds = interval * 1_000_000
+        guard pid > 0, warmup.isFinite, measure.isFinite, interval.isFinite,
+              warmup >= 0, measure > 0, interval >= 0.1,
+              sleepMicroseconds <= Double(UInt32.max),
+              (warmup + measure + interval).isFinite else {
+            throw SamplerFailure("bad-duration")
+        }
         self.init(pid: pid, path: try value("--expect-path"), protocolKind: kind,
                   phase: try value("--phase"), warmup: warmup, measure: measure,
                   interval: interval, output: try value("--output"),
-                  diagnosticsEnabled: arguments.contains("--diagnostics-enabled"))
+                  diagnosticsEnabled: arguments.contains("--diagnostics-enabled"),
+                  startMarker: arguments.contains("--start-marker") ? try value("--start-marker") : nil)
+        if let startMarker {
+            guard startMarker.hasPrefix("/"), ["typing", "idle"].contains(phase) else {
+                throw SamplerFailure("bad-start-marker")
+            }
+        }
     }
+}
+
+private struct ReplayStartMarker: Decodable {
+    let mode: String
+    let outcome: String
+    let startedUptimeSeconds: Double?
+}
+
+private func readReplayStart(path: String, mode: String) throws -> Double? {
+    var metadata = stat()
+    let status = path.withCString { lstat($0, &metadata) }
+    if status != 0 {
+        if errno == ENOENT { return nil }
+        throw SamplerFailure("replay-marker-unreadable")
+    }
+    guard metadata.st_mode & mode_t(S_IFMT) == mode_t(S_IFREG), metadata.st_size > 0,
+          metadata.st_size <= 4_096 else { throw SamplerFailure("replay-marker-invalid") }
+    let marker = try JSONDecoder().decode(ReplayStartMarker.self,
+        from: Data(contentsOf: URL(fileURLWithPath: path)))
+    guard marker.mode == mode, marker.outcome == "running" || marker.outcome == "completed",
+          let started = marker.startedUptimeSeconds, started.isFinite, started > 0 else {
+        throw SamplerFailure("replay-marker-invalid")
+    }
+    return started
+}
+
+private func sampleFromReplayMarker(_ options: Options, path: String) throws
+    -> (samples: [CollectedSample], origin: Double?) {
+    let samplerStart = clock(.uptime)
+    let waitingDeadline = samplerStart + 123
+    var origin: Double?
+    var samples: [CollectedSample] = []
+    while true {
+        let current = readSample(pid: options.pid, expectedPath: options.path)
+        if current.failed || current.exited {
+            samples.append(current)
+            break
+        }
+        if origin == nil, let found = try readReplayStart(path: path, mode: options.phase) {
+            guard found >= samplerStart - options.interval * 1.5,
+                  found <= clock(.uptime) else {
+                throw SamplerFailure("replay-marker-stale")
+            }
+            origin = found
+        }
+        if let origin, current.uptimeSeconds >= origin {
+            samples.append(current)
+            if current.uptimeSeconds >= origin + options.warmup + options.measure + options.interval {
+                break
+            }
+        }
+        if clock(.uptime) >= (origin.map { $0 + options.warmup + options.measure + options.interval * 3 }
+                                 ?? waitingDeadline) { break }
+        usleep(useconds_t(options.interval * 1_000_000))
+    }
+    guard origin != nil else { throw SamplerFailure("replay-marker-missing") }
+    return (samples, origin)
 }
 
 func sample(_ options: Options) throws -> [CollectedSample] {

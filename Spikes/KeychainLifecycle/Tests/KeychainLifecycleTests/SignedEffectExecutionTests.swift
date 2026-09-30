@@ -79,7 +79,6 @@ final class SignedEffectExecutionTests: XCTestCase {
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: fixture.namespace.service,
             kSecAttrAccount as String: "when-unlocked",
-            kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly,
             kSecAttrSynchronizable as String: false,
             kSecUseDataProtectionKeychain as String: true,
             kSecUseAuthenticationUI as String: kSecUseAuthenticationUIFail,
@@ -87,6 +86,7 @@ final class SignedEffectExecutionTests: XCTestCase {
         XCTAssertTrue(fixture.namespace.service.hasPrefix(ProbeNamespace.prefix))
         switch operation {
         case .add:
+            expected[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlockedThisDeviceOnly
             guard case .data(let bytes) = request.query[kSecValueData as String] else { return XCTFail("Missing add value") }
             XCTAssertEqual(bytes.count, 32)
             expected[kSecValueData as String] = bytes
@@ -99,5 +99,20 @@ final class SignedEffectExecutionTests: XCTestCase {
         case .delete: break
         }
         XCTAssertEqual(request.foundationQuery as NSDictionary, expected as NSDictionary)
+    }
+
+    func testWrongAccessibilityCannotHideAnExactItemFromInspectionOrDeletion() throws {
+        let fixture = try SignedEffectFixture()
+        let recorder = CandidateEffectRecorder()
+        let executor = SignedEffectExecutor(namespace: fixture.expectedNamespace, store: recorder) { fixture.evidence }
+        for operation in [CandidateOperation.read, .attributes, .delete] {
+            _ = try executor.perform(operation, namespace: fixture.namespace)
+        }
+        for request in recorder.requests {
+            XCTAssertNil(request.query[kSecAttrAccessible as String],
+                         "A policy mismatch must remain visible by exact service and account")
+            XCTAssertEqual(request.query[kSecAttrService as String], .string(fixture.namespace.service))
+            XCTAssertEqual(request.query[kSecAttrAccount as String], .string("when-unlocked"))
+        }
     }
 }

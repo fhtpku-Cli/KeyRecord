@@ -2,6 +2,8 @@
 
 > Historical snapshot retained as measured baseline evidence. The observations below are pinned to baseline `064164e47fe2dfb1957ea8fc601269ecb2c8812e` and its T24 attempt; the wording that scoped code implementation is complete predates the corrective round and is not final approval. The later [execution checkpoint](EXECUTION_CHECKPOINT.md) at `22cb8e9` is also historical. Read [PROJECT_STATUS.md](PROJECT_STATUS.md) for current measured status and [PHASE1_ACCEPTANCE.md](PHASE1_ACCEPTANCE.md) for remaining acceptance work. Baseline claims below are not rewritten.
 
+**2026-09-29 scope pointer:** The owner accepts an Apple Silicon-only first capture MVP. The Intel rows and full G1/v1 dual-architecture conclusions below describe the historical/full-product target, not a current MVP blocker. Apple Silicon host behavior, performance, Keychain and a working collecting Release remain unqualified. This pointer does not change any recorded baseline verdict.
+
 ## Scope and identity
 
 T24 publishes status, not T25 final-candidate freeze. Scoped code implementation

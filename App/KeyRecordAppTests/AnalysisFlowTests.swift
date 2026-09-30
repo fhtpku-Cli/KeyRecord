@@ -71,9 +71,12 @@ extension AnalysisFlowTests {
         let full = try AnalysisEngine.analyze(data)
         let empty = try AnalysisEngine.analyze(AnalysisInput(cycleID: data.cycleID,
             shortcuts: [], bareKeys: [], activeDays: []))
+        let shortcutsOnly = try AnalysisEngine.analyze(AnalysisInput(cycleID: data.cycleID,
+            shortcuts: data.shortcuts, bareKeys: [], activeDays: data.activeDays))
         let root = ProcessInfo.processInfo.environment["KEYRECORD_QA_OUTPUT_DIR"]
         for locale in ["en", "zh-Hans"] {
-            for (name, snapshot) in [("populated", Optional(full)), ("empty", Optional(empty)), ("hidden", nil)] {
+            for (name, snapshot) in [("populated", Optional(full)), ("shortcuts-only", Optional(shortcutsOnly)),
+                                     ("empty", Optional(empty)), ("hidden", nil)] {
                 let content = AnalysisDashboardView(snapshot: snapshot,
                     layout: LayoutPreference(), text: NativeText(locale: locale), saveLayout: { _ in })
                     .frame(width: 1000, height: 700)
@@ -166,11 +169,11 @@ final class ProductSnapshotPublicationTests: XCTestCase {
     private func fixture() async throws -> (LifecycleHarness, AppFlowObservable, ProductReduction, Preferences) {
         let harness = LifecycleHarness()
         await harness.collectOpen()
-        let flow = AppFlowObservable(flow: Phase1FlowModel(lifecycle: harness.orchestrator))
-        flow.sync(from: harness.orchestrator.state)
         let input = try AnalysisPreview.input()
         let gate = KeyAvailabilityGate()
         gate.update(.unlocked)
+        let flow = AppFlowObservable(flow: Phase1FlowModel(lifecycle: harness.orchestrator), protectedGate: gate)
+        flow.sync(from: harness.orchestrator.state)
         let reduction = ProductReduction(gate: gate)
         reduction.open(try AggregationReducer(cycleID: input.cycleID, shortcuts: input.shortcuts,
                                              bareKeys: input.bareKeys),
@@ -179,6 +182,27 @@ final class ProductSnapshotPublicationTests: XCTestCase {
                                           foreground: .attributable(bundleID: "com.example.editor")),
                        generation: CaptureGeneration(rawValue: 1))
         return (harness, flow, reduction, Preferences(currentCycleID: input.cycleID))
+    }
+
+    func testVisiblePublicationCountsAtFlowBoundaryIncludingAnalysis() async throws {
+        let (harness, flow, reduction, preferences) = try await fixture()
+        let diagnostics = CaptureDiagnosticsRecorder()
+        flow.configureDiagnostics(diagnostics)
+
+        try ProductSnapshotPublication.refresh(flow: flow, state: harness.orchestrator.state,
+            captureSessionLive: true, readSnapshot: { try reduction.snapshot() },
+            readAnalysis: { try reduction.analysis(preferences: preferences) })
+        XCTAssertEqual(diagnostics.runSummary.snapshotPublicationCount, 1)
+        XCTAssertEqual(diagnostics.runSummary.analysisPublicationCount, 1)
+
+        harness.orchestrator.observe(.unknown)
+        flow.sync(from: harness.orchestrator.state)
+        flow.snapshot = try reduction.snapshot()
+        flow.publishAnalysis(try reduction.analysis(preferences: preferences))
+        XCTAssertNil(flow.snapshot)
+        XCTAssertNil(flow.analysis)
+        XCTAssertEqual(diagnostics.runSummary.snapshotPublicationCount, 1)
+        XCTAssertEqual(diagnostics.runSummary.analysisPublicationCount, 1)
     }
 
     func testAnalysisFailureDoesNotEscapeIntoPulseShutdown() async throws {

@@ -25,6 +25,9 @@ enum PrivacySchemaAudit {
 
     // File-qualified registration also covers private Wire DTOs and extensions adding conformance.
     static let serializableTypes: [String: Set<String>] = [
+        "AggregateDayOrder.swift": ["AggregateDayOrder"],
+        "ProtectedReadActivity.swift": ["ProtectedReadActivitySnapshot"],
+        "AppDelegate.swift": ["DebugReplayProgress"],
         "CaptureDiagnostics.swift": ["CaptureRunSummary", "CapturePrivacyIntervalMark", "CapturePrivacyActionDetail"],
         "Counts.swift": ["Count", "SourceCounts", "ActiveDayOrdinal"],
         "CycleRecords.swift": ["CycleRecord", "CycleSummary"],
@@ -51,30 +54,39 @@ enum PrivacySchemaAudit {
     }
 
     static let recordFields: [String: [String: Set<String>]] = [
+        "ProtectedReadActivity.swift": ["ProtectedReadActivitySnapshot": [
+            "decryptionStarted", "decryptionCompleted", "keychainReadStarted", "keychainReadCompleted",
+            "storeCacheReadStarted", "storeCacheReadCompleted", "aggregateReadStarted", "aggregateReadCompleted",
+            "plaintextProcessingStarted", "plaintextProcessingCompleted"]],
+        "AppDelegate.swift": ["DebugReplayProgress": [
+            "mode", "outcome", "expectedTicks", "ticks", "acceptedEvents", "elapsedSeconds",
+            "durableKeyDownTotal", "startedUptimeSeconds", "endedUptimeSeconds"]],
         "CaptureDiagnostics.swift": ["CaptureRunSummary": [
             "tapCallbackKeyDown", "tapCallbackKeyUp", "tapCallbackFlagsChanged", "tapDisabledEvents",
             "handoffAccepted", "handoffClosed", "handoffOverflow", "normalizationOutput", "aggregateDelta",
             "flushIssued", "flushDurable", "flushFailed", "flushTimedOut",
             "flushWriteReturned", "flushWriteSucceeded", "flushInvalidated", "sessionCount",
-            "snapshotPublicationCount", "snapshotReadFailureCount", "lastPublishedShortcutTotal",
-            "lastPublishedBareKeyTotal", "countersInstrumented", "captureSessionLive", "sensitiveContentVisible",
+            "snapshotPublicationCount", "analysisPublicationCount", "snapshotReadFailureCount", "lastPublishedShortcutTotal",
+            "lastPublishedBareKeyTotal", "countersInstrumented", "captureSessionLive", "captureQueueOpen", "keyGateOpen", "sensitiveContentVisible",
             "protectedSnapshotAttempts", "protectedSnapshotRejected", "protectedAnalysisAttempts", "protectedAnalysisRejected",
-            "privacyJournalWriteFailed"],
+            "protectedGateEntries", "protectedReadActivity", "privacyJournalWriteFailed"],
             "CapturePrivacyIntervalMark": [
-                "seq", "role", "phase", "blockedReason", "privacyTrigger", "boundaryCause", "captureSessionLive",
+                "seq", "role", "phase", "blockedReason", "privacyTrigger", "boundaryCause", "captureSessionLive", "captureQueueOpen", "keyGateOpen",
                 "sensitiveContentVisible", "expectedCollecting", "currentLockState", "lockReadStatus",
                 "secureInputReadStatus", "lockComponents", "cachedLockState", "cachedSecureInputState", "action", "actionSeq",
-                "actionDetail", "countersAreAtomicSnapshot",
+                "actionDetail", "countersAreAtomicSnapshot", "sessionCount",
                 "aggregateDelta", "handoffAccepted", "handoffClosed",
                 "normalizationOutput", "flushDurable", "flushInvalidated", "protectedSnapshotAttempts",
                 "protectedSnapshotRejected", "protectedAnalysisAttempts", "protectedAnalysisRejected",
-                "snapshotPublicationCount", "snapshotReadFailureCount"],
+                "protectedGateEntries", "protectedReadActivity", "protectedReadRevocationObserved",
+                "protectedReadActivityAtRevocation", "snapshotPublicationCount", "analysisPublicationCount", "snapshotReadFailureCount"],
             "CapturePrivacyActionDetail": [
                 "invocation", "phaseBefore", "earlyReturn", "prepareOutcome", "prepareLockRead", "permissionStatus",
                 "lifecycleCommandRun", "abortRun", "readinessCalls", "readinessOutcome", "lifecycleFlushCalls",
                 "lifecycleFlushOutcome", "reductionUnsavedBefore", "schedulerUnsavedBefore", "reductionUnsavedAfter",
                 "schedulerUnsavedAfter", "quitDecision", "noticeAfter", "phaseAfter", "blockedReasonAfter",
                 "failureAfter", "sessionLiveAfter", "keyGateOpenAfter"]],
+        "AggregateDayOrder.swift": ["AggregateDayOrder": ["schemaVersion", "cycleID", "days"]],
         "Counts.swift": ["Count": ["value"], "SourceCounts": ["ordinary", "suspectedInjection", "total"],
             "ActiveDayOrdinal": ["value"]],
         "IdentityProviders.swift": ["CycleID": ["rawValue"], "KeyVersion": ["rawValue"], "LocalDay": ["label"]],

@@ -1,7 +1,26 @@
 import Foundation
 import XCTest
+import KeyRecordMeasurement
+#if DEBUG
+import KeyRecordCapture
+#endif
 
 final class PerformanceReceiptTests: XCTestCase {
+    #if DEBUG
+    func testProductReplayUsesTheMeasuredWorkload() {
+        XCTAssertEqual(FixedReplayController.fixtureJSON, PerformanceReceipt.workload)
+        XCTAssertEqual(FixedReplayController.activeTicks, ReplayWorkload.activeTicks)
+        XCTAssertEqual(FixedReplayController.windowTicks, ReplayWorkload.windowTicks)
+        XCTAssertEqual(Double(FixedReplayController.activeTicks) * ReplayWorkload.tickIntervalSeconds,
+                       PerformanceWindow.authorized.warmup + PerformanceWindow.authorized.window)
+        XCTAssertEqual(FixedReplayController.expectedEvents(tick: FixedReplayController.activeTicks), 0)
+        XCTAssertEqual(PerformanceWindow.authorized.repeats, 1)
+        XCTAssertEqual((0..<FixedReplayController.windowTicks).reduce(0) {
+            $0 + FixedReplayController.expectedEvents(tick: $1)
+        }, ReplayWorkload.expectedTypingEvents)
+    }
+    #endif
+
     func testMemoryIncludesTypingPeakWhenIdleFootprintIsLower() throws {
         // Given: only the typing window exceeds the memory budget.
         let typing = [10_000_000.0, 120_000_000.0]

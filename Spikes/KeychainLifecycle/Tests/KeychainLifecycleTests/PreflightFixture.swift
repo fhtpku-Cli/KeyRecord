@@ -4,6 +4,7 @@ import Foundation
 final class EffectCounter: CandidateBackend {
     var keychain = 0
     var controller = 0
+    var calls: Int { keychain }
     func perform(_ operation: CandidateOperation, namespace: ProbeNamespace) throws -> CandidateObservation {
         keychain += 1
         return CandidateObservation(status: 0, accessibility: nil, synchronizable: false, valueMatched: true)
@@ -38,7 +39,7 @@ struct PreflightFixture {
             "certificateSHA256": String(repeating: "a", count: 64), "teamID": "FIXTURETEAM",
             "bundleIDs": ["com.keyrecord.phase1.probe.host", "com.keyrecord.phase1.probe.tests"],
             "namespacePrefix": "com.keyrecord.phase1.probe.", "scratchRoot": "/fixture/attempt-one",
-            "operations": HostOperation.allCases.map(\.rawValue), "expiresAt": "2034-01-01T00:00:00Z",
+            "operations": [HostOperation.keychain.rawValue], "expiresAt": "2034-01-01T00:00:00Z",
             "controllerPath": "/fixture/controller", "controllerSHA256": String(repeating: "d", count: 64),
             "attemptID": "attempt-one",
         ]

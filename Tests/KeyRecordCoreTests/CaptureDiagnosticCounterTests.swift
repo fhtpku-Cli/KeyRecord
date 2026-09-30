@@ -3,6 +3,19 @@ import KeyRecordCore
 
 final class CaptureDiagnosticCounterTests: XCTestCase {
 
+    func testUnconfiguredAdmissionRemainsUnknownAndProviderCanReenterRecorder() {
+        let recorder = CaptureDiagnosticsRecorder()
+        XCTAssertNil(recorder.runSummary.captureQueueOpen)
+        XCTAssertNil(recorder.runSummary.keyGateOpen)
+        recorder.configureAdmissionState { [weak recorder] in
+            recorder?.record { $0.captureSessionLive = true }
+            return (true, false)
+        }
+        let observed = recorder.runSummary
+        XCTAssertEqual(observed.captureQueueOpen, true)
+        XCTAssertEqual(observed.keyGateOpen, false)
+    }
+
     func testSecureInputIntervalEndsBeforeNewSessionCounters() throws {
         let path = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: path) }
@@ -33,6 +46,45 @@ final class CaptureDiagnosticCounterTests: XCTestCase {
         XCTAssertEqual(recorder.runSummary.sessionCount, 2)
     }
 
+    func testSessionPreparationBoundariesRemainVisibleWhenLifecycleStateDoesNotChange() throws {
+        let path = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: path) }
+        let recorder = CaptureDiagnosticsRecorder()
+        recorder.enablePrivacyIntervalJournal(path: path.path)
+        recorder.record { $0.phase = .collecting; $0.captureSessionLive = true }
+        recorder.notePrivacyInterval()
+        recorder.beginSession(generation: 11)
+        recorder.increment(.aggregateDelta)
+        recorder.beginSession(generation: 13)
+        recorder.increment(.aggregateDelta)
+        recorder.recordInputMonitoringPreflightWitness(status: .granted)
+        let marks = try String(contentsOf: path, encoding: .utf8).split(separator: "\n").map {
+            try XCTUnwrap(JSONSerialization.jsonObject(with: Data($0.utf8)) as? [String: Any])
+        }
+        let preparations = marks.filter { $0["boundaryCause"] as? String == "captureSessionPrepared" }
+        XCTAssertEqual(preparations.count, 2)
+        XCTAssertEqual(preparations.compactMap { $0["sessionCount"] as? Int }, [1, 2])
+        XCTAssertEqual(preparations.compactMap { $0["aggregateDelta"] as? Int }, [0, 1])
+        XCTAssertEqual(marks.last?["sessionCount"] as? Int, 2)
+        XCTAssertEqual(marks.last?["aggregateDelta"] as? Int, 2)
+        XCTAssertTrue(marks.allSatisfy { $0["countersAreAtomicSnapshot"] as? Bool == false })
+    }
+
+    func testProtectedGateCountIsOptionalAndRecordedInPrivateJournal() throws {
+        let recorder = CaptureDiagnosticsRecorder()
+        XCTAssertNil(recorder.runSummary.protectedGateEntries)
+        let path = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: path) }
+        recorder.configureProtectedGateEntries { 3 }
+        recorder.enablePrivacyIntervalJournal(path: path.path)
+        recorder.beginClosedInterval(cause: "protectedStateClosed")
+
+        let mark = try XCTUnwrap(String(contentsOf: path, encoding: .utf8).split(separator: "\n").first)
+        let object = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(mark.utf8)) as? [String: Any])
+        XCTAssertEqual(recorder.runSummary.protectedGateEntries, 3)
+        XCTAssertEqual(object["protectedGateEntries"] as? Int, 3)
+    }
+
     func testFlushPhysicalAndInvalidationCountersRetainLifetimeTotalsAcrossSessionReset() {
         let recorder = CaptureDiagnosticsRecorder()
         let counters: [CaptureDiagnosticCounter] = [
@@ -58,9 +110,11 @@ final class CaptureDiagnosticCounterTests: XCTestCase {
         let recorder = CaptureDiagnosticsRecorder()
         XCTAssertNil(recorder.runSummary.lastPublishedShortcutTotal)
         recorder.recordPublication(shortcutTotal: 5, bareKeyTotal: 7)
+        recorder.recordAnalysisPublication()
         recorder.recordSnapshotReadFailure()
         recorder.beginSession(generation: 1)
         XCTAssertEqual(recorder.runSummary.snapshotPublicationCount, 1)
+        XCTAssertEqual(recorder.runSummary.analysisPublicationCount, 1)
         XCTAssertEqual(recorder.runSummary.snapshotReadFailureCount, 1)
         XCTAssertEqual(recorder.runSummary.lastPublishedShortcutTotal, 5)
         XCTAssertEqual(recorder.runSummary.lastPublishedBareKeyTotal, 7)
@@ -83,7 +137,7 @@ final class CaptureDiagnosticCounterTests: XCTestCase {
             "handoffAccepted", "handoffClosed", "handoffOverflow", "normalizationOutput", "aggregateDelta",
             "flushIssued", "flushDurable", "flushFailed", "flushTimedOut",
             "flushWriteReturned", "flushWriteSucceeded", "flushInvalidated", "sessionCount",
-            "snapshotPublicationCount", "snapshotReadFailureCount", "lastPublishedShortcutTotal",
+            "snapshotPublicationCount", "analysisPublicationCount", "snapshotReadFailureCount", "lastPublishedShortcutTotal",
             "lastPublishedBareKeyTotal", "countersInstrumented", "captureSessionLive", "sensitiveContentVisible",
             "protectedSnapshotAttempts", "protectedSnapshotRejected",
             "protectedAnalysisAttempts", "protectedAnalysisRejected", "privacyJournalWriteFailed"
@@ -194,5 +248,25 @@ final class CaptureDiagnosticCounterTests: XCTestCase {
         XCTAssertTrue(lines[0].contains("\"captureSessionLive\":true"))
         XCTAssertTrue(lines[1].contains("\"aggregateDelta\":1"))
         XCTAssertFalse(String(lines[1]).contains("timestamp"))
+    }
+
+    func testInputMonitoringWitnessIsOptInAndUsesFixedCoarseCauses() throws {
+        let recorder = CaptureDiagnosticsRecorder()
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let path = root.appendingPathComponent("intervals.jsonl").path
+        recorder.recordInputMonitoringPreflightWitness(status: .granted)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: path))
+
+        recorder.enablePrivacyIntervalJournal(path: path)
+        recorder.recordInputMonitoringPreflightWitness(status: .granted)
+        recorder.recordInputMonitoringPreflightWitness(status: .denied)
+        recorder.recordInputMonitoringPreflightWitness(status: .unknown)
+        let marks = try String(contentsOfFile: path, encoding: .utf8).split(separator: "\n")
+        XCTAssertEqual(marks.count, 3)
+        XCTAssertTrue(marks[0].contains("\"boundaryCause\":\"inputMonitoringPreflightGranted\""))
+        XCTAssertTrue(marks[1].contains("\"boundaryCause\":\"inputMonitoringPreflightDenied\""))
+        XCTAssertTrue(marks[2].contains("\"boundaryCause\":\"inputMonitoringPreflightUnknown\""))
     }
 }

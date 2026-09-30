@@ -1,7 +1,57 @@
 import XCTest
+import Security
 @testable import LifecyclePreflight
+#if SWIFT_PACKAGE
+import LifecycleHosted
+#endif
 
 final class KeychainLifecycleScenarioTests: XCTestCase {
+    func testSleepWakeRequiresSeparateClosedSleepAndVerifiedWakeSteps() {
+        XCTAssertEqual(LifecycleScenario.sleepWake.steps.map(\.rawValue),
+                       ["unlockedCRUD", "sleepClosed", "wakeRevalidate"])
+    }
+
+    func testSleepWakeWithoutSleepClosureCannotReachWake() {
+        let fake = FakeLifecycleController()
+        fake.missingCaptureClosure = true
+        let report = LifecycleScenarioMachine.run(.sleepWake, controller: fake)
+        XCTAssertEqual(report.status, .blocked)
+        XCTAssertEqual(report.reason, "productObservationMissing")
+        XCTAssertEqual(fake.steps, [.unlockedCRUD, .sleepClosed, .cleanup])
+    }
+
+    func testHostedSleepWakeUsesLockedThenUnlockedWitness() {
+        let controller = hostedController(FakeHostedAuthority(ready: true), scenarios: [.sleepWake])
+        let report = LifecycleScenarioMachine.run(.sleepWake, controller: controller)
+        XCTAssertEqual(report.status, .pass)
+        XCTAssertEqual(report.observations.count, 4)
+        XCTAssertEqual(report.observations[1].policy.captureClosed, true)
+        XCTAssertEqual(report.observations[2].policy.captureClosed, false)
+        XCTAssertEqual(report.observations[1].policy.activeGeneration,
+                       report.observations[2].policy.priorGeneration)
+        XCTAssertNotEqual(report.observations[1].policy.priorGeneration,
+                          report.observations[2].policy.activeGeneration)
+        XCTAssertEqual(controller.execute(.sleepWake).status, .blocked)
+    }
+
+    func testSleepClosureRejectsUnlockedWitnessBeforeWake() {
+        let authority = ContradictoryStateAuthority(contradictorySteps: [.sleepClosed])
+        let controller = hostedController(authority, scenarios: [.sleepWake])
+        let report = LifecycleScenarioMachine.run(.sleepWake, controller: controller)
+        XCTAssertEqual(report.status, .blocked)
+        XCTAssertEqual(report.reason, "witnessStateMismatch")
+        XCTAssertEqual(report.observations.count, 3)
+    }
+
+    func testSleepClosureWithoutAuthorityCannotPass() {
+        let fake = FakeLifecycleController()
+        fake.missingSleepWitness = true
+        let report = LifecycleScenarioMachine.run(.sleepWake, controller: fake)
+        XCTAssertEqual(report.status, .blocked)
+        XCTAssertEqual(report.reason, "noAuthoritativeWitness")
+        XCTAssertEqual(fake.steps, [.unlockedCRUD, .sleepClosed, .cleanup])
+    }
+
     func testHappyAllScenariosThroughFakeController() throws {
         // Given a fully capable fake, when each scenario executes, then all steps and cleanup run.
         for scenario in LifecycleScenario.allCases {
@@ -52,6 +102,39 @@ final class KeychainLifecycleScenarioTests: XCTestCase {
         XCTAssertEqual(report.reason, "cleanupPending")
     }
 
+    func testFailureClaimedCRUDAndCleanupWithoutKeychainCalls() {
+        let noCRUD = FakeLifecycleController()
+        noCRUD.zeroKeychainCalls = true
+        let report = LifecycleScenarioMachine.run(.unlockedCRUD, controller: noCRUD)
+        XCTAssertEqual(report.status, .fail)
+        XCTAssertEqual(report.reason, "stepContractFailed")
+        XCTAssertEqual(report.observations.first?.keychain.calls, 0)
+        XCTAssertEqual(report.keychainCalls, 1)
+
+        let noCleanup = FakeLifecycleController()
+        noCleanup.zeroCleanupCalls = true
+        let cleanupReport = LifecycleScenarioMachine.run(.unlockedCRUD, controller: noCleanup)
+        XCTAssertEqual(cleanupReport.status, .fail)
+        XCTAssertEqual(cleanupReport.reason, "cleanupFailed")
+    }
+
+    func testFailureClaimedDeleteMissingWithoutDeleteAndRead() {
+        let fake = FakeLifecycleController()
+        fake.zeroDeleteMissingCalls = true
+        let report = LifecycleScenarioMachine.run(.deleteMissing, controller: fake)
+        XCTAssertEqual(report.status, .fail)
+        XCTAssertEqual(report.reason, "stepContractFailed")
+    }
+
+    func testLockTransitionCannotPassWithoutKeychainRead() {
+        let fake = FakeLifecycleController()
+        fake.zeroTransitionCalls = true
+        let report = LifecycleScenarioMachine.run(.unlockRevalidation, controller: fake)
+        XCTAssertEqual(report.status, .fail)
+        XCTAssertEqual(report.reason, "stepContractFailed")
+        XCTAssertEqual(report.observations[1].keychain.calls, 0)
+    }
+
     func testFailureProtectedDeltaRejectsRawReadSuccess() {
         // Given raw success while locked, when policy leaked a delta, then qualification fails.
         let fake = FakeLifecycleController()
@@ -68,9 +151,164 @@ final class KeychainLifecycleScenarioTests: XCTestCase {
         let controller = HostedLifecycleScenarioController(backend: backend, authority: authority, configuration: configuration)
         let report = LifecycleScenarioMachine.run(.unlockedCRUD, controller: controller)
         XCTAssertEqual(report.status, .pass)
+        XCTAssertNil(report.observations.first?.policy.protectedReadDelta)
+        XCTAssertNil(report.observations.first?.policy.publishDelta)
+        XCTAssertNil(report.observations.first?.policy.aggregateDelta)
         XCTAssertEqual(backend.operations, [.add, .read, .attributes, .delete])
         XCTAssertEqual(backend.calls, 4)
     }
+
+    func testHostedLockAndUnlockReadExactProbeItem() {
+        let backend = RecordingBackend()
+        let controller = HostedLifecycleScenarioController(
+            backend: backend, authority: FakeHostedAuthority(ready: true),
+            configuration: .init(namespace: .init(attempt: "attempt", seed: UUID()),
+                                 supportedScenarios: [.unlockRevalidation]),
+            productObserver: FakeHostedProductObserver())
+
+        XCTAssertEqual(controller.execute(.unlockedCRUD).status, .pass)
+        let locked = controller.execute(.lockBackground)
+        let unlocked = controller.execute(.unlockRevalidate)
+        XCTAssertEqual(locked.keychain.calls, 1)
+        XCTAssertEqual(locked.keychain.rawStatus, 0)
+        XCTAssertEqual(unlocked.keychain.calls, 1)
+        XCTAssertEqual(unlocked.keychain.valueMatched, true)
+        XCTAssertEqual(backend.operations, [.add, .read, .attributes, .read, .read])
+    }
+
+    func testLockedKeychainDenialIsRecordedWithoutReplacingProductLockEvidence() {
+        let backend = RecordingBackend()
+        backend.readStatuses = [0, -25308, 0]
+        let controller = HostedLifecycleScenarioController(
+            backend: backend, authority: FakeHostedAuthority(ready: true),
+            configuration: .init(namespace: .init(attempt: "attempt", seed: UUID()),
+                                 supportedScenarios: [.unlockRevalidation]),
+            productObserver: FakeHostedProductObserver())
+
+        let report = LifecycleScenarioMachine.run(.unlockRevalidation, controller: controller)
+        XCTAssertEqual(report.status, .pass)
+        XCTAssertEqual(report.observations[1].keychain.rawStatus, -25308)
+        XCTAssertEqual(report.observations[2].keychain.rawStatus, 0)
+        XCTAssertEqual(report.observations[2].keychain.valueMatched, true)
+    }
+
+    func testUnlockReadWithWrongProbeValueFailsLifecycle() {
+        let backend = RecordingBackend()
+        backend.readMatches = [true, true, false]
+        let controller = HostedLifecycleScenarioController(
+            backend: backend, authority: FakeHostedAuthority(ready: true),
+            configuration: .init(namespace: .init(attempt: "attempt", seed: UUID()),
+                                 supportedScenarios: [.unlockRevalidation]),
+            productObserver: FakeHostedProductObserver())
+
+        let report = LifecycleScenarioMachine.run(.unlockRevalidation, controller: controller)
+        XCTAssertEqual(report.status, .fail)
+        XCTAssertEqual(report.reason, "stepContractFailed")
+        XCTAssertEqual(report.observations[2].keychain.rawStatus, 0)
+        XCTAssertEqual(report.observations[2].keychain.valueMatched, false)
+    }
+
+    func testHostedCrossDeviceRestoreHasNoLocalQualificationShortcut() {
+        let backend = RecordingBackend()
+        let controller = HostedLifecycleScenarioController(
+            backend: backend, authority: FakeHostedAuthority(ready: true),
+            configuration: .init(namespace: .init(attempt: "attempt", seed: UUID()),
+                                 supportedScenarios: [.crossDeviceRestore]),
+            productObserver: FakeHostedProductObserver())
+
+        let observation = controller.execute(.crossDeviceRestore)
+        XCTAssertEqual(observation.status, .blocked)
+        XCTAssertEqual(observation.policy.witnessRejection, "secondDeviceUnavailable")
+        XCTAssertTrue(backend.operations.isEmpty)
+    }
+
+    #if KEYRECORD_SIGNED_HOSTED_TESTS
+    func testHostedQueriesUseProductBuildersWithoutKeychainEffects() throws {
+        let fixture = try SignedEffectFixture()
+        let recorder = CandidateEffectRecorder()
+        let executor = SignedEffectExecutor(namespace: fixture.expectedNamespace, store: recorder) { fixture.evidence }
+        for operation in CandidateOperation.allCases {
+            _ = try executor.perform(operation, namespace: fixture.namespace)
+        }
+        for request in recorder.requests {
+            let query = try HostedProductKeychainQuery.make(request)
+            XCTAssertEqual(query as NSDictionary, request.foundationQuery as NSDictionary)
+            if request.operation != .add {
+                XCTAssertNil(query[kSecAttrAccessible as String])
+            }
+        }
+    }
+
+    func testAuthorizedIsolatedKeychainCRUD() throws {
+        let environment = ProcessInfo.processInfo.environment
+        guard environment["KEYRECORD_HOSTED_KEYCHAIN_TRIAL"] == "1" else {
+            throw XCTSkip("No authorized Keychain host trial requested")
+        }
+        guard let attemptPath = environment["PHASE1_QA_ATTEMPT"], attemptPath.hasPrefix("/") else {
+            XCTFail("Missing private host attempt")
+            return
+        }
+        let attempt = URL(fileURLWithPath: attemptPath).standardizedFileURL
+        let manifest = attempt.appendingPathComponent("host.json")
+        guard case .ready = LivePreflight.evaluate(manifestURL: manifest, attempt: attempt) else {
+            XCTFail("Host preflight did not authorize this trial")
+            return
+        }
+        guard let manifestData = try? Data(contentsOf: manifest),
+              let authorization = try? JSONDecoder().decode(HostManifest.self, from: manifestData),
+              authorization.operations == [.keychain] else {
+            XCTFail("This CRUD trial requires Keychain-only authorization")
+            return
+        }
+
+        let seed = UUID()
+        let namespace = ProbeNamespace(attempt: attempt.lastPathComponent, seed: seed)
+        let serviceRecord = attempt.appendingPathComponent("keychain-probe-service.txt")
+        guard !FileManager.default.fileExists(atPath: serviceRecord.path),
+              FileManager.default.createFile(atPath: serviceRecord.path,
+                  contents: Data(namespace.service.utf8), attributes: [.posixPermissions: 0o600]) else {
+            XCTFail("Could not retain the exact test-item service for cleanup")
+            return
+        }
+
+        let backend = SignedCandidateBackend(attempt: attempt, seed: seed)
+        var itemMayExist = false
+        defer {
+            if itemMayExist {
+                do {
+                    let cleanup = try backend.perform(.delete, namespace: namespace)
+                    XCTAssertTrue(cleanup.status == errSecSuccess || cleanup.status == errSecItemNotFound,
+                                  "Exact test-item cleanup failed")
+                } catch {
+                    XCTFail("Exact test-item cleanup was blocked")
+                }
+            }
+        }
+
+        let add = try backend.perform(.add, namespace: namespace)
+        itemMayExist = add.status == errSecSuccess || add.status == errSecDuplicateItem
+        guard add.status == errSecSuccess else { XCTFail("Test-item add failed: \(add.status)"); return }
+        let read = try backend.perform(.read, namespace: namespace)
+        XCTAssertEqual(read.status, errSecSuccess)
+        XCTAssertEqual(read.valueMatched, true)
+        let attributes = try backend.perform(.attributes, namespace: namespace)
+        XCTAssertEqual(attributes.status, errSecSuccess)
+        XCTAssertEqual(attributes.accessibility, kSecAttrAccessibleWhenUnlockedThisDeviceOnly as String)
+        XCTAssertEqual(attributes.synchronizable, false)
+        let deletion = try backend.perform(.delete, namespace: namespace)
+        guard deletion.status == errSecSuccess else {
+            XCTFail("Exact test-item delete failed: \(deletion.status)")
+            return
+        }
+        let missing = try backend.perform(.read, namespace: namespace)
+        guard missing.status == errSecItemNotFound else {
+            XCTFail("Test item remained after exact delete: \(missing.status)")
+            return
+        }
+        itemMayExist = false
+        XCTAssertEqual(backend.calls, 5)
+    }
+    #endif
 
     func testFailureHostedControllerWithoutWitnessHasZeroEffects() {
         let backend = RecordingBackend()
@@ -81,6 +319,142 @@ final class KeychainLifecycleScenarioTests: XCTestCase {
         let report = LifecycleScenarioMachine.run(.unlockedCRUD, controller: controller)
         XCTAssertEqual(report.status, .blocked)
         XCTAssertTrue(backend.operations.isEmpty)
+    }
+
+    func testFailureDeleteMissingRequiresFreshUnlockedWitness() {
+        let backend = RecordingBackend()
+        let authority = ContradictoryStateAuthority(contradictorySteps: [])
+        let controller = HostedLifecycleScenarioController(
+            backend: backend, authority: authority,
+            configuration: .init(namespace: .init(attempt: "attempt", seed: UUID()),
+                                 supportedScenarios: [.deleteMissing]))
+        XCTAssertEqual(controller.execute(.unlockedCRUD).status, .pass)
+        authority.contradictorySteps.insert(.deleteMissing)
+        let observation = controller.execute(.deleteMissing)
+        XCTAssertEqual(observation.status, .blocked)
+        XCTAssertEqual(backend.operations, [.add, .read, .attributes])
+    }
+
+    func testFailureLockTransitionRequiresReadyAuthority() {
+        let controller = hostedController(FakeHostedAuthority(ready: false), scenarios: [.lockBackground])
+        let observation = controller.execute(.lockBackground)
+        XCTAssertEqual(observation.status, .blocked)
+        XCTAssertEqual(observation.policy.witnessRejection, "lockAuthorityUnavailable")
+        XCTAssertNil(observation.policy.captureClosed)
+    }
+
+    func testFailureHostedAddCannotBeHiddenByLaterRead() {
+        let backend = FailingAddBackend()
+        let controller = HostedLifecycleScenarioController(
+            backend: backend, authority: FakeHostedAuthority(ready: true),
+            configuration: .init(namespace: .init(attempt: "attempt", seed: UUID()),
+                                 supportedScenarios: [.unlockedCRUD]))
+        let report = LifecycleScenarioMachine.run(.unlockedCRUD, controller: controller)
+        XCTAssertEqual(report.status, .fail)
+        XCTAssertEqual(report.observations.first?.keychain.rawStatus, -25299)
+        XCTAssertEqual(backend.operations, [.add, .delete])
+    }
+
+    func testBlockedReadReportsEarlierKeychainCallsAndCleanup() {
+        let backend = ThrowingReadBackend()
+        let controller = HostedLifecycleScenarioController(
+            backend: backend, authority: FakeHostedAuthority(ready: true),
+            configuration: .init(namespace: .init(attempt: "attempt", seed: UUID()),
+                                 supportedScenarios: [.unlockedCRUD]))
+        let report = LifecycleScenarioMachine.run(.unlockedCRUD, controller: controller)
+        XCTAssertEqual(report.status, .blocked)
+        XCTAssertEqual(report.observations.first?.keychain.calls, 2)
+        XCTAssertEqual(report.keychainCalls, 3)
+        XCTAssertEqual(backend.operations, [.add, .read, .delete])
+    }
+
+    func testBlockedDeleteMissingReadReportsBothCalls() {
+        let backend = ThrowingReadBackend()
+        let controller = HostedLifecycleScenarioController(
+            backend: backend, authority: FakeHostedAuthority(ready: true),
+            configuration: .init(namespace: .init(attempt: "attempt", seed: UUID()),
+                                 supportedScenarios: [.deleteMissing]))
+        let observation = controller.execute(.deleteMissing)
+        XCTAssertEqual(observation.status, .blocked)
+        XCTAssertEqual(observation.keychain.calls, 2)
+        XCTAssertEqual(backend.operations, [.delete, .read])
+    }
+
+    func testBlockedCleanupDeleteReportsAttemptedCall() {
+        let backend = ThrowingDeleteBackend()
+        let controller = HostedLifecycleScenarioController(
+            backend: backend, authority: FakeHostedAuthority(ready: true),
+            configuration: .init(namespace: .init(attempt: "attempt", seed: UUID()),
+                                 supportedScenarios: [.unlockedCRUD]))
+        let report = LifecycleScenarioMachine.run(.unlockedCRUD, controller: controller)
+        XCTAssertEqual(report.status, .blocked)
+        XCTAssertEqual(report.observations.last?.keychain.calls, 1)
+        XCTAssertEqual(report.keychainCalls, 4)
+        XCTAssertEqual(backend.operations, [.add, .read, .attributes, .delete])
+    }
+
+    func testFailureHostedLockWithoutProductObservationCannotPass() throws {
+        let controller = HostedLifecycleScenarioController(
+            backend: RecordingBackend(), authority: FakeHostedAuthority(ready: true),
+            configuration: .init(namespace: .init(attempt: "attempt", seed: UUID()),
+                                 supportedScenarios: [.lockBackground]))
+        let observation = controller.execute(.lockBackground)
+        XCTAssertEqual(observation.status, .blocked)
+        XCTAssertEqual(observation.policy.witnessRejection, "productObservationMissing")
+        XCTAssertNil(observation.policy.captureClosed)
+        XCTAssertNil(observation.policy.protectedReadDelta)
+        XCTAssertNil(observation.policy.publishDelta)
+        XCTAssertNil(observation.policy.aggregateDelta)
+        XCTAssertNil(observation.keychain.rawStatus)
+        let json = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(observation)) as? [String: Any])
+        let policy = try XCTUnwrap(json["policy"] as? [String: Any])
+        XCTAssertNil(policy["protectedReadDelta"])
+        XCTAssertNil(policy["publishDelta"])
+        XCTAssertNil(policy["aggregateDelta"])
+    }
+
+    func testMissingProductDeltasCannotPassLockTransition() {
+        let fake = FakeLifecycleController()
+        fake.missingProductDeltas = true
+        let report = LifecycleScenarioMachine.run(.lockBackground, controller: fake)
+        XCTAssertEqual(report.status, .blocked)
+        XCTAssertEqual(report.reason, "productObservationMissing")
+        XCTAssertNil(report.observations[1].policy.protectedReadDelta)
+    }
+
+    func testMissingCaptureClosureStaysInconclusive() {
+        let fake = FakeLifecycleController()
+        fake.missingCaptureClosure = true
+        let report = LifecycleScenarioMachine.run(.lockBackground, controller: fake)
+        XCTAssertEqual(report.status, .blocked)
+        XCTAssertEqual(report.reason, "productObservationMissing")
+        XCTAssertNil(report.observations[1].policy.captureClosed)
+    }
+
+    func testObservedOpenCaptureStillFailsLockTransition() {
+        let fake = FakeLifecycleController()
+        fake.captureStillOpen = true
+        let report = LifecycleScenarioMachine.run(.lockBackground, controller: fake)
+        XCTAssertEqual(report.status, .fail)
+        XCTAssertEqual(report.reason, "stepContractFailed")
+        XCTAssertEqual(report.observations[1].policy.captureClosed, false)
+    }
+
+    func testPartialHostedProductObservationStaysInconclusive() {
+        let controller = hostedController(FakeHostedAuthority(ready: true), scenarios: [.lockBackground],
+                                          productObserver: FakeHostedProductObserver(protectedReadDelta: nil))
+        let report = LifecycleScenarioMachine.run(.lockBackground, controller: controller)
+        XCTAssertEqual(report.status, .blocked)
+        XCTAssertEqual(report.reason, "productObservationMissing")
+        XCTAssertNil(report.observations[1].policy.protectedReadDelta)
+    }
+
+    func testFailureObservedProductDeltaRejectsHostedLock() {
+        let controller = hostedController(FakeHostedAuthority(ready: true), scenarios: [.lockBackground],
+                                          productObserver: FakeHostedProductObserver(aggregateDelta: 1))
+        let report = LifecycleScenarioMachine.run(.lockBackground, controller: controller)
+        XCTAssertEqual(report.status, .fail)
+        XCTAssertEqual(report.reason, "protectedPolicyDelta")
     }
 
     func testFailureLockAdvancesGenerationAndRejectsReplay() {
@@ -150,7 +524,8 @@ final class KeychainLifecycleScenarioTests: XCTestCase {
         XCTAssertEqual(contradictory.policy.witnessRejection, "witnessStateMismatch")
         XCTAssertEqual(contradictory.policy.generationFenced, false)
         XCTAssertEqual(contradictory.policy.authoritativeWitness, false)
-        XCTAssertEqual(unlockedGeneration, true)
+        XCTAssertNil(unlockedGeneration)
+        XCTAssertNil(contradictory.policy.captureClosed)
 
         authority.contradictorySteps.removeAll()
         let legal = controller.execute(.lockBackground)
@@ -166,14 +541,29 @@ final class KeychainLifecycleScenarioTests: XCTestCase {
         XCTAssertEqual(controller.execute(.unlockRevalidate).status, .pass)
     }
 
-    func testHappyRestartLockedClosesCaptureWindow() {
+    func testHostedRestartLockedBlocksWithoutNewProcess() {
         let controller = hostedController(FakeHostedAuthority(ready: true), scenarios: [.restartLocked])
         let observation = controller.execute(.restartLocked)
-        XCTAssertEqual(observation.status, .pass)
-        XCTAssertEqual(observation.policy.captureClosed, true)
-        XCTAssertEqual(observation.policy.protectedReadDelta, 0)
-        XCTAssertEqual(observation.policy.publishDelta, 0)
-        XCTAssertEqual(observation.policy.aggregateDelta, 0)
+        XCTAssertEqual(observation.status, .blocked)
+        XCTAssertEqual(observation.policy.witnessRejection, "processRestartUnavailable")
+        XCTAssertNil(observation.policy.captureClosed)
+        XCTAssertNil(observation.policy.protectedReadDelta)
+    }
+
+    func testHostedRestartCannotPassWithoutNewProcess() {
+        let controller = hostedController(FakeHostedAuthority(ready: true), scenarios: [.restartUnlocked])
+        XCTAssertEqual(controller.execute(.unlockedCRUD).status, .pass)
+        let observation = controller.execute(.restartUnlocked)
+        XCTAssertEqual(observation.status, .blocked)
+        XCTAssertEqual(observation.policy.witnessRejection, "processRestartUnavailable")
+    }
+
+    func testHostedLogoutLoginCannotPassWithoutSessionHandoff() {
+        let controller = hostedController(FakeHostedAuthority(ready: true), scenarios: [.logoutLogin])
+        XCTAssertEqual(controller.execute(.unlockedCRUD).status, .pass)
+        let observation = controller.execute(.logoutLogin)
+        XCTAssertEqual(observation.status, .blocked)
+        XCTAssertEqual(observation.policy.witnessRejection, "sessionHandoffUnavailable")
     }
 
     func testFailureRawReadSuccessWithoutWitness() {
@@ -187,10 +577,45 @@ final class KeychainLifecycleScenarioTests: XCTestCase {
 
 private final class RecordingBackend: CandidateBackend {
     private(set) var operations: [CandidateOperation] = []
+    var readStatuses: [Int32] = []
+    var readMatches: [Bool] = []
     var calls: Int { operations.count }
     func perform(_ operation: CandidateOperation, namespace: ProbeNamespace) throws -> CandidateObservation {
         operations.append(operation)
-        return .init(status: 0, accessibility: "aku", synchronizable: false, valueMatched: operation == .read)
+        let status = operation == .read && !readStatuses.isEmpty ? readStatuses.removeFirst() : 0
+        let matches = operation == .read ? (readMatches.isEmpty ? true : readMatches.removeFirst()) : false
+        return .init(status: status, accessibility: "aku", synchronizable: false,
+                     valueMatched: operation == .read && status == 0 && matches)
+    }
+}
+
+private final class FailingAddBackend: CandidateBackend {
+    private(set) var operations: [CandidateOperation] = []
+    var calls: Int { operations.count }
+    func perform(_ operation: CandidateOperation, namespace: ProbeNamespace) throws -> CandidateObservation {
+        operations.append(operation)
+        return .init(status: operation == .add ? -25299 : 0, accessibility: "aku",
+                     synchronizable: false, valueMatched: true)
+    }
+}
+
+private final class ThrowingReadBackend: CandidateBackend {
+    private(set) var operations: [CandidateOperation] = []
+    var calls: Int { operations.count }
+    func perform(_ operation: CandidateOperation, namespace: ProbeNamespace) throws -> CandidateObservation {
+        operations.append(operation)
+        if operation == .read { throw PreflightBlock.unavailableIdentity }
+        return .init(status: 0, accessibility: "aku", synchronizable: false, valueMatched: true)
+    }
+}
+
+private final class ThrowingDeleteBackend: CandidateBackend {
+    private(set) var operations: [CandidateOperation] = []
+    var calls: Int { operations.count }
+    func perform(_ operation: CandidateOperation, namespace: ProbeNamespace) throws -> CandidateObservation {
+        operations.append(operation)
+        if operation == .delete { throw PreflightBlock.unavailableIdentity }
+        return .init(status: 0, accessibility: "aku", synchronizable: false, valueMatched: true)
     }
 }
 
@@ -201,15 +626,31 @@ private final class FakeHostedAuthority: HostedLockAuthority {
     func preflightIsReady() -> Bool { ready }
     func witness(challenge: LockChallenge, step: LifecycleStep) -> HostedLockWitness? {
         guard witness else { return nil }
-        let unlocked = step != .lockBackground && step != .restartLocked
+        let unlocked = step != .lockBackground && step != .restartLocked && step != .sleepClosed
         return .init(challenge: challenge, unlocked: unlocked)
     }
 }
 
-private func hostedController(_ authority: HostedLockAuthority, scenarios: Set<LifecycleScenario>) -> HostedLifecycleScenarioController {
+private func hostedController(_ authority: HostedLockAuthority, scenarios: Set<LifecycleScenario>,
+                              productObserver: HostedProductObserver = FakeHostedProductObserver()) -> HostedLifecycleScenarioController {
     HostedLifecycleScenarioController(
         backend: RecordingBackend(), authority: authority,
-        configuration: .init(namespace: .init(attempt: "attempt", seed: UUID()), supportedScenarios: scenarios))
+        configuration: .init(namespace: .init(attempt: "attempt", seed: UUID()), supportedScenarios: scenarios),
+        productObserver: productObserver)
+}
+
+private final class FakeHostedProductObserver: HostedProductObserver {
+    private let protectedReadDelta: Int?
+    private let aggregateDelta: Int
+    init(protectedReadDelta: Int? = 0, aggregateDelta: Int = 0) {
+        self.protectedReadDelta = protectedReadDelta
+        self.aggregateDelta = aggregateDelta
+    }
+    func observe(step: LifecycleStep, transition: LockTransition) -> HostedProductObservation? {
+        let closed = step == .lockBackground || step == .restartLocked || step == .sleepClosed
+        return .init(protectedReadDelta: protectedReadDelta, publishDelta: 0, aggregateDelta: aggregateDelta,
+                     captureClosed: closed)
+    }
 }
 
 private final class ContradictoryStateAuthority: HostedLockAuthority {
@@ -217,7 +658,8 @@ private final class ContradictoryStateAuthority: HostedLockAuthority {
     init(contradictorySteps: Set<LifecycleStep>) { self.contradictorySteps = contradictorySteps }
     func preflightIsReady() -> Bool { true }
     func witness(challenge: LockChallenge, step: LifecycleStep) -> HostedLockWitness? {
-        let expectedUnlocked = step == .unlockedCRUD || step == .unlockRevalidate || step == .restartUnlocked
+        let expectedUnlocked = step == .unlockedCRUD || step == .deleteMissing || step == .cleanup
+            || step == .unlockRevalidate || step == .restartUnlocked
         let unlocked = contradictorySteps.contains(step) ? !expectedUnlocked : expectedUnlocked
         return .init(challenge: challenge, unlocked: unlocked)
     }
@@ -230,7 +672,8 @@ private final class ReplayHostedAuthority: HostedLockAuthority {
     func witness(challenge: LockChallenge, step: LifecycleStep) -> HostedLockWitness? {
         requestedChallenges.append(challenge)
         let challenge = replayChallenge ?? challenge
-        return .init(challenge: challenge, unlocked: step == .unlockedCRUD || step == .unlockRevalidate || step == .restartUnlocked)
+        return .init(challenge: challenge, unlocked: step == .unlockedCRUD || step == .deleteMissing
+                     || step == .cleanup || step == .unlockRevalidate || step == .restartUnlocked)
     }
 }
 
@@ -238,18 +681,38 @@ private final class FakeLifecycleController: LifecycleScenarioController {
     var supported = true
     var interrupt: LifecycleStep?
     var leak = false
+    var missingProductDeltas = false
+    var missingCaptureClosure = false
+    var captureStillOpen = false
     var witness = true
+    var missingSleepWitness = false
+    var zeroKeychainCalls = false
+    var zeroDeleteMissingCalls = false
+    var zeroCleanupCalls = false
+    var zeroTransitionCalls = false
     var steps: [LifecycleStep] = []
     func supports(_ scenario: LifecycleScenario) -> Bool { supported }
     func execute(_ step: LifecycleStep) -> LifecycleStepObservation {
         steps.append(step)
+        let calls: Int
+        switch step {
+        case .unlockedCRUD: calls = zeroKeychainCalls ? 0 : 3
+        case .deleteMissing: calls = zeroDeleteMissingCalls ? 0 : 2
+        case .cleanup: calls = zeroCleanupCalls ? 0 : 1
+        case .lockBackground, .restartLocked, .sleepClosed, .restartUnlocked,
+             .unlockRevalidate, .wakeRevalidate, .logoutLogin:
+            calls = zeroTransitionCalls ? 0 : 1
+        default: calls = 0
+        }
         let keychain = LifecycleKeychainEvidence(
-            rawStatus: step == .deleteMissing ? -25300 : 0, calls: 0,
+            rawStatus: step == .deleteMissing ? -25300 : 0, calls: calls,
             accessibility: "aku", synchronizable: false, valueMatched: true,
             itemMissing: true, cleanupComplete: true)
         let policy = LifecyclePolicyEvidence(
-            authoritativeWitness: witness, protectedReadDelta: leak ? 1 : 0,
-            publishDelta: 0, aggregateDelta: 0, generationFenced: true, captureClosed: true)
+            authoritativeWitness: witness && !(missingSleepWitness && step == .sleepClosed),
+            protectedReadDelta: missingProductDeltas ? nil : (leak ? 1 : 0),
+            publishDelta: missingProductDeltas ? nil : 0, aggregateDelta: missingProductDeltas ? nil : 0,
+            generationFenced: true, captureClosed: missingCaptureClosure ? nil : !captureStillOpen)
         return LifecycleStepObservation(status: step == interrupt ? .blocked : .pass, keychain: keychain, policy: policy)
     }
 }

@@ -17,11 +17,16 @@ public enum CaptureStartError: Error, Equatable {
     case permissionRequired
 }
 
+public enum CaptureSessionHealth: Sendable, Equatable {
+    case stopped, active, tapUnavailable
+}
+
 protocol CaptureTapBackend: Sendable {
     func subscribe(invalidate: @escaping @Sendable (CaptureInvalidation) -> Void) async throws
     func readProviders() async -> CaptureProviderSnapshot
     func cachedProviders() -> CaptureProviderSnapshot
     func start(handoff: @escaping @Sendable (ObservedKeyEvent) -> EventHandoffResult) async throws
+    func isEnabled() async -> Bool
     func stop() async
     #if DEBUG
     func setDiagnostics(_ recorder: CaptureDiagnosticsRecorder) async
@@ -170,12 +175,19 @@ public actor ListenOnlyEventSource: EventSource {
         }
     }
 
-    /// Whether a delivery session is currently established (KR-08).
-    ///
-    /// True only between a successful `start` and the next `stop`/failure. The UI uses this
-    /// as the witness for a "Collecting" claim, because lifecycle phase and the key gate
-    /// can both look healthy while no event source exists.
-    public var hasLiveSession: Bool { signal != nil }
+    public func sessionHealth() async -> CaptureSessionHealth {
+        guard signal != nil, !starting else { return .stopped }
+        let generation = queue.generation
+        let enabled = await backend.isEnabled()
+        guard signal != nil, !starting, queue.generation == generation else { return .stopped }
+        return enabled ? .active : .tapUnavailable
+    }
+
+    public var hasLiveSession: Bool {
+        get async { await sessionHealth() == .active }
+    }
+
+    public func inputMonitoringStatus() -> InputMonitoringStatus { permission.preflight() }
 
     public func requestPermissionIfNeeded() -> InputMonitoringStatus {
         let status = permission.preflight()

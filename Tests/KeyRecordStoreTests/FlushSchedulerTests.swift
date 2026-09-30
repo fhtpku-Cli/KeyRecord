@@ -15,6 +15,31 @@ private actor RecordingFlushWriter: FlushWriting {
 
 @MainActor
 final class FlushSchedulerTests: XCTestCase {
+    func testBatchFromBeforeClosureCannotEnterReopenedScheduler() async throws {
+        let gate = KeyAvailabilityGate()
+        gate.update(.unlocked)
+        let writer = RecordingFlushWriter()
+        let scheduler = FlushScheduler(gate: gate, writer: writer, clock: SystemFlushClock())
+        try await scheduler.reopen()
+        let prior = try gate.begin()
+        await scheduler.close()
+        gate.update(.unlocked)
+        try await scheduler.reopen()
+        do {
+            try await scheduler.stage([], generation: prior)
+            XCTFail("An old batch entered a newly authorized session")
+        } catch KeyringError.staleGeneration {}
+        let dirty = await scheduler.hasPendingChanges()
+        XCTAssertFalse(dirty)
+        try await scheduler.flushWhileUnlocked()
+        let writesBeforeFreshBatch = await writer.writes
+        XCTAssertEqual(writesBeforeFreshBatch, 0)
+        try await scheduler.stage([], generation: gate.begin())
+        try await scheduler.flushWhileUnlocked()
+        let writesAfterFreshBatch = await writer.writes
+        XCTAssertEqual(writesAfterFreshBatch, 1)
+    }
+
     func testSavedWhenWriterActuallyCompletes() async throws {
         // Given
         let gate = KeyAvailabilityGate()

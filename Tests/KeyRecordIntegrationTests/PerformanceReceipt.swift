@@ -1,5 +1,6 @@
 import CryptoKit
 import Foundation
+import KeyRecordMeasurement
 
 enum PerformanceError: Error { case invalidReceipt, invalidSample, systemCall, translatedHost }
 
@@ -7,7 +8,8 @@ struct PerformanceWindow: Codable, Equatable {
     let warmup: Double
     let window: Double
     let repeats: Int
-    static let authorized = Self(warmup: 60, window: 600, repeats: 3)
+    static let authorized = Self(warmup: ReplayWorkload.warmupSeconds,
+                                 window: ReplayWorkload.measureSeconds, repeats: ReplayWorkload.repeats)
     static let compressed = Self(warmup: 0.2, window: 1, repeats: 2)
 }
 
@@ -51,7 +53,7 @@ struct PerformanceReceipt: Codable, Equatable {
     let ramMean: Double
     let ramPeak: Double
 
-    static let workload = Data("[[0,1,2,3,0,1,2,3],[0],[1],[2],[3],[0],[1],[2],[3],[0]]".utf8)
+    static let workload = ReplayWorkload.fixtureJSON
     static func parseWorkload(_ data: Data) throws -> [[Int]] {
         guard data == workload else { throw PerformanceError.invalidReceipt }
         return try JSONDecoder().decode([[Int]].self, from: data)

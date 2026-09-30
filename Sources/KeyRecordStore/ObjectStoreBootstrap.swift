@@ -2,7 +2,26 @@ import Foundation
 import KeyRecordCore
 
 extension ObjectStore {
-    func recoverManifest(requiredVersions versions: Set<KeyVersion>) async throws
+    func requireProtectedSession(_ token: UUID) throws {
+        guard protectedSessionToken == token else { throw CancellationError() }
+    }
+
+    public func initializeFreshInstallation(version: KeyVersion = KeyVersion(rawValue: 1)) async throws {
+        guard phase == .some(.freshInstall), manifestBox == nil else {
+            throw phase == nil ? ObjectStoreError.storeNotInitialized : ObjectStoreError.alreadyInitialized
+        }
+        let sessionToken = protectedSessionToken
+        let manifest = try EncryptedManifest(currentKeyVersion: version.rawValue)
+        let material = try await material(version.rawValue, versions: nil)
+        try requireProtectedSession(sessionToken)
+        let envelope = try EncryptedManifest.seal(manifest, material: material)
+        try fileSystem.commitFile(name: ManifestDiscovery.fileName, in: root, bytes: envelope,
+                                  phase: .manifest)
+        manifestBox = manifest
+        phase = .opened
+    }
+
+    func recoverManifest(requiredVersions versions: Set<KeyVersion>, sessionToken: UUID) async throws
         -> (manifest: EncryptedManifest, encryptionKeyVersion: UInt32) {
         let bytes: Data
         do {
@@ -18,7 +37,11 @@ extension ObjectStore {
         }
         let material: Data
         do { material = try await keySource.material(for: KeyVersion(rawValue: parsed.header.keyVersion)) }
-        catch { throw ObjectStoreError.corruption(.envelopeKeyMissing) }
+        catch {
+            try requireProtectedSession(sessionToken)
+            throw ObjectStoreError.corruption(.envelopeKeyMissing)
+        }
+        try requireProtectedSession(sessionToken)
         do {
             return try EncryptedManifest.open(envelope: bytes,
                                               materialByVersion: [parsed.header.keyVersion: material])
@@ -43,7 +66,7 @@ extension ObjectStore {
             } catch {
                 throw ObjectStoreError.corruption(.manifestUnreadable)
             }
-            guard let material = materialCache[entry.keyVersion] else {
+            guard let material = cachedMaterial(entry.keyVersion) else {
                 throw ObjectStoreError.corruption(.envelopeKeyMissing)
             }
             do {
@@ -55,25 +78,30 @@ extension ObjectStore {
         }
     }
 
-    func loadMaterial(_ versions: Set<UInt32>, known: Set<KeyVersion>) async throws {
+    func loadMaterial(_ versions: Set<UInt32>, known: Set<KeyVersion>, sessionToken: UUID) async throws {
         for raw in versions {
-            if materialCache[raw] != nil { continue }
+            if cachedMaterial(raw) != nil { continue }
             let version = KeyVersion(rawValue: raw)
             guard known.contains(version) else { throw ObjectStoreError.corruption(.envelopeKeyMissing) }
-            materialCache[raw] = try await keySource.material(for: version)
+            let material = try await keySource.material(for: version)
+            try requireProtectedSession(sessionToken)
+            materialCache[raw] = material
         }
     }
 
     func reconcileUnreferenced(_ entries: [(RootEntry, RootEntryClassification)],
                                referenced: Set<ObjectLocator>,
-                               known: Set<KeyVersion>) async throws {
+                               known: Set<KeyVersion>, sessionToken: UUID) async throws {
         var materials = [UInt32: Data]()
         for version in known {
-            if let material = try? await keySource.material(for: version) {
+            let material = try? await keySource.material(for: version)
+            try requireProtectedSession(sessionToken)
+            if let material {
                 materials[version.rawValue] = material
             }
         }
         for (entry, classification) in entries {
+            try requireProtectedSession(sessionToken)
             if case .locator(let locator) = classification, referenced.contains(locator) { continue }
             let proven = try isProvenOwned(entry.name, materials: materials)
             if proven {

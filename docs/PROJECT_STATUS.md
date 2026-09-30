@@ -12,8 +12,9 @@ in the opt-in Debug journal. All 590 package cases and the final 63 product
 recovery/quit cases pass. The initial intermittent failure was deterministically
 reproduced before repair, not dismissed after a quiet rerun. These are offline
 results; the installed chord trial remains source `426969c9f`. A newly signed
-candidate and segmented permission/recovery controller are being prepared, with
-installation and each live segment awaiting explicit approval/readiness.
+candidate `fde8c8886` and segmented permission/recovery controller are
+[prepared and checked without launch](PERMISSION_TRIAL_PREPARATION_20260930.md),
+with installation and each live segment awaiting explicit approval/readiness.
 An [explicit hold-Command/press-A trial](CURRENT_COMMAND_CHORD_TRIAL_20260930.md)
 completed on unchanged signed source `426969c9f` after explicit approval/readiness.
 It received two key-downs, two key-ups and six modifier callbacks, accepted ten

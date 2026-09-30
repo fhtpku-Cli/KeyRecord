@@ -35,6 +35,8 @@ recovery remain evidence for their stated candidates; no routine repeat is plann
   and [failed-recovery settlement repair](RECOVERY_SETTLEMENT_REPAIR_20260930.md).
   All 590 package cases and the final 63 product recovery/quit cases pass. Fresh
   live permission/recovery evidence still requires owner approval and readiness.
+  Signed source `fde8c8886` and the bounded segmented controller are
+  [prepared without installation or launch](PERMISSION_TRIAL_PREPARATION_20260930.md).
 - Starting commit: `e4dc8c655`; worktree clean at the start.
 - Goal registered in this chat; not a declaration that Phase 1 is complete.
 - Full hosted lifecycle observation is not wired. Actual permission changes and

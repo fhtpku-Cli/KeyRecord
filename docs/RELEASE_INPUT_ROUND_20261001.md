@@ -31,7 +31,12 @@ The owner supplied an actual product-window screenshot showing:
 
 This proves the bounded real-input aggregate rendering and TextEdit attribution.
 It does not prove two left-side observations or event ordering. The screenshot
-does not include the menu state; explicit Pause-state confirmation is pending.
+does not include the menu state. The owner subsequently confirmed that Pause was
+not clicked and its state was not checked. This round therefore supplies no Pause
+evidence. Additional keyboard activity between the screenshot and normal Quit
+could have changed global totals; the displayed two is not a measured final durable
+total. A later readback must preserve the pictured TextEdit buckets, while reporting
+the actual recovered totals rather than assuming they remain exactly two.
 
 One unknown side is consistent with the existing conservative reconstruction rule:
 after reset, an active family plus one side's flagsChanged cannot distinguish a
@@ -66,3 +71,41 @@ Controller record: `/private/tmp/keyrecord-release-input-round-20261001/result.j
 Owner screenshot: `/var/folders/3h/fv0ztbr93q7_115hvwrhbrnh0000gn/T/codex-clipboard-f50770d3-11aa-40eb-b711-5531e78d70ab.png`.
 Independent result review: `/private/tmp/.omo/evidence/release-live-input-result-review.md`.
 Signing/build/controller preparation: [candidate record](RELEASE_CANDIDATE_20261001.md).
+
+## Prepared follow-up procedure
+
+After fresh owner readiness, reopen the same installed candidate. Since the prior
+session was not paused, automatic Collecting can be the expected persisted intent;
+this is not a read-only launch. The owner should immediately use the mouse to Pause,
+confirm Paused, then inspect Aggregates without entering test keys. Preserve the
+two pictured TextEdit buckets and record any additional counts without inventing
+their origin. Normal Quit then ends the bounded round. This combined restart/readback
+and real Pause check does not require another paused-boot round merely to follow
+the earlier plan. The existing T23 signed-host walkthrough remains separate.
+
+## Actual new-process readback
+
+After fresh readiness, the controller reopened the unchanged installation as PID
+89085. The owner reported verbatim that it opened directly as Paused and supplied
+a new screenshot. It shows shortcut total 2, bare-key total 0, TextEdit Key 0 unknown
+Command 1 and left Command 1, both ordinary source, matching the prior screenshot.
+No Start/Resume or new test keys were requested. The owner did not need to click
+Pause in this round; the report is an observed state, not a Pause-button action.
+The reason it started Paused is not established by these observations. Do not
+attribute it to a particular preference write or privacy transition, and do not
+claim a continuously instrumented zero-admission interval.
+
+The fresh-process persisted aggregate readback passes. Normal Quit was requested
+after inspection; the controller exited 0 in 81.534 seconds with `forced: false`
+and no stop reason. A subsequent native query found zero same-identity instances.
+No additional input or restart is needed to repair the difference from the planned
+procedure. Only the [existing T23 walkthrough](RELEASE_NATIVE_UI_PREP_20261001.md)
+remains before full Phase 1 acceptance.
+
+Readback record: `/private/tmp/keyrecord-release-readback-round-20261001/result.json`.
+Screenshot: `/var/folders/3h/fv0ztbr93q7_115hvwrhbrnh0000gn/T/codex-clipboard-a5a33eb3-9b89-44da-b3be-c36a613e1063.png`.
+Independent review: `/private/tmp/.omo/evidence/release-readback-result-review.md`.
+The preceding documentation commit `2b2d365d` also passed both remote jobs
+[push](https://github.com/fhtpku-Cli/KeyRecord/actions/runs/36761090417/job/110043515783)
+in 5m27s and [PR](https://github.com/fhtpku-Cli/KeyRecord/actions/runs/36761096060/job/110043533794)
+in 7m35s.

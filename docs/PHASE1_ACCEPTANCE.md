@@ -14,9 +14,12 @@ remains enforced. The Phase 1 aggregate surface now passes ten native UI/modifie
 tests and both locale rendering checks. Signed Release `ea90753f` has now completed
 the [bounded input/UI round](RELEASE_INPUT_ROUND_20261001.md): two TextEdit shortcuts,
 zero bare keys, unknown Command 1 / left Command 1 and normal exit. All 591 package
-tests and both remote CI jobs on `c337c684` pass. Pause confirmation and same-candidate
-paused readback remain, together with T23's real Tab/Shift-Tab, VoiceOver, system
-Increase Contrast/Reduce Motion and native status-menu positioning checks. The ten
+tests and both remote CI jobs on `c337c684` pass. A subsequent fresh process recovered
+the same two TextEdit records, opened directly as Paused according to the owner,
+and exited normally in 81.534 seconds. This is not evidence of clicking Pause or
+of why startup was Paused. Both CI jobs on documentation follow-up `2b2d365d` pass.
+Only [T23's real Tab/Shift-Tab, VoiceOver, system
+Increase Contrast/Reduce Motion and native status-menu positioning checks](RELEASE_NATIVE_UI_PREP_20261001.md) remain. The ten
 focused native tests are not a complete T23 result; no repeated input priming,
 lock/sleep/performance or Keychain destruction round is required.
 

@@ -4,8 +4,11 @@ Status: source `ea90753feab2358166ee39384bb6a5501dc4ce64` is signed, installed a
 has completed its [bounded real-input/UI round](RELEASE_INPUT_ROUND_20261001.md).
 The owner screenshot shows two TextEdit shortcuts, zero bare keys and one unknown /
 one left Command side. The product exited normally in 141.014 seconds; no instance
-remains. Two-left and fresh-process readback are not claimed. The preparation
-details below retain their prelaunch scope. Public distribution and PR merge remain
+remains. A subsequent fresh process recovered the same two records, opened directly
+as Paused according to the owner and exited normally in 81.534 seconds. Two-left
+and a Pause-button action are not claimed. Only the existing
+[T23 native walkthrough](RELEASE_NATIVE_UI_PREP_20261001.md) remains for Phase 1.
+The preparation details below retain their prelaunch scope. Public distribution and PR merge remain
 outside this work.
 
 The Release composition uses the same exact-item Security backend and query

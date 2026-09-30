@@ -39,8 +39,11 @@ recovery remain evidence for their stated candidates; no routine repeat is plann
   Signed Release `ea90753f` now completed its [input/UI round](RELEASE_INPUT_ROUND_20261001.md):
   two TextEdit shortcuts, zero bare keys, one unknown and one left Command observation,
   then normal exit in 141.014 seconds. All 591 package tests and both remote CI jobs
-  on `c337c684` pass. Finish Pause confirmation, paused same-candidate readback without
-  new input, and the existing T23 signed-host accessibility/appearance walkthrough.
+  on `c337c684` pass. A subsequent fresh process recovered the same two records,
+  with startup Paused reported by the owner, and exited normally in 81.534 seconds.
+  This proves readback, not a Pause-button action or its startup cause. Both CI
+  jobs on documentation follow-up `2b2d365d` pass. Only the existing
+  [T23 signed-host accessibility/appearance walkthrough](RELEASE_NATIVE_UI_PREP_20261001.md) remains.
   Native ten-test evidence does not replace that walkthrough. Do not repeat input
   just to relabel unknown as left, or repeat completed lock/sleep/performance/Keychain work.
 

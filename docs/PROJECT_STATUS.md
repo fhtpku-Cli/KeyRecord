@@ -14,10 +14,14 @@ two TextEdit shortcuts, zero bare keys, unknown Command 1 / left Command 1, and 
 exit in 141.014 seconds. Unknown is consistent with conservative reset behavior;
 it is not two observed left-side inputs. The exact trial is closed. All 591 local
 package tests and both remote CI jobs on test/docs follow-up `c337c684` pass.
-Remaining Phase 1 acceptance is explicit Pause confirmation, same-candidate paused
-readback without new input, and the existing T23 signed-host accessibility/appearance
-walkthrough. The screenshot does not close those items or imply public distribution
-qualification. Completed lock/sleep/performance/Keychain rounds are not reopened.
+The subsequent fresh-process readback recovered the same two TextEdit records;
+the owner reported that it opened directly as Paused. It exited normally in 81.534
+seconds. This establishes readback and the reported state, not a Pause-button action
+or the reason for that startup state. Both CI jobs on documentation follow-up
+`2b2d365d` also pass. Only the existing [T23 signed-host accessibility/appearance
+walkthrough](RELEASE_NATIVE_UI_PREP_20261001.md) remains for Phase 1 acceptance.
+Public distribution is outside scope. Completed lock/sleep/performance/Keychain
+rounds are not reopened.
 
 Current integration increment (2026-10-01): Debug and Release now share lock
 notification closure, startup key-gate priming and explicit capture-entry checks.

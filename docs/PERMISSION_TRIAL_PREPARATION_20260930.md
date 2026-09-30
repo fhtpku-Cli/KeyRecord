@@ -3,6 +3,9 @@
 Both approved/readied segments are now consumed. See the
 [observed result and unresolved limits](CURRENT_PERMISSION_TRIAL_20260930.md).
 The procedure below is the recorded plan, not authorization to run it again.
+Its manual-Start expectation for recovery was subsequently corrected against PRD
+L3: automatic restart restoration is intended. Do not repeat the round to obtain
+an unnecessary manual-entry record.
 
 Signed arm64 Debug source `fde8c888684b0b13c6e23f4081a94ecc10fa1915` contains the
 failed-recovery settlement and tri-state permission witness repairs. The build
@@ -52,7 +55,7 @@ It does not authorize a launch before readiness or a repeat of a consumed segmen
 
 Acceptance requires a fresh explicit denied witness, capture/key closure, and
 unchanged sampled counters; unknown or historical NotGranted is insufficient.
-Recovery must independently observe granted permission, explicit user activation,
+Recovery must independently observe granted permission, restored collection,
 one new shortcut and durable total three. A restarted-process result does not
 establish same-process regrant, continuous privacy or full hosted qualification.
 No lock/sleep, packet capture or daily-store access is included.

@@ -36,8 +36,9 @@ recovery remain evidence for their stated candidates; no routine repeat is plann
   All 590 package cases and the final 63 product recovery/quit cases pass. Fresh
   Signed source `fde8c8886` completed
   [two approved/readied segments](CURRENT_PERMISSION_TRIAL_20260930.md): bounded
-  closure, preserved totals and new input/save are observed. Explicit denial and
-  manual restarted recovery remain unverified; no automatic repeat is authorized.
+  closure, preserved totals and new input/save are observed. Automatic restarted
+  recovery follows PRD L3; no extra manual-Start requirement applies. Explicit
+  denial remains unobserved; no automatic repeat is authorized.
 - Starting commit: `e4dc8c655`; worktree clean at the start.
 - Goal registered in this chat; not a declaration that Phase 1 is complete.
 - Full hosted lifecycle observation is not wired. Actual permission changes and

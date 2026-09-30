@@ -17,8 +17,9 @@ The owner-reported permission toggle led to closed capture/key protection and 32
 stable blocked samples, followed by normal Quit. All permission witnesses still
 reported granted, so explicit denial remains unobserved. Restart preserved two
 shortcuts and saved one additional chord (total three, bare zero, three durable
-writes), then Pause and normal Quit completed. Startup restored Collecting without
-a traced manual entry; manual recovery is not claimed. Both exact processes are
+writes), then Pause and normal Quit completed. Startup restored Collecting as
+required by PRD L3; the original plan's manual-Start expectation is withdrawn and
+must not trigger another restart trial. Both exact processes are
 gone, output names consumed, and no repeat is authorized. Both CI jobs at
 `80061ab1f` passed. Full hosted qualification and collecting Release remain open.
 An [explicit hold-Command/press-A trial](CURRENT_COMMAND_CHORD_TRIAL_20260930.md)

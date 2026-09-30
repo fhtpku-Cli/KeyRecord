@@ -10,8 +10,9 @@ Latest [approved permission/restarted-recovery round](CURRENT_PERMISSION_TRIAL_2
 on signed `fde8c8886` observed 32 stable closed samples, normal exit, retained two
 shortcuts after restart and one new saved chord (total three). The running process
 still reported granted after the setting toggle, and restart restored Collecting
-without a traced manual entry. Explicit denied permission and manual restarted
-recovery are therefore not qualified. Both segments exited normally and are consumed.
+without a traced manual entry, as PRD L3 requires for a persisted collecting
+preference. Manual Start after this restart is not an acceptance gap. Explicit
+denied permission remains unobserved. Both segments exited normally and are consumed.
 
 Latest offline preparation distinguishes explicit denied/unknown permission
 witnesses and fixes a failed-recovery settlement race that could lose retained

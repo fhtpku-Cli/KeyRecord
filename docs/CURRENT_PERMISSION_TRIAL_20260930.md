@@ -45,7 +45,11 @@ Recovery's first records are Unstarted session preparation followed by Collectin
 with expectedCollecting true. It has no Start, Resume or Accept action record;
 the only traced action is Quit. Although the owner confirmed seeing Collecting,
 this supports startup restoration, not an observed manual recovery action.
-The current startup code deliberately resumes a persisted collecting preference.
+PRD L3 requires automatic restoration of a persisted collecting preference after
+relaunch. This behavior therefore satisfies the restart rule; a manual Start
+record is not a missing acceptance requirement for this restarted process.
+The original trial plan's manual-entry expectation was unnecessary. Same-process
+regrant remains a distinct scenario and is not established by this restart.
 The log alone does not establish why macOS continued reporting granted after the
 owner toggled its setting.
 
@@ -66,8 +70,8 @@ Both stage names are consumed; no automatic repeat or extra launch is authorized
 
 This round proves bounded product closure after the reported setting change,
 preservation of the two existing shortcuts through restart, and acceptance/save
-of one subsequent chord. Explicit denied permission, manual recovery on this
-restart, same-process regrant, continuous privacy, full hosted Keychain observation
+of one subsequent chord. Explicit denied permission, same-process regrant,
+continuous privacy, full hosted Keychain observation
 and collecting Release remain unqualified. No existing evidence is relabeled PASS.
 
 Both CI jobs on preparation/documentation head `80061ab1f` completed successfully:

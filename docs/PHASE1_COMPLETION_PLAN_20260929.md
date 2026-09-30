@@ -31,6 +31,13 @@ recovery remain evidence for their stated candidates; no routine repeat is plann
 
 ## Current state
 
+- The [raw locked Keychain measurement](RAW_KEYCHAIN_LOCK_PREP_20261001.md) passes
+  on signed `a2de4ec6` with owner-confirmed lock: raw status 0 / value matched,
+  product reads/publications/aggregates closed, cleanup three, no residual host or
+  runtime warnings, normal controller exit in 52.148 seconds. Independent product
+  lock protection remains essential; remaining privacy/UI and Release integration
+  are not waived by this bounded observation.
+
 - [Version-scoped lock provider extraction](OBSERVED_LOCK_PROVIDER_20261001.md)
   prepares production compilation on observed native arm64 macOS 27.0 build
   26A428, with unknown/unsupported systems closed. Contract section 4 permits

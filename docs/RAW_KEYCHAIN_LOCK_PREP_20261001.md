@@ -1,4 +1,41 @@
-# Raw Keychain read during product lock: preparation
+# Raw Keychain read during product lock: result and preparation
+
+## Current result: bounded live measurement passed
+
+Signed source `a2de4ec6f483127b97c4ae5b0be7b202c67f01ce` completed the owner-readied
+round. The owner explicitly confirmed seeing the lock screen and normally unlocking.
+One XCTest passed in 46.513 seconds, zero failed/skipped and no recorded runtime
+warnings. The controller exited normally in 52.148 seconds with no forced stop,
+control errors or remaining host. A separate presence check found zero exact and
+foreign probe instances.
+
+The raw fixed-value probe read returned `errSecSuccess` (0), with the expected
+value, while the product was closed. The measured interval had one diagnostic
+read and zero product Keychain calls; protected reads, publications, aggregate
+updates and event admission remained zero under the instrumented observer. The
+unlocked readback succeeded, all three successfully created items were exactly
+deleted and absence verified. The retained ownership record names only
+`raw-lock-probe`, `master-v1` and `metadata`.
+
+The controller recorded 95 coarse lock samples, including 51 locked samples from
+22.584 through 49.789 seconds and 44 unlocked samples. All samples passed current
+session eligibility checks. Sample times are not exact transition times. Together
+with provider brackets and the owner's visual confirmation, this supports the
+stated interval on native arm64 macOS 27.0 build 26A428.
+
+The observed data-protection `WhenUnlockedThisDeviceOnly` policy does not itself
+deny this read during screen lock on this host. The product's independent lock
+detection and closed read/capture path remain necessary. This does not weaken or
+replace that product protection, generalize to other OS versions, prove continuous
+uninstrumented/UI privacy, or qualify a collecting Release by itself.
+
+Artifacts are `/private/tmp/keyrecord-product-raw-lock-20261001/round.json`,
+`main-run.json`, `main-run.log`, `main.xcresult`, `lock-observations.json` and the
+owned-account record. This attempt is consumed; do not launch it again.
+Independent review corroborates the xcresult, log and all 95 samples and reports
+CLEAR / APPROVE in `/private/tmp/.omo/evidence/raw-lock-live-result-review.md`.
+
+## Original preparation (completed)
 
 The completed fresh-install and existing-store locked-startup rounds deliberately
 made zero guarded product Keychain calls while locked. They cannot establish raw

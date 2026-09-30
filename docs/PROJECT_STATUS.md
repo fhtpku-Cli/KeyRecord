@@ -3,10 +3,12 @@
 ## Current Apple Silicon MVP status — 2026-09-29
 
 Latest autonomous checkpoint: [MVP closeout](MVP_CLOSEOUT_20260929.md).
-The [raw Keychain lock fixture](RAW_KEYCHAIN_LOCK_PREP_20261001.md), signed artifact
-and bounded controller are prepared and independently reviewed. They pair one
-fixed-probe read with the closed product's counter window. No real raw locked read
-has run; the next step needs fresh owner readiness for lock/unlock coordination.
+The [raw Keychain lock measurement](RAW_KEYCHAIN_LOCK_PREP_20261001.md) now passes
+on signed `a2de4ec6`, with owner-confirmed screen lock. Raw read status was 0 with
+the expected fixed value, while instrumented product reads/publications/counts
+stayed closed. Three owned items were cleaned up; normal exit took 52.148 seconds
+with no remaining host or runtime warnings. This measures the scoped raw behavior;
+product lock protection and remaining Release/privacy qualification still apply.
 The [version-scoped lock provider](OBSERVED_LOCK_PROVIDER_20261001.md) is now
 shared with Release compilation for native arm64 macOS 27.0 build 26A428 only.
 Other platforms remain unknown. This prepares integration using the completed

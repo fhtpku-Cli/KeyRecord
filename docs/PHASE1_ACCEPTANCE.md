@@ -6,9 +6,11 @@ Current status: [PROJECT_STATUS.md](PROJECT_STATUS.md). Requirements: [PHASE1_CO
 
 ## Evidence and remaining work
 
-The [raw Keychain lock fixture](RAW_KEYCHAIN_LOCK_PREP_20261001.md) prepares the
-remaining OS policy measurement alongside a closed product counter window.
-Only offline fixture evidence is available; the coordinated real case is pending.
+The [raw Keychain lock measurement](RAW_KEYCHAIN_LOCK_PREP_20261001.md) completed
+with owner-confirmed screen lock: one real case passed, raw read returned 0 and
+the expected fixed value, the instrumented product remained closed, and all three
+owned items were cleaned up. No host or runtime warnings remain. This closes the
+bounded raw-policy measurement gap, not collecting Release or all privacy/UI proof.
 
 Current preparation: the [version-scoped provider](OBSERVED_LOCK_PROVIDER_20261001.md)
 is shared with Release compilation, restricted to the observed native arm64

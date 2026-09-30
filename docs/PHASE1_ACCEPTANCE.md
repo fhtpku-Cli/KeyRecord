@@ -11,7 +11,9 @@ with the measured Keychain implementation and exact observed-platform qualificat
 127 App tests, six core isolation tests and actual Release static audits pass.
 Release default storage is Bundle-ID-specific; the fixed daily-root trial exclusion
 remains enforced. The Phase 1 aggregate surface now passes ten native UI/modifier
-tests and both locale rendering checks. Signing and real-input validation remain open.
+tests and both locale rendering checks. Source `ea90753f` is signed, signature/audit
+verified and installed as KeyRecord Release Trial without launch. Its new identity's
+permission and short real-input/UI validation remain open.
 
 The [real key integrity/deletion round](PRODUCT_KEY_INTEGRITY_20261001.md) passes
 on signed `1b82d7cd`: one case, zero failures/skips/runtime warnings, normal exit

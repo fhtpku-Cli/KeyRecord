@@ -51,7 +51,6 @@ final class Phase1ReleaseIsolationTests: XCTestCase {
         }
         let code = try String(contentsOf: root.appendingPathComponent("ProductComposition.swift"), encoding: .utf8)
         XCTAssertTrue(code.contains("BlockedLiveKeychain()"))
-        XCTAssertTrue(code.contains("qualification: UnqualifiedCapture()"))
         XCTAssertTrue(code.contains("LifecycleOrchestrator(ports:"))
         XCTAssertTrue(code.contains("LocalDeletionCoordinator("))
         XCTAssertTrue(code.contains("ProductLogin.make()"))

@@ -8,8 +8,10 @@ the measured exact-item Keychain implementation into the product, qualifies only
 the observed platform and derives isolated defaults from the validated Bundle ID.
 127 App regressions, six core isolation tests and actual Release static audits pass.
 The Phase 1 aggregate surface and ten focused native UI/modifier tests now pass,
-with both locale renderings inspected. Signing and the short coordinated input/UI
-check remain; it is not yet a qualified collecting Release.
+with both locale renderings inspected. Source `ea90753f` is signed and installed as
+KeyRecord Release Trial under the separate probe.host identity; actual signing and
+Release audits pass. It has not been launched. The new permission and short coordinated
+input/UI check remain; it is not yet a qualified collecting Release.
 
 Current integration increment (2026-10-01): Debug and Release now share lock
 notification closure, startup key-gate priming and explicit capture-entry checks.

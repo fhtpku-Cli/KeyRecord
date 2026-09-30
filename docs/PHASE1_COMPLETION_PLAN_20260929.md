@@ -36,8 +36,9 @@ recovery remain evidence for their stated candidates; no routine repeat is plann
   and fixed daily-root trial exclusion. Both unsigned builds, 127 App regressions,
   six core isolation tests and static Release audits pass. The Phase 1 aggregate
   surface now passes ten native UI/modifier tests and both locale rendering checks.
-  Prepare the isolated signed candidate; then coordinate
-  only the remaining short real-input/UI check.
+  Source `ea90753f` is now signed and installed as the separate KeyRecord Release Trial;
+  actual signature/profile and static audits pass, with no launch yet. Coordinate
+  its new identity's permission and only the remaining short real-input/UI check.
 
 - Shared Debug/Release privacy wiring is implemented: startup priming, synchronous
   lock closure and manual-entry checks. A reproduced stale startup-lock reply is

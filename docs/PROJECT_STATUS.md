@@ -3,6 +3,10 @@
 ## Current Apple Silicon MVP status — 2026-09-29
 
 Latest autonomous checkpoint: [MVP closeout](MVP_CLOSEOUT_20260929.md).
+The next missing measurement has a [raw Keychain lock fixture](RAW_KEYCHAIN_LOCK_PREP_20261001.md)
+in offline preparation. It pairs one fixed-probe read with the closed product's
+counter window; no real raw locked read has run and no new owner action is needed
+until the bounded controller and signed artifact are ready.
 The [version-scoped lock provider](OBSERVED_LOCK_PROVIDER_20261001.md) is now
 shared with Release compilation for native arm64 macOS 27.0 build 26A428 only.
 Other platforms remain unknown. This prepares integration using the completed

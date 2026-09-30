@@ -6,6 +6,10 @@ Current status: [PROJECT_STATUS.md](PROJECT_STATUS.md). Requirements: [PHASE1_CO
 
 ## Evidence and remaining work
 
+The [raw Keychain lock fixture](RAW_KEYCHAIN_LOCK_PREP_20261001.md) prepares the
+remaining OS policy measurement alongside a closed product counter window.
+Only offline fixture evidence is available; the coordinated real case is pending.
+
 Current preparation: the [version-scoped provider](OBSERVED_LOCK_PROVIDER_20261001.md)
 is shared with Release compilation, restricted to the observed native arm64
 macOS 27.0 build 26A428. The original contract permits this observed candidate;

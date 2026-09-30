@@ -16,6 +16,8 @@ preflight error requiring independent process entitlements on a test plug-in;
 the offline repair and its exact signed-file regression pass. A separately
 approved signed rebuild at `25ef0f117` now includes that repair and passes its own
 read-only signature/role inspection. Neither signed host has been launched.
+The private bounded controller passes synthetic timeout/error cleanup and its
+read-only preparation check; the real Keychain round still requires approval.
 This supersedes the query-only preparation below, without claiming real Keychain
 accessibility, full product recovery or live lock qualification.
 

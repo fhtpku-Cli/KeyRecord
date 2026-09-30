@@ -7,8 +7,9 @@ The owner separately approved the repaired probe's signed rebuild at
 `25ef0f117`. It completed in 16.86 seconds using the same profiles/certificate,
 without provisioning updates or host launch. Both strict disk signatures and
 the repaired exact-file role/permission inspection pass. The signed rebuild
-prerequisite is complete; a bounded controller and separately approved real
-Keychain round remain needed. See the
+prerequisite is complete. The bounded controller now passes synthetic failure/
+timeout checks and read-only preparation; the separately approved real Keychain
+round remains pending. No probe host has been launched. See the
 [repaired signing result](PRODUCT_KEYCHAIN_HOST_PREP_20260930.md#approved-repaired-signing-result).
 One owner-approved [probe signing attempt](PRODUCT_KEYCHAIN_HOST_PREP_20260930.md#approved-signing-result-and-follow-up)
 built `b889640b4` successfully in 25.06 seconds with matching new profiles and no

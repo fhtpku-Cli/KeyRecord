@@ -38,8 +38,9 @@ recovery remain evidence for their stated candidates; no routine repeat is plann
   test-plug-in entitlement check error, now repaired with 139 lifecycle and 33
   compiled checks passing. The separately approved `25ef0f117` signed rebuild
   completed in 16.86 seconds with existing profiles and passes read-only inspection.
-  Both signed artifacts are retained; the opt-in real test is unrun. A bounded
-  controller and separate approval for the isolated Keychain round remain needed.
+  Both signed artifacts are retained; the opt-in real test is unrun. The bounded
+  controller passes synthetic failure/timeout checks and read-only preparation.
+  Separate approval for the isolated Keychain round remains needed.
 - Latest offline increment: [tri-state permission witnesses](PERMISSION_WITNESS_REPAIR_20260930.md)
   and [failed-recovery settlement repair](RECOVERY_SETTLEMENT_REPAIR_20260930.md).
   All 590 package cases and the final 63 product recovery/quit cases pass. Fresh

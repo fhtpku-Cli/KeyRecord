@@ -5,6 +5,39 @@ read-only signature/role inspection passes. The original `b889640b4` artifact an
 its reproduced check failure remain preserved. Actual Keychain execution is still
 pending; signing approval does not authorize a system test round.
 
+## Bounded execution preparation
+
+The private controller `/private/tmp/keyrecord-product-keychain-round.py` and
+AppKit helper `/private/tmp/KeyRecordProbeControl` are prepared for the existing
+signed `25ef0f117` artifact. The helper compiles with Swift 6 and binds process
+inspection/termination to the exact probe bundle and executable paths. Its
+read-only inspection found no probe instances. The controller's `--check` passed
+without launching a host, writing a manifest or calling Keychain CRUD.
+
+Synthetic controller checks passed for success, nonzero exit, timeout, forced
+termination, unavailable host observation and a failing log writer. Unknown
+process state remains an error. These checks use disposable child processes and
+fake host callbacks, not the signed host or Security item operations.
+
+After separate approval, the controller will reuse the existing manifest schema
+and enable only `testAuthorizedIsolatedProductKeychainLifecycle` with Keychain-only
+operations in the existing private signing directory. It requests shutdown at
+85 seconds, escalates at 90 seconds, and reserves cleanup time within a proposed
+two-minute round. XCTest has a 70-second test allowance; extra Xcode diagnostic
+collection is disabled. Normal completion still requires checking the xcresult
+summary and exact test node: one executed passing test, no skips/failures, and
+no remaining host. Exit zero alone is insufficient. Use `xcresulttool get
+test-results summary` and `test-results tests` against `keychain.xcresult`.
+The test verifies deletion of every item it created before returning success;
+interrupted/failed cleanup retains the scoped service record for follow-up.
+
+No live manifest or run outputs exist yet. No installation or additional signing
+is needed. The owner need only remain logged in and unlocked during the proposed
+round; no keyboard input, permission toggle, screen lock or sleep is involved.
+Actual CRUD, locked-state protection and full product recovery remain unverified.
+Both CI runs for `25ef0f117` (36698676154 / 36698671693) and the subsequent
+documentation commit `df7f7450b` (36699242951 / 36699238880) succeeded.
+
 ## Approved repaired signing result
 
 The owner separately approved one two-minute rebuild of `25ef0f117` using only
@@ -29,8 +62,8 @@ zero failures/skips, checking both roles, policy, identifiers and matching
 team/certificate. Log: `/private/tmp/keyrecord-fixed-signed-inspection.log`.
 This executes static inspection, not the signed host or its Keychain test. The
 complete manifest/controller preflight and live Security CRUD remain unrun.
-A bounded execution controller and approval of the real isolated Keychain round
-are the next prerequisites; the signed rebuild itself is complete.
+The bounded controller is now prepared as recorded above. Approval of the real
+isolated Keychain round remains required; the signed rebuild itself is complete.
 
 ## Approved signing result and follow-up
 

@@ -31,6 +31,11 @@ recovery remain evidence for their stated candidates; no routine repeat is plann
 
 ## Current state
 
+- The diagnostic full-product round `fee7d4aef` reports Keychain add `-25308`,
+  zero created items, one failed test and normal exit with no host. A subsequent
+  read-only check sees the Mac locked. Wait for owner unlock/readiness; reuse the
+  signed artifact in a fresh reviewed isolation directory, without repeating
+  signing solely for this readiness change. [Evidence](PRODUCT_COMPOSITION_ROUND_20260930.md).
 - The [first signed full-product round](PRODUCT_COMPOSITION_ROUND_20260930.md)
   failed during the scenario after a successful signed build. No host remained.
   Diagnose its startup failure before claiming real recovery. The owner now

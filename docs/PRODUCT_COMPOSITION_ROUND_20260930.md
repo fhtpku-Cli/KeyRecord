@@ -1,5 +1,36 @@
 # Full product Keychain round: first execution and diagnosis
 
+## Current result: waiting for an unlocked host
+
+The separately reviewed diagnostic source `fee7d4aef` signed successfully in
+21.076 seconds using the existing profiles. Actual-artifact review and read-only
+preparation passed before its single automatic test launched. The test then failed
+in 7.412 seconds with these coarse observations:
+
+- `step=start`, `phase=failed`, `keyProvisionFailed(unavailable)`.
+- First failing client operation: `add`, OSStatus `-25308`.
+- Successfully created items: zero; cleanup verified zero owned items.
+- Controller: 12.305 seconds, exit 65, no forced stop, no control errors and no
+  remaining exact host. Independent process inspection agrees.
+
+The exact xcresult summary reports one failed test, zero passed/skipped and no
+runtime warnings. `-25308` is `errSecInteractionNotAllowed`; it does not by itself
+prove that the screen was locked when the operation failed. A subsequent read-only
+check of the same coarse lock inputs used by the existing Debug provider reported
+`console=locked`, `session=locked`, on-console true and matching current user.
+That establishes a current readiness obstacle, not a historical or version-wide
+lock qualification. No product logic or Keychain policy was weakened.
+
+Artifacts remain under
+`/private/tmp/keyrecord-product-composition-diagnostic-20260930`, with the same
+result/log/xcresult/service-record names as the first round. This round is also
+consumed. The reviewer independently confirmed the add rejection and zero created
+items. Actual Keychain retries stop until the owner normally unlocks this Mac and
+confirms readiness. No permission toggle, Keychain setting change, authentication
+prompt handling or extra signature is needed merely to resolve readiness.
+The existing signed diagnostic artifact can be reused for a newly isolated,
+reviewed round; the prior outputs must remain intact.
+
 ## Authorization and independent review
 
 On 2026-09-30 the owner authorized subsequent signing and automated verification

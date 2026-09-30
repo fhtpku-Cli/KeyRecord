@@ -3,6 +3,13 @@
 ## Current Apple Silicon MVP status — 2026-09-29
 
 Latest autonomous checkpoint: [MVP closeout](MVP_CLOSEOUT_20260929.md).
+Current blocker: the [diagnostic full-product round](PRODUCT_COMPOSITION_ROUND_20260930.md)
+on signed `fee7d4aef` identified `SecItemAdd` status `-25308` during initial key
+provisioning, with zero created items. It failed and exited normally, leaving no
+host. A subsequent read-only check reports this Mac currently locked; wait for
+owner unlock/readiness before another reviewed round. This does not prove the
+failure-time lock state or establish live lock qualification. Product safety
+behavior remains unchanged.
 The [first full-product signed round](PRODUCT_COMPOSITION_ROUND_20260930.md)
 completed signing in 22.311 seconds but its selected test failed with a generic
 timeout. It exited normally with no remaining host. Stage and coarse Keychain

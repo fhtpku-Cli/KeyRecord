@@ -6,6 +6,12 @@ Current status: [PROJECT_STATUS.md](PROJECT_STATUS.md). Requirements: [PHASE1_CO
 
 ## Evidence and remaining work
 
+The subsequent diagnostic round on `fee7d4aef` identifies initial Keychain add
+status `-25308` (interaction not allowed), with zero created items and normal
+host exit. A later read-only check sees the host locked. Execution is waiting for
+owner unlock/readiness; neither round qualifies product recovery or lock behavior.
+See the [current result](PRODUCT_COMPOSITION_ROUND_20260930.md#current-result-waiting-for-an-unlocked-host).
+
 The [first signed full-product case](PRODUCT_COMPOSITION_ROUND_20260930.md) failed
 with a generic timeout, then exited normally with no remaining host. Signing and
 static identity checks passed, but this does not qualify real product recovery.

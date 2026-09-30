@@ -10,7 +10,11 @@ The latest [hosted backend integration](PRODUCT_KEYCHAIN_HOST_PREP_20260930.md)
 executes the real App backend against an injected in-memory Security client in
 offline tests. Per-operation authorization, exact namespace/policy constraints,
 CRUD, metadata conflict, inventory and error mapping are exercised. The opt-in
-real Keychain test is prepared but unrun; probe signing profiles are missing.
+real Keychain test is prepared but unrun. Matching probe profiles were obtained
+in one approved build of `b889640b4`. Static inspection then reproduced a
+preflight error requiring independent process entitlements on a test plug-in;
+the offline repair and its exact signed-file regression pass, but the retained
+signed candidate still contains the old check and has not been launched.
 This supersedes the query-only preparation below, without claiming real Keychain
 accessibility, full product recovery or live lock qualification.
 

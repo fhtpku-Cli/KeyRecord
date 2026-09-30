@@ -3,14 +3,24 @@
 ## Current Apple Silicon MVP status — 2026-09-29
 
 Latest autonomous checkpoint: [MVP closeout](MVP_CLOSEOUT_20260929.md).
+One owner-approved [probe signing attempt](PRODUCT_KEYCHAIN_HOST_PREP_20260930.md#approved-signing-result-and-follow-up)
+built `b889640b4` successfully in 25.06 seconds with matching new profiles and no
+launch. Read-only inspection reproduced an incorrect requirement for independent
+entitlements on the in-process test plug-in. The repaired preflight checks the
+host's exact process entitlements and the plug-in's bundle code type, preserving
+both signatures, identities and matching team/certificate requirements. All 139
+lifecycle cases and 33 compiled checks pass with the signed files as a read-only
+fixture. The signed binary is unchanged and still contains the old check. Real
+Keychain execution and a rebuilt signed candidate remain pending; no automatic
+second signing attempt is authorized. Both CI runs at `b889640b4` passed.
 The [product Keychain backend hosted preparation](PRODUCT_KEYCHAIN_HOST_PREP_20260930.md)
 now compiles the actual App backend into the Debug test host with fresh signed
 authorization before each operation. Fourteen hosted offline cases, 73 App
 backend/recovery cases, 135 lifecycle cases and 24 boundary/configuration cases
 pass. Hosted Debug/Release and native product Release builds succeed. No real
-Keychain call or new signed launch occurred. Existing local profiles do not match
-the probe identities; one separately authorized signing configuration attempt is
-the next prerequisite. Full product observation and collecting Release remain open.
+Keychain call or signed launch occurred. Matching probe profiles were subsequently
+obtained in the approved build above. Full product observation and collecting
+Release remain open.
 The in-process `CounterWindowProductObserver` now reads the actual product
 diagnostics recorder through the existing hosted observer port. The product
 lock/unlock recovery test exercises it against production composition objects

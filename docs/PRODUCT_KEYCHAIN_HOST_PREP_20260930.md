@@ -1,8 +1,61 @@
 # Product Keychain backend hosted preparation
 
-Status: offline backend integration verified; signed host and actual Keychain
-execution remain pending. This is not a lifecycle qualification or permission
-to start a system round.
+Status: the owner-approved signing build of `b889640b4` succeeded; read-only
+inspection found a hosted-entitlement qualification bug, now repaired and tested
+offline. The signed artifact still contains the earlier check. Actual Keychain
+execution remains pending. This is not permission to start a system round.
+
+## Approved signing result and follow-up
+
+The owner approved the exact two-minute signing configuration attempt on
+2026-09-30. The bounded controller ran once, for 25.06 seconds, exiting zero.
+Xcode obtained matching Mac development profiles for both probe identities and
+built source `b889640b458e2de7ce2b942f0b2c6758ab447b8a`. The source worktree was
+clean and matched that revision before the command. No login/payment prompt or
+build signing error appeared. No installation, host launch, capture, or test-item
+Keychain operation occurred. This one attempt is consumed.
+
+Artifacts are retained under
+`/private/tmp/keyrecord-product-keychain-signing-20260930`: `result.json`,
+`build.log`, and `build/lifecycle/Build/Products/Debug/KeychainLifecycleProbe.app`.
+The bounded driver is `/private/tmp/keyrecord-bounded-signing-20260930.py`.
+Both host and nested test bundle pass strict disk signature verification and have
+matching team/certificate identities. Embedded profiles match their respective
+application identifiers and team `P3W62C39TN`; both expire on 2026-10-07 UTC.
+The host claims the exact application/team identity and single expected Keychain
+access group. The test bundle has no executable entitlement dictionary.
+
+The existing preflight incorrectly required process entitlements on both the host
+and its in-process test plug-in. Apple's [signing guidance](https://developer.apple.com/documentation/xcode/creating-distribution-signed-code-for-the-mac)
+places entitlements on main executables, not library code; the
+[Hardened Runtime documentation](https://developer.apple.com/documentation/security/hardened-runtime)
+states that in-process plug-ins use their host's entitlements. Actual `otool -hv`
+inspection reports `EXECUTE` for the host and `BUNDLE` for the test executable.
+A read-only regression against these exact signed files failed on the original
+plug-in entitlement assertion before the repair.
+
+The corrected `LivePreflight.signature` checks the signed executable's Mach-O
+role as well as its identity: the host must be `EXECUTE` with the existing exact
+Keychain entitlements; the test plug-in must be `BUNDLE` with no independent
+entitlement claims. All parsed slices must agree, and missing/malformed headers
+are rejected. Strict signatures, matching teams/certificates, exact host/test
+identities, running-host binding, manifest authorization and per-operation checks
+remain mandatory. The new checks do not authorize a different executable to use
+the plug-in exemption.
+
+With the signed files supplied as a read-only fixture, all 139 lifecycle cases
+pass without skips, including missing/wrong host entitlements, non-bundle plug-ins
+and mixed/malformed code headers. The compiled Xcode selection passes 33 cases;
+unsigned hosted Debug and Release test builds also pass. Logs:
+`/private/tmp/keyrecord-hosted-entitlements-{red,green,build,release-build,compiled-tests}.log`.
+Without an explicit signed disk fixture, only that new optional inspection test
+skips; this is not a real Keychain trial. Both CI runs for `b889640b4` passed:
+36696769046 / 36696761909. Those CI results precede this follow-up repair.
+
+The original signed artifact is preserved unchanged. Before any real Keychain
+round, the repaired test code needs a separately authorized signed rebuild using
+the now-existing profiles and a bounded execution controller. No second signing
+attempt or launch follows automatically from the first approval.
 
 ## Implementation
 
@@ -65,7 +118,7 @@ Logs are under `/private/tmp/keyrecord-product-keychain-`: `package.log`,
 Prior observer head `e9f04562e` also has successful PR/push CI runs
 36693846706 / 36693841757; these do not qualify this subsequent increment.
 
-## Next prerequisite: one signing configuration attempt
+## Original signing preparation (completed above)
 
 Read-only inventory on 2026-09-30 found two installed profiles for team
 `P3W62C39TN`, matching only `com.keyrecord.trial.mvp20260929` and

@@ -33,9 +33,12 @@ recovery remain evidence for their stated candidates; no routine repeat is plann
 
 - Actual App Keychain backend is now compiled into the Debug hosted test target;
   [offline verification and signing prerequisite](PRODUCT_KEYCHAIN_HOST_PREP_20260930.md)
-  are recorded. The opt-in real test is unrun. Both locally installed profiles
-  match existing trials, not the new probe identities. No automatic account or
-  provisioning attempt is authorized by this preparation.
+  are recorded. One separately approved signing attempt built `b889640b4` with
+  matching new probe profiles in 25.06 seconds. Read-only inspection exposed the
+  test-plug-in entitlement check error, now repaired with 139 lifecycle and 33
+  compiled checks passing. The signed artifact is unchanged; the opt-in real test
+  is unrun. A bounded controller and separately authorized rebuilt candidate remain
+  needed. No automatic second signing/account operation is authorized.
 - Latest offline increment: [tri-state permission witnesses](PERMISSION_WITNESS_REPAIR_20260930.md)
   and [failed-recovery settlement repair](RECOVERY_SETTLEMENT_REPAIR_20260930.md).
   All 590 package cases and the final 63 product recovery/quit cases pass. Fresh

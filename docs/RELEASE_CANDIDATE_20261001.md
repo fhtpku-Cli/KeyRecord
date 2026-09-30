@@ -1,9 +1,12 @@
 # Apple Silicon collecting candidate
 
-Status: product Release dependencies and the Phase 1 surface pass offline validation.
-Source `ea90753feab2358166ee39384bb6a5501dc4ce64` is now signed and installed as
-`~/Applications/KeyRecord Release Trial.app`, but has not been launched or exercised
-with real input. Public distribution and PR merge remain outside this work.
+Status: source `ea90753feab2358166ee39384bb6a5501dc4ce64` is signed, installed and
+has completed its [bounded real-input/UI round](RELEASE_INPUT_ROUND_20261001.md).
+The owner screenshot shows two TextEdit shortcuts, zero bare keys and one unknown /
+one left Command side. The product exited normally in 141.014 seconds; no instance
+remains. Two-left and fresh-process readback are not claimed. The preparation
+details below retain their prelaunch scope. Public distribution and PR merge remain
+outside this work.
 
 The Release composition uses the same exact-item Security backend and query
 builders already measured in the signed product cases. Only its DEBUG read
@@ -87,7 +90,8 @@ stop under existing product checks; do not delete or adopt pre-existing items.
 Do not copy the old MVP store or reuse its keys. No temporary home or developer
 environment override will be used. A new Input Monitoring permission may be needed.
 
-Next: stop for owner readiness and the new identity's permission, then run one short
+The prepared procedure, now consumed, was to stop for owner readiness and the new
+identity's permission, then run one short
 Start/consent, two left Command-A inputs, Pause and native aggregate/side/count check.
 The new Phase 1 view represents A as Key 0 and TextEdit as com.apple.TextEdit, and
 shows modifier side directly in the row. No detail disclosure is required. Do not
@@ -114,5 +118,6 @@ checks remain, alongside the App factory's supported/unsupported behavior tests.
 The ten affected-group tests pass and the complete local SwiftPM suite passes
 591 tests with zero failures. Logs: `/private/tmp/keyrecord-release-package-boundary-tests.log`
 and `/private/tmp/keyrecord-release-package-all-tests.log`. This follow-up changes
-only tests/docs; signed product source remains `ea90753f`. Updated remote CI is
-pending and must not be represented as passing from local results.
+only tests/docs; signed product source remains `ea90753f`. Both updated remote CI
+jobs on `c337c684` subsequently passed; exact links and runtimes are in the input
+round record. Local tests alone were not used to infer remote success.

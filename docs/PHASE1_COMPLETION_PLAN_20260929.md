@@ -36,9 +36,13 @@ recovery remain evidence for their stated candidates; no routine repeat is plann
   and fixed daily-root trial exclusion. Both unsigned builds, 127 App regressions,
   six core isolation tests and static Release audits pass. The Phase 1 aggregate
   surface now passes ten native UI/modifier tests and both locale rendering checks.
-  Source `ea90753f` is now signed and installed as the separate KeyRecord Release Trial;
-  actual signature/profile and static audits pass, with no launch yet. Coordinate
-  its new identity's permission and only the remaining short real-input/UI check.
+  Signed Release `ea90753f` now completed its [input/UI round](RELEASE_INPUT_ROUND_20261001.md):
+  two TextEdit shortcuts, zero bare keys, one unknown and one left Command observation,
+  then normal exit in 141.014 seconds. All 591 package tests and both remote CI jobs
+  on `c337c684` pass. Finish Pause confirmation, paused same-candidate readback without
+  new input, and the existing T23 signed-host accessibility/appearance walkthrough.
+  Native ten-test evidence does not replace that walkthrough. Do not repeat input
+  just to relabel unknown as left, or repeat completed lock/sleep/performance/Keychain work.
 
 - Shared Debug/Release privacy wiring is implemented: startup priming, synchronous
   lock closure and manual-entry checks. A reproduced stale startup-lock reply is

@@ -8,10 +8,16 @@ the measured exact-item Keychain implementation into the product, qualifies only
 the observed platform and derives isolated defaults from the validated Bundle ID.
 127 App regressions, six core isolation tests and actual Release static audits pass.
 The Phase 1 aggregate surface and ten focused native UI/modifier tests now pass,
-with both locale renderings inspected. Source `ea90753f` is signed and installed as
-KeyRecord Release Trial under the separate probe.host identity; actual signing and
-Release audits pass. It has not been launched. The new permission and short coordinated
-input/UI check remain; it is not yet a qualified collecting Release.
+with both locale renderings inspected. Signed Release `ea90753f` now completes its
+[real input/UI round](RELEASE_INPUT_ROUND_20261001.md): owner-confirmed Collecting,
+two TextEdit shortcuts, zero bare keys, unknown Command 1 / left Command 1, and normal
+exit in 141.014 seconds. Unknown is consistent with conservative reset behavior;
+it is not two observed left-side inputs. The exact trial is closed. All 591 local
+package tests and both remote CI jobs on test/docs follow-up `c337c684` pass.
+Remaining Phase 1 acceptance is explicit Pause confirmation, same-candidate paused
+readback without new input, and the existing T23 signed-host accessibility/appearance
+walkthrough. The screenshot does not close those items or imply public distribution
+qualification. Completed lock/sleep/performance/Keychain rounds are not reopened.
 
 Current integration increment (2026-10-01): Debug and Release now share lock
 notification closure, startup key-gate priming and explicit capture-entry checks.

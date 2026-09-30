@@ -11,9 +11,14 @@ with the measured Keychain implementation and exact observed-platform qualificat
 127 App tests, six core isolation tests and actual Release static audits pass.
 Release default storage is Bundle-ID-specific; the fixed daily-root trial exclusion
 remains enforced. The Phase 1 aggregate surface now passes ten native UI/modifier
-tests and both locale rendering checks. Source `ea90753f` is signed, signature/audit
-verified and installed as KeyRecord Release Trial without launch. Its new identity's
-permission and short real-input/UI validation remain open.
+tests and both locale rendering checks. Signed Release `ea90753f` has now completed
+the [bounded input/UI round](RELEASE_INPUT_ROUND_20261001.md): two TextEdit shortcuts,
+zero bare keys, unknown Command 1 / left Command 1 and normal exit. All 591 package
+tests and both remote CI jobs on `c337c684` pass. Pause confirmation and same-candidate
+paused readback remain, together with T23's real Tab/Shift-Tab, VoiceOver, system
+Increase Contrast/Reduce Motion and native status-menu positioning checks. The ten
+focused native tests are not a complete T23 result; no repeated input priming,
+lock/sleep/performance or Keychain destruction round is required.
 
 The [real key integrity/deletion round](PRODUCT_KEY_INTEGRITY_20261001.md) passes
 on signed `1b82d7cd`: one case, zero failures/skips/runtime warnings, normal exit

@@ -524,7 +524,7 @@ sourceReliability(chord) = table( ordinaryCount / (ordinaryCount + suspectedCoun
 - 推荐输入显式包含自包含的 `physicalEvidenceByChord`；快照 `inputHash` 覆盖几何模型哈希及每条变换证据的规范引用、规范变换与内容哈希，任一证据内容变化都会改变 `inputHash` 并使旧快照失效（5.1、6.6）。
 - 排序按 `score` 降序；平分按 `Chord` 规范序列升序，保证确定性。
 - 每条推荐输出因子分解：加权频率、每次按键数、建议触发按键数、应用集中度、置信度（R3）。
-- 首页展示 Top 5 推荐与全部候选列表（R7）；不展示、不承诺时间节省或健康收益（R9）。
+- 首页最多展示 5 项满足资格、未忽略且具有正向简化候选的推荐；全部候选独立可达，保留达标无方案等状态（R7）。资格判定不随展示筛选改变。不展示、不承诺时间节省或健康收益（R9）。
 
 ### 6.5 触发候选生成
 
@@ -961,6 +961,8 @@ recordVerification(mapping, batch, artifact, method, result):
 
 ## 15. 分阶段交付与发布门禁
 
+**Phase 2 交付细化（2026-10-01，用户已确认）：** 先交付 A（统计优先、逻辑预览、忽略/恢复），再补 B（完整能力约束与物理评分/证据）。[产品方案](phase2/PRODUCT_PLAN.md) 的 P2-A1–A6 是待开发任务；D2/D3 的页面和筛选语义已同步 PRD，代码尚未完成相应调整。A 可单独交付，但不得以此宣告完整 G2 通过；下表 G2 标准保持不变。
+
 > **Current-status note — status-release (2026-10-01):** The scoped Apple Silicon Phase 1 objective completed and merged on 2026-10-01. The phase table retains full-product exit criteria; full G1/v1 is not claimed. Phase 2 is a logical prototype, not G2 completion. Karabiner, VIA/Vial, FR-P6 and public release remain open. Intel is deferred from this MVP, including separate SP6B Intel KDF timing for backup. See [roadmap](ROADMAP.md).
 
 风险驱动的交付顺序：先消除不确定性（spike），再建地基（隐私与存储），再做确定性分析，再做稳定后端，最后做 Beta 后端。
@@ -1008,7 +1010,7 @@ v1 发布门禁：PRD 第 15 章 17 项验收全部通过。
 | 半衰期 | 14 个活跃日 | PRD 3.2 |
 | 推荐资格 | 原始周期计数 ≥ 20 且跨 ≥ 2 个不同本机自然日 | R4 |
 | 作用域默认阈值 | 加权 Top 应用占比 ≥ 70%（分母含未知归属桶） | R11 |
-| 首页推荐 | Top 5 + 全部候选 | R7 |
+| 首页推荐 | 最多 5 项达标、未忽略且有正向简化候选的项目；全部候选独立页 | R7 |
 | 触发候选 | 每项 ≤ 3 个 | R8 |
 | Karabiner 备份 | 滚动保留 10 份 | B1 |
 | 系统要求 | MVP：已验证的 macOS 14+ Apple Silicon；完整 v1：macOS 14+ Universal | 13.1 |

@@ -21,7 +21,14 @@ Requirements remain in [PRD](PRD.md) and [architecture §15](TECHNICAL_ARCHITECT
 Current Phase 1 evidence is in [acceptance](PHASE1_ACCEPTANCE.md), not the old T24
 projection or the baseline-bound `milestone-allocation.json`.
 
-## Recommended next work, not yet authorized as an implementation goal
+## Approved Phase 2 direction and next work
+
+The owner approved all five decisions in the [Phase 2 product plan](phase2/PRODUCT_PLAN.md)
+on 2026-10-01. Deliver increment A first: statistics-first navigation, Top 5 limited
+to positive simplification previews, and ignore/restore. Physical scoring and full
+backend-aware analysis remain increment B. P2-A1–A6 are pending development;
+neither increment nor full G2 is complete. PRD and architecture now reflect the
+approved display changes without waiving the full-product requirements.
 
 1. Make local development use maintainable: document a reproducible Release build,
    update and signing-renewal path that preserves the trial's identity/data. The

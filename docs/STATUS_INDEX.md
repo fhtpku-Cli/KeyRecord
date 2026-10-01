@@ -1,8 +1,8 @@
 # Documentation status index
 
 Reviewed 2026-10-01 (Asia/Shanghai), after PR #17 merged as `8bb99e81`.
-This index covers all 83 versioned Markdown documents, including this
-index and the roadmap added in this reconciliation. It distinguishes present
+This index covers 84 Markdown documents, including the approved Phase 2 product plan,
+this index and the roadmap. It distinguishes present
 guidance from dated evidence; it does not regenerate historical verdicts.
 
 ## Read these first
@@ -47,6 +47,8 @@ automated checks, signed real Keychain runs and owner UI observations are distin
 Logical analysis and the dashboard prototype exist, while the product uses the
 Phase 1 aggregate view. These records do not establish full FR-R/FR-E or G2.
 Phase 1 native UI evidence does not automatically qualify the separate dashboard.
+
+- [docs/phase2/PRODUCT_PLAN.md](phase2/PRODUCT_PLAN.md) — Phase 2 product plan; D1–D5 approved, increments A/B not yet complete
 
 - [docs/phase2/IMPLEMENTATION.md](phase2/IMPLEMENTATION.md) — Phase 2 read-only analysis
 - [docs/phase2/VALIDATION.md](phase2/VALIDATION.md) — Phase 2 validation

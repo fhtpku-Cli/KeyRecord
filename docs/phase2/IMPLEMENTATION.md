@@ -8,6 +8,12 @@ entry remains in the Debug synthetic preview. Protected analysis publication and
 layout-preference plumbing exist, but full FR-R/FR-E and G2 are incomplete.
 See [roadmap](../ROADMAP.md).
 
+The [Phase 2 product plan](PRODUCT_PLAN.md) records owner approval of D1–D5 on
+2026-10-01: increment A first, statistics-first navigation, positive-preview-only
+Top 5, ignore/restore in A, and physical scoring deferred to B. P2-A1–A6 describe
+the pending implementation work. Approval does not change the code inventory
+below: current Top 5 still includes eligible candidates without positive previews.
+
 Historical implementation sequence:
 1. Completed: pure analysis module and synthetic rule-boundary tests.
 2. Completed: protected snapshots, encrypted layout preferences and bilingual native dashboard implementation.

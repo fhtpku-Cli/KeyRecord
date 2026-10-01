@@ -45,9 +45,10 @@ rounds are not reopened.
   2026-10-07 at 17:39:57 Asia/Shanghai. Public distribution is not qualified.
 - Short ARM resource results remain Debug fixed replay, not a new Release event-tap
   benchmark. No routine repeat is required by this MVP.
-- Phase 2 logical analysis exists, but the product screen uses Phase 1 aggregates.
-  Full FR-R/FR-E and G2 remain incomplete. Analysis integration and ongoing local
-  build/update usability are recommended next work, not executed here.
+- Phase 2 increment A is implemented on `codex/phase2-product-plan`: the product
+  window can show overview, all candidates, and settings from the protected
+  analysis snapshot. Full FR-R/FR-E and G2 remain incomplete. The owner UI
+  walkthrough and increment B are not done. See [phase 2 validation](phase2/VALIDATION.md).
 - Phase 3/4 backends, FR-P6, Intel and public release retain their own requirements.
 
 ## Historical checkpoint log

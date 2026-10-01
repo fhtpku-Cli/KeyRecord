@@ -93,6 +93,17 @@ public final class LifecycleOrchestrator {
         state.preferences = state.preferences?.updating(layout: layout)
     }
 
+    public func setIgnoredRecommendationKeys(_ keys: Set<String>) async throws {
+        try await preferenceTransactions.acquire()
+        defer { preferenceTransactions.release() }
+        guard let preferences = state.preferences,
+              SensitiveVisibility.isVisible(state) else {
+            throw PreferencesRepositoryError.storageUnavailable
+        }
+        try await ports.preferences.save(preferences.updating(ignoredRecommendationKeys: keys))
+        state.preferences = state.preferences?.updating(ignoredRecommendationKeys: keys)
+    }
+
     public func dismissNotice() {
         dispatch(.dismissNotice)
     }

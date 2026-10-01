@@ -136,4 +136,83 @@ final class AnalysisTests: XCTestCase {
         XCTAssertLessThan(result.topApplicationShare, 0.70)
         XCTAssertEqual(result.defaultScope, .global)
     }
+
+    func chord(_ code: Int, command: ModifierSideState = .left, shift: ModifierSideState = .left,
+               fn: FnState = .none) throws -> Chord {
+        Chord(keyCode: try KeyCode(code), modifiers: ModifierSet(command: command, option: .none,
+            control: .none, shift: shift, fn: fn))
+    }
+
+    func aggregate(_ chord: Chord, count: Int64, day: LocalDay, app: AppBucket = .unknown) throws -> DailyShortcutAggregate {
+        try DailyShortcutAggregate(cycleID: cycle, day: day, identity: ChordBucket(chord: chord, appBucket: app),
+            classification: ChordRuleTable.v1.classify(chord),
+            sourceCounts: SourceCounts(ordinary: Count(count), suspectedInjection: Count(0)))
+    }
+
+    func testTopFiveRequiresPositivePreviewAndExplainsMissingPlans() throws {
+        let positive = try chord(8)
+        let noPlan = try chord(9, shift: .none)
+        let fnUnknown = try chord(7, fn: .unknown)
+        let rows = try [positive, noPlan, fnUnknown].flatMap { chord in
+            try [aggregate(chord, count: 12, day: d1), aggregate(chord, count: 12, day: d2)]
+        }
+        let result = try analyze(rows)
+        XCTAssertEqual(result.candidates.map(\.status), Array(repeating: .eligible, count: 3))
+        XCTAssertEqual(result.candidates.map(\.rawCount), Array(repeating: 24, count: 3))
+        let plans = Dictionary(uniqueKeysWithValues: result.candidates.map { ($0.chord, $0.simplificationPlan) })
+        XCTAssertEqual(plans[positive], .positivePreview)
+        XCTAssertEqual(plans[noPlan], .noShorterCombination)
+        XCTAssertEqual(plans[fnUnknown], .functionStateUnknown)
+        XCTAssertEqual(result.topRecommendations.map(\.chord), [positive])
+        XCTAssertEqual(result.candidates.filter { $0.chord == noPlan || $0.chord == fnUnknown }.count, 2)
+        XCTAssertTrue(result.topRecommendations.allSatisfy { $0.triggers.contains { $0.logicalKeysSaved > 0 } })
+        XCTAssertLessThanOrEqual(result.topRecommendations.count, 5)
+        XCTAssertTrue(result.candidates.allSatisfy { $0.triggers.count <= 3 })
+    }
+
+    func testEqualScoresKeepCanonicalOrderAndIgnoreDoesNotChangeCounts() throws {
+        let rows = try [8, 9].flatMap { code in
+            try [aggregate(chord(code), count: 20, day: d1), aggregate(chord(code), count: 20, day: d2)]
+        }
+        let ranked = try analyze(rows)
+        XCTAssertEqual(ranked.candidates.map(\.factors.score), [ranked.candidates[0].factors.score, ranked.candidates[0].factors.score])
+        XCTAssertLessThan(ranked.candidates[0].id, ranked.candidates[1].id)
+        let ignored = ranked.candidates[0].id
+        let hidden = try AnalysisEngine.analyze(AnalysisInput(cycleID: cycle, shortcuts: rows, bareKeys: [],
+            activeDays: [d1, d2], ignoredRecommendationKeys: [ignored]))
+        XCTAssertEqual(hidden.topRecommendations.map(\.id), [ranked.candidates[1].id])
+        XCTAssertEqual(hidden.candidates.first { $0.id == ignored }?.rawCount, 40)
+        XCTAssertEqual(hidden.candidates.first { $0.id == ignored }?.status, .eligible)
+    }
+
+    func testPersistedIgnoreWithoutObservationStaysRecoverable() throws {
+        let chord = try chord(8, shift: .none)
+        let id = LogicalPreviews.canonicalID(chord)
+        let entries = IgnoredRecommendationList.entries(persisted: [id, "not-a-chord"], candidates: [])
+        XCTAssertEqual(entries.map(\.id), [id, "not-a-chord"])
+        XCTAssertEqual(entries[0].chord, chord)
+        XCTAssertFalse(entries[0].hasCurrentObservation)
+        XCTAssertNil(entries[1].chord)
+        XCTAssertEqual(LogicalPreviews.chord(fromCanonicalID: id).map(LogicalPreviews.canonicalID), id)
+    }
+
+    func testRepresentativeAnalysisFinishesWithinInteractiveBudget() throws {
+        var rows: [DailyShortcutAggregate] = []
+        let days = (1...14).map { LocalDay(String(format: "2026-08-%02d", $0)) }
+        for code in [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 12, 13, 14, 15] {
+            for shift in [ModifierSideState.none, .left] {
+                let item = try chord(code, shift: shift)
+                for day in days {
+                    rows.append(try aggregate(item, count: 2, day: day))
+                }
+            }
+        }
+        let started = Date()
+        let snapshot = try analyze(rows, days: days)
+        XCTAssertLessThan(Date().timeIntervalSince(started), 5)
+        XCTAssertEqual(snapshot.activeDayCount, 14)
+        XCTAssertEqual(snapshot.cycleID, cycle)
+        XCTAssertFalse(snapshot.shortcutStatistics.isEmpty)
+        XCTAssertLessThanOrEqual(snapshot.topRecommendations.count, 5)
+    }
 }

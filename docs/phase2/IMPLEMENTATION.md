@@ -3,16 +3,18 @@
 Scope: current-cycle daily aggregates → deterministic statistics → explanatory recommendation preview. No capture, protected storage, permission, firmware or external configuration access is introduced. The Phase 1 collecting Release is now qualified on its exact observed platform;
 this does not qualify the Phase 2 prototype as a released analysis feature.
 
-Current integration: `ProductScreens` uses `AggregateFlowView`; the dashboard
-entry remains in the Debug synthetic preview. Protected analysis publication and
-layout-preference plumbing exist, but full FR-R/FR-E and G2 are incomplete.
-See [roadmap](../ROADMAP.md).
+Current integration: consented `ProductScreens` uses Overview / All candidates /
+Settings. Overview reads the protected analysis snapshot, keeps Top 5 to eligible,
+unignored, positive logical previews, and leaves no-plan items in All candidates.
+Ignore, undo, and restore use the existing encrypted preference transaction.
+Opening statistics does not start capture, and Pause is not turned into Resume.
+The Debug synthetic preview still bypasses product composition. Full FR-R/FR-E
+and G2 remain incomplete. See [roadmap](../ROADMAP.md).
 
 The [Phase 2 product plan](PRODUCT_PLAN.md) records owner approval of D1–D5 on
-2026-10-01: increment A first, statistics-first navigation, positive-preview-only
-Top 5, ignore/restore in A, and physical scoring deferred to B. P2-A1–A6 describe
-the pending implementation work. Approval does not change the code inventory
-below: current Top 5 still includes eligible candidates without positive previews.
+2026-10-01. Increment A now implements P2-A1–A5 and the automated part of P2-A6.
+Physical scoring, backend capability, manual candidates, and external apply/export
+stay in later scope. Increment A is not full Phase 2 or G2.
 
 Historical implementation sequence:
 1. Completed: pure analysis module and synthetic rule-boundary tests.

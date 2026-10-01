@@ -19,7 +19,8 @@ final class ScreenMatrixTests: XCTestCase {
         case .menu:
             return ["capture.symbol": text(state.statusKey), "capture.status": text(state.statusKey),
                     "menu.start": text("action.start"), "menu.pause": text("action.pause"),
-                    "menu.resume": text("action.resume"), "menu.settings": text("action.settings"),
+                    "menu.resume": text("action.resume"), "menu.statistics": text("action.statistics"),
+                    "menu.settings": text("action.settings"),
                     "menu.quit": text("action.quit")]
         case .settings:
             return ["settings.login": text("settings.login"), "settings.reset": text("settings.reset"),

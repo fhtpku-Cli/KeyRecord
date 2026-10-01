@@ -73,7 +73,7 @@ enum ScreenKind: String, CaseIterable {
         switch self {
         case .consent: return ["consent.panel", "consent.disclosure", "consent.accept", "consent.reject"]
         case .menu: return ["capture.symbol", "capture.status", "menu.start", "menu.pause",
-                            "menu.resume", "menu.settings", "menu.quit"]
+                            "menu.resume", "menu.statistics", "menu.settings", "menu.quit"]
         case .settings: return ["settings.form", "settings.login", "settings.language",
                                 "settings.reset", "settings.delete"]
         case .aggregate: return ["aggregates.panel", "aggregates.shortcutTotal",
@@ -89,7 +89,7 @@ enum ScreenKind: String, CaseIterable {
     var interactiveIDs: [String] {
         switch self {
         case .consent: return ["consent.accept", "consent.reject"]
-        case .menu: return ["menu.start", "menu.pause", "menu.resume", "menu.settings", "menu.quit"]
+        case .menu: return ["menu.start", "menu.pause", "menu.resume", "menu.statistics", "menu.settings", "menu.quit"]
         case .settings: return ["settings.login", "settings.language", "settings.reset", "settings.delete"]
         case .dialogReset, .dialogDelete: return ["dialog.cancel", "dialog.confirm"]
         case .aggregate, .aggregateEmpty, .aggregateLocked: return []

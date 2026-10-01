@@ -86,6 +86,9 @@ struct MenuBarMenuContent: View {
             .disabled(!menu.canResume).focusable().accessibilitySortPriority(3)
             .accessibilityIdentifier("menu.resume")
         Divider()
+        Button(flow.statisticsMenuTitle(text)) { flow.presentStatistics() }
+            .focusable().accessibilitySortPriority(3)
+            .accessibilityIdentifier("menu.statistics")
         Button(text("action.settings")) { flow.openSettings() }
             .keyboardShortcut(",", modifiers: .command).focusable().accessibilitySortPriority(2)
             .accessibilityIdentifier("menu.settings")

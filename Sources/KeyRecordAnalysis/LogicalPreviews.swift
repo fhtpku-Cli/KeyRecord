@@ -16,6 +16,19 @@ public enum LogicalPreviews {
             [m.command.rawValue, m.option.rawValue, m.control.rawValue, m.shift.rawValue, m.fn.rawValue]).joined(separator: ":")
     }
 
+    /// Inverse of `canonicalID` for persisted ignore keys. Unrecognized text stays opaque.
+    public static func chord(fromCanonicalID id: String) -> Chord? {
+        let parts = id.split(separator: ":", omittingEmptySubsequences: false).map(String.init)
+        guard parts.count == 6, let code = Int(parts[0]), let keyCode = try? KeyCode(code),
+              let command = ModifierSideState(rawValue: parts[1]),
+              let option = ModifierSideState(rawValue: parts[2]),
+              let control = ModifierSideState(rawValue: parts[3]),
+              let shift = ModifierSideState(rawValue: parts[4]),
+              let fn = FnState(rawValue: parts[5]) else { return nil }
+        return Chord(keyCode: keyCode, modifiers: ModifierSet(command: command, option: option,
+            control: control, shift: shift, fn: fn))
+    }
+
     static func generate(_ chord: Chord, confirmed: Set<KeyCode>) -> [TriggerPreview] {
         let original = keyCount(chord)
         let m = chord.modifiers

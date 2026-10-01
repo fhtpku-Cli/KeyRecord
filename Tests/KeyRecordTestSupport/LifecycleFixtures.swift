@@ -22,6 +22,8 @@ public actor InMemoryPreferencesStorage: EncryptedPreferencesStorage {
 
     public func seed(ciphertext: Data?) { self.ciphertext = ciphertext }
 
+    public func failSubsequentSaves() { saveFailure = .storageUnavailable }
+
     public func loadCiphertext() throws -> Data? {
         loadCount += 1
         if let loadFailure { throw loadFailure }

@@ -961,7 +961,7 @@ recordVerification(mapping, batch, artifact, method, result):
 
 ## 15. 分阶段交付与发布门禁
 
-**Phase 2 交付细化（2026-10-01，用户已确认）：** 先交付 A（统计优先、逻辑预览、忽略/恢复），再补 B（完整能力约束与物理评分/证据）。[产品方案](phase2/PRODUCT_PLAN.md) 的 P2-A1–A6 是待开发任务；D2/D3 的页面和筛选语义已同步 PRD，代码尚未完成相应调整。A 可单独交付，但不得以此宣告完整 G2 通过；下表 G2 标准保持不变。
+**Phase 2 交付细化（2026-10-01，用户已确认）：** 先交付 A（统计优先、逻辑预览、忽略/恢复），再补 B（完整能力约束与物理评分/证据）。P2-A1–A5 与 A6 的自动测试已在 `codex/phase2-product-plan` 落地；人工走查和增量 B 未完成。A 可单独继续验收，但不得以此宣告完整 G2 通过；下表 G2 标准保持不变。
 
 > **Current-status note — status-release (2026-10-01):** The scoped Apple Silicon Phase 1 objective completed and merged on 2026-10-01. The phase table retains full-product exit criteria; full G1/v1 is not claimed. Phase 2 is a logical prototype, not G2 completion. Karabiner, VIA/Vial, FR-P6 and public release remain open. Intel is deferred from this MVP, including separate SP6B Intel KDF timing for backup. See [roadmap](ROADMAP.md).
 

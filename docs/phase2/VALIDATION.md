@@ -1,6 +1,39 @@
 # Phase 2 validation
 
-This is a read-only Debug prototype, not Phase 1 acceptance or Release qualification.
+## Increment A automated checks — 2026-10-01
+
+These checks cover the statistics and logical-preview increment on
+`codex/phase2-product-plan`. They do not accept full Phase 2, G2, or a signed
+host round. The ImageRenderer blank-image skip below is the same pre-existing
+limitation, not a new visual pass.
+
+- SwiftPM, `swift test --disable-sandbox` filtered to `AnalysisTests`,
+  `IgnoredRecommendationPreferenceTests`, `LayoutPreferenceTests`, and
+  `CycleResetTests/testResetKeepsIgnoredKeysLayoutAndUnrelatedPreferences`:
+  16 analysis tests, 3 ignore-preference tests, 3 layout tests, and the cycle-reset
+  retention test passed. The analysis run includes positive-preview Top 5,
+  no-plan and Fn-unknown reasons, ignore, score ties, canonical ignore parsing,
+  and a 420-row analysis that finished in 0.009 seconds. The full package suite
+  was not rerun.
+- Unsigned arm64 App XCTest, `CODE_SIGNING_ALLOWED=NO`: `AnalysisFlowTests`
+  executed 11 tests with 1 skipped and 0 failures; `ProductSnapshotPublicationTests`
+  executed 11 tests with 0 failures. Coverage includes privacy clearing, stale
+  cycle rejection, ignore save/failure/undo, opening statistics without start or
+  resume, and analysis failure leaving the aggregate readable.
+- `ScreenMatrixTests/testHappyScreenMatrix` passed after layout choices used the
+  existing focusable action control. Localization audit methods passed.
+  `kern.osversion` is recorded as a non-UI literal.
+- `testSyntheticDashboardRendersBothLocalesAndPrivacyStates` skipped because
+  ImageRenderer still produced a blank image. That is not a rendering pass.
+- No signed Release launch, no real capture, no VoiceOver session, and no owner
+  walkthrough were run. Hostless accessibility initialization is not treated as
+  interactive acceptance.
+- A separate review of the uncommitted increment A diff found no privacy,
+  capture-lifecycle, stale-analysis, or network issue. It is not a signed host review.
+
+## Historical prototype validation
+
+The sections below record the earlier read-only Debug prototype. They are not Phase 1 acceptance, Release qualification, or acceptance of increment A.
 Status reconciliation (2026-10-01): [Phase 1 is complete](../PHASE1_ACCEPTANCE.md),
 but its native walkthrough does not qualify this separate dashboard or full G2.
 The instructions below describe prototype reproduction and remaining coverage,

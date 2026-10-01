@@ -65,7 +65,8 @@ public enum AnalysisEngine {
                 : $0.sourceCounts.total.value > $1.sourceCounts.total.value }
         var bare: [KeyCode: SourceCounts] = [:]
         for row in input.bareKeys where row.sourceCounts.total.value > 0 { bare[row.keyCode] = try add(bare[row.keyCode], row.sourceCounts) }
-        return AnalysisSnapshot(shortcutStatistics: statistics,
+        return AnalysisSnapshot(cycleID: input.cycleID, activeDayCount: input.activeDays.count,
+            shortcutStatistics: statistics,
             applications: applications.map { ApplicationStatistic(app: $0.key, sourceCounts: $0.value) }.sorted {
                 $0.sourceCounts.total == $1.sourceCounts.total ? appID($0.app) < appID($1.app)
                     : $0.sourceCounts.total.value > $1.sourceCounts.total.value

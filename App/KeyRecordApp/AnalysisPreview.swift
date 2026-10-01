@@ -23,8 +23,9 @@ enum AnalysisPreview {
         window = panel
     }
 
-    static func input(layout: LayoutPreference = LayoutPreference()) throws -> AnalysisInput {
-        let cycle = CycleID(rawValue: "synthetic-phase2")
+    static func input(layout: LayoutPreference = LayoutPreference(),
+                      cycleID: CycleID = CycleID(rawValue: "synthetic-phase2")) throws -> AnalysisInput {
+        let cycle = cycleID
         let days = [LocalDay("2026-09-01"), LocalDay("2026-09-02")]
         var shortcuts: [DailyShortcutAggregate] = []
         for (index, code) in [8, 9, 7, 0, 1, 2, 48, 20].enumerated() {

@@ -12,7 +12,7 @@ baseline, product requirement, feature implementation or host authorization.
 |---|---|---|
 | Phase 0: feasibility | Capture prerequisites progressed beyond the old G0 OPEN writeback; historical artifacts remain unchanged | Karabiner version/reload/disable latency, VIA protocol/dialect/importer, Vial importer/live capture and backup KDF/Intel evidence retain their own limits. Phase 0 is not globally all-green. |
 | Phase 1: collection, privacy, encrypted storage | **Approved Apple Silicon MVP complete and merged** | Measured arm64 macOS 27.0 build 26A428 only; development-signed local trial. Existing candidate-specific short ARM and lifecycle evidence retained. Full original G1/v1, all OS/architectures and public release are not claimed. |
-| Phase 2: deterministic analysis | **Prototype implemented; full FR-R/FR-E and G2 incomplete** | Pure logical engine, protected publication and native dashboard prototype exist. ProductScreens currently uses Phase 1 aggregates. Product integration, remaining native prototype coverage, physical-evidence paths and backend-aware candidate constraints need explicit completion. |
+| Phase 2: deterministic analysis | **Increment A implemented; full FR-R/FR-E and G2 incomplete** | Statistics-first overview, positive-preview Top 5, all-candidates explanations, and ignore/restore are in the product. Physical scoring, backend constraints, manual candidates, and the owner UI walkthrough remain. Increment A is not G2. |
 | Phase 3: Karabiner stable path | **Not qualified as a usable product backend** | Transactions, conflict handling, configuration application/readback, rollback, backup retention, emergency disable and real supported-version behavior. Existing spikes are not product delivery. |
 | Phase 4: VIA/Vial Beta | **Not qualified** | Separate definition/protocol/dialect/importer/device evidence, safe export/readback, and the specified real-keyboard coverage. Synthetic round trips do not establish device compatibility. |
 | Full v1 / public distribution | **Not qualified** | PRD §15 requirements, FR-P6 full password backup, Intel/full support matrix, public name/license decision, signing/notarization and backend requirements remain. |
@@ -24,11 +24,11 @@ projection or the baseline-bound `milestone-allocation.json`.
 ## Approved Phase 2 direction and next work
 
 The owner approved all five decisions in the [Phase 2 product plan](phase2/PRODUCT_PLAN.md)
-on 2026-10-01. Deliver increment A first: statistics-first navigation, Top 5 limited
-to positive simplification previews, and ignore/restore. Physical scoring and full
-backend-aware analysis remain increment B. P2-A1–A6 are pending development;
-neither increment nor full G2 is complete. PRD and architecture now reflect the
-approved display changes without waiving the full-product requirements.
+on 2026-10-01. Increment A is now implemented: statistics-first navigation, Top 5
+limited to positive simplification previews, and ignore/restore. Automated checks
+are recorded in [validation](phase2/VALIDATION.md). The owner UI walkthrough is
+still open. Physical scoring and full backend-aware analysis remain increment B.
+Neither increment A acceptance nor full G2 is complete.
 
 1. Make local development use maintainable: document a reproducible Release build,
    update and signing-renewal path that preserves the trial's identity/data. The

@@ -5,6 +5,7 @@ let package = Package(
     name: "KeyRecord",
     platforms: [.macOS(.v14)],
     products: [
+        .library(name: "KeyRecordMappings", targets: ["KeyRecordMappings"]),
         .library(name: "KeyRecordConfigurationRead", targets: ["KeyRecordConfigurationRead"]),
         .library(name: "KeyRecordAnalysis", targets: ["KeyRecordAnalysis"]),
         .library(name: "KeyRecordCore", targets: ["KeyRecordCore"]),
@@ -13,6 +14,9 @@ let package = Package(
     ],
     dependencies: [],
     targets: [
+        .target(name: "KeyRecordMappings", dependencies: ["KeyRecordCore", "KeyRecordAnalysis", "KeyRecordStore", "KeyRecordConfigurationRead"]),
+        .testTarget(name: "KeyRecordMappingsTests", dependencies: ["KeyRecordMappings"]),
+        .executableTarget(name: "KeyRecordMappingCrashProbe", dependencies: ["KeyRecordCore", "KeyRecordAnalysis", "KeyRecordStore", "KeyRecordMappings"], path: "Tests/KeyRecordMappingCrashProbe"),
         .target(name: "KeyRecordConfigurationRead"),
         .target(name: "KeyRecordAnalysis", dependencies: ["KeyRecordCore", "KeyRecordConfigurationRead"]),
         .testTarget(name: "KeyRecordAnalysisTests", dependencies: ["KeyRecordAnalysis", "KeyRecordConfigurationRead"]),

@@ -7,6 +7,7 @@ public enum KarabinerReferenceError: Error, Equatable { case jsonProtection, inv
 public struct KarabinerProfileReference: Equatable, Sendable, Identifiable {
     public let id: String
     public let name: String
+    public let identityName: String
     public let evidence: BackendRuleEvidence
 }
 
@@ -68,7 +69,7 @@ public enum KarabinerReferenceParser {
                     if device["simple_modifications"] != nil || device["fn_function_keys"] != nil { unsupported += 1 }
                 }
             } else if profile["devices"] != nil { unsupported += 1 }
-            return KarabinerProfileReference(id: id, name: String(name.prefix(128)),
+            return KarabinerProfileReference(id: id, name: String(name.prefix(128)), identityName: name,
                 evidence: BackendRuleEvidence(backend: .karabiner, profile: id, rules: rules,
                     unsupportedRuleCount: unsupported, origin: .selectedCopy))
         }
@@ -97,20 +98,38 @@ public enum KarabinerReferenceParser {
                   let parsed = modifierSet(names, generic: true) else { return nil }
             modifiers = parsed
         } else { modifiers = emptyModifiers }
-        let scope: RecommendationScope
+        var scope: RecommendationScope = .global
+        var devices: Set<String>?
         if let value = rule["conditions"] {
             guard let conditions = value as? [[String: Any]] else { return nil }
-            if conditions.isEmpty { scope = .global }
-            else {
-                guard conditions.count == 1, let condition = conditions.first,
-                      Set(condition.keys) == ["type", "bundle_identifiers"],
-                      condition["type"] as? String == "frontmost_application_if",
-                      let patterns = condition["bundle_identifiers"] as? [String], patterns.count == 1,
-                      let pattern = patterns.first, let app = literalApplication(pattern) else { return nil }
-                scope = .application(app)
+            var types = Set<String>()
+            for condition in conditions {
+                guard let type = condition["type"] as? String, types.insert(type).inserted else { return nil }
+                switch type {
+                case "frontmost_application_if":
+                    guard Set(condition.keys) == ["type", "bundle_identifiers"],
+                          let patterns = condition["bundle_identifiers"] as? [String], patterns.count == 1,
+                          let pattern = patterns.first, let app = literalApplication(pattern) else { return nil }
+                    scope = .application(app)
+                case "device_if":
+                    guard Set(condition.keys) == ["type", "identifiers"],
+                          let identifiers = condition["identifiers"] as? [[String: Any]], !identifiers.isEmpty else { return nil }
+                    var parsed = Set<String>()
+                    for identifier in identifiers {
+                        guard Set(identifier.keys) == ["vendor_id", "product_id", "is_keyboard"],
+                              let vendorData = try? JSONSerialization.data(withJSONObject: identifier["vendor_id"] as Any, options: [.fragmentsAllowed]),
+                              let productData = try? JSONSerialization.data(withJSONObject: identifier["product_id"] as Any, options: [.fragmentsAllowed]),
+                              let vendor = try? JSONDecoder().decode(UInt16.self, from: vendorData),
+                              let product = try? JSONDecoder().decode(UInt16.self, from: productData),
+                              let keyboard = identifier["is_keyboard"], boolean(keyboard) == true else { return nil }
+                        parsed.insert("\(vendor):\(product)")
+                    }
+                    devices = parsed
+                default: return nil
+                }
             }
-        } else { scope = .global }
-        return BackendRule(trigger: Chord(keyCode: code, modifiers: modifiers), output: output, scope: scope, profile: profile)
+        }
+        return BackendRule(trigger: Chord(keyCode: code, modifiers: modifiers), output: output, scope: scope, devices: devices, profile: profile)
     }
 
     private static func chord(_ value: [String: Any]) -> Chord? {

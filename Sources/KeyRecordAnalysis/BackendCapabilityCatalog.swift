@@ -2,6 +2,9 @@ import Foundation
 import KeyRecordCore
 
 public enum BackendCapabilityCatalog {
+    public static func karabinerName(for key: KeyCode) -> String? {
+        KarabinerKeyCodes.values.first { $0.value == key }?.key
+    }
     public static func reference(_ backend: RecommendationBackend) -> BackendCapabilities? {
         switch backend {
         case .karabiner, .via:

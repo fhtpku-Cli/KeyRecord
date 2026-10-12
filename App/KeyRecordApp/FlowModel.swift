@@ -2,6 +2,7 @@ import SwiftUI
 import KeyRecordCore
 import KeyRecordAnalysis
 import KeyRecordStore
+import KeyRecordMappings
 
 @MainActor
 enum ProductStartup {
@@ -257,6 +258,7 @@ final class AppFlowObservable: ObservableObject {
     @Published var intendedBackend: RecommendationBackend = .karabiner
     let viaImport = VIAImportModel()
     let karabinerImport = KarabinerImportModel()
+    let karabinerMappings = KarabinerMappingModel()
 
     var candidateConflictEvidence: CandidateConflictEvidence {
         let observations = snapshot.map { snapshot in
@@ -311,7 +313,17 @@ final class AppFlowObservable: ObservableObject {
         viaImport.onChange = { [weak self] in self?.objectWillChange.send() }
         karabinerImport.protectedGate = protectedGate
         karabinerImport.canRead = { [weak self] in self?.sensitiveContentVisible == true }
-        karabinerImport.onChange = { [weak self] in self?.objectWillChange.send() }
+        karabinerImport.onChange = { [weak self] in self?.karabinerMappings.invalidate(); self?.objectWillChange.send() }
+        karabinerMappings.canRead = { [weak self] in self?.sensitiveContentVisible == true }
+        karabinerMappings.protectedGate = protectedGate
+        karabinerMappings.configuration = { [weak self] in self?.karabinerImport.selectedConfiguration }
+        karabinerMappings.observations = { [weak self] in self?.candidateConflictEvidence.observations }
+        karabinerMappings.onChange = { [weak self] in self?.objectWillChange.send() }
+        karabinerMappings.defaultName = { [weak self] chord, scope in
+            let text = NativeText(locale: self?.language ?? "en")
+            let target = if case .application(let app) = scope { app } else { text("phase2.global") }
+            return AnalysisLabels.chord(chord, text: text) + " · " + target
+        }
         flow.onChange = { [weak self] in self?.mirror() }
         mirror()
     }
@@ -581,6 +593,7 @@ final class AppFlowObservable: ObservableObject {
             keyboardPoolConfirmed = []
             viaImport.clear()
             karabinerImport.clear()
+            karabinerMappings.clear()
             ignoreUndoBaseline = nil
             canUndoIgnoreChange = false
             rawAnalysis = nil
@@ -646,7 +659,7 @@ final class AppFlowObservable: ObservableObject {
     }
 
     private func mirror() {
-        if !sensitiveContentVisible { rawAnalysis = nil; viaImport.clear(); karabinerImport.clear() }
+        if !sensitiveContentVisible { rawAnalysis = nil; viaImport.clear(); karabinerImport.clear(); karabinerMappings.clear() }
         dialog = flow.dialog
         objectWillChange.send()
     }

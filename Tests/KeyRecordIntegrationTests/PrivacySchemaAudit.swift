@@ -42,7 +42,10 @@ enum PrivacySchemaAudit {
         "EncryptedManifest.swift": ["Wire", "Entry"],
         "KeyringMetadata.swift": ["Wire"],
         "ProtectedReferences.swift": ["KeyRotation"],
-        "VIAReferenceParser.swift": ["VIAJSONValue"]
+        "VIAReferenceParser.swift": ["VIAJSONValue"],
+        "KarabinerPlan.swift": ["MappingScope", "MappingDevice", "KarabinerMappingDraft"],
+        "KarabinerTransaction.swift": ["KarabinerMappingState", "KarabinerOperationKind", "KarabinerBackup",
+            "KarabinerManagement", "KarabinerBatch", "KarabinerLedger"]
     ]
 
     static func registeredTypes(in source: String) throws -> Set<String> {
@@ -55,6 +58,13 @@ enum PrivacySchemaAudit {
     }
 
     static let recordFields: [String: [String: Set<String>]] = [
+        "KarabinerPlan.swift": ["MappingDevice": ["vendorID", "productID", "identity"],
+            "KarabinerMappingDraft": ["id", "name", "profile", "trigger", "output", "scope", "devices", "temporary", "backendRule"]],
+        "KarabinerTransaction.swift": [
+            "KarabinerBackup": ["id", "before", "expected", "drafts", "previousDesired", "previousDisabled", "previousProfile", "destination"],
+            "KarabinerManagement": ["desired", "disabled", "profile"],
+            "KarabinerBatch": ["id", "profile", "kind", "beforeSHA256", "expectedSHA256", "backupID", "created", "state", "verifiedAt", "verificationSource"],
+            "KarabinerLedger": ["batches", "pending", "managedProfile", "desired", "disabled", "acceptedSHA256", "cleanupBackups", "mappingRecords"]],
         "ProtectedReadActivity.swift": ["ProtectedReadActivitySnapshot": [
             "decryptionStarted", "decryptionCompleted", "keychainReadStarted", "keychainReadCompleted",
             "storeCacheReadStarted", "storeCacheReadCompleted", "aggregateReadStarted", "aggregateReadCompleted",

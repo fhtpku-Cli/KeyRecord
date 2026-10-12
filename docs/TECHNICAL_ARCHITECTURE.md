@@ -628,6 +628,8 @@ sourceReliability(chord) = table( ordinaryCount / (ordinaryCount + suspectedCoun
 
 ### 9.1 KarabinerAdapter：plan / diff / commit / reconcile（ADR-007）
 
+**工程增量（2026-10-13）**：`KeyRecordMappings` 和原生草稿/检查组件已实现并实际执行本节核心事务、恢复、备份及停用路径，62 项不同的相关离线场景最终通过；见[本批记录](phase3/CORE_ENGINEERING_20261013.md)。默认产品仍未接入真实写入适配器，部署会话与完整卸载串联继续开发。下面 Phase 0 材料保留其历史范围；未知版本只读、真实支持矩阵、重载和停用实测要求不变，不据本批测试宣称完整 Phase 3 或 G3 合格。
+
 **Phase 0 证据状态**：受管块保序、共享原子替换与崩溃恢复夹具通过；配置 schema/版本采样、实机重载和一键停用 ≤2 秒 p95 未执行。KARABINER_STABLE 保持阻塞，不能据夹具冻结支持版本或宣称稳定发布。[证据：`evidence/phase0/sp3/managed-block.json`；`evidence/phase0/sp3/atomicity-citation.json`；`evidence/phase0/sp3/evidence.json`；`evidence/phase0/conclusions.json`]
 
 **前置门禁**

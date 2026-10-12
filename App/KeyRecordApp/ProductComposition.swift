@@ -272,6 +272,8 @@ final class ProductComposition: NSObject, NSMenuDelegate, NSWindowDelegate {
             afterErase: { hooks.erased() }, clear: { reduction.clear() })
         let flow = AppFlowObservable(flow: Phase1FlowModel(lifecycle: lifecycle,
             cycleReset: destruction, localDataEraser: destruction), protectedGate: gate)
+        flow.karabinerDeployment.configure(store: store, gate: gate)
+        flow.firmwareCopies.configure(store: store, gate: gate)
         let composition = ProductComposition(lifecycle: lifecycle, flow: flow, gate: gate, reduction: reduction,
                                   scheduler: scheduler, flush: flush, capture: capture, store: store, hooks: hooks,
                                   qualification: qualification, sessionLock: sessionLock,

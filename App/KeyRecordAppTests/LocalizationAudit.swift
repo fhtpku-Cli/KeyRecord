@@ -20,6 +20,7 @@ enum LocalizationAudit {
         "menu.open", "menu.pause", "menu.quit", "menu.resume", "menu.settings", "menu.start", "menu.statistics", "menu.status",
         "phase2.open.applications", "phase2.open.bare", "phase2.open.shortcuts",
         "menu.startupFailure",
+        "org.pqrs.Karabiner-Elements.Settings",
         "pause.circle", "record.circle", "preferences.json", "results.journal", "preview.locale",
         "preview.locked.toggle", "settings.form", "settings.exclusions.empty", "settings.exclusions.foreground",
     ]
@@ -76,6 +77,7 @@ enum LocalizationAudit {
         let statuses: [CandidateStatus] = [.observation, .eligible, .statefulExcluded]
         keys.formUnion(statuses.map { "phase2.status.\($0.rawValue)" })
         keys.formUnion(KarabinerMappingState.allCases.map { "phase3.state.\($0.rawValue)" })
+        keys.formUnion(["draft", "awaitingUserImport", "importClaimed", "verified", "failed", "externallyChanged", "rolledBack"].map { "phase4.state.\($0)" })
         keys.formUnion(CandidateConflict.allCases.map { "phase2.conflict.\($0.rawValue)" })
         keys.formUnion(ConflictLimitation.allCases.map { "phase2.conflict.limit.\($0.rawValue)" })
         keys.formUnion(["observed", "known-system-risk", "karabiner-overlap", "firmware-rules"].map { "phase2.evidence.\($0)" })

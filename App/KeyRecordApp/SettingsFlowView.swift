@@ -35,8 +35,11 @@ struct SettingsFlowView: View {
                 }
                 if flow.intendedBackend == .karabiner {
                     KarabinerImportSection(model: flow.karabinerImport, text: text)
+                    KarabinerDeploymentSection(model: flow.karabinerDeployment,
+                        selectedProfile: flow.karabinerImport.selectedConfiguration?.profile, text: text)
                     KarabinerMappingSection(model: flow.karabinerMappings, text: text)
                 } else { VIAImportSection(model: flow.viaImport, text: text) }
+                FirmwareCopiesSection(model: flow.firmwareCopies, viaBytes: flow.viaImport.selectedOriginalBytes, text: text)
             }
             Section {
                 Text(text("consent.disclosure")).fixedSize(horizontal: false, vertical: true)

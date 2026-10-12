@@ -80,6 +80,17 @@ public struct VIAImportedConfiguration: Equatable, Sendable {
 }
 
 public enum VIAReferenceParser {
+    public static func isStandardFirmwareOutput(_ token: String) -> Bool {
+        if case .standard = VIAStandardKeyCodes.binding(token) { return true }
+        let wrappers = ["LCTL(", "LSFT(", "LALT(", "LGUI(", "RCTL(", "RSFT(", "RALT(", "RGUI("]
+        var remaining = token
+        var count = 0
+        while let wrapper = wrappers.first(where: { remaining.hasPrefix($0) }), remaining.hasSuffix(")"), count < 4 {
+            remaining = String(remaining.dropFirst(wrapper.count).dropLast()); count += 1
+        }
+        if case .standard = VIAStandardKeyCodes.binding(remaining) { return count > 0 }
+        return false
+    }
     public static let maximumInputBytes = ConfigurationReadLimits.maximumInputBytes
     public static func layout(_ data: Data) throws -> VIALayoutReference {
         let root = try object(data)

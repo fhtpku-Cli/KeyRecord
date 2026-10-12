@@ -163,6 +163,112 @@ final class AnalysisFlowTests: XCTestCase {
         XCTAssertFalse(attention.hasUnseen)
     }
 
+    func testOverlappingIgnoresKeepBothSelectionsAndUndoOnlyTheLast() async throws {
+        try await checkOverlappingIgnores(firstSaveFails: false)
+    }
+
+    func testQueuedIgnoreUsesSavedStateAfterEarlierFailure() async throws {
+        try await checkOverlappingIgnores(firstSaveFails: true)
+    }
+
+    private func checkOverlappingIgnores(firstSaveFails: Bool) async throws {
+        let fixture = try fixture()
+        fixture.showConsentIfNeeded()
+        await fixture.flow.accept()
+        fixture.flow.sync(from: fixture.orchestrator.state)
+        let saving = expectation(description: "First ignore saving")
+        var release: CheckedContinuation<Void, Never>?
+        var attempts = 0
+        fixture.flow.saveIgnoredAction = { keys in
+            attempts += 1
+            if attempts == 1 {
+                await withCheckedContinuation { release = $0; saving.fulfill() }
+                if firstSaveFails { throw PreferencesRepositoryError.storageUnavailable }
+            }
+            try await fixture.orchestrator.setIgnoredRecommendationKeys(keys)
+        }
+        let first = Task { await fixture.flow.ignoreRecommendation("a") }
+        await fulfillment(of: [saving], timeout: 2)
+        let entered = expectation(description: "Second ignore entered")
+        let second = Task { entered.fulfill(); await fixture.flow.ignoreRecommendation("b") }
+        await fulfillment(of: [entered], timeout: 2)
+        XCTAssertEqual(attempts, 1)
+        release?.resume()
+        await first.value
+        await second.value
+        let expected: Set<String> = firstSaveFails ? ["b"] : ["a", "b"]
+        XCTAssertEqual(fixture.flow.ignoredRecommendationKeys, expected)
+        let saved = try await fixture.preferences.load()
+        XCTAssertEqual(saved?.ignoredRecommendationKeys, expected)
+        XCTAssertNil(fixture.flow.noticeKey)
+        await fixture.flow.undoIgnoredRecommendationChange()
+        let beforeLast: Set<String> = firstSaveFails ? [] : ["a"]
+        XCTAssertEqual(fixture.flow.ignoredRecommendationKeys, beforeLast)
+        let undone = try await fixture.preferences.load()
+        XCTAssertEqual(undone?.ignoredRecommendationKeys, beforeLast)
+    }
+
+    func testUndoWaitsForOverlappingRestore() async throws {
+        let fixture = try fixture()
+        fixture.showConsentIfNeeded()
+        await fixture.flow.accept()
+        fixture.flow.sync(from: fixture.orchestrator.state)
+        fixture.flow.saveIgnoredAction = { try await fixture.orchestrator.setIgnoredRecommendationKeys($0) }
+        await fixture.flow.ignoreRecommendation("a")
+        await fixture.flow.ignoreRecommendation("b")
+        let saving = expectation(description: "Restore saving")
+        var release: CheckedContinuation<Void, Never>?
+        var attempts = 0
+        fixture.flow.saveIgnoredAction = { keys in
+            attempts += 1
+            if attempts == 1 {
+                await withCheckedContinuation { release = $0; saving.fulfill() }
+            }
+            try await fixture.orchestrator.setIgnoredRecommendationKeys(keys)
+        }
+        let restore = Task { await fixture.flow.restoreRecommendation("a") }
+        await fulfillment(of: [saving], timeout: 2)
+        let entered = expectation(description: "Undo entered")
+        let undo = Task { entered.fulfill(); await fixture.flow.undoIgnoredRecommendationChange() }
+        await fulfillment(of: [entered], timeout: 2)
+        XCTAssertEqual(attempts, 1)
+        release?.resume()
+        await restore.value
+        await undo.value
+        XCTAssertEqual(fixture.flow.ignoredRecommendationKeys, ["a", "b"])
+        let saved = try await fixture.preferences.load()
+        XCTAssertEqual(saved?.ignoredRecommendationKeys, ["a", "b"])
+        XCTAssertFalse(fixture.flow.canUndoIgnoreChange)
+    }
+
+    func testCandidatesPageDisplaysPreferenceSaveFailure() throws {
+        ScreenEvidence.prepare()
+        let snapshot = try AnalysisEngine.analyze(AnalysisPreview.input())
+        let text = NativeText(locale: "zh-Hans")
+        let view = NSHostingView(rootView: AnalysisDashboardView(snapshot: snapshot,
+            layout: LayoutPreference(), text: text,
+            preferenceNoticeKey: "phase2.preferenceSaveFailed", saveLayout: { _ in },
+            surface: .candidates).frame(width: 1000, height: 700))
+        view.sizingOptions = []
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1000, height: 700),
+            styleMask: [.titled], backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false
+        window.contentView = view
+        window.makeKeyAndOrderFront(nil)
+        window.setContentSize(NSSize(width: 1000, height: 700))
+        view.frame = NSRect(x: 0, y: 0, width: 1000, height: 700)
+        defer { window.contentView = nil; window.close() }
+        NativeEvidence.primeAccessibility()
+        NativeEvidence.update(view)
+        NativeEvidence.update(view)
+        let nodes = NativeEvidence.elements(in: view)
+        let notices = nodes.filter { KRAXLabel($0) == text("phase2.preferenceSaveFailed") }
+        XCTAssertEqual(notices.count, 1)
+        let notice = try XCTUnwrap(notices.first)
+        XCTAssertGreaterThan(KRAXFrame(notice).width, 0)
+        XCTAssertGreaterThan(KRAXFrame(notice).height, 0)
+    }
+
 }
 
 import AppKit

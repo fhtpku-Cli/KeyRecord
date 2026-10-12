@@ -267,6 +267,10 @@ struct AnalysisDashboardView: View {
     private func candidatesPage(_ snapshot: AnalysisSnapshot) -> some View {
         VStack(alignment: .leading, spacing: NativeLayout.compact) {
             Text(text("phase2.all")).font(.headline)
+            if let preferenceNoticeKey {
+                Text(text(preferenceNoticeKey)).font(.caption)
+                    .accessibilityIdentifier("phase2.preferenceNotice.candidates")
+            }
             if canUndoIgnore {
                 Button(text("phase2.undoIgnore")) { Task { @MainActor in await undoIgnore() } }
                     .accessibilityIdentifier("phase2.undoIgnore.candidates")

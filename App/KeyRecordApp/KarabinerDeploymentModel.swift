@@ -122,7 +122,7 @@ final class KarabinerDeploymentModel: ObservableObject {
             guard ticket == session, canRead() else { return }
             let reference = KarabinerTargetReference(namespace: same ? previous?.namespace ?? UUID() : UUID(), bookmark: bookmark, location: location(url), profile: profile)
             replacingConnection = true
-            try await connect(url: url, reference: reference, ticket: ticket)
+            try await openTarget(url: url, reference: reference, ticket: ticket)
             guard ticket == session, canRead() else { return }
             try await targets.save(reference)
             guard ticket == session, canRead() else { return }
@@ -141,7 +141,7 @@ final class KarabinerDeploymentModel: ObservableObject {
         do {
             if let reference = try await EncryptedKarabinerTargetStore(store: store).load() {
                 guard ticket == session, canRead() else { return }
-                try await connect(url: resolve(reference), reference: reference, ticket: ticket)
+                try await openTarget(url: resolve(reference), reference: reference, ticket: ticket)
                 guard ticket == session, canRead() else { return }
                 connected = true
             }
@@ -169,7 +169,7 @@ final class KarabinerDeploymentModel: ObservableObject {
     private func location(_ url: URL) -> String {
         url.deletingLastPathComponent().resolvingSymlinksInPath().appendingPathComponent(url.lastPathComponent).path
     }
-    private func connect(url: URL, reference: KarabinerTargetReference, ticket: UUID) async throws {
+    private func openTarget(url: URL, reference: KarabinerTargetReference, ticket: UUID) async throws {
         guard let store, let gate else { throw KarabinerMappingError.unavailable }
         disconnect()
         target = url; scoped = url.startAccessingSecurityScopedResource()
@@ -182,7 +182,7 @@ final class KarabinerDeploymentModel: ObservableObject {
         self.port = port; profile = reference.profile; version = try runtime.context().version
         let coordinator = KarabinerTransactionCoordinator(configuration: port,
             store: try EncryptedKarabinerTransactionStore(store: store, namespace: reference.namespace))
-        try await mappings.connect(coordinator)
+        try await mappings.attachReconciled(coordinator)
         guard ticket == session, canRead(), self.runtime === runtime else { throw KarabinerMappingError.unavailable }
         try watch(url.deletingLastPathComponent(), ticket: ticket)
         issueKey = try runtime.context().authority == .readOnly ? "phase3.readOnlyVersion" : nil

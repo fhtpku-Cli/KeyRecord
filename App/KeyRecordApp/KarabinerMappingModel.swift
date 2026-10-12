@@ -57,7 +57,7 @@ final class KarabinerMappingModel: ObservableObject {
         guard canRead(), ticket == session, result.managedProfile == nil else { throw KarabinerMappingError.unavailable }
         lastLedger = result; invalidate()
     }
-    func connect(_ coordinator: KarabinerTransactionCoordinator) async throws {
+    func attachReconciled(_ coordinator: KarabinerTransactionCoordinator) async throws {
         let ticket = session
         let ledger = try await coordinator.reconcile()
         guard canRead(), ticket == session else { throw KarabinerMappingError.unavailable }

@@ -24,6 +24,13 @@ public enum BackendConnection: Equatable, Sendable {
     case disconnected(RecommendationBackend)
     case unsupported(RecommendationBackend)
     case connected(BackendCapabilities)
+
+    public var kind: RecommendationBackend {
+        switch self {
+        case .disconnected(let backend), .unsupported(let backend): return backend
+        case .connected(let capabilities): return capabilities.backend
+        }
+    }
 }
 
 public struct CandidateCheckInput: Equatable, Sendable {
@@ -35,11 +42,12 @@ public struct CandidateCheckInput: Equatable, Sendable {
     public let keyboardPool: Set<KeyCode>
     public let ruleVersion: String
     public let physicalEvidence: PhysicalEvidence?
+    public let conflictEvidence: CandidateConflictEvidence?
 
     public init(source: Chord, trigger: Chord, scope: RecommendationScope,
                 backend: BackendConnection, layout: LayoutPreference = LayoutPreference(),
-                keyboardPool: Set<KeyCode> = [], ruleVersion: String = AnalysisSnapshot.ruleVersion,
-                physicalEvidence: PhysicalEvidence? = nil) {
+                keyboardPool: Set<KeyCode> = [], ruleVersion: String = CandidateConstraints.ruleVersion,
+                physicalEvidence: PhysicalEvidence? = nil, conflictEvidence: CandidateConflictEvidence? = nil) {
         self.source = source
         self.trigger = trigger
         self.scope = scope
@@ -48,10 +56,11 @@ public struct CandidateCheckInput: Equatable, Sendable {
         self.keyboardPool = keyboardPool
         self.ruleVersion = ruleVersion
         self.physicalEvidence = physicalEvidence
+        self.conflictEvidence = conflictEvidence
     }
 }
 
-public enum CandidateConflict: String, Equatable, Sendable {
+public enum CandidateConflict: String, CaseIterable, Hashable, Sendable {
     case observedShortcut, knownSystemRisk, existingRuleOverlap, mappingCycle, protectedLayerEntry
 }
 
@@ -63,11 +72,13 @@ public struct CandidateConflictCheck: Equatable, Sendable {
     public let input: CandidateCheckInput
     public let conflicts: [CandidateConflict]
     public let evidenceKinds: Set<String>
+    public let isComplete: Bool
 
-    public init(input: CandidateCheckInput, conflicts: [CandidateConflict], evidenceKinds: Set<String>) {
+    public init(input: CandidateCheckInput, conflicts: [CandidateConflict], evidenceKinds: Set<String>, isComplete: Bool = true) {
         self.input = input
         self.conflicts = conflicts
         self.evidenceKinds = evidenceKinds
+        self.isComplete = isComplete
     }
 }
 
@@ -80,6 +91,7 @@ public enum CandidateReadiness: Equatable, Sendable {
 }
 
 public enum CandidateConstraints {
+    public static let ruleVersion = AnalysisSnapshot.ruleVersion + "+" + CandidateConflictDetector.ruleVersion
     public static func assess(_ input: CandidateCheckInput, check: CandidateConflictCheck? = nil) -> CandidateReadiness {
         guard ChordRuleTable.v1.classify(input.source).kind == .discrete,
               ChordRuleTable.v1.classify(input.trigger).kind == .discrete else { return .unsupported(.stateful) }
@@ -100,6 +112,7 @@ public enum CandidateConstraints {
         }
         guard let check, check.input == input, !check.evidenceKinds.isEmpty else { return .unchecked }
         if !check.conflicts.isEmpty { return .conflict(check.conflicts) }
+        guard check.isComplete else { return .unchecked }
         return .checked(evidenceKinds: check.evidenceKinds)
     }
 }

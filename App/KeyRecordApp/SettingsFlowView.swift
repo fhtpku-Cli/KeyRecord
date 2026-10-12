@@ -20,6 +20,7 @@ struct SettingsFlowView: View {
                 }
                 FunctionKeyPoolSection(flow: flow, text: text)
                 VIAImportSection(model: flow.viaImport, text: text)
+                KarabinerImportSection(model: flow.karabinerImport, text: text)
                 Section {
                     Picker(text("phase2.backendChoice"), selection: $flow.intendedBackend) {
                         Text("Karabiner").tag(RecommendationBackend.karabiner)

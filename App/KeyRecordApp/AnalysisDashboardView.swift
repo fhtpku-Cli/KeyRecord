@@ -53,6 +53,7 @@ struct AnalysisDashboardView: View {
     var backend: BackendConnection = .disconnected(.karabiner)
     var physicalEvidence: PhysicalEvidence?
     var viaReference: VIAImportedConfiguration?
+    var conflictEvidence: CandidateConflictEvidence?
     let text: NativeText
     var statusKey: String? = nil
     var analysisUnavailable = false
@@ -257,6 +258,7 @@ struct AnalysisDashboardView: View {
                     AnalysisCandidateView(candidate: candidate, text: text, backend: backend, layout: layout, keyboardPool: keyboardPool,
                                           physicalEvidence: physicalEvidence,
                                           viaReference: viaReference,
+                                          conflictEvidence: conflictEvidence,
                                            ignore: { Task { @MainActor in await ignore(candidate.id) } })
                     Button(text("phase2.viewDetails")) { open(.candidate(candidate.id), focus: "phase2.candidateOpen.\(candidate.id)") }
                         .focused($focusedControl, equals: "phase2.candidateOpen.\(candidate.id)")
@@ -287,6 +289,7 @@ struct AnalysisDashboardView: View {
                     AnalysisCandidateView(candidate: candidate, text: text, backend: backend, layout: layout, keyboardPool: keyboardPool,
                                           physicalEvidence: physicalEvidence,
                                           viaReference: viaReference,
+                                          conflictEvidence: conflictEvidence,
                                            ignore: candidate.isIgnored ? nil : ignoreAction(for: candidate.id),
                                            restore: candidate.isIgnored ? restoreAction(for: candidate.id) : nil)
                     Button(text("phase2.viewDetails")) { open(.candidate(candidate.id), focus: "phase2.candidateOpen.\(candidate.id)") }
@@ -344,6 +347,7 @@ struct AnalysisDashboardView: View {
                                                   backend: backend, layout: layout, keyboardPool: keyboardPool,
                                                   physicalEvidence: physicalEvidence,
                                                   viaReference: viaReference,
+                                                  conflictEvidence: conflictEvidence,
                                                    ignore: candidate.isIgnored ? nil : ignoreAction(for: candidate.id),
                                                    restore: candidate.isIgnored ? restoreAction(for: candidate.id) : nil)
                         }

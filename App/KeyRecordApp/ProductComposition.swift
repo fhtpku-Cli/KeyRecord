@@ -1,6 +1,7 @@
 import AppKit
 import SwiftUI
 import KeyRecordCore
+import KeyRecordAnalysis
 import KeyRecordCapture
 import KeyRecordStore
 
@@ -1593,7 +1594,8 @@ struct ProductScreens: View {
     private func analysis(_ surface: AnalysisSurface) -> some View {
         let visible = flow.sensitiveContentVisible
         return AnalysisDashboardView(
-            snapshot: visible ? flow.analysis : nil,
+            snapshot: visible ? flow.analysis?.constrained(to: BackendCapabilityCatalog.reference(flow.intendedBackend),
+                confirmed: flow.keyboardPoolConfirmed) : nil,
             fallbackAggregate: visible && flow.analysis == nil ? flow.snapshot : nil,
             layout: flow.layout,
             ignoredKeys: flow.ignoredRecommendationKeys,
@@ -1601,6 +1603,7 @@ struct ProductScreens: View {
             backend: .disconnected(flow.intendedBackend),
             physicalEvidence: flow.viaImport.configuration?.physicalEvidence,
             viaReference: flow.viaImport.configuration,
+            conflictEvidence: flow.candidateConflictEvidence,
             text: text,
             statusKey: flow.state.statusKey,
             analysisUnavailable: flow.noticeKey == "phase2.analysisUnavailable",

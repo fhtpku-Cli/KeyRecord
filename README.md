@@ -2,11 +2,11 @@
 
 KeyRecord is an in-development native macOS menu-bar app for local, aggregate keyboard-use statistics. It aims to count shortcuts by application and bare keys without storing typed text or event sequences. The codebase uses Swift 6, macOS 14+, and Apple system frameworks.
 
-**当前阶段（2026-10-13）：Phase 1 的 Apple Silicon MVP 已完成；Phase 2 增量 A 工程收尾与 B 基础能力已合并。** A 的统计概览、全部候选、正向逻辑预览及加密偏好接入已随 [PR #19](https://github.com/fhtpku-Cli/KeyRecord/pull/19) 合并，提交为 `adae0c4e429ff2c955b978f67a0afd069ce7708c`。此前 A 收尾修复连续忽略/恢复/撤销的覆盖问题，以及候选页保存失败提示，五项直接相关测试均有通过结果。已有合成界面走查继续有效。
+**当前阶段（2026-10-13）：Phase 1 的 Apple Silicon MVP 已完成；Phase 2 增量 A/B 工程开发与离线自审已完成，真实 G2 证据集中后置。** A 主体及 B 基础此前由 PR #19/#21 合并；B 的剩余后端能力与冲突检查已补齐。下一阶段推进 Karabiner 稳定路径的工程开发。
 
-增量 B 的工程基础与只读 VIA 参考已于 2026-10-13 随 [PR #21](https://github.com/fhtpku-Cli/KeyRecord/pull/21) 合并：特殊键池、手动候选/风险确认、后端检查状态与物理成本/回退模型，以及文件选择、配对和会话内参考均已接入。保留逻辑排名，次数与跨度独立说明；真实 VIA 配置及设备验证留稍后，静态副本仍不足以改变物理证据口径。[隔离试用包已准备，实际试用未执行](docs/phase2/TRIAL_PREPARATION_20261013.md)。见 [B 样例与方案](docs/phase2/B_FOUNDATIONS.md)、[实现状态](docs/phase2/IMPLEMENTATION.md)和[定向验证](docs/phase2/VALIDATION.md)。完整 B/G2 尚未完成。
+增量 B 已实现特殊键池、手动候选/风险确认、后端能力过滤及有范围的冲突报告、物理成本/回退，以及只读 VIA/Karabiner 副本和会话内参考。保留逻辑排名，物理次数与跨度独立说明；配置副本不证明当前部署，实际后端仍未连接，完整物理链缺失时使用逻辑口径。见 [B 完成记录](docs/phase2/B_COMPLETION_20261013.md)、[实现](docs/phase2/IMPLEMENTATION.md)与[验证](docs/phase2/VALIDATION.md)。真实配置、设备、文件选择器和保存重开集中到后端稳定后的候选，不重复开展早期试用。
 
-当前代码在原生 arm64 macOS 27 及以后版本读取实时锁屏状态；锁定或未知时仍关闭保护，不因系统版本未列入历史实测记录就自动禁用。Phase 1 实测范围仍为 macOS 27.0 build `26A428`，A 的同意与空统计试验运行于 27.0.1 build `26A434`，两者不代表所有后续系统均已实测。A 的真实输入及重开检查留到下一次实际试用，本次不单独再开验收轮次，也不标为通过。完整 Phase 2/G2、增量 B 和公开发行尚未完成。见[当前状态](docs/PROJECT_STATUS.md)、[路线图](docs/ROADMAP.md)、[验证记录](docs/phase2/VALIDATION.md)和[文档索引](docs/STATUS_INDEX.md)。
+当前代码在原生 arm64 macOS 27 及以后版本读取实时锁屏状态；锁定或未知时仍关闭保护，不因系统版本未列入历史实测记录就自动禁用。Phase 1 实测范围仍为 macOS 27.0 build `26A428`，A 的同意与空统计试验运行于 27.0.1 build `26A434`，两者不代表所有后续系统均已实测。A 的真实输入及重开检查留到下一次实际试用，本次不单独再开验收轮次，也不标为通过。正式 G2 实机证据与公开发行尚未完成，B 工程开发已完成。见[当前状态](docs/PROJECT_STATUS.md)、[路线图](docs/ROADMAP.md)、[验证记录](docs/phase2/VALIDATION.md)和[文档索引](docs/STATUS_INDEX.md)。
 
 ## Build and test
 

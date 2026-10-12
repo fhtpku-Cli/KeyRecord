@@ -31,7 +31,7 @@ public enum LogicalPreviews {
             control: control, shift: shift, fn: fn))
     }
 
-    static func generate(_ chord: Chord, confirmed: Set<KeyCode>) -> [TriggerPreview] {
+    static func generate(_ chord: Chord, confirmed: Set<KeyCode>, capabilities: BackendCapabilities? = nil) -> [TriggerPreview] {
         let original = keyCount(chord)
         let m = chord.modifiers
         // Unknown Fn cannot establish a reduction; side-unknown still means one active modifier.
@@ -52,7 +52,12 @@ public enum LogicalPreviews {
             options.append(Chord(keyCode: key, modifiers: ModifierSet(command: .none, option: .none,
                 control: .none, shift: .none, fn: .none)))
         }
-        return options.filter { keyCount($0) < original && ChordRuleTable.v1.classify($0).kind == .discrete }
+        return options.filter { candidate in
+            guard keyCount(candidate) < original, ChordRuleTable.v1.classify(candidate).kind == .discrete else { return false }
+            guard let capabilities else { return true }
+            return capabilities.keyCodes.contains(chord.keyCode) && capabilities.keyCodes.contains(candidate.keyCode)
+                && (capabilities.fnModifier || (chord.modifiers.fn != .active && candidate.modifiers.fn != .active))
+        }
             .sorted { keyCount($0) == keyCount($1) ? canonicalID($0) < canonicalID($1) : keyCount($0) < keyCount($1) }
             .prefix(3).map { TriggerPreview(chord: $0, logicalKeysSaved: original - keyCount($0)) }
     }

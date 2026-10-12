@@ -74,6 +74,9 @@ enum LocalizationAudit {
         keys.formUnion(layouts.map { "phase2.layout.\($0.rawValue)" })
         let statuses: [CandidateStatus] = [.observation, .eligible, .statefulExcluded]
         keys.formUnion(statuses.map { "phase2.status.\($0.rawValue)" })
+        keys.formUnion(CandidateConflict.allCases.map { "phase2.conflict.\($0.rawValue)" })
+        keys.formUnion(ConflictLimitation.allCases.map { "phase2.conflict.limit.\($0.rawValue)" })
+        keys.formUnion(["observed", "known-system-risk", "karabiner-overlap", "firmware-rules"].map { "phase2.evidence.\($0)" })
         let namedKeys = ["Return", "Tab", "Space", "Delete", "Escape", "Clear", "Enter", "Home",
                          "Page Up", "Forward Delete", "End", "Page Down", "←", "→", "↓", "↑"]
         keys.formUnion(namedKeys.map { "phase2.key.\($0)" })

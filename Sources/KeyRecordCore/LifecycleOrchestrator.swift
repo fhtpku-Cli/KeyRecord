@@ -83,25 +83,23 @@ public final class LifecycleOrchestrator {
     }
 
     public func setLayout(_ layout: LayoutPreference) async throws {
-        try await preferenceTransactions.acquire()
-        defer { preferenceTransactions.release() }
-        guard let preferences = state.preferences,
-              SensitiveVisibility.isVisible(state) else {
-            throw PreferencesRepositoryError.storageUnavailable
-        }
-        try await ports.preferences.save(preferences.updating(layout: layout))
-        state.preferences = state.preferences?.updating(layout: layout)
+        try await saveVisiblePreference { $0.updating(layout: layout) }
     }
 
     public func setIgnoredRecommendationKeys(_ keys: Set<String>) async throws {
+        try await saveVisiblePreference { $0.updating(ignoredRecommendationKeys: keys) }
+    }
+
+    /// Layout and ignore share one visible-preference save. Re-read state after the
+    /// write so a concurrent exclusion update is not replaced by the earlier snapshot.
+    private func saveVisiblePreference(_ update: (Preferences) -> Preferences) async throws {
         try await preferenceTransactions.acquire()
         defer { preferenceTransactions.release() }
-        guard let preferences = state.preferences,
-              SensitiveVisibility.isVisible(state) else {
+        guard let preferences = state.preferences, SensitiveVisibility.isVisible(state) else {
             throw PreferencesRepositoryError.storageUnavailable
         }
-        try await ports.preferences.save(preferences.updating(ignoredRecommendationKeys: keys))
-        state.preferences = state.preferences?.updating(ignoredRecommendationKeys: keys)
+        try await ports.preferences.save(update(preferences))
+        state.preferences = state.preferences.map(update)
     }
 
     public func dismissNotice() {

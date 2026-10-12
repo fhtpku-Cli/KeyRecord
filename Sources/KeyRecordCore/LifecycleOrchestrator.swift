@@ -82,21 +82,9 @@ public final class LifecycleOrchestrator {
         dispatch(.conditionsChanged(conditions))
     }
 
-    public func setLayout(_ layout: LayoutPreference) async throws {
-        try await saveVisiblePreference { $0.updating(layout: layout) }
-    }
-
-    public func setIgnoredRecommendationKeys(_ keys: Set<String>) async throws {
-        try await saveVisiblePreference { $0.updating(ignoredRecommendationKeys: keys) }
-    }
-
-    public func setKeyboardPoolConfirmed(_ keys: Set<KeyCode>) async throws {
-        try await saveVisiblePreference { $0.updating(keyboardPoolConfirmed: keys) }
-    }
-
-    /// Layout and ignore share one visible-preference save. Re-read state after the
+    /// Visible preference commands share one save. Re-read state after the
     /// write so a concurrent exclusion update is not replaced by the earlier snapshot.
-    private func saveVisiblePreference(_ update: (Preferences) -> Preferences) async throws {
+    func saveVisiblePreference(_ update: (Preferences) -> Preferences) async throws {
         try await preferenceTransactions.acquire()
         defer { preferenceTransactions.release() }
         guard let preferences = state.preferences, SensitiveVisibility.isVisible(state) else {

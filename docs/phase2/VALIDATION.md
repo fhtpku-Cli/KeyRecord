@@ -25,6 +25,14 @@ KEYRECORD_QA_OUTPUT_DIR=/private/tmp/keyrecord-b-review-qa xcrun xctest -XCTest 
 
 实际日志保留于 `/private/tmp/keyrecord-b-via-shared-compat-final.log`（15 项）、`/private/tmp/keyrecord-b-review-regression-test.log`（反例初次失败）、`/private/tmp/keyrecord-b-review-final-build.log`（中间编译失败）、`/private/tmp/keyrecord-b-review-final-build2.log`（最终构建）、`/private/tmp/keyrecord-b-review-final-tests.log`（5 项通过）。最终截图为 `/private/tmp/keyrecord-b-review-qa/key-pool-{en,zh-Hans}.png`。所有文件读取均为受控夹具；真实文件选择器授权与实机设备仍延期。
 
+### 既有 CI 检查发现的遗漏与收尾
+
+草稿 [PR #21](https://github.com/fhtpku-Cli/KeyRecord/pull/21) 的首轮 push/PR CI 在四项既有测试中失败：生命周期文件 253 行超过已有 `<250` 限制；新本地库及 directed dependencies 未登记在产品模块/import 白名单；私有 `VIAJSONValue: Decodable` 未登记在隐私类型审计。两次运行均为同一组问题，发生在包测试阶段，尚未进入后续 App 构建；首次记录不能称为 CI 通过。
+
+修复将三个偏好公开命令移到 `LifecyclePreferenceCommands.swift`，共用事务方法保持 acquire/release、敏感可见检查、现有存储和并发字段合并；ports 和事务对象仍私有。现有产品边界检查按实际图显式增加零依赖、只导入 Foundation 的 `KeyRecordConfigurationRead`，分析模块只增加对它的有向依赖，外部依赖和 test-only tooling 隔离断言均保留。隐私审计仅登记私有输入解码类型，未添加 Encodable、持久化或可公开读取的原始配置。
+
+只复验受影响的 12 项：四项失败边界/注册用例，加键池 2 项、布局 3 项和忽略 3 项，**12/12 通过**。命令为 `swift test --disable-sandbox --filter 'KeyboardPoolPreferenceTests|LayoutPreferenceTests|LifecycleBoundaryTests/testLifecycleFilesStayUnder250LinesAndImportOnlyFoundation|ProductBoundaryTests/(testManifestDeclaresOnlyLocalLibrariesWithDirectedDependencies|testAllProductImportsRespectSystemFrameworkAllowlist)|PrivacySerializationTests/testAllowlistWhenEnumeratingProductTypesRequiresExplicitRegistration'`（9 项）及 `swift test --disable-sandbox --filter IgnoredRecommendationPreferenceTests`（3 项）。日志为 `/private/tmp/keyrecord-b-ci-boundary-final-tests.log` 与 `/private/tmp/keyrecord-b-ci-ignore-final-tests.log`，CI 初次失败副本为 `/private/tmp/keyrecord-b-ci-failure.log`、`/private/tmp/keyrecord-b-ci-pr-failure.log`。完整远端检查状态以 PR 当前提交的 checks 为准；本地定向通过不替代远端构建，也不证明实机通过。
+
 ## 增量 B 第二批只读 VIA 参考 — 2026-10-13
 
 同一隔离分支成批加入文件读取、纯解析、会话失效和产品参考展示后，集中执行直接相关验证。**新解析 8/8、App 导入 6/6 与更新后的双语目录检查 1/1 通过，未签名 arm64 `build-for-testing` 成功。** 此前首批 22 项结果保留，未重跑；本批未跑全量、签名、Release、性能或网络观察。

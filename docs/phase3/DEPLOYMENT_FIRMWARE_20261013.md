@@ -2,7 +2,7 @@
 
 日期：2026-10-13，Asia/Shanghai。源码提交：
 
-`ab15a54a86f3dfc180a53df1c1683bb138883eae`。
+`7d4a3a195f0bc53d0c7156f43d2c9f637eed8653`。
 
 本批基于 PR24 的源码与记录继续开发，已通过普通 merge 衔接 PR24 合并提交 `853b0b95bcd273b787006221cf913ffa2cc492ac`；merge 没有改变本批文件内容。主目录仍为 `64590a0e9`、215 项历史/其他改动，只在本任务隔离 worktree 开发。
 
@@ -44,17 +44,17 @@ UninstallPreparationCoordinator 已实现顺序：保障每份固件恢复副本
 
 ## 本批验证与自审
 
-共 **74 项不同的相关场景最终通过：49 项 SwiftPM、25 项 App**。未签名 arm64 build-for-testing 通过。没有重跑 Phase 1 网络观察或实机验收，也未建立新的实机资格。
+共 **75 项不同的相关场景最终通过：49 项 SwiftPM、26 项 App**。未签名 arm64 build-for-testing 通过。没有重跑 Phase 1 网络观察或实机验收，也未建立新的实机资格。
 
 | 范围 | 已观察的行为 | 证据 |
 |---|---|---|
-| 部署/原生映射与恢复副本 | 13 项：加密目标、隐私重开、只读拒绝、保留旧绑定、外部原子替换、版本变化、晚到副本动作、正常/拒绝路径和双语原生按钮 | /private/tmp/keyrecord-deployment-ci-fixed-native.log；/private/tmp/keyrecord-deployment-ci-fixed-qa/deployment-copies-en.png 与 deployment-copies-zh-Hans.png |
+| 部署/原生映射与恢复副本 | 14 项：加密目标、隐私重开、只读拒绝、保留旧绑定、外部原子替换、版本变化、晚到副本动作、正常/拒绝路径和双语原生按钮 | /private/tmp/keyrecord-observations-final-native.log；/private/tmp/keyrecord-observations-final-qa/deployment-copies-en.png 与 deployment-copies-zh-Hans.png |
 | 既有副本读取 | 10 项：符号链接/FIFO/目录/大小、隐私、晚到请求、文件变更及原生参考 | /private/tmp/keyrecord-deployment-app-final.log |
 | 双语和 Xcode 图 | 各 1 项 | /private/tmp/keyrecord-deployment-localization-final.log；/private/tmp/keyrecord-deployment-app-final.log |
 | 固件与卸载核心 | 12 项：多槽修补、五轴/空目录拒绝、Vial 不透明保留、加密导出/重导出/声明/证据、各日志阶段磁盘重开、缺失/外部编辑、文件保护、12 份原始副本、卸载顺序/故障/隐私/恢复副本变更/并发新批次 | /private/tmp/keyrecord-firmware-reviewed.log |
 | 相邻事务与边界 | 16 项 Karabiner、8 项 VIA 解析、4 项序列化、6 项模块边界 | /private/tmp/keyrecord-deployment-boundaries.log |
 | 原有无联网能力扫描 | 3 项，包括 CI 实际失败的产品扫描 | /private/tmp/keyrecord-deployment-egress-fixed.log |
-| 构建 | 未签名 arm64 App 与测试 bundle | /private/tmp/keyrecord-deployment-ci-fix-build.log |
+| 构建 | 未签名 arm64 App 与测试 bundle | /private/tmp/keyrecord-observations-final-build.log |
 
 原生测试通过 NSHostingView 和真实辅助功能按钮执行，不是只检查 View 源码；主会话已查看双语截图。库端通过公共 API 驱动真实临时文件、原子替换、加密磁盘保存/重开及异常路径。日志与临时截图可能随清理过期。
 
@@ -64,10 +64,12 @@ UninstallPreparationCoordinator 已实现顺序：保障每份固件恢复副本
 
 | Lane | Exact source commit | Verdict | Report / artifact |
 |---|---|---|---|
-| Main-session manual QA | ab15a54a86f3dfc180a53df1c1683bb138883eae | PASS，限已交付的离线工程范围 | 本表、原生动作日志与双语截图、固件磁盘/API 场景日志 |
-| Main-session self-review / runtime audit | ab15a54a86f3dfc180a53df1c1683bb138883eae | PASS，限已交付范围；完整任务仍有上述 UI 审批阻拦 | 本记录的失败/修复与范围说明；最终差异及 git diff --check |
+| Main-session manual QA | 7d4a3a195f0bc53d0c7156f43d2c9f637eed8653 | PASS，限已交付的离线工程范围 | 本表、原生动作日志与双语截图、固件磁盘/API 场景日志 |
+| Main-session self-review / runtime audit | 7d4a3a195f0bc53d0c7156f43d2c9f637eed8653 | PASS，限已交付范围；完整任务仍有上述 UI 审批阻拦 | 本记录的失败/修复与范围说明；最终差异及 git diff --check |
 
 普通 merge 未改变源码文件树；随后 CI 修复仅更名本地会话方法，13 项受影响原生场景、3 项原有联网能力扫描及未签名构建已重新通过，其余未受影响项复用本表结果。review-work 按 Codex 主会话自审规则执行，没有声称独立审查或真实后端合格。
+
+其后的运行时反例复现：检查后新增冲突观测，运行上下文仍缓存旧观测，旧检查允许临时配置从 88 字节写为 485 字节。同一用例两处断言失败；日志为 /private/tmp/keyrecord-observations-conflict-before.log。修复在观测发布与 canApply/canManage 判断时同步受保护的当前观测，旧准备上下文不再匹配；重新检查后需要重新确认风险。最终 14 项原生场景通过，包括该反例及风险确认断言；三项原有联网能力扫描再次通过（/private/tmp/keyrecord-observations-egress.log），未签名最终构建通过。没有降低冲突级别或复用旧风险确认。
 
 首轮 [push CI](https://github.com/fhtpku-Cli/KeyRecord/actions/runs/38317706482) 和 [PR CI](https://github.com/fhtpku-Cli/KeyRecord/actions/runs/38317798221) 均失败。push 日志实际执行 665 项包用例，失败为 PrivacyEgressTests 在两个 App 文件报告共两处断言失败：新增本地方法名 connect 命中了既有 socket 名称禁用扫描。将方法准确更名为 openTarget / attachReconciled 后，原有扫描与相邻原生路径通过；没有修改扫描器、放宽白名单或删测试。失败日志为 /private/tmp/keyrecord-deployment-ci-failure.log。修复后的远端 CI 以实际运行结果为准。
 

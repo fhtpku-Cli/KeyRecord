@@ -1,7 +1,8 @@
-# Phase 2 read-only analysis
+# Phase 2 统计与逻辑预览实现
 
-Scope: current-cycle daily aggregates → deterministic statistics → explanatory recommendation preview. No capture, protected storage, permission, firmware or external configuration access is introduced. The Phase 1 collecting Release is now qualified on its exact observed platform;
-this does not qualify the Phase 2 prototype as a released analysis feature.
+2026-10-12 工程收尾：A 主体已由 PR #19 合并，合成预览走查完成。本次将忽略、恢复、撤销的完整操作排队，等前次保存结束后再计算新集合，并在全部候选页显示保存失败提示；仅补直接相关测试。真实输入及重开、真实产品链路偏好检查留到下一次实际试用，不能将工程收尾称为完整实机验收或 G2 完成。
+
+范围：当前周期每日聚合 → 确定性统计 → 可解释的逻辑建议预览。复用既有采集、受保护存储和隐私生命周期，不新增固件或外部配置写入。Phase 1 实测记录保持原候选范围，A 的产品接入不等于物理收益或后端应用已经验证。
 
 Current integration: consented `ProductScreens` uses Overview / All candidates /
 Settings. Overview reads the protected analysis snapshot, keeps Top 5 to eligible,

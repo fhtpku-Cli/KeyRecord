@@ -10,8 +10,9 @@ let package = Package(
         .executable(name: "Phase0Probe", targets: ["Phase0Probe"]),
         .executable(name: "EvidenceValidator", targets: ["EvidenceValidator"]),
     ],
+    dependencies: [.package(path: "..")],
     targets: [
-        .target(name: "Phase0Support"),
+        .target(name: "Phase0Support", dependencies: [.product(name: "KeyRecordConfigurationRead", package: "KeyRecord")]),
         .executableTarget(name: "Phase0Probe", dependencies: ["Phase0Support"]),
         .executableTarget(name: "EvidenceValidator", dependencies: ["Phase0Support"]),
         .testTarget(
@@ -19,7 +20,7 @@ let package = Package(
             dependencies: ["Phase0Support"],
             resources: [.copy("Fixtures")]
         ),
-        .testTarget(name: "Phase0ProbeTests", dependencies: ["Phase0Probe"]),
+        .testTarget(name: "Phase0ProbeTests", dependencies: ["Phase0Probe", "EvidenceValidator"]),
         .testTarget(name: "EvidenceValidatorTests", dependencies: ["EvidenceValidator", "Phase0Probe"]),
     ]
 )

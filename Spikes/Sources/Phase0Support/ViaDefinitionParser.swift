@@ -1,11 +1,7 @@
 import Foundation
+import KeyRecordConfigurationRead
 
-public enum ViaDefinitionLimits {
-    public static let maximumInputBytes = 8 * 1_024 * 1_024
-    public static let maximumDepth = 64
-    public static let maximumCollectionElements = 100_000
-    public static let maximumScalarBytes = 1_024 * 1_024
-}
+public typealias ViaDefinitionLimits = ConfigurationReadLimits
 
 public enum ViaDefinitionSchema: String, Codable, Sendable {
     case v2 = "V2"

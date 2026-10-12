@@ -213,7 +213,8 @@ extension Preferences {
     public func updating(expectedCollecting: Bool? = nil, excludedBundleIDs: Set<String>? = nil,
                          loginItemEnabled: Bool? = nil, locale: ProductLocale? = nil,
                          layout: LayoutPreference? = nil,
-                         ignoredRecommendationKeys: Set<String>? = nil) -> Preferences {
+                         ignoredRecommendationKeys: Set<String>? = nil,
+                         keyboardPoolConfirmed: Set<KeyCode>? = nil) -> Preferences {
         Preferences(
             currentCycleID: currentCycleID,
             expectedCollecting: expectedCollecting ?? self.expectedCollecting,
@@ -222,6 +223,6 @@ extension Preferences {
             layout: layout ?? self.layout,
             loginItemEnabled: loginItemEnabled ?? self.loginItemEnabled,
             locale: locale ?? self.locale,
-            keyboardPoolConfirmed: keyboardPoolConfirmed)
+            keyboardPoolConfirmed: keyboardPoolConfirmed ?? self.keyboardPoolConfirmed)
     }
 }

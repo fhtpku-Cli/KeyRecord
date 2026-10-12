@@ -41,7 +41,8 @@ enum PrivacySchemaAudit {
         "CycleResetJournalPayload.swift": ["ResetJournalPhase", "RetainedObjectHash", "ResetJournalPayload"],
         "EncryptedManifest.swift": ["Wire", "Entry"],
         "KeyringMetadata.swift": ["Wire"],
-        "ProtectedReferences.swift": ["KeyRotation"]
+        "ProtectedReferences.swift": ["KeyRotation"],
+        "VIAReferenceParser.swift": ["VIAJSONValue"]
     ]
 
     static func registeredTypes(in source: String) throws -> Set<String> {

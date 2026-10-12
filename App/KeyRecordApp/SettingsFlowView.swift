@@ -1,5 +1,6 @@
 import SwiftUI
 import KeyRecordCore
+import KeyRecordAnalysis
 
 // MARK: - Settings flow screen
 
@@ -16,6 +17,22 @@ struct SettingsFlowView: View {
                                            saveLayout: { await flow.saveLayout($0) })
                 } header: {
                     Text(text("phase2.layout"))
+                }
+                FunctionKeyPoolSection(flow: flow, text: text)
+                VIAImportSection(model: flow.viaImport, text: text)
+                Section {
+                    Picker(text("phase2.backendChoice"), selection: $flow.intendedBackend) {
+                        Text("Karabiner").tag(RecommendationBackend.karabiner)
+                        Text("VIA").tag(RecommendationBackend.via)
+                        Text("Vial").tag(RecommendationBackend.vial)
+                    }
+                    Text(text("phase2.backendDisconnected"))
+                        .fixedSize(horizontal: false, vertical: true)
+                    Text(text("phase2.backendSession"))
+                        .font(.caption)
+                        .fixedSize(horizontal: false, vertical: true)
+                } header: {
+                    Text(text("phase2.backend"))
                 }
             }
             Section {
@@ -45,6 +62,35 @@ struct SettingsFlowView: View {
                     guard !presented else { return }
                     Task { @MainActor in await flow.choose(.cancel) }
                 })
+    }
+}
+
+private struct FunctionKeyPoolSection: View {
+    @ObservedObject var flow: AppFlowObservable
+    let text: NativeText
+
+    var body: some View {
+        Section {
+            Text(text("phase2.keyPoolNotice"))
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityIdentifier("settings.keyPool.notice")
+            Text(text("phase2.functionKeys"))
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 85), alignment: .leading)], alignment: .leading) {
+                ForEach(Array(LogicalPreviews.functionKeyValues.enumerated()), id: \.element) { index, value in
+                    if let key = try? KeyCode(value) {
+                        Toggle("F\(index + 1)", isOn: Binding(
+                            get: { flow.keyboardPoolConfirmed.contains(key) },
+                            set: { confirmed in
+                                Task { @MainActor in await flow.setFunctionKey(key, confirmed: confirmed) }
+                            }))
+                            .toggleStyle(.checkbox)
+                            .accessibilityIdentifier("settings.keyPool.\(value)")
+                    }
+                }
+            }
+        } header: {
+            Text(text("phase2.keyPool"))
+        }
     }
 }
 

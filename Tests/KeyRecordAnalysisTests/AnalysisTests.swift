@@ -82,6 +82,23 @@ final class AnalysisTests: XCTestCase {
         XCTAssertEqual(candidate.factors.score, candidate.factors.weightedFrequency * 2 * 0.5)
     }
 
+    func testPoolWithdrawalRecalculatesWithoutOfferingPrintableKeys() throws {
+        let rows = try [row(20, day: d1), row(20, day: d2)]
+        func snapshot(_ pool: Set<KeyCode>) throws -> AnalysisSnapshot {
+            try AnalysisEngine.analyze(AnalysisInput(cycleID: cycle, shortcuts: rows, bareKeys: [],
+                activeDays: [d1, d2], keyboardPoolConfirmed: pool))
+        }
+        let selected = try snapshot([KeyCode(122), KeyCode(0)])
+        XCTAssertTrue(selected.candidates[0].triggers.contains { $0.chord.keyCode.value == 122 })
+        XCTAssertFalse(selected.candidates[0].triggers.contains { $0.chord.keyCode.value == 0 })
+        let withdrawn = try snapshot([])
+        XCTAssertFalse(withdrawn.candidates[0].triggers.contains { $0.chord.keyCode.value == 122 })
+        XCTAssertEqual(selected.shortcutStatistics, withdrawn.shortcutStatistics)
+        XCTAssertEqual(selected.candidates[0].status, withdrawn.candidates[0].status)
+        XCTAssertEqual(selected.candidates[0].factors.savedPerUse, 2)
+        XCTAssertEqual(withdrawn.candidates[0].factors.savedPerUse, 1)
+    }
+
     func testValidationRejectsDuplicateCycleAndOrdinalErrorsAndOverflow() throws {
         let first = try row(1, day: d1)
         XCTAssertThrowsError(try analyze([first, first], days: [d1]))

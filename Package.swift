@@ -5,6 +5,7 @@ let package = Package(
     name: "KeyRecord",
     platforms: [.macOS(.v14)],
     products: [
+        .library(name: "KeyRecordConfigurationRead", targets: ["KeyRecordConfigurationRead"]),
         .library(name: "KeyRecordAnalysis", targets: ["KeyRecordAnalysis"]),
         .library(name: "KeyRecordCore", targets: ["KeyRecordCore"]),
         .library(name: "KeyRecordCapture", targets: ["KeyRecordCapture"]),
@@ -12,8 +13,9 @@ let package = Package(
     ],
     dependencies: [],
     targets: [
-        .target(name: "KeyRecordAnalysis", dependencies: ["KeyRecordCore"]),
-        .testTarget(name: "KeyRecordAnalysisTests", dependencies: ["KeyRecordAnalysis"]),
+        .target(name: "KeyRecordConfigurationRead"),
+        .target(name: "KeyRecordAnalysis", dependencies: ["KeyRecordCore", "KeyRecordConfigurationRead"]),
+        .testTarget(name: "KeyRecordAnalysisTests", dependencies: ["KeyRecordAnalysis", "KeyRecordConfigurationRead"]),
         .target(name: "KeyRecordCore"),
         .target(name: "KeyRecordCapture", dependencies: ["KeyRecordCore"]),
         .target(name: "KeyRecordStore", dependencies: ["KeyRecordCore"]),

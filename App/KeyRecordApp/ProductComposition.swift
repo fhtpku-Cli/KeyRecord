@@ -355,6 +355,10 @@ final class ProductComposition: NSObject, NSMenuDelegate, NSWindowDelegate {
             try await lifecycle.setIgnoredRecommendationKeys(keys)
             self?.syncRuntime()
         }
+        flow.saveKeyboardPoolAction = { [weak self] keys in
+            try await lifecycle.setKeyboardPoolConfirmed(keys)
+            self?.syncRuntime()
+        }
     }
 
     private func registerLifecycleObservers(hooks: ProductMaintenanceHooks) {
@@ -1593,6 +1597,10 @@ struct ProductScreens: View {
             fallbackAggregate: visible && flow.analysis == nil ? flow.snapshot : nil,
             layout: flow.layout,
             ignoredKeys: flow.ignoredRecommendationKeys,
+            keyboardPool: flow.keyboardPoolConfirmed,
+            backend: .disconnected(flow.intendedBackend),
+            physicalEvidence: flow.viaImport.configuration?.physicalEvidence,
+            viaReference: flow.viaImport.configuration,
             text: text,
             statusKey: flow.state.statusKey,
             analysisUnavailable: flow.noticeKey == "phase2.analysisUnavailable",

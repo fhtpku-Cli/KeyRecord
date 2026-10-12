@@ -252,7 +252,10 @@ final class AppFlowObservable: ObservableObject {
     @Published private var rawAnalysis: AnalysisSnapshot?
     @Published private(set) var layout = LayoutPreference()
     @Published private(set) var ignoredRecommendationKeys: Set<String> = []
+    @Published private(set) var keyboardPoolConfirmed: Set<KeyCode> = []
     @Published var statisticsSection: StatisticsSection = .overview
+    @Published var intendedBackend: RecommendationBackend = .karabiner
+    let viaImport = VIAImportModel()
     /// First-run consent stays available when a closed key gate forces the status to blocked.
     @Published private(set) var awaitingConsent = false
     @Published private(set) var hasSavedPreferences = false
@@ -263,12 +266,14 @@ final class AppFlowObservable: ObservableObject {
     private var presentationCycleID: CycleID?
     private var ignoreUndoBaseline: Set<String>?
     private var pendingIgnoreChange: Task<Void, Never>?
+    private var pendingKeyboardPoolChange: Task<Void, Never>?
 
     private enum IgnoreChange {
         case ignore(String), restore(String), undo
     }
     var saveLayoutAction: (@MainActor (LayoutPreference) async throws -> Void)?
     var saveIgnoredAction: (@MainActor (Set<String>) async throws -> Void)?
+    var saveKeyboardPoolAction: (@MainActor (Set<KeyCode>) async throws -> Void)?
     #if DEBUG
     private var diagnostics: CaptureDiagnosticsRecorder?
 
@@ -288,6 +293,9 @@ final class AppFlowObservable: ObservableObject {
         self.flow = flow
         self.actions = actions
         self.protectedGate = protectedGate
+        viaImport.protectedGate = protectedGate
+        viaImport.canRead = { [weak self] in self?.sensitiveContentVisible == true }
+        viaImport.onChange = { [weak self] in self?.objectWillChange.send() }
         flow.onChange = { [weak self] in self?.mirror() }
         mirror()
     }
@@ -395,6 +403,41 @@ final class AppFlowObservable: ObservableObject {
 
     func ignoreRecommendation(_ id: String) async {
         await enqueueIgnoreChange(.ignore(id))
+    }
+
+    func setFunctionKey(_ key: KeyCode, confirmed: Bool) async {
+        guard sensitiveContentVisible, LogicalPreviews.functionKeyValues.contains(key.value) else { return }
+        let generation: CaptureGeneration?
+        do { generation = try protectedGate?.begin() }
+        catch { return }
+        let cycle = presentationCycleID
+        let previous = pendingKeyboardPoolChange
+        let task = Task { @MainActor [weak self] in
+            await previous?.value
+            guard let self else { return }
+            @MainActor func isCurrent() -> Bool {
+                guard self.sensitiveContentVisible, self.presentationCycleID == cycle else { return false }
+                if let generation { return (try? self.protectedGate?.check(generation)) != nil }
+                return true
+            }
+            guard isCurrent() else { return }
+            guard let save = self.saveKeyboardPoolAction else {
+                self.noticeKey = "phase2.preferenceSaveFailed"
+                return
+            }
+            var next = self.keyboardPoolConfirmed
+            if confirmed { next.insert(key) } else { next.remove(key) }
+            do {
+                try await save(next)
+                guard isCurrent() else { return }
+                self.keyboardPoolConfirmed = next
+                if self.noticeKey == "phase2.preferenceSaveFailed" { self.noticeKey = nil }
+            } catch {
+                if isCurrent() { self.noticeKey = "phase2.preferenceSaveFailed" }
+            }
+        }
+        pendingKeyboardPoolChange = task
+        await task.value
     }
 
     func restoreRecommendation(_ id: String) async {
@@ -516,8 +559,11 @@ final class AppFlowObservable: ObservableObject {
         let visible = SensitiveVisibility.isVisible(lifecycleState)
         if visible {
             ignoredRecommendationKeys = lifecycleState.preferences?.ignoredRecommendationKeys ?? []
+            keyboardPoolConfirmed = lifecycleState.preferences?.keyboardPoolConfirmed ?? []
         } else {
             ignoredRecommendationKeys = []
+            keyboardPoolConfirmed = []
+            viaImport.clear()
             ignoreUndoBaseline = nil
             canUndoIgnoreChange = false
             rawAnalysis = nil
@@ -583,7 +629,7 @@ final class AppFlowObservable: ObservableObject {
     }
 
     private func mirror() {
-        if !sensitiveContentVisible { rawAnalysis = nil }
+        if !sensitiveContentVisible { rawAnalysis = nil; viaImport.clear() }
         dialog = flow.dialog
         objectWillChange.send()
     }

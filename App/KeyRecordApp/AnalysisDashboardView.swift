@@ -49,6 +49,10 @@ struct AnalysisDashboardView: View {
     var fallbackAggregate: AggregateSnapshot? = nil
     let layout: LayoutPreference
     var ignoredKeys: Set<String> = []
+    var keyboardPool: Set<KeyCode> = []
+    var backend: BackendConnection = .disconnected(.karabiner)
+    var physicalEvidence: PhysicalEvidence?
+    var viaReference: VIAImportedConfiguration?
     let text: NativeText
     var statusKey: String? = nil
     var analysisUnavailable = false
@@ -250,7 +254,9 @@ struct AnalysisDashboardView: View {
             }
             ForEach(snapshot.topRecommendations) { candidate in
                 VStack(alignment: .leading, spacing: NativeLayout.compact) {
-                    AnalysisCandidateView(candidate: candidate, text: text,
+                    AnalysisCandidateView(candidate: candidate, text: text, backend: backend, layout: layout, keyboardPool: keyboardPool,
+                                          physicalEvidence: physicalEvidence,
+                                          viaReference: viaReference,
                                            ignore: { Task { @MainActor in await ignore(candidate.id) } })
                     Button(text("phase2.viewDetails")) { open(.candidate(candidate.id), focus: "phase2.candidateOpen.\(candidate.id)") }
                         .focused($focusedControl, equals: "phase2.candidateOpen.\(candidate.id)")
@@ -278,7 +284,9 @@ struct AnalysisDashboardView: View {
             if snapshot.candidates.isEmpty { Text(text("phase2.empty")) }
             ForEach(snapshot.candidates) { candidate in
                 VStack(alignment: .leading, spacing: NativeLayout.compact) {
-                    AnalysisCandidateView(candidate: candidate, text: text,
+                    AnalysisCandidateView(candidate: candidate, text: text, backend: backend, layout: layout, keyboardPool: keyboardPool,
+                                          physicalEvidence: physicalEvidence,
+                                          viaReference: viaReference,
                                            ignore: candidate.isIgnored ? nil : ignoreAction(for: candidate.id),
                                            restore: candidate.isIgnored ? restoreAction(for: candidate.id) : nil)
                     Button(text("phase2.viewDetails")) { open(.candidate(candidate.id), focus: "phase2.candidateOpen.\(candidate.id)") }
@@ -333,6 +341,9 @@ struct AnalysisDashboardView: View {
                     case .candidate(let id):
                         if let candidate = snapshot.candidates.first(where: { $0.id == id }) {
                             AnalysisCandidateView(candidate: candidate, text: text, showsScopePicker: true,
+                                                  backend: backend, layout: layout, keyboardPool: keyboardPool,
+                                                  physicalEvidence: physicalEvidence,
+                                                  viaReference: viaReference,
                                                    ignore: candidate.isIgnored ? nil : ignoreAction(for: candidate.id),
                                                    restore: candidate.isIgnored ? restoreAction(for: candidate.id) : nil)
                         }

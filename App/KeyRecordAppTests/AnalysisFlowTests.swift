@@ -13,6 +13,117 @@ final class AnalysisFlowTests: XCTestCase {
         return try FlowFixture(directory: root, environment: ["KEYRECORD_FLOW_FIXTURE": root.path])
     }
 
+    func testFunctionKeySelectionPersistsWithdrawsAndReportsSaveFailure() async throws {
+        let fixture = try fixture()
+        fixture.showConsentIfNeeded()
+        await fixture.flow.accept()
+        fixture.flow.sync(from: fixture.orchestrator.state)
+        fixture.flow.saveKeyboardPoolAction = { try await fixture.orchestrator.setKeyboardPoolConfirmed($0) }
+        let key = try KeyCode(122)
+        await fixture.flow.setFunctionKey(key, confirmed: true)
+        let saved = try await fixture.preferences.load()
+        XCTAssertEqual(saved?.keyboardPoolConfirmed, [key])
+        fixture.flow.sync(from: fixture.orchestrator.state)
+        XCTAssertEqual(fixture.flow.keyboardPoolConfirmed, [key])
+        fixture.flow.saveKeyboardPoolAction = { _ in throw PreferencesRepositoryError.storageUnavailable }
+        await fixture.flow.setFunctionKey(key, confirmed: false)
+        XCTAssertEqual(fixture.flow.keyboardPoolConfirmed, [key])
+        XCTAssertEqual(fixture.flow.noticeKey, "phase2.preferenceSaveFailed")
+        fixture.flow.saveKeyboardPoolAction = { try await fixture.orchestrator.setKeyboardPoolConfirmed($0) }
+        await fixture.flow.setFunctionKey(key, confirmed: false)
+        XCTAssertEqual(fixture.flow.keyboardPoolConfirmed, [])
+        XCTAssertNil(fixture.flow.noticeKey)
+        await fixture.flow.setFunctionKey(try KeyCode(0), confirmed: true)
+        let final = try await fixture.preferences.load()
+        XCTAssertEqual(final?.keyboardPoolConfirmed, [])
+    }
+
+    func testOverlappingFunctionKeyChangesUseTheLastSavedSet() async throws {
+        let fixture = try fixture()
+        fixture.showConsentIfNeeded()
+        await fixture.flow.accept()
+        fixture.flow.sync(from: fixture.orchestrator.state)
+        var release: CheckedContinuation<Void, Never>?
+        var attempts = 0
+        fixture.flow.saveKeyboardPoolAction = { keys in
+            attempts += 1
+            if attempts == 1 { await withCheckedContinuation { release = $0 } }
+            try await fixture.orchestrator.setKeyboardPoolConfirmed(keys)
+        }
+        let firstKey = try KeyCode(122)
+        let secondKey = try KeyCode(120)
+        let first = Task { await fixture.flow.setFunctionKey(firstKey, confirmed: true) }
+        while release == nil { await Task.yield() }
+        let second = Task { await fixture.flow.setFunctionKey(secondKey, confirmed: true) }
+        await Task.yield()
+        XCTAssertEqual(attempts, 1)
+        release?.resume()
+        await first.value
+        await second.value
+        XCTAssertEqual(fixture.flow.keyboardPoolConfirmed, [firstKey, secondKey])
+        let saved = try await fixture.preferences.load()
+        XCTAssertEqual(saved?.keyboardPoolConfirmed, [firstKey, secondKey])
+    }
+
+    func testPrivacyClosureClearsFunctionKeysAndRejectsNewSelections() async throws {
+        let fixture = try fixture()
+        fixture.showConsentIfNeeded()
+        await fixture.flow.accept()
+        fixture.flow.sync(from: fixture.orchestrator.state)
+        fixture.flow.saveKeyboardPoolAction = { try await fixture.orchestrator.setKeyboardPoolConfirmed($0) }
+        await fixture.flow.setFunctionKey(try KeyCode(122), confirmed: true)
+        fixture.observeLocked()
+        fixture.flow.sync(from: fixture.orchestrator.state)
+        XCTAssertTrue(fixture.flow.keyboardPoolConfirmed.isEmpty)
+        await fixture.flow.setFunctionKey(try KeyCode(120), confirmed: true)
+        let saved = try await fixture.preferences.load()
+        XCTAssertEqual(saved?.keyboardPoolConfirmed, [try KeyCode(122)])
+        XCTAssertTrue(fixture.flow.keyboardPoolConfirmed.isEmpty)
+    }
+
+    func testQueuedFunctionKeyChangeCannotCrossLockAndReopen() async throws {
+        let fixture = try fixture()
+        fixture.showConsentIfNeeded()
+        await fixture.flow.accept()
+        let gate = KeyAvailabilityGate()
+        gate.update(.unlocked)
+        let flow = AppFlowObservable(flow: Phase1FlowModel(lifecycle: fixture.orchestrator), protectedGate: gate)
+        flow.sync(from: fixture.orchestrator.state)
+        var release: CheckedContinuation<Void, Never>?
+        var attempts: [Set<KeyCode>] = []
+        flow.saveKeyboardPoolAction = { keys in
+            attempts.append(keys)
+            if attempts.count == 1 {
+                await withCheckedContinuation { release = $0 }
+                throw PreferencesRepositoryError.storageUnavailable
+            }
+            try await fixture.orchestrator.setKeyboardPoolConfirmed(keys)
+        }
+        let first = Task { await flow.setFunctionKey(try KeyCode(122), confirmed: true) }
+        while release == nil { await Task.yield() }
+        let queued = XCTestExpectation(description: "second selection entered the queue")
+        let second = Task {
+            queued.fulfill()
+            await flow.setFunctionKey(try KeyCode(120), confirmed: true)
+        }
+        let entered = await XCTWaiter.fulfillment(of: [queued], timeout: 3)
+        XCTAssertEqual(entered, .completed)
+        gate.update(.locked)
+        fixture.observeLocked()
+        flow.sync(from: fixture.orchestrator.state)
+        gate.update(.unlocked)
+        fixture.observe()
+        flow.sync(from: fixture.orchestrator.state)
+        release?.resume()
+        try await first.value
+        try await second.value
+        XCTAssertEqual(attempts.count, 1)
+        XCTAssertTrue(flow.keyboardPoolConfirmed.isEmpty)
+        XCTAssertNil(flow.noticeKey)
+        await flow.setFunctionKey(try KeyCode(99), confirmed: true)
+        XCTAssertEqual(flow.keyboardPoolConfirmed, [try KeyCode(99)])
+    }
+
     func testAnalysisIsClearedAtPrivacyClosureAndRequiresFreshPublication() async throws {
         let fixture = try fixture()
         fixture.showConsentIfNeeded()
@@ -267,6 +378,144 @@ final class AnalysisFlowTests: XCTestCase {
         let notice = try XCTUnwrap(notices.first)
         XCTAssertGreaterThan(KRAXFrame(notice).width, 0)
         XCTAssertGreaterThan(KRAXFrame(notice).height, 0)
+    }
+
+    func testFunctionKeySettingsExposeNoticeAndNativeToggleInBothLocales() throws {
+        ScreenEvidence.prepare()
+        let fixture = try fixture()
+        ScreenEvidence.awaitMain {
+            fixture.showConsentIfNeeded()
+            await fixture.flow.accept()
+            fixture.flow.sync(from: fixture.orchestrator.state)
+        }
+        fixture.flow.saveKeyboardPoolAction = { try await fixture.orchestrator.setKeyboardPoolConfirmed($0) }
+        let functionKey = try KeyCode(122)
+        for locale in ["en", "zh-Hans"] {
+            let text = NativeText(locale: locale)
+            let view = NSHostingView(rootView: SettingsFlowView(flow: fixture.flow, text: text)
+                .frame(width: 640, height: 480)
+                .background(Color(nsColor: .windowBackgroundColor)))
+            view.sizingOptions = []
+            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 640, height: 480),
+                styleMask: [.titled], backing: .buffered, defer: false)
+            window.isReleasedWhenClosed = false
+            window.contentView = view
+            window.makeKeyAndOrderFront(nil)
+            window.setContentSize(NSSize(width: 640, height: 480))
+            view.frame = NSRect(x: 0, y: 0, width: 640, height: 480)
+            defer { window.contentView = nil; window.close() }
+            NativeEvidence.primeAccessibility()
+            NativeEvidence.update(view)
+            NativeEvidence.update(view)
+            let notice = try XCTUnwrap(NativeEvidence.elements(in: view).first { KRAXLabel($0) == text("phase2.keyPoolNotice") })
+            XCTAssertGreaterThan(KRAXFrame(notice).width, 0)
+            XCTAssertGreaterThan(KRAXFrame(notice).height, 0)
+            let toggle = try NativeEvidence.node("settings.keyPool.122", in: view)
+            XCTAssertTrue(KRAXPress(toggle))
+            ScreenEvidence.waitUntil("function key saved", in: view) {
+                fixture.flow.keyboardPoolConfirmed.contains(functionKey) == (locale == "en")
+            }
+            if let root = NativeEvidence.outputRoot() {
+                try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+                try ScreenEvidence.capturePNG(view).write(to: root.appendingPathComponent("key-pool-\(locale).png"))
+            }
+        }
+    }
+
+    func testManualCandidateRiskCancelAndConfirmStayUnappliedInBothLocales() throws {
+        ScreenEvidence.prepare()
+        let source = Chord(keyCode: try KeyCode(8), modifiers: ModifierSet(command: .left, option: .none,
+            control: .none, shift: .left, fn: .none))
+        var pending = ManualCandidateDraft()
+        try pending.propose(keyCode: "0", modifiers: ModifierSet(command: .none, option: .none,
+            control: .none, shift: .none, fn: .none))
+        for locale in ["en", "zh-Hans"] {
+            for confirms in [false, true] {
+                let text = NativeText(locale: locale)
+                let view = NSHostingView(rootView: AnalysisManualCandidateEditor(source: source, scope: .global,
+                    backend: .disconnected(.karabiner), layout: LayoutPreference(), keyboardPool: [], text: text,
+                    initialDraft: pending).padding(16).frame(width: 640, height: 480)
+                    .background(Color(nsColor: .windowBackgroundColor)))
+                view.sizingOptions = []
+                let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 640, height: 480),
+                    styleMask: [.titled], backing: .buffered, defer: false)
+                window.isReleasedWhenClosed = false
+                window.contentView = view
+                window.makeKeyAndOrderFront(nil)
+                window.setContentSize(NSSize(width: 640, height: 480))
+                view.frame = NSRect(x: 0, y: 0, width: 640, height: 480)
+                defer { window.contentView = nil; window.close() }
+                NativeEvidence.primeAccessibility()
+                NativeEvidence.update(view)
+                NativeEvidence.update(view)
+                let risk = try XCTUnwrap(NativeEvidence.elements(in: view).first { KRAXLabel($0) == text("phase2.manualRisk") })
+                XCTAssertGreaterThan(KRAXFrame(risk).width, 0)
+                XCTAssertGreaterThan(KRAXFrame(risk).height, 0)
+                if let root = NativeEvidence.outputRoot(), !confirms {
+                    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+                    try ScreenEvidence.capturePNG(view).write(to: root.appendingPathComponent("manual-risk-\(locale).png"))
+                }
+                let action = try NativeEvidence.node(confirms ? "phase2.manual.confirmRisk" : "phase2.manual.cancel", in: view)
+                XCTAssertTrue(KRAXPress(action))
+                NativeEvidence.update(view)
+                let nodes = NativeEvidence.elements(in: view)
+                XCTAssertFalse(nodes.contains { KRAXLabel($0) == text("phase2.manualRisk") })
+                XCTAssertEqual(nodes.contains { KRAXLabel($0) == text("phase2.backendDisconnected") }, confirms)
+                XCTAssertFalse(nodes.contains { KRAXLabel($0) == text("phase2.backendChecked") })
+            }
+        }
+    }
+
+    func testPhysicalComparisonExplainsWiderSpanAndLogicalFallbackInBothLocales() throws {
+        ScreenEvidence.prepare()
+        let source = Chord(keyCode: try KeyCode(8), modifiers: ModifierSet(command: .left, option: .none,
+            control: .none, shift: .left, fn: .none))
+        let trigger = Chord(keyCode: source.keyCode, modifiers: ModifierSet(command: .left, option: .none,
+            control: .none, shift: .none, fn: .none))
+        let geometry = try CanonicalGeometry(positions: [PhysicalPosition(id: "cmd", centerX: 0, centerY: 0, coordinateFrame: "board"),
+            PhysicalPosition(id: "near", centerX: 1, centerY: 0, coordinateFrame: "board"),
+            PhysicalPosition(id: "c", centerX: 2, centerY: 0, coordinateFrame: "board"),
+            PhysicalPosition(id: "far", centerX: 8, centerY: 0, coordinateFrame: "board")])
+        let a: [PhysicalToken] = [.hidUsage(0xe3), .hidUsage(0xe1), .hidUsage(0x06)]
+        let b: [PhysicalToken] = [.hidUsage(0xe3), .hidUsage(0x06)]
+        let outputA: [PhysicalToken] = try [.observedKey(KeyCode(55)), .observedKey(KeyCode(56)), .observedKey(KeyCode(8))]
+        let outputB: [PhysicalToken] = try [.observedKey(KeyCode(55)), .observedKey(KeyCode(8))]
+        let evidence = PhysicalEvidence(geometry: geometry, chain: [
+            TransformEvidence(link: .firmware, status: .verified, reference: "synthetic:firmware", mapping: CanonicalTransform(mappings: [
+                .init(input: ["cmd", "near", "c"].map(PhysicalToken.position), output: a),
+                .init(input: ["cmd", "far"].map(PhysicalToken.position), output: b)], completeInverseFor: [a, b])),
+            TransformEvidence(link: .software, status: .verified, reference: "synthetic:software", mapping: CanonicalTransform(mappings: [
+                .init(input: a, output: a), .init(input: b, output: b)], completeInverseFor: [a, b])),
+            TransformEvidence(link: .macOS, status: .verified, reference: "synthetic:macos", mapping: CanonicalTransform(mappings: [
+                .init(input: a, output: outputA), .init(input: b, output: outputB)], completeInverseFor: [outputA, outputB]))],
+            device: .singleVerified, scope: .global)
+        for locale in ["en", "zh-Hans"] {
+            let text = NativeText(locale: locale)
+            let view = NSHostingView(rootView: VStack(alignment: .leading, spacing: 16) {
+                AnalysisPhysicalComparisonView(source: source, trigger: trigger, scope: .global, evidence: evidence, text: text)
+                AnalysisPhysicalComparisonView(source: source, trigger: trigger, scope: .global, evidence: nil, text: text)
+            }.padding(16).frame(width: 640, height: 260).background(Color(nsColor: .windowBackgroundColor)))
+            view.sizingOptions = []
+            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 640, height: 260),
+                styleMask: [.titled], backing: .buffered, defer: false)
+            window.isReleasedWhenClosed = false
+            window.contentView = view
+            window.makeKeyAndOrderFront(nil)
+            window.setContentSize(NSSize(width: 640, height: 260))
+            view.frame = NSRect(x: 0, y: 0, width: 640, height: 260)
+            defer { window.contentView = nil; window.close() }
+            NativeEvidence.primeAccessibility()
+            NativeEvidence.update(view)
+            NativeEvidence.update(view)
+            let nodes = NativeEvidence.elements(in: view)
+            XCTAssertTrue(nodes.contains { KRAXLabel($0) == String(format: text("phase2.physicalCounts"), 3, 2) })
+            XCTAssertTrue(nodes.contains { KRAXLabel($0) == text("phase2.physicalWider") })
+            XCTAssertTrue(nodes.contains { KRAXLabel($0) == text("phase2.physicalFallback") + " " + text("phase2.physicalMissing") })
+            if let root = NativeEvidence.outputRoot() {
+                try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+                try ScreenEvidence.capturePNG(view).write(to: root.appendingPathComponent("physical-cost-\(locale).png"))
+            }
+        }
     }
 
 }

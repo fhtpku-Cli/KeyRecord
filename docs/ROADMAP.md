@@ -17,7 +17,7 @@ B 的工程基础及只读 VIA 参考已由 [PR #21](https://github.com/fhtpku-C
 
 Requirements remain in [PRD](PRD.md) and [architecture §15](TECHNICAL_ARCHITECTURE.md#15-分阶段交付与发布门禁).
 
-2026-10-13 最新工程增量为[部署会话与固件核心](phase3/DEPLOYMENT_FIRMWARE_20261013.md)，71 项不同的相关离线场景最终通过。默认产品已接通受保护目标会话与只读拒绝，生产支持目录为空；卸载串联核心存在，原生执行入口待审批。后续补齐该入口及 Vial/固件生成与验证 UI，再集中处理实际版本轴/设备证据；不将临时配置、注入端口或旧 spike 当作真实后端资格。以下保留前序批次范围。
+2026-10-13 最新工程增量为[部署会话与固件核心](phase3/DEPLOYMENT_FIRMWARE_20261013.md)，74 项不同的相关离线场景最终通过。默认产品已接通受保护目标会话与只读拒绝，生产支持目录为空；卸载串联核心存在，原生执行入口待审批。后续补齐该入口及 Vial/固件生成与验证 UI，再集中处理实际版本轴/设备证据；不将临时配置、注入端口或旧 spike 当作真实后端资格。以下保留前序批次范围。
 
 2026-10-13 最新开发结论：**增量 B 工程开发与离线自审已完成**，后端能力过滤、观测/系统风险/规则重叠/映射环/保护入口检查及证据失效已接通产品；见 [完成记录](phase2/B_COMPLETION_20261013.md)。正式 G2 的真实证据仍后置，下一阶段的工程开发进入 Phase 3。下列早期试用安排仅保留历史范围，当前不要求执行那一轮试用。
 Current Phase 1 evidence is in [acceptance](PHASE1_ACCEPTANCE.md), not the old T24

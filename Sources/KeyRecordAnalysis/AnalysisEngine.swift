@@ -44,7 +44,8 @@ public enum AnalysisEngine {
             let days = Set(group.map(\.day)).count
             let status: CandidateStatus = first.classification.kind == .stateful ? .statefulExcluded
                 : counts.total.value >= 20 && days >= 2 ? .eligible : .observation
-            let triggers = status == .statefulExcluded ? [] : LogicalPreviews.generate(chord, confirmed: input.keyboardPoolConfirmed)
+            let triggers = status == .statefulExcluded ? [] : LogicalPreviews.generate(chord,
+                confirmed: input.keyboardPoolConfirmed, capabilities: input.backendCapabilities)
             let ratio = Double(counts.ordinary.value) / Double(counts.total.value)
             // Versioned conservative table: ordinary is not proof of authenticity.
             let reliability = ratio >= 0.95 ? 1.0 : ratio >= 0.5 ? 0.75 : 0.5

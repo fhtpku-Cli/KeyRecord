@@ -29,7 +29,9 @@ final class VIAImportModel: ObservableObject {
     private(set) var selectionSession = UUID()
     private var sessionActive = false
 
-    var configuration: VIAImportedConfiguration? { canRead() ? rawConfiguration : nil }
+    var configuration: VIAImportedConfiguration? {
+        canRead() && !monitors.values.contains(where: { $0.hasChanged }) ? rawConfiguration : nil
+    }
 
     func selectionTicket() -> UUID? {
         guard canRead() else { return nil }

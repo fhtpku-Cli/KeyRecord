@@ -10,14 +10,17 @@ public struct AnalysisInput: Sendable {
     public let layout: LayoutPreference
     public let ignoredRecommendationKeys: Set<String>
     public let keyboardPoolConfirmed: Set<KeyCode>
+    public let backendCapabilities: BackendCapabilities?
 
     public init(cycleID: CycleID, shortcuts: [DailyShortcutAggregate], bareKeys: [DailyBareKeyAggregate],
                 activeDays: [LocalDay], layout: LayoutPreference = LayoutPreference(),
-                ignoredRecommendationKeys: Set<String> = [], keyboardPoolConfirmed: Set<KeyCode> = []) {
+                ignoredRecommendationKeys: Set<String> = [], keyboardPoolConfirmed: Set<KeyCode> = [],
+                backendCapabilities: BackendCapabilities? = nil) {
         self.cycleID = cycleID; self.shortcuts = shortcuts; self.bareKeys = bareKeys
         self.activeDays = activeDays; self.layout = layout
         self.ignoredRecommendationKeys = ignoredRecommendationKeys
         self.keyboardPoolConfirmed = keyboardPoolConfirmed
+        self.backendCapabilities = backendCapabilities
     }
 }
 
@@ -115,5 +118,5 @@ public struct AnalysisSnapshot: Equatable, Sendable {
     public var topRecommendations: [RecommendationCandidate] {
         Array(candidates.filter(\.qualifiesForTopRecommendations).prefix(5))
     }
-    public static let ruleVersion = "phase2-logical-v1"
+    public static let ruleVersion = "phase2-logical-v1+backend-capabilities-v1"
 }

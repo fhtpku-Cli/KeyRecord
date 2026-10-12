@@ -8,6 +8,138 @@ import KeyRecordAnalysis
 
 @MainActor
 final class VIAImportFlowTests: XCTestCase {
+    private let karabinerBytes = Data(#"{"profiles":[{"name":"Synthetic A","selected":true,"complex_modifications":{"rules":[{"manipulators":[{"type":"basic","from":{"key_code":"f1"},"to":[{"key_code":"c","modifiers":["left_command"]}]}]}]}},{"name":"Synthetic B"}]}"#.utf8)
+
+    func testKarabinerCopyFeedsConflictEvidenceWithoutConnectingBackend() async throws {
+        let (root, _, _) = try files()
+        let fixture = try await ready(root)
+        let url = root.appendingPathComponent("karabiner-copy.json")
+        try karabinerBytes.write(to: url)
+        let model = fixture.flow.karabinerImport
+        defer { model.clear() }
+        await model.load(url: url, ticket: try XCTUnwrap(model.selectionTicket()))
+        let input = try AnalysisPreview.input()
+        fixture.flow.snapshot = try AggregateSnapshot(shortcuts: input.shortcuts, bareKeys: input.bareKeys)
+        let evidence = fixture.flow.candidateConflictEvidence
+        XCTAssertFalse(try XCTUnwrap(evidence.observations).isEmpty)
+        XCTAssertEqual(evidence.backendRules?.origin, .selectedCopy)
+        XCTAssertEqual(evidence.backendRules?.rules.count, 1)
+        model.profile = "1"
+        XCTAssertEqual(fixture.flow.candidateConflictEvidence.backendRules?.rules.count, 0)
+        fixture.flow.intendedBackend = .via
+        XCTAssertNil(fixture.flow.candidateConflictEvidence.backendRules)
+        let request = CandidateCheckInput(source: Chord(keyCode: try KeyCode(8), modifiers: ModifierSet(command: .left,
+            option: .none, control: .none, shift: .none, fn: .none)),
+            trigger: Chord(keyCode: try KeyCode(122), modifiers: ModifierSet(command: .none,
+                option: .none, control: .none, shift: .none, fn: .none)), scope: .global,
+            backend: .disconnected(.karabiner), conflictEvidence: evidence)
+        let report = CandidateConflictDetector.evaluate(request)
+        XCTAssertEqual(report.readiness, .disconnected)
+        XCTAssertTrue(report.findings.contains { $0.kind == .existingRuleOverlap })
+    }
+
+    func testKarabinerFileReplacementWithdrawsEvidence() async throws {
+        let (root, _, _) = try files()
+        let fixture = try await ready(root)
+        let model = fixture.flow.karabinerImport
+        let url = root.appendingPathComponent("karabiner-copy.json")
+        try karabinerBytes.write(to: url)
+        await model.load(url: url, ticket: try XCTUnwrap(model.selectionTicket()))
+        XCTAssertNotNil(model.evidence)
+        let changed = XCTestExpectation(description: "Karabiner copy changed")
+        model.onChange = { if model.issueKey == "phase2.karabiner.changed" { changed.fulfill() } }
+        try karabinerBytes.write(to: url, options: .atomic)
+        let result = await XCTWaiter.fulfillment(of: [changed], timeout: 3)
+        XCTAssertEqual(result, .completed)
+        XCTAssertNil(model.evidence)
+        model.clear()
+    }
+
+    func testKarabinerPendingReadAndPickerCannotCrossPrivacyReopening() async throws {
+        let (root, _, _) = try files()
+        let fixture = try await ready(root)
+        let model = fixture.flow.karabinerImport
+        let url = root.appendingPathComponent("karabiner-copy.json")
+        try karabinerBytes.write(to: url)
+        let ticket = try XCTUnwrap(model.selectionTicket())
+        let started = XCTestExpectation(description: "Karabiner read started")
+        let release = DispatchSemaphore(value: 0)
+        defer { release.signal(); model.clear() }
+        model.readFile = { url, access, notify in
+            started.fulfill()
+            release.wait()
+            let selected = try VIAFileReader.readConfiguration(url: url, access: access, notify: notify, parse: KarabinerReferenceParser.parse)
+            return SelectedKarabinerFile(reference: selected.reference, monitor: selected.monitor)
+        }
+        let pending = Task { await model.load(url: url, ticket: ticket) }
+        let startResult = await XCTWaiter.fulfillment(of: [started], timeout: 3)
+        XCTAssertEqual(startResult, .completed)
+        fixture.observeLocked()
+        fixture.flow.sync(from: fixture.orchestrator.state)
+        fixture.observe()
+        fixture.flow.sync(from: fixture.orchestrator.state)
+        release.signal()
+        await pending.value
+        XCTAssertNil(model.reference)
+        XCTAssertNil(model.filename)
+        let called = OSAllocatedUnfairLock(initialState: false)
+        model.readFile = { _, _, _ in called.withLock { $0 = true }; throw VIAFileReadError.changed }
+        await model.load(url: url, ticket: ticket)
+        XCTAssertFalse(called.withLock { $0 })
+    }
+
+    func testConflictReportAndKarabinerReferenceRenderBothLocales() throws {
+        ScreenEvidence.prepare()
+        let (root, _, _) = try files()
+        let fixture = try FlowFixture(directory: root, environment: ["KEYRECORD_FLOW_FIXTURE": root.path])
+        let url = root.appendingPathComponent("karabiner-copy.json")
+        try karabinerBytes.write(to: url)
+        let model = fixture.flow.karabinerImport
+        ScreenEvidence.awaitMain {
+            fixture.showConsentIfNeeded()
+            await fixture.flow.accept()
+            fixture.flow.sync(from: fixture.orchestrator.state)
+        }
+        let ticket = try XCTUnwrap(model.selectionTicket())
+        ScreenEvidence.awaitMain { await model.load(url: url, ticket: ticket) }
+        defer { model.clear() }
+        let evidence = fixture.flow.candidateConflictEvidence
+        let input = CandidateCheckInput(source: Chord(keyCode: try KeyCode(8), modifiers: ModifierSet(command: .left,
+            option: .none, control: .none, shift: .none, fn: .none)),
+            trigger: Chord(keyCode: try KeyCode(122), modifiers: ModifierSet(command: .none,
+                option: .none, control: .none, shift: .none, fn: .none)), scope: .global,
+            backend: .disconnected(.karabiner), conflictEvidence: evidence)
+        for locale in ["en", "zh-Hans"] {
+            let text = NativeText(locale: locale)
+            let view = NSHostingView(rootView: ScrollView {
+                VStack(alignment: .leading) {
+                    Form { KarabinerImportSection(model: model, text: text) }.formStyle(.grouped).frame(height: 380)
+                    AnalysisConflictView(input: input, text: text)
+                }.padding().frame(width: 640)
+            }.frame(width: 640, height: 760)
+                .background(Color(nsColor: .windowBackgroundColor)))
+            view.sizingOptions = []
+            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 640, height: 760),
+                styleMask: [.titled], backing: .buffered, defer: false)
+            window.isReleasedWhenClosed = false
+            window.contentView = view
+            window.makeKeyAndOrderFront(nil)
+            window.setContentSize(NSSize(width: 640, height: 760))
+            view.frame = NSRect(x: 0, y: 0, width: 640, height: 760)
+            defer { window.contentView = nil; window.close() }
+            NativeEvidence.primeAccessibility()
+            NativeEvidence.update(view)
+            NativeEvidence.update(view)
+            let nodes = NativeEvidence.elements(in: view)
+            XCTAssertTrue(nodes.contains { KRAXLabel($0) == text("phase2.conflict.existingRuleOverlap") })
+            XCTAssertTrue(nodes.contains { KRAXLabel($0) == text("phase2.conflict.limit.referenceOnly") })
+            if let output = NativeEvidence.outputRoot() {
+                try FileManager.default.createDirectory(at: output, withIntermediateDirectories: true)
+                try ScreenEvidence.capturePNG(view).write(to: output.appendingPathComponent("b-backend-\(locale).png"))
+            }
+        }
+    }
+
     private let layoutBytes = Data(#"{"name":"synthetic-reference","vendorProductId":65538,"layers":[["KC_C","KC_F1","KC_LGUI","KC_NO"]]}"#.utf8)
     private let definitionBytes = Data(#"{"name":"synthetic-reference","vendorId":"0x0001","productId":"0x0002","matrix":{"rows":2,"cols":2},"layouts":{"keymap":[["0,0","0,1"],["1,0","1,1"]]}}"#.utf8)
 

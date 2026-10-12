@@ -57,6 +57,17 @@ final class VIAFileMonitor: @unchecked Sendable {
 enum VIAFileReader {
     static func read(url: URL, kind: VIAImportFileKind, access: VIAFileReadAccess,
                      notify: @escaping @Sendable () -> Void) throws -> SelectedVIAFile {
+        let file = try readConfiguration(url: url, access: access, notify: notify) { bytes in
+            switch kind {
+            case .layout: return SelectedVIAReference.layout(try VIAReferenceParser.layout(bytes))
+            case .definition: return SelectedVIAReference.definition(try VIAReferenceParser.definition(bytes))
+            }
+        }
+        return SelectedVIAFile(reference: file.reference, monitor: file.monitor)
+    }
+
+    static func readConfiguration<T: Sendable>(url: URL, access: VIAFileReadAccess,
+        notify: @escaping @Sendable () -> Void, parse: (Data) throws -> T) throws -> (reference: T, monitor: VIAFileMonitor) {
         let scoped = url.startAccessingSecurityScopedResource()
         let handle: FileHandle
         do {
@@ -88,14 +99,10 @@ enum VIAFileReader {
             }
             guard bytes.count <= maximum else { throw VIAFileReadError.tooLarge }
             try access.use {}
-            let reference: SelectedVIAReference
-            switch kind {
-            case .layout: reference = .layout(try VIAReferenceParser.layout(bytes))
-            case .definition: reference = .definition(try VIAReferenceParser.definition(bytes))
-            }
+            let reference = try parse(bytes)
             try access.use {}
             guard !monitor.hasChanged else { throw VIAFileReadError.changed }
-            return SelectedVIAFile(reference: reference, monitor: monitor)
+            return (reference: reference, monitor: monitor)
         } catch {
             monitor.cancel()
             throw error

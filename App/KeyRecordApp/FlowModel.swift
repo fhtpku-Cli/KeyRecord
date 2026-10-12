@@ -256,6 +256,19 @@ final class AppFlowObservable: ObservableObject {
     @Published var statisticsSection: StatisticsSection = .overview
     @Published var intendedBackend: RecommendationBackend = .karabiner
     let viaImport = VIAImportModel()
+    let karabinerImport = KarabinerImportModel()
+
+    var candidateConflictEvidence: CandidateConflictEvidence {
+        let observations = snapshot.map { snapshot in
+            snapshot.rows.compactMap { row -> ChordBucket? in
+                guard row.total > 0, case .shortcut(let bucket) = row.identity else { return nil }
+                return bucket
+            }
+        }
+        return CandidateConflictEvidence(observations: observations,
+            backendRules: intendedBackend == .karabiner ? karabinerImport.evidence : nil,
+            profile: intendedBackend == .karabiner ? karabinerImport.profile : nil)
+    }
     /// First-run consent stays available when a closed key gate forces the status to blocked.
     @Published private(set) var awaitingConsent = false
     @Published private(set) var hasSavedPreferences = false
@@ -296,6 +309,9 @@ final class AppFlowObservable: ObservableObject {
         viaImport.protectedGate = protectedGate
         viaImport.canRead = { [weak self] in self?.sensitiveContentVisible == true }
         viaImport.onChange = { [weak self] in self?.objectWillChange.send() }
+        karabinerImport.protectedGate = protectedGate
+        karabinerImport.canRead = { [weak self] in self?.sensitiveContentVisible == true }
+        karabinerImport.onChange = { [weak self] in self?.objectWillChange.send() }
         flow.onChange = { [weak self] in self?.mirror() }
         mirror()
     }
@@ -564,6 +580,7 @@ final class AppFlowObservable: ObservableObject {
             ignoredRecommendationKeys = []
             keyboardPoolConfirmed = []
             viaImport.clear()
+            karabinerImport.clear()
             ignoreUndoBaseline = nil
             canUndoIgnoreChange = false
             rawAnalysis = nil
@@ -629,7 +646,7 @@ final class AppFlowObservable: ObservableObject {
     }
 
     private func mirror() {
-        if !sensitiveContentVisible { rawAnalysis = nil; viaImport.clear() }
+        if !sensitiveContentVisible { rawAnalysis = nil; viaImport.clear(); karabinerImport.clear() }
         dialog = flow.dialog
         objectWillChange.send()
     }

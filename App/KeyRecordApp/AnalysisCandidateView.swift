@@ -11,6 +11,7 @@ struct AnalysisCandidateView: View {
     var keyboardPool: Set<KeyCode> = []
     var physicalEvidence: PhysicalEvidence?
     var viaReference: VIAImportedConfiguration?
+    var conflictEvidence: CandidateConflictEvidence?
     var ignore: (() -> Void)?
     var restore: (() -> Void)?
     @State private var scopeOverride: Bool?
@@ -40,8 +41,9 @@ struct AnalysisCandidateView: View {
                         VStack(alignment: .leading, spacing: NativeLayout.compact) {
                             Text(String(format: text("phase2.trigger"), AnalysisLabels.chord(trigger.chord, text: text), trigger.logicalKeysSaved))
                                 .accessibilityIdentifier("phase2.candidate.trigger")
-                            Text(AnalysisReadinessText.label(CandidateConstraints.assess(checkInput(trigger.chord)), text: text))
-                                .font(.caption)
+                            DisclosureGroup(text("phase2.conflict.title")) {
+                                AnalysisConflictView(input: checkInput(trigger.chord), text: text)
+                            }
                             AnalysisPhysicalComparisonView(source: candidate.chord, trigger: trigger.chord, scope: selectedScope,
                                 evidence: physicalEvidence, text: text)
                             if let viaReference, viaReference.geometry != nil {
@@ -78,7 +80,7 @@ struct AnalysisCandidateView: View {
                     if showsScopePicker {
                         AnalysisManualCandidateEditor(source: candidate.chord, scope: selectedScope,
                             backend: backend, layout: layout, keyboardPool: keyboardPool,
-                            physicalEvidence: physicalEvidence, text: text)
+                            physicalEvidence: physicalEvidence, conflictEvidence: conflictEvidence, text: text)
                             .id(candidate.id)
                     }
                     Text(text("phase2.previewOnly")).font(.caption)
@@ -126,7 +128,8 @@ struct AnalysisCandidateView: View {
 
     private func checkInput(_ trigger: Chord) -> CandidateCheckInput {
         CandidateCheckInput(source: candidate.chord, trigger: trigger, scope: selectedScope,
-            backend: backend, layout: layout, keyboardPool: keyboardPool, physicalEvidence: physicalEvidence)
+            backend: backend, layout: layout, keyboardPool: keyboardPool, physicalEvidence: physicalEvidence,
+            conflictEvidence: conflictEvidence)
     }
 
     @ViewBuilder private var scopeSection: some View {
@@ -178,6 +181,7 @@ struct AnalysisManualCandidateEditor: View {
     let layout: LayoutPreference
     let keyboardPool: Set<KeyCode>
     let physicalEvidence: PhysicalEvidence?
+    let conflictEvidence: CandidateConflictEvidence?
     let text: NativeText
     @State private var keyCode = ""
     @State private var command: ModifierSideState = .none
@@ -189,7 +193,8 @@ struct AnalysisManualCandidateEditor: View {
     @State private var errorKey: String?
 
     init(source: Chord, scope: RecommendationScope, backend: BackendConnection,
-         layout: LayoutPreference, keyboardPool: Set<KeyCode>, physicalEvidence: PhysicalEvidence? = nil, text: NativeText,
+         layout: LayoutPreference, keyboardPool: Set<KeyCode>, physicalEvidence: PhysicalEvidence? = nil,
+         conflictEvidence: CandidateConflictEvidence? = nil, text: NativeText,
          initialDraft: ManualCandidateDraft = ManualCandidateDraft()) {
         self.source = source
         self.scope = scope
@@ -197,6 +202,7 @@ struct AnalysisManualCandidateEditor: View {
         self.layout = layout
         self.keyboardPool = keyboardPool
         self.physicalEvidence = physicalEvidence
+        self.conflictEvidence = conflictEvidence
         self.text = text
         _draft = State(initialValue: initialDraft)
         switch initialDraft.state {
@@ -245,9 +251,9 @@ struct AnalysisManualCandidateEditor: View {
                     }
                 case .accepted(let chord):
                     comparison(chord)
-                    Text(AnalysisReadinessText.label(CandidateConstraints.assess(CandidateCheckInput(source: source,
+                    AnalysisConflictView(input: CandidateCheckInput(source: source,
                         trigger: chord, scope: scope, backend: backend, layout: layout, keyboardPool: keyboardPool,
-                        physicalEvidence: physicalEvidence)), text: text))
+                        physicalEvidence: physicalEvidence, conflictEvidence: conflictEvidence), text: text)
                         .accessibilityIdentifier("phase2.manual.readiness")
                     AnalysisPhysicalComparisonView(source: source, trigger: chord, scope: scope,
                         evidence: physicalEvidence, text: text)
@@ -261,6 +267,7 @@ struct AnalysisManualCandidateEditor: View {
         .onChange(of: layout) { _, _ in invalidate() }
         .onChange(of: keyboardPool) { _, _ in invalidate() }
         .onChange(of: physicalEvidence) { _, _ in invalidate() }
+        .onChange(of: conflictEvidence) { _, _ in invalidate() }
     }
 
     private func modifierPicker(_ key: String, selection: Binding<ModifierSideState>) -> some View {

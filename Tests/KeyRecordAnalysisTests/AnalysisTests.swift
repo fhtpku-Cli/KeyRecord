@@ -3,6 +3,21 @@ import KeyRecordCore
 @testable import KeyRecordAnalysis
 
 final class AnalysisTests: XCTestCase {
+    func testBackendCapabilitiesRecomputeTriggersWithoutChangingEligibilityOrStatistics() throws {
+        let rows = try [row(10, day: d1), row(10, day: d2)]
+        let pool = Set(try [96,99,118,120,122].map(KeyCode.init))
+        let basic = AnalysisInput(cycleID: cycle, shortcuts: rows, bareKeys: [], activeDays: [d1,d2], keyboardPoolConfirmed: pool)
+        let original = try AnalysisEngine.analyze(basic)
+        let capabilities = BackendCapabilities(backend: .karabiner, keyCodes: [try KeyCode(8), try KeyCode(122)], applicationScope: true, fnModifier: true)
+        let restricted = try AnalysisEngine.analyze(AnalysisInput(cycleID: cycle, shortcuts: rows, bareKeys: [],
+            activeDays: [d1,d2], keyboardPoolConfirmed: pool, backendCapabilities: capabilities))
+        XCTAssertEqual(restricted, original.constrained(to: capabilities, confirmed: pool))
+        XCTAssertEqual(restricted.shortcutStatistics, original.shortcutStatistics)
+        XCTAssertEqual(restricted.candidates[0].status, .eligible)
+        XCTAssertTrue(restricted.candidates[0].triggers.contains { $0.chord.keyCode.value == 122 })
+        XCTAssertLessThanOrEqual(restricted.candidates[0].triggers.count, 3)
+    }
+
     let cycle = CycleID(rawValue: "synthetic")
     let d1 = LocalDay("2026-09-01")
     let d2 = LocalDay("2026-09-02")

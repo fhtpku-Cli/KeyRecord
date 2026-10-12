@@ -1,5 +1,7 @@
 # Phase 1 offline acceptance closeout — 2026-09-22
 
+> Status reconciliation (2026-10-01): this is a dated record for the candidates and rounds named below. “Current”, “next”, “pending” and BLOCKED refer to that checkpoint, not today's work queue. The approved Apple Silicon Phase 1 MVP is complete and merged; see [current acceptance](PHASE1_ACCEPTANCE.md) and [roadmap](ROADMAP.md). Original observations and failures retain their scope; these instructions do not authorize another host round.
+
 Branch: `codex/phase1-acceptance-closeout`, based on `31b65c523db3ec40c06f0877395da52b7c026935` in a separate worktree. Product Sources/App/Package.swift are unchanged. This report measures the Phase 1 worktree, not the parallel Phase 2 branch. Remaining acceptance: [matrix](PHASE1_ACCEPTANCE.md).
 
 ## Repairs

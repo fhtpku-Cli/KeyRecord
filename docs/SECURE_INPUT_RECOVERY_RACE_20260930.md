@@ -1,5 +1,7 @@
 # Secure Input clearing during rebuild
 
+> Status reconciliation (2026-10-01): this is a dated record for the candidates and rounds named below. “Current”, “next”, “pending” and BLOCKED refer to that checkpoint, not today's work queue. The approved Apple Silicon Phase 1 MVP is complete and merged; see [current acceptance](PHASE1_ACCEPTANCE.md) and [roadmap](ROADMAP.md). Original observations and failures retain their scope; these instructions do not authorize another host round.
+
 An offline 64-case product recovery run exposed a timeout in
 `testPauseAndQuitStopTheMonitorAndClearingSecureInputCannotReopen`: after Resume,
 turning Secure Input on and quickly off could leave capture waiting for a manual

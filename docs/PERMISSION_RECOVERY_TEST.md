@@ -1,5 +1,7 @@
 # Synthetic live-permission recovery coverage
 
+> Status reconciliation (2026-10-01): this is a dated record for the candidates and rounds named below. “Current”, “next”, “pending” and BLOCKED refer to that checkpoint, not today's work queue. The approved Apple Silicon Phase 1 MVP is complete and merged; see [current acceptance](PHASE1_ACCEPTANCE.md) and [roadmap](ROADMAP.md). Original observations and failures retain their scope; these instructions do not authorize another host round. Later [permission round](CURRENT_PERMISSION_TRIAL_20260930.md) records the qualified candidate's revoke/recovery results; the earlier signing failures and proposed next actions below are historical.
+
 **Earlier packages:** The installed 20260928b witness appeared in
 Input Monitoring but failed effective data-protection Keychain access with
 `-34018` before Collecting. A later arm64 PR #17 candidate compiled, but has

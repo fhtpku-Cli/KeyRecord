@@ -10,7 +10,8 @@ The Apple Silicon Phase 1 objective is complete within the approved MVP scope.
 The September 29 paragraph above is a historical checkpoint; its then-open
 Keychain/privacy/Release items are superseded by the observed results below.
 The signed product source is `ea90753feab2358166ee39384bb6a5501dc4ce64`;
-later commits change tests or documentation. PR #17 remains draft and unmerged.
+later commits change tests or documentation. PR #17 merged as `8bb99e81` on
+2026-10-01 (Asia/Shanghai); merge-commit CI passed. No new live run is claimed.
 This is a usable isolated development candidate for the measured native arm64
 macOS 27.0 build 26A428 host, not public distribution or general-platform qualification.
 
@@ -44,6 +45,13 @@ fallback cleanup. This closes the bounded FR-P7 real-backend composition case;
 login-item effects and input were simulated, so native controls and system login
 unregistration are not established by this result.
 
+## Historical implementation and acceptance checkpoints
+
+The entries below preserve candidate-specific results and then-open work in
+reverse progression. Their “still incomplete”, “awaits” and “remain open” wording
+describes those intermediate checkpoints, not current acceptance above. Later
+qualified integration does not retroactively change earlier blocked or skipped runs.
+
 Shared product safety wiring (2026-10-01): lock notifications, startup protection
 and manual-entry checks now compile through one Debug/Release path. The suspended
 startup-read regression failed before repair (gate open and backend query), then
@@ -54,7 +62,7 @@ armament; a separate negative case confirms unqualified assembly makes no Keycha
 queries or capture admission. Debug/Release arm64 builds and actual Release static
 capability/network audits pass. These are offline integration results; the factory
 was blocked at that extraction checkpoint. The subsequent dependency selection
-above still awaits the remaining integrated candidate checks.
+subsequently completed the integrated candidate checks recorded above.
 
 The [raw Keychain lock measurement](RAW_KEYCHAIN_LOCK_PREP_20261001.md) completed
 with owner-confirmed screen lock: one real case passed, raw read returned 0 and
@@ -62,11 +70,11 @@ the expected fixed value, the instrumented product remained closed, and all thre
 owned items were cleaned up. No host or runtime warnings remain. This closes the
 bounded raw-policy measurement gap, not collecting Release or all privacy/UI proof.
 
-Current preparation: the [version-scoped provider](OBSERVED_LOCK_PROVIDER_20261001.md)
+At the provider-extraction checkpoint, the [version-scoped provider](OBSERVED_LOCK_PROVIDER_20261001.md)
 is shared with Release compilation, restricted to the observed native arm64
 macOS 27.0 build 26A428. The original contract permits this observed candidate;
 a public-only replacement API is not an added prerequisite. Full lifecycle and
-collecting Release qualification are still incomplete.
+collecting Release qualification were still incomplete at that checkpoint.
 
 The [existing-store locked-restart round](PRODUCT_LOCKED_RESTART_PREP_20261001.md)
 now passes on signed `0766c515`: two real cases pass with zero failures/skips and
@@ -169,6 +177,15 @@ modifier detail evidence, not broad keyboard/OS coverage, native accessibility,
 restart readback or Release qualification. The earlier standalone-A round is
 preserved under the owner's clarified interpretation.
 See [exact chord round](CURRENT_COMMAND_CHORD_TRIAL_20260930.md).
+
+### Earlier checkpoints and historical gap matrix
+
+The following checkpoint narrative and gap matrix preserve earlier candidates'
+results and then-open work. They are not the current acceptance checklist.
+In particular, the old BlockedLiveKeychain/UnqualifiedCapture Release restriction,
+pending Keychain/native UI qualification and proposed repeat audits below were
+superseded by the October 1 acceptance above. Their original failures and missing
+measurements are not changed to PASS.
 
 The [2026-09-29 closeout checkpoint](MVP_CLOSEOUT_20260929.md) records fresh
 offline results at `ba57ea711` and the reproducible arm64 trial build command.
@@ -322,6 +339,10 @@ not delivery timing or protected-state closure on a real macOS lock.
 
 ## Executable lanes and their meaning
 
+These legacy task lanes retain their own test selectors and receipt semantics.
+Their blocked/skipped host paths do not negate later scoped signed results;
+later results do not turn a lane that never ran into PASS.
+
 - `Scripts/verify-local.sh --build-only`: package tests, offline harness CLI regressions, SwiftPM Release, universal unsigned App Release and native Debug test compilation. Does not launch capture or run App XCTest. A completed build is not Intel execution.
 - `swift test --filter 'Phase1|Privacy|Keyring|CycleReset|Rotation|Flush|Lifecycle|Capture'`: focused synthetic regressions; use the full suite for final package coverage. Build directories are per checkout; do not run concurrent SwiftPM jobs in the same checkout.
 - `swift test --filter PerformanceDriverTests`: short in-process synthetic queue → reducer → encrypted temporary store probe. It uses fixture keys, never Keychain or an event tap. Inspect both `PERFORMANCE_RECEIPT` and `PERFORMANCE_BUDGET`; a green XCTest only means the measurement/assertions ran, not that budget passed.
@@ -416,6 +437,11 @@ six-window synthetic self-checks passed. This validates arithmetic rejection
 paths, not ARM or Intel product resource budgets.
 
 ## Minimum owner-assisted follow-up
+
+Historical preparation guidance follows; this heading remains for existing links.
+The scoped MVP's owner rounds are complete. None of these steps is scheduled.
+New host work must address a concrete changed behavior or unresolved requirement
+and use its own applicable authorization/readiness.
 
 Before asking the owner to act, prepare the exact signed candidate and a bounded run plan: candidate/version, private output directory, permitted store/key namespace, steps, normal shutdown and forced-stop fallback. Obtain approval for the particular session/privacy/Keychain operations. Existing build permission does not cover them.
 

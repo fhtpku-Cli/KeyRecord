@@ -24,6 +24,15 @@ public struct AnalysisInput: Sendable {
 public enum AnalysisError: Error, Equatable { case cycleMismatch, duplicateRow, invalidActiveDays, classificationMismatch, countOverflow }
 public enum RecommendationScope: Equatable, Sendable { case global, application(String) }
 public enum CandidateStatus: String, Sendable { case observation, eligible, statefulExcluded }
+
+/// Sample eligibility, a simplification plan, and applicability stay separate.
+/// Increment A never reports a physical score or a verified mapping.
+public enum SimplificationPlan: Equatable, Sendable {
+    case positivePreview
+    case noShorterCombination
+    case functionStateUnknown
+    case statefulExcluded
+}
 public struct ApplicationStatistic: Equatable, Sendable {
     public let app: AppBucket
     public let sourceCounts: SourceCounts
@@ -65,15 +74,46 @@ public struct RecommendationCandidate: Equatable, Sendable, Identifiable {
     public let factors: RecommendationFactors
     public let triggers: [TriggerPreview]
     public let isIgnored: Bool
+
+    public var simplificationPlan: SimplificationPlan {
+        if status == .statefulExcluded { return .statefulExcluded }
+        if chord.modifiers.fn == .unknown { return .functionStateUnknown }
+        if triggers.contains(where: { $0.logicalKeysSaved > 0 }) { return .positivePreview }
+        return .noShorterCombination
+    }
+
+    /// Home ranking only. Eligibility, raw counts, and candidate order are unchanged.
+    public var qualifiesForTopRecommendations: Bool {
+        status == .eligible && !isIgnored && simplificationPlan == .positivePreview
+    }
 }
+
+public struct IgnoredRecommendationEntry: Equatable, Sendable, Identifiable {
+    public let id: String
+    public let chord: Chord?
+    public let hasCurrentObservation: Bool
+}
+
+public enum IgnoredRecommendationList {
+    public static func entries(persisted: Set<String>, candidates: [RecommendationCandidate]) -> [IgnoredRecommendationEntry] {
+        let observed = Set(candidates.map(\.id))
+        return persisted.sorted().map { id in
+            IgnoredRecommendationEntry(id: id, chord: LogicalPreviews.chord(fromCanonicalID: id),
+                                       hasCurrentObservation: observed.contains(id))
+        }
+    }
+}
+
 public struct AnalysisSnapshot: Equatable, Sendable {
+    public let cycleID: CycleID
+    public let activeDayCount: Int
     public let shortcutStatistics: [ShortcutStatistic]
     public let applications: [ApplicationStatistic]
     public let bareKeys: [BareKeyStatistic]
     public let candidates: [RecommendationCandidate]
     public let shouldAskLayout: Bool
     public var topRecommendations: [RecommendationCandidate] {
-        Array(candidates.filter { $0.status == .eligible && !$0.isIgnored }.prefix(5))
+        Array(candidates.filter(\.qualifiesForTopRecommendations).prefix(5))
     }
     public static let ruleVersion = "phase2-logical-v1"
 }

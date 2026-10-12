@@ -6,6 +6,11 @@ extension LifecycleState {
         case .consentRequested:
             phase = .consent
             return []
+        case .consentAccepted(let cycleID):
+            // The first-run screen is shown before anyone asks for consent, so the
+            // phase is still `.unstarted` when the user agrees. Ignoring that event
+            // left the install fresh and the following cleanup closed the key gate.
+            return beginAcceptedConsent(cycleID)
         case .reload(let loaded):
             guard let loaded else {
                 // KR-09: a nil reload used to be a silent no-op — no phase change, no
@@ -101,6 +106,15 @@ extension LifecycleState {
             self.failure = nil
             return [.reloadFromStorage]
         }
+    }
+
+    /// Accepts consent from either the consent screen or a fresh install that has not
+    /// entered that phase yet. Clears the placeholder fresh-install reason.
+    mutating func beginAcceptedConsent(_ cycleID: CycleID) -> [LifecycleEffect] {
+        blockedReason = nil
+        phase = .starting
+        preferences = Preferences(currentCycleID: cycleID, expectedCollecting: true)
+        return [.provisionKey]
     }
 
     func collectingInputs(_ candidate: RuntimeConditions) -> GateInputs {

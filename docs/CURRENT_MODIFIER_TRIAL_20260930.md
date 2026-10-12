@@ -1,5 +1,7 @@
 # Bounded modifier reconstruction trial
 
+> Status reconciliation (2026-10-01): this is a dated record for the candidates and rounds named below. “Current”, “next”, “pending” and BLOCKED refer to that checkpoint, not today's work queue. The approved Apple Silicon Phase 1 MVP is complete and merged; see [current acceptance](PHASE1_ACCEPTANCE.md) and [roadmap](ROADMAP.md). Original observations and failures retain their scope; these instructions do not authorize another host round. The later [explicit chord trial](CURRENT_COMMAND_CHORD_TRIAL_20260930.md) verified two left Command+A shortcuts. This earlier standalone-A result remains distinct.
+
 Status: installed and run once after explicit owner approval/readiness. Normal
 exit completed. After the round, the owner clarified that the instruction was
 understood as Command press/release followed by two standalone A presses. Published

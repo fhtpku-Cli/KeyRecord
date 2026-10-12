@@ -212,12 +212,13 @@ extension Preferences {
     /// Lifecycle-scoped immutable updates; other preference fields are preserved byte-for-byte.
     public func updating(expectedCollecting: Bool? = nil, excludedBundleIDs: Set<String>? = nil,
                          loginItemEnabled: Bool? = nil, locale: ProductLocale? = nil,
-                         layout: LayoutPreference? = nil) -> Preferences {
+                         layout: LayoutPreference? = nil,
+                         ignoredRecommendationKeys: Set<String>? = nil) -> Preferences {
         Preferences(
             currentCycleID: currentCycleID,
             expectedCollecting: expectedCollecting ?? self.expectedCollecting,
             excludedBundleIDs: excludedBundleIDs ?? self.excludedBundleIDs,
-            ignoredRecommendationKeys: ignoredRecommendationKeys,
+            ignoredRecommendationKeys: ignoredRecommendationKeys ?? self.ignoredRecommendationKeys,
             layout: layout ?? self.layout,
             loginItemEnabled: loginItemEnabled ?? self.loginItemEnabled,
             locale: locale ?? self.locale,

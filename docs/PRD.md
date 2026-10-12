@@ -5,10 +5,10 @@
 | 项目 | 内容 |
 |---|---|
 | 文档版本 | v0.2（修订草案） |
-| 日期 | 2026-09-03 |
-| 状态 | 待评审 |
+| 日期 | 需求草案 2026-09-03；状态口径核对 2026-10-01 |
+| 状态 | 全产品需求草案；已批准的 MVP 范围与实测结果分开记录 |
 | 目标读者 | 产品、设计、工程、QA、安全 QA |
-| 关联文档 | 技术架构文档（另行编写），须与本 PRD 的全部数字、术语、后端状态、隐私边界与非目标保持一致 |
+| 关联文档 | [技术架构](TECHNICAL_ARCHITECTURE.md)、[路线图](ROADMAP.md)、[当前状态](PROJECT_STATUS.md)；需求数字、隐私边界和非目标保持一致 |
 
 命名约定：正式产品名待定，本文一律使用"本产品"。"KeyRecord"仅为内部代号，只允许出现在内部状态、规则命名空间等实现细节中，不作为对外名称。
 
@@ -113,7 +113,7 @@
 | 活跃日（Active Day） | 存在有效计数的本机自然日（以本地日期键为准） |
 | 半衰期 | 频率衰减参数，固定为 14 个活跃日 |
 | 观察候选 | 已出现在统计中但未达正式推荐门槛的快捷键 |
-| 正式推荐 | 通过推荐资格门槛（原始计数不少于 20 次，且分布在不少于 2 个不同本机自然日）的快捷键 |
+| 正式推荐资格 | 原始计数不少于 20 次，且分布在不少于 2 个不同本机自然日；资格达标不保证有简化方案或可应用，首页还按 R7 筛选 |
 | 触发（Trigger） | 映射的输入侧：单键或修饰键组合 |
 | 输出（Output） | 映射的目标侧：一个快捷键 |
 | 作用域（Scope） | 映射生效范围：全局或指定应用（bundle ID） |
@@ -159,7 +159,7 @@
 
 ## 5. 采集与统计生命周期
 
-> **Current-status note — status-capture (2026-09-12):** This section remains normative product behavior, not proof of implementation. The validated [current projection](PROJECT_STATUS.md#parsed-current-state), `gates[id=G0].status`, is PASS; `gates[id=G1_IMPLEMENTATION]` remains BLOCKED with its listed receipt causes. The owner-approved lock stops and exact §5.1 reset retention are in [PHASE1_CONTRACT](PHASE1_CONTRACT.md#allocation-and-owner-approval); approval does not imply implementation PASS.
+> **Current-status note — status-capture (2026-10-01):** This section is normative behavior, not an acceptance report. Scoped Apple Silicon Phase 1 completed and merged on 2026-10-01; see [acceptance](PHASE1_ACCEPTANCE.md). The [T24 projection](PROJECT_STATUS.md#parsed-current-state) is historical. Approved lock/reset constraints remain in [PHASE1_CONTRACT](PHASE1_CONTRACT.md).
 
 ### 5.1 生命周期规则
 
@@ -245,7 +245,7 @@
 
 ### 6.3 加密边界与密钥生命周期
 
-> **Current-status note — status-privacy:** [Current schema](PROJECT_STATUS.md#authority-and-reproduction) `localLifecycleAssessment` and `gates[id=SP6A_LOCAL_LIFECYCLE]` are BLOCKED pending keychainPolicy/sessionLock/restart/sleepWake receipts. Historical SP6A selection/crypto fixtures are not signed product-lifecycle qualification. Normative EK requirements below remain unchanged; apply the approved [lock/durability contract](PHASE1_CONTRACT.md#8-durability-and-lock), including possible loss since the last durable commit, without a time guarantee.
+> **Current-status note — status-privacy (2026-10-01):** The scoped MVP's signed Keychain/privacy results are in [acceptance](PHASE1_ACCEPTANCE.md). Raw reads succeeded during screen lock, so the independent software lock boundary remains essential. Old SP6A/O6 receipts retain their original scope. Apply [contracts 4–5 and 8](PHASE1_CONTRACT.md): fresh checks, unknown-state closure and loss since the last durable commit, with no fixed time guarantee.
 
 - EK1：应用管理的本地存储一律经认证加密；加密密钥为仅存本机、不随任何云同步的 Keychain 密钥项。
 - EK2：不提供明文回退模式；事件数据不以明文写入日志或临时文件。
@@ -281,11 +281,13 @@
 | FR-P6 | 备份加密 | 完整备份使用独立加盐版本化 KDF 信封，须密码解密方可恢复；常规导出文件不含统计表 |
 | FR-P7 | 密钥生命周期 | 删除或损坏 Keychain 密钥后启动：采集停止且无本地明文副本；完整删除后 Keychain 材料不存在 |
 
-> **Current-status note — status-backup:** `retainedReleaseBlockers[id=FULL_BACKUP_FINAL_RELEASE]` in the [validated projection](PROJECT_STATUS.md#parsed-current-state) remains required. FR-P6 is independently gated, not waived or marked passed by this milestone's FR-P1–P5/P7 allocation; no normative requirement in this table is removed.
+> **Current-status note — status-backup (2026-10-01):** FR-P6 full password backup remains independently required and incomplete. Local encryption and Phase 1 completion do not implement password backup or qualify final release. See [roadmap](ROADMAP.md); no retained requirement is waived.
 
 ---
 
 ## 7. 推荐系统
+
+**Phase 2 产品决策（2026-10-01）：** 用户已确认 [产品方案](phase2/PRODUCT_PLAN.md) D1–D5：先交付统计与逻辑预览增量 A，采用统计优先首页与独立全部候选页；Top 5 只展示样本达标、未忽略且有正向简化候选的项目；首批提供忽略/撤销/恢复。物理评分及完整后端约束放到增量 B 单独定稿。A 完成不等于完整 FR-R/FR-E 或 G2 完成，现有物理证据和安全要求不豁免。
 
 ### 7.1 评分模型
 
@@ -295,16 +297,18 @@
   - 物理负担：仅在完整证据链（布局几何 + 已验证固件阶段 1→2 映射 + 相关阶段 2→3 变换全部可验证且无歧义）下为物理估算；布局预设仅提供几何、不提供阶段 2 映射；任一环节缺失、歧义、不受支持、多设备不确定或已外部变更时，仅以逻辑按键数（和弦键数）口径参与，并标注置信度。
   - 置信度：事件来源可靠性、布局信息完整度。
   - 作用域分布：应用集中度。
-- R3：每条推荐展示理由的因子分解，例如："近 14 个活跃日使用 86 次；每次 3 键；建议触发 2 键；应用集中度 82%"。
+- R3：每条推荐展示理由的因子分解，例如："本周期原始使用 86 次，跨 3 个自然日；衰减后加权频率 80.5；原组合 3 键，候选 2 键（逻辑口径）；加权应用集中度 82%"。原始次数、加权频率和估算口径分别标注，不把衰减频率描述成最近 14 天的实际次数。
 
 ### 7.2 推荐门槛与候选
 
 - R4：正式推荐资格门槛：原始周期计数累计不少于 20 次使用，且分布在不少于 2 个不同的本机自然日。14 活跃日半衰期仅用于排序，不影响资格判定。
 - R5：统计即时可见；未达门槛的项目作为"观察候选"展示，并标识样本不足。
 - R6：任何已观察到的、且所选后端支持的快捷键，都可由用户主动发起映射，不受门槛限制；持续/有状态快捷键（见 C6）除外。
-- R7：首页展示 Top 5 推荐与全部候选列表。
+- R7：统计优先的首页展示最多 5 项推荐，并提供独立“全部候选”页入口。首页项目须满足 R4、未被忽略且存在正向减少量的候选；达标但无方案的项目仍在全部候选中显示资格和原因。样本资格、简化方案、可应用状态分别表达，不因首页筛选改变资格判定。
 - R8：每个候选项最多给出 3 个触发候选。
 - R9：仅展示预估的按键次数减少：证据链完整时为物理动作估算，否则为逻辑按键数口径；不展示、不承诺时间节省或健康收益。
+
+忽略项从首页移除，但保留统计；支持撤销与恢复。忽略按精确候选身份持久化，跨周期保留。管理列表包括当前周期没有观测的历史忽略项，标注暂无本周期数据并允许恢复，不伪造次数。保存失败回滚可见状态并允许重试。
 
 ### 7.3 作用域规则
 
@@ -331,9 +335,9 @@
 | 编号 | 需求 | 验收标准 |
 |---|---|---|
 | FR-R1 | 确定性评分 | 同一数据集两次评分结果完全一致；推荐理由含因子分解 |
-| FR-R2 | 资格门槛 | 19 次或集中于 1 个本机自然日不进入正式推荐；20 次且跨 2 个本机自然日进入；半衰期仅影响排序 |
+| FR-R2 | 资格门槛 | 19 次或集中于 1 个本机自然日不达资格；20 次且跨 2 个本机自然日达标；半衰期仅影响排序。资格不等于存在简化方案，首页筛选另按 R7 |
 | FR-R3 | 半衰期 | 构造数据验证 14 活跃日衰减曲线 |
-| FR-R4 | 展示上限 | 候选项触发候选不超过 3 个；首页 Top 5 加全部候选 |
+| FR-R4 | 展示上限 | 每项触发候选不超过 3 个；首页最多 5 项，均达资格、未忽略且有正向简化候选；全部候选独立可达，无方案/忽略/样本不足项目不丢失 |
 | FR-R5 | 声明边界 | UI 文案无时间或健康收益表述；证据不完整时仅展示逻辑按键数口径的减少 |
 | FR-R6 | 作用域默认 | Top 应用占比 70% 为分界（候选应用不含未知归属、分母含未知归属）；平分取先确定；无已知应用时应用作用域不可选，存在有效候选时用户可改 |
 | FR-R7 | 触发约束 | 自动候选无裸可打印键；手动选择出现高风险确认 |
@@ -548,7 +552,8 @@ Karabiner 路径（直接写入）：
  +-- 一键停用 Karabiner 规则
  +-- 打开主面板 / 暂停 / 退出
 主面板
- +-- 首页（仪表盘）：Top 快捷键、应用分布、热力图、Top 5 推荐与全部候选
+ +-- 概览（统计优先）：Top 快捷键、应用分布、裸键强度/热力图、Top 5 推荐
+ +-- 全部候选：资格与方案状态、解释、已忽略项管理
  +-- 映射：列表（状态与验证信息）、创建流程、各后端草稿
  +-- 备份与导出
  +-- 设置：周期、排除应用、布局预设、登录启动、隐私与数据
@@ -558,7 +563,7 @@ Karabiner 路径（直接写入）：
 
 - Top 快捷键：阶段 3 观测口径，附衰减后权重。
 - 应用分布：基于可含 bundle ID 的快捷键日聚合，含未知归属桶。
-- 热力图：基于裸键日计数，无序列信息。
+- 裸键强度/热力图：基于裸键日计数，无序列信息或应用归属；A 使用键码网格/列表和相对强度，几何对应关系未经验证时不声明真实物理键位热度。
 - 推荐卡片：快捷键、理由因子分解、预估按键次数减少、最多 3 个触发候选、作用域选择。
 
 ### 12.4 功能需求（UX）
@@ -647,7 +652,7 @@ Karabiner 路径（直接写入）：
 
 5. 首开询问、暂停/恢复、退出恢复、重置保留项行为符合第 5 章。
 6. 评分确定性；资格门槛为原始计数不少于 20 次且跨不少于 2 个本机自然日；14 活跃日半衰期仅影响排序。
-7. 首页 Top 5、每项不超过 3 个触发候选、仅按键次数估算。
+7. 统计优先首页最多 5 项满足 R7 的推荐，全部候选独立可达；每项不超过 3 个触发候选，仅按键次数估算，达标无方案不占首页名额。
 8. 作用域默认值按 70% 规则给出；存在有效已知应用候选时用户可改，无候选时应用作用域不可选。
 
 映射与回滚：
@@ -671,7 +676,7 @@ UX 与平台：
 
 以下事项有意未定，任何文档与实现不得擅自填补。
 
-> **Current-status note — status-o6:** The table's Phase 0 writeback is historical status prose, not a current recomputation. In particular its O6 OPEN wording is stale: parsed `historicalAssessment.o_items[id=O6].status` is RESOLVED, with `evidence_paths=[sp2/evidence.json]` and empty `blocker_refs`, in the [validated current projection](PROJECT_STATUS.md#parsed-current-state). Resolution is limited to that bound SP2 generation; it neither changes C7/C8 nor qualifies current product lifecycle or every macOS version.
+> **Current-status note — status-o6 (2026-10-01):** O6 OPEN below is historical; the T24 projection later recorded RESOLVED for its bound SP2 generation. See [current product status](PROJECT_STATUS.md) for later measured qualification. Neither result expands C7/C8 or support to every macOS version.
 
 | 编号 | 事项 | 当前状态 | 说明 |
 |---|---|---|---|

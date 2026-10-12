@@ -1,5 +1,7 @@
 # Paused-restoration bounded acceptance — 2026-09-24
 
+> Status reconciliation (2026-10-01): this is a dated record for the candidates and rounds named below. “Current”, “next”, “pending” and BLOCKED refer to that checkpoint, not today's work queue. The approved Apple Silicon Phase 1 MVP is complete and merged; see [current acceptance](PHASE1_ACCEPTANCE.md) and [roadmap](ROADMAP.md). Original observations and failures retain their scope; these instructions do not authorize another host round.
+
 ## Candidate and result
 
 The repaired Debug candidate is based on `3b9345c30086e9e33c4510047e2692337f5b8643`,

@@ -93,6 +93,14 @@ final class Phase1ReleaseIsolationTests: XCTestCase {
         ]
         for platform in unsupported {
             XCTAssertFalse(platform.isObservedCandidate)
+        }
+        let currentRelease = ObservedLockPlatform(
+            version: .init(majorVersion: 27, minorVersion: 0, patchVersion: 1),
+            build: "26A434", architecture: "arm64")
+        XCTAssertFalse(currentRelease.isObservedCandidate)
+        XCTAssertTrue(currentRelease.readsLiveLock)
+        XCTAssertTrue(supported.readsLiveLock)
+        for platform in unsupported where !platform.readsLiveLock {
             let provider = ObservedSessionLockProvider(platform: platform)
             assertSessionLockState(await provider.sessionLockState(), is: .unknown)
         }
@@ -322,7 +330,8 @@ final class Phase1ReleaseIsolationTests: XCTestCase {
     func testProductionFactorySelectsOnlyObservedPlatformAndIsolatesBundleIdentity() async throws {
         let supported = ObservedLockPlatform(version: .init(majorVersion: 27, minorVersion: 0, patchVersion: 0),
                                              build: "26A428", architecture: "arm64")
-        let unsupported = ObservedLockPlatform(version: supported.version, build: "26A429", architecture: "arm64")
+        let unsupported = ObservedLockPlatform(version: .init(majorVersion: 26, minorVersion: 0, patchVersion: 0),
+                                               build: "26A428", architecture: "arm64")
         let base = FileManager.default.temporaryDirectory.appendingPathComponent("keyrecord-factory-\(UUID())")
         let trial = try ProductComposition.productionBoundaries(platform: supported,
             bundleIdentifier: "com.keyrecord.trial.mvp20260929", applicationSupport: base)

@@ -1,8 +1,23 @@
 # Phase 2 read-only analysis
 
-Scope: current-cycle daily aggregates → deterministic statistics → explanatory recommendation preview. No capture, protected storage, permission, firmware or external configuration access is introduced. Release remains unqualified and fail-closed.
+Scope: current-cycle daily aggregates → deterministic statistics → explanatory recommendation preview. No capture, protected storage, permission, firmware or external configuration access is introduced. The Phase 1 collecting Release is now qualified on its exact observed platform;
+this does not qualify the Phase 2 prototype as a released analysis feature.
 
-Implementation sequence:
+Current integration: consented `ProductScreens` uses Overview / All candidates /
+Settings. Overview reads the protected analysis snapshot, keeps Top 5 to eligible,
+unignored, positive logical previews, and leaves no-plan items in All candidates.
+Ignore, undo, and restore use the existing encrypted preference transaction.
+Opening statistics does not start capture, and Pause is not turned into Resume.
+The Debug synthetic preview still bypasses product composition. Full FR-R/FR-E
+and G2 remain incomplete. See [roadmap](../ROADMAP.md).
+
+The [Phase 2 product plan](PRODUCT_PLAN.md) records owner approval of D1–D5 on
+2026-10-01. Increment A now implements P2-A1–A5 and the automated part of P2-A6.
+The 2026-10-12 owner synthetic-preview check is recorded in [validation](VALIDATION.md).
+Physical scoring, backend capability, manual candidates, and external apply/export
+stay in later scope. Increment A is not full Phase 2 or G2.
+
+Historical implementation sequence:
 1. Completed: pure analysis module and synthetic rule-boundary tests.
 2. Completed: protected snapshots, encrypted layout preferences and bilingual native dashboard implementation.
 3. Automated builds and synthetic tests completed. Owner-assisted screenshots and keyboard/VoiceOver smoke checks cover the bounded scenarios in [validation](VALIDATION.md); desktop automation and full visual/accessibility qualification remain unavailable.
@@ -10,7 +25,8 @@ Implementation sequence:
 
 Design: preserve exact chord sides and unknown attribution in the domain, merge confirmed left/right/both modifier sides for display, keep unknown sides separately labelled, and retain expandable exact provenance. Ranking uses explicit active-day order, never elapsed wall time. The threshold uses raw cycle counts and distinct dates. All trigger choices are unverified logical previews; no mapping action is available. Missing physical evidence always means logical chord counts. Layout choice is a single existing preference, asked non-modally at the first qualifying dataset, with an explicit skip choice.
 
-User authorization permits autonomous reversible decisions and synthetic-only validation while away. Graphical lock, real keyboard and permission tests require the user's return; no wake, unlock or sleep prevention is authorized.
+Authorization recorded for that prototype work is historical, not standing permission
+to launch host rounds. Future work follows current task authorization.
 
 ## Rule choices and limits
 

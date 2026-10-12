@@ -73,9 +73,7 @@ extension LifecycleState {
             loginItem = .neverOffered
             return []
         case .consentAccepted(let cycleID):
-            phase = .starting
-            preferences = Preferences(currentCycleID: cycleID, expectedCollecting: true)
-            return [.provisionKey]
+            return beginAcceptedConsent(cycleID)
         default: return []
         }
     }

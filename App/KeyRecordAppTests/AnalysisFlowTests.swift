@@ -1,4 +1,6 @@
 import XCTest
+import AppKit
+import SwiftUI
 import KeyRecordCore
 import KeyRecordAnalysis
 import KeyRecordStore
@@ -16,7 +18,8 @@ final class AnalysisFlowTests: XCTestCase {
         fixture.showConsentIfNeeded()
         await fixture.flow.accept()
         fixture.flow.sync(from: fixture.orchestrator.state)
-        let analysis = try AnalysisEngine.analyze(AnalysisPreview.input())
+        let cycle = try XCTUnwrap(fixture.orchestrator.state.preferences?.currentCycleID)
+        let analysis = try AnalysisEngine.analyze(AnalysisPreview.input(cycleID: cycle))
         fixture.flow.publishAnalysis(analysis)
         XCTAssertEqual(fixture.flow.analysis, analysis)
         fixture.observeLocked()
@@ -60,6 +63,106 @@ final class AnalysisFlowTests: XCTestCase {
         gate.update(.unlocked)
         XCTAssertNil(try reduction.analysis(preferences: Preferences(currentCycleID: input.cycleID)))
     }
+
+    func testClosedKeyGateKeepsFirstRunConsentVisible() throws {
+        let fixture = try fixture()
+        fixture.flow.sync(from: LifecycleState(phase: .consent))
+        fixture.flow.showCaptureBlocked()
+        XCTAssertTrue(fixture.flow.awaitingConsent)
+        XCTAssertTrue(fixture.flow.showsConsent)
+        XCTAssertEqual(fixture.flow.state, .blocked)
+        fixture.flow.sync(from: LifecycleState(phase: .failed,
+            failure: .preferencesLoadFailed(.protectedDataUnavailable)))
+        fixture.flow.showCaptureBlocked()
+        XCTAssertTrue(fixture.flow.showsConsent)
+        fixture.flow.sync(from: LifecycleState(phase: .paused,
+            preferences: Preferences(currentCycleID: CycleID(rawValue: "kept"))))
+        fixture.flow.showCaptureBlocked()
+        XCTAssertFalse(fixture.flow.showsConsent)
+    }
+
+    func testOpeningStatisticsDoesNotStartOrResumeCapture() async throws {
+        let fixture = try fixture()
+        fixture.showConsentIfNeeded()
+        await fixture.flow.accept()
+        await fixture.flow.pause()
+        var started = false
+        var resumed = false
+        fixture.flow.actions.start = { started = true }
+        fixture.flow.actions.resume = { resumed = true }
+        let starts = await fixture.capture.startCount
+        let phase = fixture.orchestrator.phase
+        fixture.flow.presentStatistics()
+        XCTAssertFalse(started)
+        XCTAssertFalse(resumed)
+        let startsAfter = await fixture.capture.startCount
+        XCTAssertEqual(fixture.orchestrator.phase, phase)
+        XCTAssertEqual(fixture.flow.statisticsSection, .overview)
+        XCTAssertEqual(startsAfter, starts)
+    }
+
+    func testStaleAnalysisCannotCrossCycleOrPrivacyClosure() async throws {
+        let fixture = try fixture()
+        fixture.showConsentIfNeeded()
+        await fixture.flow.accept()
+        fixture.flow.sync(from: fixture.orchestrator.state)
+        let current = try XCTUnwrap(fixture.orchestrator.state.preferences?.currentCycleID)
+        let fresh = try AnalysisEngine.analyze(AnalysisPreview.input(cycleID: current))
+        fixture.flow.publishAnalysis(fresh)
+        XCTAssertEqual(fixture.flow.analysis?.cycleID, current)
+        let stale = try AnalysisEngine.analyze(AnalysisPreview.input(cycleID: CycleID(rawValue: "previous-cycle")))
+        fixture.flow.publishAnalysis(stale)
+        XCTAssertNil(fixture.flow.analysis)
+        fixture.flow.publishAnalysis(fresh)
+        fixture.observeLocked()
+        fixture.flow.sync(from: fixture.orchestrator.state)
+        XCTAssertNil(fixture.flow.analysis)
+        XCTAssertFalse(fixture.flow.hasUnseenRecommendations)
+        XCTAssertEqual(fixture.flow.statisticsMenuTitle(NativeText(locale: "en")),
+                       NativeText(locale: "en")("action.statistics"))
+    }
+
+    func testIgnoreFailureRollsBackAndRestoreSurvivesMissingObservation() async throws {
+        let fixture = try fixture()
+        fixture.showConsentIfNeeded()
+        await fixture.flow.accept()
+        fixture.flow.sync(from: fixture.orchestrator.state)
+        fixture.flow.saveIgnoredAction = { try await fixture.orchestrator.setIgnoredRecommendationKeys($0) }
+        let id = "008:left:none:none:left:none"
+        await fixture.flow.ignoreRecommendation(id)
+        XCTAssertEqual(fixture.flow.ignoredRecommendationKeys, [id])
+        XCTAssertTrue(fixture.flow.canUndoIgnoreChange)
+        let saved = try await fixture.preferences.load()
+        XCTAssertEqual(saved?.ignoredRecommendationKeys, [id])
+        XCTAssertEqual(saved?.excludedBundleIDs, [])
+        fixture.flow.saveIgnoredAction = { _ in throw PreferencesRepositoryError.storageUnavailable }
+        await fixture.flow.ignoreRecommendation("other")
+        XCTAssertEqual(fixture.flow.ignoredRecommendationKeys, [id])
+        XCTAssertEqual(fixture.flow.noticeKey, "phase2.preferenceSaveFailed")
+        fixture.flow.saveIgnoredAction = { try await fixture.orchestrator.setIgnoredRecommendationKeys($0) }
+        await fixture.flow.undoIgnoredRecommendationChange()
+        XCTAssertTrue(fixture.flow.ignoredRecommendationKeys.isEmpty)
+        let absent = IgnoredRecommendationList.entries(persisted: [id], candidates: [])
+        XCTAssertFalse(absent[0].hasCurrentObservation)
+        XCTAssertNotNil(absent[0].chord)
+    }
+
+    func testRecommendationBadgeAppearsOncePerNewTopItem() {
+        var attention = RecommendationAttention()
+        attention.observe(topIDs: ["a", "b"], contentVisible: true, currentlyViewing: false)
+        XCTAssertFalse(attention.hasUnseen)
+        attention.observe(topIDs: ["a", "b"], contentVisible: true, currentlyViewing: false)
+        XCTAssertFalse(attention.hasUnseen)
+        attention.observe(topIDs: ["a", "b", "c"], contentVisible: true, currentlyViewing: false)
+        XCTAssertTrue(attention.hasUnseen)
+        attention.markRecommendationAreaOpened(topIDs: ["a", "b", "c"])
+        XCTAssertFalse(attention.hasUnseen)
+        attention.observe(topIDs: ["a", "b", "c"], contentVisible: false, currentlyViewing: false)
+        XCTAssertFalse(attention.hasUnseen)
+        attention.observe(topIDs: ["a", "b", "c", "d"], contentVisible: true, currentlyViewing: true)
+        XCTAssertFalse(attention.hasUnseen)
+    }
+
 }
 
 import AppKit
@@ -169,7 +272,7 @@ final class ProductSnapshotPublicationTests: XCTestCase {
     private func fixture() async throws -> (LifecycleHarness, AppFlowObservable, ProductReduction, Preferences) {
         let harness = LifecycleHarness()
         await harness.collectOpen()
-        let input = try AnalysisPreview.input()
+        let input = try AnalysisPreview.input(cycleID: harness.cycleID)
         let gate = KeyAvailabilityGate()
         gate.update(.unlocked)
         let flow = AppFlowObservable(flow: Phase1FlowModel(lifecycle: harness.orchestrator), protectedGate: gate)
@@ -218,7 +321,7 @@ final class ProductSnapshotPublicationTests: XCTestCase {
         XCTAssertFalse(shutdownRequested)
         XCTAssertNil(flow.analysis)
         XCTAssertNotNil(flow.snapshot)
-        XCTAssertEqual(flow.noticeKey, "flow.actionUnavailable")
+        XCTAssertEqual(flow.noticeKey, "phase2.analysisUnavailable")
         XCTAssertNoThrow(try reduction.gate.begin())
     }
 
@@ -303,7 +406,7 @@ final class ProductSnapshotPublicationTests: XCTestCase {
             readAnalysis: { try reduction.analysis(preferences: preferences) })
         XCTAssertEqual(flow.snapshot?.shortcutTotal, row.sourceCounts.total.value)
         XCTAssertNil(flow.analysis)
-        XCTAssertEqual(flow.noticeKey, "flow.actionUnavailable")
+        XCTAssertEqual(flow.noticeKey, "phase2.analysisUnavailable")
         XCTAssertNoThrow(try reduction.gate.begin())
     }
 

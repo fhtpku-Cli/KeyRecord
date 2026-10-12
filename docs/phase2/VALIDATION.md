@@ -1,6 +1,89 @@
 # Phase 2 validation
 
-This is a read-only Debug prototype, not Phase 1 acceptance or Release qualification.
+## Increment A automated checks — 2026-10-01
+
+These checks cover the statistics and logical-preview increment on
+`codex/phase2-product-plan`. They do not accept full Phase 2, G2, or a signed
+host round. The ImageRenderer blank-image skip below is the same pre-existing
+limitation, not a new visual pass.
+
+- SwiftPM, `swift test --disable-sandbox` filtered to `AnalysisTests`,
+  `IgnoredRecommendationPreferenceTests`, `LayoutPreferenceTests`, and
+  `CycleResetTests/testResetKeepsIgnoredKeysLayoutAndUnrelatedPreferences`:
+  16 analysis tests, 3 ignore-preference tests, 3 layout tests, and the cycle-reset
+  retention test passed. The analysis run includes positive-preview Top 5,
+  no-plan and Fn-unknown reasons, ignore, score ties, canonical ignore parsing,
+  and a 420-row analysis that finished in 0.009 seconds. The full package suite
+  was not rerun.
+- Unsigned arm64 App XCTest, `CODE_SIGNING_ALLOWED=NO`: `AnalysisFlowTests`
+  executed 11 tests with 1 skipped and 0 failures; `ProductSnapshotPublicationTests`
+  executed 11 tests with 0 failures. Coverage includes privacy clearing, stale
+  cycle rejection, ignore save/failure/undo, opening statistics without start or
+  resume, and analysis failure leaving the aggregate readable.
+- `ScreenMatrixTests/testHappyScreenMatrix` passed after layout choices used the
+  existing focusable action control. Localization audit methods passed.
+  `kern.osversion` is recorded as a non-UI literal.
+- `testSyntheticDashboardRendersBothLocalesAndPrivacyStates` skipped because
+  ImageRenderer still produced a blank image. That is not a rendering pass.
+- No signed Release launch, no real capture, no VoiceOver session, and no owner
+  walkthrough were run. Hostless accessibility initialization is not treated as
+  interactive acceptance.
+- A separate review of the uncommitted increment A diff found no privacy,
+  capture-lifecycle, stale-analysis, or network issue. It is not a signed host review.
+
+## Isolated trial, second segment — 2026-10-12
+
+The owner finished the agreed second segment on the isolated Debug trial and then
+quit. The trial bundle is `com.keyrecord.trial.mvp20260929`, namespace
+`com.keyrecord.trial.mvp20260929.phase2a20261001`, store
+`keyrecord-increment-a-trial-auto/runtime-phase2a/store`. The machine is Apple
+Silicon macOS 27.0.1 build `26A434`. That build is not the measured Phase 1
+acceptance platform, which remains arm64 macOS 27.0 build `26A428`. The binary
+uses the local Apple Development identity. This is not a notarized or public
+release, and it is not full Phase 2 or G2.
+
+Before this launch the trial store was empty. At 17:11:54 it contained a manifest
+and two encrypted objects, so first consent provisioned protected storage. The
+process was gone after the owner reported the segment complete. The termination
+summary written at 17:12:20 shows no live capture session, an open key gate, two
+sessions, one successful durable flush, and no flush failure. Tap callbacks and
+the aggregate delta are zero. Statistics publication ran 23 times with no
+rejection; snapshot publication ran 13 times with no read failure. The last
+published shortcut total and bare-key total are both zero. Sensitive content was
+not visible in that final snapshot.
+
+This establishes that consent on a fresh trial namespace can create the encrypted
+store, that capture was no longer live at exit, and that the published statistics
+stayed empty. It does not show typed shortcuts, Top 5, ignore or undo, a bilingual
+or VoiceOver pass, or the on-screen pause label. The final summary does not
+explain why the session count is two.
+
+## Synthetic preview walkthrough — 2026-10-12
+
+The owner finished the agreed synthetic-preview checklist and reported no
+mismatch. The window title was “Synthetic analysis preview”. The process was an
+unsigned Debug build launched with only `KEYRECORD_ANALYSIS_PREVIEW=1`; real
+capture, the trial store, and the trial namespace were not set. The preview
+keeps ignore, undo, restore, and layout choice in memory for that window. That
+wiring is a local preview change and is not part of commit `3b66af5ba`.
+
+The checklist covered Top 5 membership, the no-plan explanation in all
+candidates, ignore/undo/restore, layout choice and skip, English and Chinese,
+a narrowed window, keyboard focus, VoiceOver reading of a candidate status and
+count, and the empty and hidden fixtures. No apply, export, or remap control
+was part of the check. The owner did not write a separate note for each control,
+and this session did not capture screenshots or an accessibility tree. The
+ImageRenderer blank-image skip remains unresolved. This is the increment A
+interface check, not typed-shortcut evidence, increment B, or full Phase 2/G2.
+
+## Historical prototype validation
+
+The sections below record the earlier read-only Debug prototype. They are not Phase 1 acceptance, Release qualification, or acceptance of increment A.
+Status reconciliation (2026-10-01): [Phase 1 is complete](../PHASE1_ACCEPTANCE.md),
+but its native walkthrough does not qualify this separate dashboard or full G2.
+The instructions below describe prototype reproduction and remaining coverage,
+not authorization to start another host round. See [implementation scope](IMPLEMENTATION.md)
+and the [current roadmap](../ROADMAP.md).
 
 ## Synthetic-only reproduction
 

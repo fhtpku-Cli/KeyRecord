@@ -1,11 +1,13 @@
 # Next owner-assisted round: collecting lock and explicit recovery
 
+> Status reconciliation (2026-10-01): this is a dated record for the candidates and rounds named below. “Current”, “next”, “pending” and BLOCKED refer to that checkpoint, not today's work queue. The approved Apple Silicon Phase 1 MVP is complete and merged; see [current acceptance](PHASE1_ACCEPTANCE.md) and [roadmap](ROADMAP.md). Original observations and failures retain their scope; these instructions do not authorize another host round.
+
 This round completed on 2026-09-29 after explicit owner readiness. The original
 preparation is retained below; its output paths are consumed and must not be
 reused. See [the result and diagnostic follow-up](PERMISSION_RECOVERY_TEST.md#bounded-collecting-lock-and-explicit-recovery--2026-09-29).
 No new round is authorized by this historical plan.
 
-The next prepared scenario is [sleep/wake and explicit recovery](SLEEP_WAKE_ROUND_20260929.md).
+The subsequent sleep/wake scenario also completed; see [the completed second round](SLEEP_WAKE_SECOND_ROUND_20260929.md). No follow-up is scheduled by this file.
 
 ## Exact candidate and scope
 

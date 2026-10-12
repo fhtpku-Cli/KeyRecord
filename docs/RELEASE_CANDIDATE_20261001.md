@@ -10,8 +10,9 @@ and a Pause-button action are not claimed. The existing
 [T23 native walkthrough](RELEASE_NATIVE_UI_PREP_20261001.md) subsequently passed
 within its owner-assisted scope, with normal exit and all settings restored.
 This completes the approved Apple Silicon Phase 1 objective on the measured host.
-The preparation details below retain their prelaunch scope. Public distribution and PR merge remain
-outside this work.
+PR #17 subsequently merged as `8bb99e81` on 2026-10-01 (Asia/Shanghai), with
+merge-commit CI passing. Preparation below retains its original prelaunch scope;
+it did not itself authorize the later merge. Public distribution is unqualified.
 
 The Release composition uses the same exact-item Security backend and query
 builders already measured in the signed product cases. Only its DEBUG read
@@ -62,13 +63,18 @@ select the native window toolbar tab, set the requested locale and give only the
 test screenshot an opaque background. Assertions retain actual before/after UI
 postconditions rather than relying on AXPress's inaccurate return status.
 
-## Signed local candidate
+## Signed local candidate and consumed preparation
+
+This section retains signing and pre-launch checkpoints. The input/readback and
+native walkthrough subsequently completed as recorded above. Statements about
+unused services, required input or new permission describe pre-launch preparation,
+not current storage contents or outstanding actions.
 
 The actual Release product uses the already provisioned
 `com.keyrecord.phase1.probe.host` identity and existing Apple Development certificate
 for team `P3W62C39TN`. This is the product app, not the hosted XCTest probe.
 The exact embedded profile UUID is `01e3da0d-8706-4ed6-8234-4747a5bf9b9d`, expiring
-2026-10-07 09:39:57 UTC. Application identifier and its sole Keychain access group
+2026-10-07 09:39:57 UTC (17:39:57 Asia/Shanghai). Application identifier and its sole Keychain access group
 are `P3W62C39TN.com.keyrecord.phase1.probe.host`. Hardened runtime is enabled;
 development signing also grants get-task-allow, so this is not a public distribution
 artifact. No provisioning update was requested.

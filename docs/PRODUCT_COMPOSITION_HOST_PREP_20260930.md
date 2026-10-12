@@ -1,5 +1,7 @@
 # Full product composition in the Keychain probe
 
+> Status reconciliation (2026-10-01): this is a dated record for the candidates and rounds named below. “Current”, “next”, “pending” and BLOCKED refer to that checkpoint, not today's work queue. The approved Apple Silicon Phase 1 MVP is complete and merged; see [current acceptance](PHASE1_ACCEPTANCE.md) and [roadmap](ROADMAP.md). Original observations and failures retain their scope; these instructions do not authorize another host round. Subsequent [locked restart](PRODUCT_LOCKED_RESTART_PREP_20261001.md) and [Release integration](RELEASE_CANDIDATE_20261001.md) address the then-open qualification work within their stated platform and candidate scopes.
+
 The subsequent [unlocked signed execution](PRODUCT_COMPOSITION_ROUND_20260930.md)
 passed the full-product real Keychain scenario on unchanged `fee7d4aef`: one passed,
 zero failed/skipped, two owned items cleaned up and no remaining host. This follows

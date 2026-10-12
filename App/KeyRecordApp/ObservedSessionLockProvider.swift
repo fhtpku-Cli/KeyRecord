@@ -10,9 +10,16 @@ struct ObservedLockPlatform {
     let build: String
     let architecture: String
 
+    /// Exact measured acceptance candidate. A later system update is not this candidate.
     var isObservedCandidate: Bool {
         version.majorVersion == 27 && version.minorVersion == 0 && version.patchVersion == 0
             && build == "26A428" && architecture == "arm64"
+    }
+
+    /// Apple Silicon macOS 27 and later still read the live lock and can use the local
+    /// keychain. Unknown or locked results fail closed. Other architectures do not read.
+    var readsLiveLock: Bool {
+        architecture == "arm64" && version.majorVersion >= 27
     }
 
     static var current: Self {
@@ -41,7 +48,7 @@ struct ObservedLockPlatform {
 
 struct ObservedPlatformCaptureQualification: CaptureQualification {
     private let supported: Bool
-    init(platform: ObservedLockPlatform) { supported = platform.isObservedCandidate }
+    init(platform: ObservedLockPlatform) { supported = platform.readsLiveLock }
     func liveCaptureQualified() async -> Bool { supported }
 }
 
@@ -58,7 +65,7 @@ final class ObservedSessionLockProvider: SessionLockProvider, @unchecked Sendabl
     private var observers: [any NSObjectProtocol]
 
     convenience init(platform: ObservedLockPlatform = .current) {
-        if platform.isObservedCandidate {
+        if platform.readsLiveLock {
             self.init(sessionDictionaryQuery: Self.liveSessionDictionary,
                       consoleLockQuery: Self.liveConsoleLock)
         } else {

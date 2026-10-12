@@ -2,8 +2,10 @@
 
 The existing observed lock algorithm is now shared by Debug and Release source
 builds as `ObservedSessionLockProvider`. `SystemSessionLockProvider` remains a
-Debug alias for existing fixtures. This is production compilation preparation;
-the Release composition still uses `BlockedLiveKeychain` and unqualified capture.
+Debug alias for existing fixtures. At this extraction checkpoint Release was
+still blocked. Later [integration](RELEASE_CANDIDATE_20261001.md) selected the real
+backend/provider on the observed platform and the scoped MVP completed;
+unsupported platforms remain closed.
 
 ## Evidence and supported candidate
 
@@ -13,10 +15,10 @@ fresh locked startup and signed existing-store separate-process restart support
 a candidate on native arm64 macOS 27.0, build `26A428`. These existing results are
 not repeated or upgraded to general API guarantees.
 
-The default provider checks the exact OS version, build and native architecture.
-Any other version/build/architecture, or a failed build query, produces unknown
-without registering lock notifications or issuing the live lock queries. Within
-the candidate platform, the existing before/console/after eligibility checks,
+The measured candidate remains the exact OS version, build and native architecture.
+Apple Silicon macOS 27 and later still issue the live lock queries, so a system
+update does not disable the reader. Other architectures, or a failed build query,
+produce unknown without those queries. Within a live read, the existing before/console/after eligibility checks,
 locked precedence, strict Boolean handling and notification closure are retained.
 The console/session fields remain implementation details, not documented atomic
 lock-state APIs. No field absence, elapsed time or successful Keychain read is
@@ -24,9 +26,10 @@ treated as an unlocked witness.
 
 Release excludes the diagnostic method and Debug protocol. The lifecycle probe's
 `ObservedLockSignals.qualifiedLiveVersions` is still empty; extracting this
-provider does not grant complete lifecycle or Release qualification. Remaining
-work includes raw locked Keychain measurement, outstanding privacy/UI evidence
-and deliberate final product integration.
+provider alone did not grant lifecycle or Release qualification. The then-pending
+raw lock measurement, privacy/UI and integration subsequently completed within
+their [documented scopes](PHASE1_ACCEPTANCE.md). The legacy probe list is not an
+instruction to repeat those scenarios.
 
 ## Architecture audit
 

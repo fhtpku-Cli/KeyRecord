@@ -44,3 +44,55 @@ final class LayoutPreferenceTests: XCTestCase {
         XCTAssertEqual(saved?.excludedBundleIDs, ["com.example.private"])
     }
 }
+
+@MainActor
+final class IgnoredRecommendationPreferenceTests: XCTestCase {
+    func testIgnorePersistsAcrossReloadAndLeavesOtherPreferencesUntouched() async throws {
+        let harness = LifecycleHarness()
+        await harness.collectOpen()
+        let before = try XCTUnwrap(harness.orchestrator.state.preferences)
+        let keys: Set<String> = ["008:left:none:none:left:none"]
+        try await harness.orchestrator.setIgnoredRecommendationKeys(keys)
+        let saved = await harness.storedPreferences()
+        XCTAssertEqual(saved, before.updating(ignoredRecommendationKeys: keys))
+        try await harness.orchestrator.setLocale(.simplifiedChinese)
+        await harness.orchestrator.setLoginItem(enabled: true)
+        await harness.orchestrator.reload()
+        let reloaded = try XCTUnwrap(harness.orchestrator.state.preferences)
+        XCTAssertEqual(reloaded.ignoredRecommendationKeys, keys)
+        XCTAssertEqual(reloaded.layout, before.layout)
+        XCTAssertEqual(reloaded.excludedBundleIDs, before.excludedBundleIDs)
+        XCTAssertEqual(reloaded.locale, .simplifiedChinese)
+        XCTAssertTrue(reloaded.loginItemEnabled)
+    }
+
+    func testHiddenStateRejectsIgnoreChanges() async throws {
+        let harness = LifecycleHarness()
+        await harness.collectOpen()
+        let before = await harness.storedPreferences()
+        harness.orchestrator.observe(RuntimeConditions(keyAvailability: .available,
+            sessionLock: .locked, secureInput: .disabled,
+            foreground: .attributable(bundleID: "com.example")))
+        do {
+            try await harness.orchestrator.setIgnoredRecommendationKeys(["008:left:none:none:none:none"])
+            XCTFail("Hidden state accepted an ignore change")
+        } catch { XCTAssertEqual(error as? PreferencesRepositoryError, .storageUnavailable) }
+        let after = await harness.storedPreferences()
+        XCTAssertEqual(after, before)
+    }
+
+    func testFailedSaveKeepsPreviousIgnoreSet() async throws {
+        let harness = LifecycleHarness()
+        await harness.collectOpen()
+        let keys: Set<String> = ["kept"]
+        try await harness.orchestrator.setIgnoredRecommendationKeys(keys)
+        await harness.storage.failSubsequentSaves()
+        do {
+            try await harness.orchestrator.setIgnoredRecommendationKeys(["replacement"])
+            XCTFail("Failing preference store accepted the replacement")
+        } catch {}
+        XCTAssertEqual(harness.orchestrator.state.preferences?.ignoredRecommendationKeys, keys)
+        let stored = await harness.storedPreferences()
+        XCTAssertEqual(stored?.ignoredRecommendationKeys, keys)
+    }
+}

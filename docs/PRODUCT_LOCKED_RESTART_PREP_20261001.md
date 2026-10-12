@@ -1,5 +1,7 @@
 # Existing-store process restart under lock: bounded signed result
 
+> Status reconciliation (2026-10-01): this is a dated record for the candidates and rounds named below. “Current”, “next”, “pending” and BLOCKED refer to that checkpoint, not today's work queue. The approved Apple Silicon Phase 1 MVP is complete and merged; see [current acceptance](PHASE1_ACCEPTANCE.md) and [roadmap](ROADMAP.md). Original observations and failures retain their scope; these instructions do not authorize another host round.
+
 ## Current result: PASS
 
 The coordinated real round on signed `0766c515b51e21aedd96f6dab32377eb8bdfcf3d`

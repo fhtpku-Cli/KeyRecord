@@ -1,8 +1,10 @@
 # 实机配合操作指南
 
-**历史操作页，当前不要照此启动新轮次。** 下面步骤针对 PR #9/#10 的独立 Debug 候选；该轮已结束。2026-09-29 的 PR #17 隔离试验已完成短时输入、保存及重建恢复验证，见 [项目状态](PROJECT_STATUS.md)。当前准备的是[单独的锁屏恢复轮次](NEXT_HOST_ROUND_20260929.md)，须等本轮批准和明确就绪后启动。本页旧步骤不直接用于该候选，Intel 不在本轮 MVP 范围内。
+> Status reconciliation (2026-10-01): this is a dated record for the candidates and rounds named below. “Current”, “next”, “pending” and BLOCKED refer to that checkpoint, not today's work queue. The approved Apple Silicon Phase 1 MVP is complete and merged; see [current acceptance](PHASE1_ACCEPTANCE.md) and [roadmap](ROADMAP.md). Original observations and failures retain their scope; these instructions do not authorize another host round.
 
-当前合并版已完成一次单页安全输入回归，见 [结果记录](PR10_SINGLEPAGE_REGRESSION.md)。下一轮不自动开始。执行者在整轮开始前确认你方便并取得该轮批准，之后按本页连续操作，不要求你在密码框聚焦期间回聊天。
+**历史操作页，当前不要照此启动新轮次。** 下面步骤针对 PR #9/#10 的独立 Debug 候选，该轮已结束。后续锁屏、睡眠、短 ARM 性能和限定范围的 Phase 1 验收也已完成，见 [项目状态](PROJECT_STATUS.md)。没有由本页安排的待执行实机轮次。Intel 和完整 G1/v1 仍属于后续范围。
+
+当时的合并版完成过一次单页安全输入回归，见 [结果记录](PR10_SINGLEPAGE_REGRESSION.md)。以下保留当时的协作步骤；后续若有新问题，应按新的候选和实际变化安排最小验证，不直接重放本页。
 
 调试版放在单独目录里运行，不会替换你正在使用的 KeyRecord。执行者不会改系统权限、不会锁屏、不会唤醒电脑、不会输入按键，也不会打开你的真实统计数据。
 

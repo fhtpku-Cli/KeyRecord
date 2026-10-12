@@ -66,4 +66,16 @@ final class EmptyReloadTests: XCTestCase {
         let consenting = reduce(blocked, .consentRequested)
         XCTAssertEqual(consenting.state.phase, .consent)
     }
+
+    func testAgreeingOnAFreshInstallStartsProvisioningWithoutThePlaceholderReason() {
+        // The consent screen is shown while the phase is still `.unstarted`. Agreeing
+        // must provision a key instead of leaving the placeholder reason in place.
+        let fresh = FX.transition(LifecycleState.initial, .reload(nil))
+        let accepted = reduce(fresh, .consentAccepted(cycleID: FX.cycle))
+        XCTAssertEqual(accepted.state.phase, .starting)
+        XCTAssertEqual(accepted.effects, [.provisionKey])
+        XCTAssertNil(accepted.state.blockedReason)
+        XCTAssertEqual(accepted.state.preferences?.currentCycleID, FX.cycle)
+        XCTAssertEqual(accepted.state.preferences?.expectedCollecting, true)
+    }
 }

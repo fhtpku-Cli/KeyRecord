@@ -1,5 +1,7 @@
 # PR #10 合并版：单页安全输入回归
 
+> Status reconciliation (2026-10-01): this is a dated record for the candidates and rounds named below. “Current”, “next”, “pending” and BLOCKED refer to that checkpoint, not today's work queue. The approved Apple Silicon Phase 1 MVP is complete and merged; see [current acceptance](PHASE1_ACCEPTANCE.md) and [roadmap](ROADMAP.md). Original observations and failures retain their scope; these instructions do not authorize another host round.
+
 被测源码：`64590a0e9b57a55af9a23921983f2c16bb59c62e`（PR #10 合并提交）。
 独立 Apple Development 签名 Debug、arm64；本机 Safari，由用户批准并亲自操作。
 构建位于 `.build/pr10-signed-regression/Build/Products/Debug/KeyRecordApp.app`。

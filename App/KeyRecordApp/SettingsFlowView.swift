@@ -9,6 +9,21 @@ struct SettingsFlowView: View {
 
     var body: some View {
         Form {
+            if flow.sensitiveContentVisible {
+                Section {
+                    AnalysisLayoutControls(layout: flow.layout, ask: flow.analysis?.shouldAskLayout == true && !flow.layout.hasAsked,
+                                           text: text, noticeKey: flow.noticeKey == "phase2.preferenceSaveFailed" ? flow.noticeKey : nil,
+                                           saveLayout: { await flow.saveLayout($0) })
+                } header: {
+                    Text(text("phase2.layout"))
+                }
+            }
+            Section {
+                Text(text("consent.disclosure")).fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("settings.consent")
+            } header: {
+                Text(text("settings.consent"))
+            }
             ExcludedApplicationsSection(flow: flow, text: text)
             LoginItemSection(flow: flow, text: text)
             LanguageSection(flow: flow, text: text)

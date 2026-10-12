@@ -1,18 +1,20 @@
 # 暂停资源与隐私关闭：给执行者的测试方案
 
+> Status reconciliation (2026-10-01): this is a dated record for the candidates and rounds named below. “Current”, “next”, “pending” and BLOCKED refer to that checkpoint, not today's work queue. The approved Apple Silicon Phase 1 MVP is complete and merged; see [current acceptance](PHASE1_ACCEPTANCE.md) and [roadmap](ROADMAP.md). Original observations and failures retain their scope; these instructions do not authorize another host round.
+
 当前状态见 [PROJECT_STATUS.md](PROJECT_STATUS.md)。PR #9/#10 已合并；
 `64590a0e9b57a55af9a23921983f2c16bb59c62e` 的单页安全输入回归见
 [专门记录](PR10_SINGLEPAGE_REGRESSION.md)。下方旧结果各自绑定历史候选，不是当前性能验收。
 
-**2026-09-29 适用范围：** 本文的资源与隐私实机方案绑定旧候选，不能直接作为 PR #17 的操作指令。当前 MVP 只需 Apple Silicon 实机资格；Intel 延后。PR #17 的隔离候选已进入 Collecting 并完成短时保存和恢复验证，但当前候选的实测资源窗口仍未完成。下轮按[单独的锁屏恢复方案](NEXT_HOST_ROUND_20260929.md)准备，等待明确就绪再启动。旧版关于传统文件钥匙串的诊断不适用于当前使用数据保护钥匙串的候选。
+**2026-10-01 状态更新：** 本文是旧候选的历史操作方案。后续[短 ARM 性能测量](PERFORMANCE_SHORT_ROUND_20260929.md)、锁屏/睡眠恢复以及[限定范围的 Phase 1 验收](PHASE1_ACCEPTANCE.md)已完成，不再按本页安排下一轮。性能结果仍只代表对应 Debug 固定回放候选；Intel、完整 G1 和公开发布另行保留。旧版传统文件钥匙串与 HOME 的诊断不适用于当前数据保护钥匙串及 Release 身份隔离路径。
 
-## 当前 Debug 试验隔离
+## 历史 Debug 试验隔离
 
 同时配置 `KEYRECORD_TRIAL_STORE`（私有临时目录）和 `KEYRECORD_TRIAL_NAMESPACE`
 （专用测试条目命名空间）；不完整、非法或与生产目录重叠必须拒绝启动，不回退真实数据。
 每轮摘要和日记使用新路径，正常退出后保留证据，下一轮不得覆盖。
 
-对于当前使用传统文件钥匙串的 `LocalKeychainBackend`，不要覆盖 `HOME` 或
+对于当时使用传统文件钥匙串的 `LocalKeychainBackend`，不要覆盖 `HOME` 或
 `CFFIXED_USER_HOME`。本轮实测临时 HOME 下默认钥匙串定位失败，点击同意出现
 “找不到用于储存 master-v1 的钥匙串”；正常用户环境的只读定位成功。
 应取消该系统对话框、正常退出，修正启动环境，不点击“还原为默认”，不重置用户钥匙串。

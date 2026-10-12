@@ -80,6 +80,12 @@ extension AnalysisLabels {
     }
 }
 
+enum AnalysisOverviewLimits {
+    static let shortcuts = 10
+    static let applications = 10
+    static let bareKeys = 12
+}
+
 /// Family grouping is presentation only; all sided variants remain inspectable.
 struct AnalysisStatisticGroup: Identifiable {
     let id: String

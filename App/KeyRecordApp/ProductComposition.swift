@@ -61,7 +61,7 @@ struct ProductHostBoundaries {
 }
 
 @MainActor
-final class ProductComposition: NSObject, NSMenuDelegate {
+final class ProductComposition: NSObject, NSMenuDelegate, NSWindowDelegate {
     let lifecycle: LifecycleOrchestrator
     let flow: AppFlowObservable
     let gate: KeyAvailabilityGate
@@ -141,7 +141,7 @@ final class ProductComposition: NSObject, NSMenuDelegate {
     static func productionBoundaries(platform: ObservedLockPlatform = .current,
         bundleIdentifier: String? = Bundle.main.bundleIdentifier, applicationSupport: URL? = nil) throws -> ProductHostBoundaries {
         let identity = try installation(bundleIdentifier: bundleIdentifier, applicationSupport: applicationSupport)
-        let backend: any KeychainBackend = platform.isObservedCandidate ? LocalKeychainBackend() : BlockedLiveKeychain()
+        let backend: any KeychainBackend = platform.readsLiveLock ? LocalKeychainBackend() : BlockedLiveKeychain()
         return ProductHostBoundaries(storeRoot: identity.storeRoot, namespace: identity.namespace,
             backend: backend, login: ProductLogin.make(),
             qualification: ObservedPlatformCaptureQualification(platform: platform),
@@ -346,9 +346,13 @@ final class ProductComposition: NSObject, NSMenuDelegate {
             setExclusions: { [weak self] ids in await self?.applyExclusions(ids) },
             setLoginItem: { [weak self] enabled in await lifecycle.setLoginItem(enabled: enabled); self?.syncRuntime() },
             loadChoices: { [weak self] in await self?.loadExclusionChoices() ?? [] },
-            openSettings: { [weak self] in self?.showWindow() })
+            openSettings: { [weak self] in self?.showSettings() })
         flow.saveLayoutAction = { [weak self] layout in
             try await lifecycle.setLayout(layout)
+            self?.syncRuntime()
+        }
+        flow.saveIgnoredAction = { [weak self] keys in
+            try await lifecycle.setIgnoredRecommendationKeys(keys)
             self?.syncRuntime()
         }
     }
@@ -530,9 +534,13 @@ final class ProductComposition: NSObject, NSMenuDelegate {
         if completed, lifecycle.phase != .collecting {
             let schedulerPending = await scheduler.hasPendingChanges()
             let unsaved = reduction.hasUnflushedChanges() || schedulerPending
+            let stillAwaitingFirstConsent = lifecycle.state.preferences == nil
+                && (lifecycle.phase == .unstarted || lifecycle.phase == .consent)
             // Closing the gate would make a failed flush unreadable. Keep it open so the
             // next Start can persist the pending counts instead of discarding them.
-            if !unsaved, maintenanceRecovery == nil { gate.update(.unknown) }
+            // A first run that has not stored preferences must also keep the gate: closing
+            // it turns the fresh-install placeholder into a blocked menu.
+            if !unsaved, maintenanceRecovery == nil, !stillAwaitingFirstConsent { gate.update(.unknown) }
         }
         await syncRuntimeRefreshingLiveness()
     }
@@ -616,7 +624,8 @@ final class ProductComposition: NSObject, NSMenuDelegate {
         self.statusItem = statusItem
         menu.addItem(statusItem)
         for (key, selector) in [("action.start", #selector(start)), ("action.pause", #selector(pauseCollection)),
-                                ("action.resume", #selector(resumeCollection)), ("action.settings", #selector(settings)),
+                                ("action.resume", #selector(resumeCollection)), ("action.statistics", #selector(openStatistics)),
+                                ("action.settings", #selector(settings)),
                                 ("action.quit", #selector(quit))] {
             let entry = NSMenuItem(title: text(key), action: selector, keyEquivalent: "")
             entry.target = self
@@ -1203,6 +1212,8 @@ final class ProductComposition: NSObject, NSMenuDelegate {
                 }
             }
             catch {
+                // AnalysisError is already handled inside refreshAnalysis. This path is a
+                // protected-read failure, so it keeps the existing unavailable action.
                 flow.publishAnalysis(nil)
                 flow.noticeKey = "flow.actionUnavailable"
             }
@@ -1462,7 +1473,8 @@ final class ProductComposition: NSObject, NSMenuDelegate {
     @objc private func start() { Task { await startOrRetry(); showWindow() } }
     @objc private func pauseCollection() { Task { await flow.pause() } }
     @objc private func resumeCollection() { Task { await flow.resume() } }
-    @objc private func settings() { showWindow() }
+    @objc private func openStatistics() { showStatistics() }
+    @objc private func settings() { showSettings() }
     @objc private func quit() { Task { await requestQuit() } }
     func menuWillOpen(_ menu: NSMenu) {
         // KR-08 follow-up: opening the menu must re-READ liveness, not reuse the cached
@@ -1472,11 +1484,23 @@ final class ProductComposition: NSObject, NSMenuDelegate {
         // after; the synchronous pass below keeps titles correct in the meantime.
         Task { @MainActor in await self.syncRuntimeRefreshingLiveness() }
         syncRuntime()
-        let keys = ["action.start", "action.pause", "action.resume", "action.settings", "action.quit"]
-        for (item, key) in zip(menu.items.dropFirst(), keys) { item.title = text(key) }
+        let keys = ["action.start", "action.pause", "action.resume", "action.statistics", "action.settings", "action.quit"]
+        for (item, key) in zip(menu.items.dropFirst(), keys) {
+            item.title = key == "action.statistics" ? flow.statisticsMenuTitle(text) : text(key)
+        }
         #if DEBUG
         developerMenu?.refresh()
         #endif
+    }
+
+    private func showStatistics() {
+        flow.presentStatistics()
+        showWindow()
+    }
+
+    private func showSettings() {
+        flow.presentSettings()
+        showWindow()
     }
 
     private func showWindow() {
@@ -1486,12 +1510,18 @@ final class ProductComposition: NSObject, NSMenuDelegate {
             panel.title = "KeyRecord"
             panel.isReleasedWhenClosed = false
             panel.animationBehavior = .none
+            panel.delegate = self
             panel.contentView = NSHostingView(rootView: ProductScreens(flow: flow))
             panel.center()
             window = panel
         }
+        flow.statisticsWindowOpen = true
         window?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+    }
+
+    func windowWillClose(_ notification: Notification) {
+        flow.statisticsWindowOpen = false
     }
 }
 
@@ -1531,13 +1561,49 @@ struct ProductScreens: View {
     @ObservedObject var flow: AppFlowObservable
     private var text: NativeText { NativeText(locale: flow.language) }
     var body: some View {
-        TabView {
-            ConsentFlowView(flow: flow, text: text).tabItem { Text(text("flowpreview.tab.consent")) }
-            AggregateFlowView(snapshot: flow.snapshot, text: text)
-                .tabItem { Text(text("flowpreview.tab.aggregates")) }
-            SettingsFlowView(flow: flow, text: text).tabItem { Text(text("flowpreview.tab.settings")) }
+        Group {
+            if flow.showsConsent {
+                ConsentFlowView(flow: flow, text: text)
+            } else {
+                TabView(selection: $flow.statisticsSection) {
+                    analysis(.overview)
+                        .tabItem { Text(text("phase2.tab.overview")) }
+                        .tag(StatisticsSection.overview)
+                    analysis(.candidates)
+                        .tabItem { Text(text("phase2.all")) }
+                        .tag(StatisticsSection.candidates)
+                    SettingsFlowView(flow: flow, text: text)
+                        .tabItem { Text(text("flowpreview.tab.settings")) }
+                        .tag(StatisticsSection.settings)
+                }
+            }
         }
         .frame(minWidth: NativeLayout.minimum.width, minHeight: NativeLayout.minimum.height)
         .nativeMotionPolicy()
+        .onChange(of: flow.statisticsSection) { _, section in
+            guard flow.statisticsWindowOpen, section != .settings else { return }
+            flow.markRecommendationsReviewed()
+        }
+    }
+
+    private func analysis(_ surface: AnalysisSurface) -> some View {
+        let visible = flow.sensitiveContentVisible
+        return AnalysisDashboardView(
+            snapshot: visible ? flow.analysis : nil,
+            fallbackAggregate: visible && flow.analysis == nil ? flow.snapshot : nil,
+            layout: flow.layout,
+            ignoredKeys: flow.ignoredRecommendationKeys,
+            text: text,
+            statusKey: flow.state.statusKey,
+            analysisUnavailable: flow.noticeKey == "phase2.analysisUnavailable",
+            preferenceNoticeKey: flow.noticeKey == "phase2.preferenceSaveFailed" ? flow.noticeKey : nil,
+            canUndoIgnore: flow.canUndoIgnoreChange && visible,
+            saveLayout: { await flow.saveLayout($0) },
+            ignore: { await flow.ignoreRecommendation($0) },
+            restore: { await flow.restoreRecommendation($0) },
+            undoIgnore: { await flow.undoIgnoredRecommendationChange() },
+            openCandidates: { flow.presentAllCandidates() },
+            showsLayoutControls: false,
+            surface: surface)
     }
 }

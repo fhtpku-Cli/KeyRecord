@@ -79,6 +79,49 @@ enum ProductLanguage {
 // MARK: - Menu-bar value state
 
 /// Pure menu snapshot: the SwiftUI menu and previews take this value, never a controller.
+enum StatisticsSection: String, Hashable {
+    case overview, candidates, settings
+}
+
+/// Session-only attention for newly displayable Top 5 items. Cold start records the
+/// current set without treating it as new. Privacy closure drops the pending marker
+/// and does not expose identities or counts.
+struct RecommendationAttention: Equatable {
+    private(set) var established = false
+    private var seen: Set<String> = []
+    private(set) var hasUnseen = false
+
+    mutating func observe(topIDs: [String], contentVisible: Bool, currentlyViewing: Bool) {
+        guard contentVisible else {
+            hasUnseen = false
+            return
+        }
+        let current = Set(topIDs)
+        if !established {
+            seen = current
+            established = true
+            hasUnseen = false
+            return
+        }
+        if currentlyViewing {
+            seen.formUnion(current)
+            hasUnseen = false
+            return
+        }
+        let fresh = current.subtracting(seen)
+        if !fresh.isEmpty { hasUnseen = true }
+        if current.isEmpty { hasUnseen = false }
+    }
+
+    mutating func markRecommendationAreaOpened(topIDs: [String]) {
+        seen.formUnion(topIDs)
+        hasUnseen = false
+        if !established {
+            established = true
+        }
+    }
+}
+
 struct MenuBarState: Equatable {
     public let state: PrimitiveState
     init(state: PrimitiveState) { self.state = state }
@@ -192,7 +235,7 @@ enum ProductSnapshotPublication {
         do { flow.publishAnalysis(try read()) }
         catch is AnalysisError {
             flow.publishAnalysis(nil)
-            flow.noticeKey = "flow.actionUnavailable"
+            flow.noticeKey = "phase2.analysisUnavailable"
         }
     }
 }
@@ -208,7 +251,19 @@ final class AppFlowObservable: ObservableObject {
     @Published var noticeKey: String?
     @Published private var rawAnalysis: AnalysisSnapshot?
     @Published private(set) var layout = LayoutPreference()
+    @Published private(set) var ignoredRecommendationKeys: Set<String> = []
+    @Published var statisticsSection: StatisticsSection = .overview
+    /// First-run consent stays available when a closed key gate forces the status to blocked.
+    @Published private(set) var awaitingConsent = false
+    @Published private(set) var hasSavedPreferences = false
+    var showsConsent: Bool { !hasSavedPreferences }
+    @Published var statisticsWindowOpen = false
+    @Published private(set) var canUndoIgnoreChange = false
+    private var recommendationAttention = RecommendationAttention()
+    private var presentationCycleID: CycleID?
+    private var ignoreUndoBaseline: Set<String>?
     var saveLayoutAction: (@MainActor (LayoutPreference) async throws -> Void)?
+    var saveIgnoredAction: (@MainActor (Set<String>) async throws -> Void)?
     #if DEBUG
     private var diagnostics: CaptureDiagnosticsRecorder?
 
@@ -242,6 +297,7 @@ final class AppFlowObservable: ObservableObject {
                 analysisGeneration = nil
                 rawAnalysis = nil
                 flow.displayedAggregate = nil
+                noteRecommendations([])
                 return
             }
             if !publishPresentation({ generation in
@@ -260,23 +316,125 @@ final class AppFlowObservable: ObservableObject {
     var analysis: AnalysisSnapshot? { readPresentation(analysisGeneration) { rawAnalysis } }
 
     func publishAnalysis(_ snapshot: AnalysisSnapshot?) {
-        guard let snapshot else { rawAnalysis = nil; analysisGeneration = nil; return }
+        guard let snapshot else {
+            rawAnalysis = nil
+            analysisGeneration = nil
+            noteRecommendations([])
+            return
+        }
+        if let presentationCycleID, snapshot.cycleID != presentationCycleID {
+            rawAnalysis = nil
+            analysisGeneration = nil
+            noteRecommendations([])
+            return
+        }
         if !publishPresentation({ generation in
             analysisGeneration = generation
             rawAnalysis = snapshot
             #if DEBUG
             diagnostics?.recordAnalysisPublication()
             #endif
-        }) { rawAnalysis = nil; analysisGeneration = nil }
+        }) {
+            rawAnalysis = nil
+            analysisGeneration = nil
+        }
+        if noticeKey == "phase2.analysisUnavailable", rawAnalysis != nil { noticeKey = nil }
+        noteRecommendations(analysis?.topRecommendations.map(\.id) ?? [])
+    }
+
+    var hasUnseenRecommendations: Bool { recommendationAttention.hasUnseen }
+
+    func statisticsMenuTitle(_ text: NativeText) -> String {
+        guard sensitiveContentVisible, recommendationAttention.hasUnseen else { return text("action.statistics") }
+        return text("phase2.newRecommendations")
+    }
+
+    func presentStatistics() {
+        statisticsSection = .overview
+        statisticsWindowOpen = true
+        markRecommendationsReviewed()
+    }
+
+    func presentAllCandidates() {
+        statisticsSection = .candidates
+        statisticsWindowOpen = true
+        markRecommendationsReviewed()
+    }
+
+    func presentSettings() {
+        statisticsSection = .settings
+        statisticsWindowOpen = true
+    }
+
+    func markRecommendationsReviewed() {
+        recommendationAttention.markRecommendationAreaOpened(topIDs: analysis?.topRecommendations.map(\.id) ?? [])
+        objectWillChange.send()
     }
 
     func saveLayout(_ preset: LayoutPreset) async {
-        guard sensitiveContentVisible, let saveLayoutAction else { return }
+        guard sensitiveContentVisible, let saveLayoutAction else {
+            if sensitiveContentVisible { noticeKey = "phase2.preferenceSaveFailed" }
+            return
+        }
         let selected = LayoutPreference(preset: preset, hasAsked: true)
+        let previous = layout
         do {
             try await saveLayoutAction(selected)
             layout = selected
-        } catch { noticeKey = "flow.actionUnavailable" }
+            if noticeKey == "phase2.preferenceSaveFailed" { noticeKey = nil }
+        } catch {
+            layout = previous
+            noticeKey = "phase2.preferenceSaveFailed"
+        }
+    }
+
+    func ignoreRecommendation(_ id: String) async {
+        var next = ignoredRecommendationKeys
+        next.insert(id)
+        await replaceIgnoredRecommendations(next)
+    }
+
+    func restoreRecommendation(_ id: String) async {
+        var next = ignoredRecommendationKeys
+        next.remove(id)
+        await replaceIgnoredRecommendations(next)
+    }
+
+    func undoIgnoredRecommendationChange() async {
+        guard sensitiveContentVisible, let baseline = ignoreUndoBaseline, let saveIgnoredAction else { return }
+        do {
+            try await saveIgnoredAction(baseline)
+            ignoredRecommendationKeys = baseline
+            ignoreUndoBaseline = nil
+            canUndoIgnoreChange = false
+            if noticeKey == "phase2.preferenceSaveFailed" { noticeKey = nil }
+        } catch {
+            noticeKey = "phase2.preferenceSaveFailed"
+        }
+    }
+
+    private func replaceIgnoredRecommendations(_ keys: Set<String>) async {
+        guard sensitiveContentVisible, let saveIgnoredAction else {
+            if sensitiveContentVisible { noticeKey = "phase2.preferenceSaveFailed" }
+            return
+        }
+        let previous = ignoredRecommendationKeys
+        do {
+            try await saveIgnoredAction(keys)
+            ignoreUndoBaseline = previous
+            canUndoIgnoreChange = true
+            ignoredRecommendationKeys = keys
+            if noticeKey == "phase2.preferenceSaveFailed" { noticeKey = nil }
+        } catch {
+            ignoredRecommendationKeys = previous
+            noticeKey = "phase2.preferenceSaveFailed"
+        }
+    }
+
+    private func noteRecommendations(_ topIDs: [String], contentVisible: Bool? = nil) {
+        let visible = contentVisible ?? sensitiveContentVisible
+        let viewing = statisticsWindowOpen && statisticsSection != .settings && visible
+        recommendationAttention.observe(topIDs: topIDs, contentVisible: visible, currentlyViewing: viewing)
     }
 
     var sensitiveContentVisible: Bool {
@@ -310,6 +468,7 @@ final class AppFlowObservable: ObservableObject {
     func update(phase: LifecyclePhase, loginItemEnabled: Bool = false,
                        loginItemErrorKey: String? = nil) {
         state = PrimitiveState(phase: phase)
+        awaitingConsent = phase == .unstarted || phase == .consent
         self.loginItemEnabled = loginItemEnabled
         self.loginItemErrorKey = loginItemErrorKey
         mirror()
@@ -325,9 +484,26 @@ final class AppFlowObservable: ObservableObject {
     /// Composition-root mirror after an orchestrator transition: the reducer keeps
     /// deciding login rejection wording; the observable only exposes its localized key.
     func sync(from lifecycleState: LifecycleState) {
+        hasSavedPreferences = lifecycleState.preferences != nil
         layout = lifecycleState.preferences?.layout ?? LayoutPreference()
-        if !SensitiveVisibility.isVisible(lifecycleState) { rawAnalysis = nil }
+        let visible = SensitiveVisibility.isVisible(lifecycleState)
+        if visible {
+            ignoredRecommendationKeys = lifecycleState.preferences?.ignoredRecommendationKeys ?? []
+        } else {
+            ignoredRecommendationKeys = []
+            ignoreUndoBaseline = nil
+            canUndoIgnoreChange = false
+            rawAnalysis = nil
+        }
+        let cycle = lifecycleState.preferences?.currentCycleID
+        if let presentationCycleID, presentationCycleID != cycle {
+            rawAnalysis = nil
+            analysisGeneration = nil
+        }
+        presentationCycleID = cycle
+        if !visible { noteRecommendations([], contentVisible: false) }
         state = PrimitiveState(phase: lifecycleState.phase)
+        awaitingConsent = lifecycleState.phase == .unstarted || lifecycleState.phase == .consent
         loginItemEnabled = lifecycleState.loginItem == .registered
         loginItemErrorKey = LoginItemPolicy.rejection(from: lifecycleState.notice) != nil
             ? "settings.login.error" : nil

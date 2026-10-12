@@ -1,20 +1,17 @@
 # T23: Release boundary qualification
 
-**Current scope (2026-09-29):** Apple Silicon compatibility is sufficient for
-the first capture MVP, but the current Release still composes
-`BlockedLiveKeychain` and `UnqualifiedCapture`; an unsigned universal build
-cannot establish a working collecting App. This document's universal/static
-checks describe the original complete G1/v1 target and remain useful structural
-checks. Current candidate status and the missing effective Keychain/signed
-Release evidence are in [PROJECT_STATUS.md](PROJECT_STATUS.md). Do not treat
-the historical PASS statement below as MVP or signed-host qualification.
+**Current scope — 2026-10-01:** the development-signed Apple Silicon Release
+and bounded owner-assisted native walkthrough completed; PR #17 is merged.
+See [candidate](RELEASE_CANDIDATE_20261001.md) and [native result](RELEASE_NATIVE_UI_PREP_20261001.md).
+Release uses the real Keychain/capture composition on the measured platform only.
+Other platforms stay closed. Public distribution, notarization and full G1/v1 are separate.
 
 ## Outcome boundaries
 
-Static qualification is PASS. Signed product/host qualification remains **BLOCKED/2**.
-Neither Q23 nor a successful unsigned Universal build proves a developer signature,
-Team ID, signed entitlements, Keychain behavior, a fresh launch, or hosted UI behavior.
-The plan's full task 23 and G1 gates are not complete.
+Original Q23 static checks passed; its `host/signed-build` runner returned BLOCKED/2.
+That runner result is retained, not the current product verdict. Unsigned Universal
+compilation alone never proves signing, effective Keychain access or native interaction.
+Later scoped results did not retroactively execute the full historical XCUITest matrix.
 
 `ProductReleaseBoundaryTests` is an App XCTest suite executed directly, not hosted
 inside KeyRecordApp. `Scripts/task23-qa.sh` builds Release with
@@ -67,14 +64,18 @@ Both allow zero skips only. The host command returns BLOCKED/2 and preserves pri
 attempt-local identity inventory, codesign output and tool exit statuses. Raw host
 receipts must not be committed. No runner classification logic was changed.
 
-## Signed-host recovery conditions
+## Historical signed-host recovery proposal
 
 `phase1-signed-build-host.sh` is deliberately a read-only blocked entry point,
 not an implemented authorized host controller. It never imports/creates certificates,
 unlocks a keychain, signs, changes a Team ID, grants permissions, invokes hosted tests,
 or launches the app. Supplying a manifest alone cannot turn it into PASS.
 
-Recovery requires all of:
+The original full-host proposal below is preserved, not a remaining MVP checklist
+or fresh authorization. Scoped qualification used the later reviewed controllers
+and owner-assisted observations linked above.
+
+The proposal listed:
 
 1. Explicitly authorized internal Apple Developer Team ID and matching existing
    certificate/private key, with the intended internal bundle identity. A certificate
@@ -95,7 +96,7 @@ Recovery requires all of:
 6. Retain the signing/archive pipeline's notarytool/stapler checkpoint. Current
    preflight only discovers these tools; no upload, stapling or public distribution.
 
-## Local verification record
+## Historical local verification record
 
 Attempt: `.omo/evidence/repository-status-next-step/t23-attempt-20260913T225327Z`
 (private, uncommitted), baseline `064164e`, lane `feat/phase1-t23-signbound`.

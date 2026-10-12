@@ -2,6 +2,8 @@ import Foundation
 import KeyRecordCore
 
 public enum LogicalPreviews {
+    public static let functionKeyValues = [122,120,99,118,96,97,98,100,101,109,103,111,105,107,113,106,64,79,80,90]
+
     public static func keyCount(_ chord: Chord) -> Int {
         let m = chord.modifiers
         let sides = [m.command, m.option, m.control, m.shift]
@@ -45,7 +47,7 @@ public enum LogicalPreviews {
                 option: values[1], control: values[2], shift: values[3], fn: m.fn)))
         }
         // Confirmed function keys only; other confirmed keys may be printable on an unknown layout.
-        let functionCodes: Set<Int> = [122,120,99,118,96,97,98,100,101,109,103,111,105,107,113,106,64,79,80,90]
+        let functionCodes = Set(functionKeyValues)
         for key in confirmed where functionCodes.contains(key.value) {
             options.append(Chord(keyCode: key, modifiers: ModifierSet(command: .none, option: .none,
                 control: .none, shift: .none, fn: .none)))

@@ -3,6 +3,50 @@ import KeyRecordCore
 import KeyRecordTestSupport
 
 @MainActor
+final class KeyboardPoolPreferenceTests: XCTestCase {
+    func testPoolSurvivesReloadAndUnrelatedPreferenceUpdates() async throws {
+        let harness = LifecycleHarness()
+        await harness.collectOpen()
+        let original = try XCTUnwrap(harness.orchestrator.state.preferences)
+        let pool: Set<KeyCode> = [try KeyCode(122), try KeyCode(120)]
+        try await harness.orchestrator.setKeyboardPoolConfirmed(pool)
+        let saved = await harness.storedPreferences()
+        XCTAssertEqual(saved, original.updating(keyboardPoolConfirmed: pool))
+        try await harness.orchestrator.setLayout(LayoutPreference(preset: .iso, hasAsked: true))
+        try await harness.orchestrator.setIgnoredRecommendationKeys(["kept"])
+        await harness.orchestrator.reload()
+        XCTAssertEqual(harness.orchestrator.state.preferences?.keyboardPoolConfirmed, pool)
+        try await harness.orchestrator.setKeyboardPoolConfirmed([])
+        await harness.orchestrator.reload()
+        XCTAssertEqual(harness.orchestrator.state.preferences?.keyboardPoolConfirmed, [])
+        XCTAssertEqual(harness.orchestrator.state.preferences?.ignoredRecommendationKeys, ["kept"])
+        XCTAssertEqual(harness.orchestrator.state.preferences?.layout.preset, .iso)
+    }
+
+    func testHiddenStateAndFailedSaveKeepPreviousPool() async throws {
+        let harness = LifecycleHarness()
+        await harness.collectOpen()
+        let pool: Set<KeyCode> = [try KeyCode(122)]
+        try await harness.orchestrator.setKeyboardPoolConfirmed(pool)
+        await harness.storage.failSubsequentSaves()
+        do {
+            try await harness.orchestrator.setKeyboardPoolConfirmed([])
+            XCTFail("Failed store accepted pool change")
+        } catch {}
+        XCTAssertEqual(harness.orchestrator.state.preferences?.keyboardPoolConfirmed, pool)
+        harness.orchestrator.observe(RuntimeConditions(keyAvailability: .available,
+            sessionLock: .locked, secureInput: .disabled,
+            foreground: .attributable(bundleID: "com.example")))
+        do {
+            try await harness.orchestrator.setKeyboardPoolConfirmed([])
+            XCTFail("Hidden state accepted pool change")
+        } catch { XCTAssertEqual(error as? PreferencesRepositoryError, .storageUnavailable) }
+        let saved = await harness.storedPreferences()
+        XCTAssertEqual(saved?.keyboardPoolConfirmed, pool)
+    }
+}
+
+@MainActor
 final class LayoutPreferenceTests: XCTestCase {
     func testLayoutPersistsWithoutChangingCollectionPreferences() async throws {
         let harness = LifecycleHarness()

@@ -90,6 +90,10 @@ public final class LifecycleOrchestrator {
         try await saveVisiblePreference { $0.updating(ignoredRecommendationKeys: keys) }
     }
 
+    public func setKeyboardPoolConfirmed(_ keys: Set<KeyCode>) async throws {
+        try await saveVisiblePreference { $0.updating(keyboardPoolConfirmed: keys) }
+    }
+
     /// Layout and ignore share one visible-preference save. Re-read state after the
     /// write so a concurrent exclusion update is not replaced by the earlier snapshot.
     private func saveVisiblePreference(_ update: (Preferences) -> Preferences) async throws {

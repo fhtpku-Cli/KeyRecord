@@ -1,8 +1,7 @@
 # Documentation status index
 
 Reviewed 2026-10-01 (Asia/Shanghai), after PR #17 merged as `8bb99e81`.
-This index covers 84 Markdown documents, including the approved Phase 2 product plan,
-this index and the roadmap. It distinguishes present
+This index includes the approved Phase 2 plan and subsequent engineering records. It distinguishes present
 guidance from dated evidence; it does not regenerate historical verdicts.
 
 ## Read these first
@@ -15,7 +14,7 @@ guidance from dated evidence; it does not regenerate historical verdicts.
 
 The approved native Apple Silicon Phase 1 MVP is complete. Qualification is
 bounded to the cited candidates and arm64 macOS 27.0 build 26A428. Full G1/v1,
-Phase 2 completion, Intel and public distribution remain separate.
+Phase 2 A/B engineering is complete; real G2 evidence, Intel and public distribution remain separate.
 The development-signed trial is not a notarized public release.
 
 ## Requirements and design
@@ -42,13 +41,14 @@ automated checks, signed real Keychain runs and owner UI observations are distin
 - [docs/TASK23_RELEASE_BOUNDARY.md](TASK23_RELEASE_BOUNDARY.md) — T23: Release boundary qualification
 - [App/KeyRecordAppUITests/README.md](../App/KeyRecordAppUITests/README.md) — Native UI test targets
 
-## Phase 2 prototype
+## Phase 2 analysis
 
 Logical analysis and the dashboard prototype exist, while the product uses the
 Phase 1 aggregate view. These records do not establish full FR-R/FR-E or G2.
 Phase 1 native UI evidence does not automatically qualify the separate dashboard.
 
-- [docs/phase2/PRODUCT_PLAN.md](phase2/PRODUCT_PLAN.md) — Phase 2 product plan; D1–D5 approved, increments A/B not yet complete
+- [docs/phase2/PRODUCT_PLAN.md](phase2/PRODUCT_PLAN.md) — Approved Phase 2 plan; A/B engineering complete, real G2 evidence deferred
+- [docs/phase2/B_COMPLETION_20261013.md](phase2/B_COMPLETION_20261013.md) — B capability/conflict implementation, self-review, scoped checks and next-stage boundary
 
 - [docs/phase2/IMPLEMENTATION.md](phase2/IMPLEMENTATION.md) — Phase 2 read-only analysis
 - [docs/phase2/VALIDATION.md](phase2/VALIDATION.md) — Phase 2 validation

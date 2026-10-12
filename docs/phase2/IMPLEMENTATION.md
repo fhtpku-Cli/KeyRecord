@@ -2,7 +2,7 @@
 
 ## 增量 B 首批实现（2026-10-12，隔离分支）
 
-本轮工作位于 `codex/phase2-b-foundations`，基于合并 A 收尾的 `e6a4cf5e`；尚未合并主干。方案及样例见 [B_FOUNDATIONS](B_FOUNDATIONS.md)。用户确认保留逻辑排名，物理次数与跨度分别说明；首批真实配置采用用户指定 VIA 副本及对应定义，真实验证稍后再做。
+此前工作位于 `codex/phase2-b-foundations`，基于合并 A 收尾的 `e6a4cf5e`；两批工程实现和收尾已于 2026-10-13 由 [PR #21](https://github.com/fhtpku-Cli/KeyRecord/pull/21) 合并为 `2c29f18e6`。方案及样例见 [B_FOUNDATIONS](B_FOUNDATIONS.md)，[隔离试用包已准备](TRIAL_PREPARATION_20261013.md)，实际试用未执行。用户确认保留逻辑排名，物理次数与跨度分别说明；首批真实配置采用用户指定 VIA 副本及对应定义，真实验证稍后再做。
 
 - 特殊键池 F1–F20 设置已通过现有 `Preferences.updating` 和可见偏好事务接通产品保存。`FlowModel` 排队保存完整选择操作，前次完成后才计算新集合；失败不改变旧值。产品 `syncRuntime` 用已保存偏好重算，撤回不影响统计和资格。默认池仍空，选择不代表键位可用或无冲突。
 - `CandidateConstraints` 用显式后端能力、当前组合/作用域/布局/键池/规则与物理证据作为检查输入。未连接、不支持、未检查、冲突、检查通过分别表达；完整输入值变化使旧检查不可复用，未知或空证据不会变成通过。设置的后端选项只是本次会话意向，真实适配器仍未连接。

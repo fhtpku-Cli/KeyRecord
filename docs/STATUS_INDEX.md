@@ -53,6 +53,7 @@ Phase 1 native UI evidence does not automatically qualify the separate dashboard
 - [docs/phase2/IMPLEMENTATION.md](phase2/IMPLEMENTATION.md) — Phase 2 read-only analysis
 - [docs/phase2/VALIDATION.md](phase2/VALIDATION.md) — Phase 2 validation
 - [docs/phase2/B_FOUNDATIONS.md](phase2/B_FOUNDATIONS.md) — 增量 B 已确认方向、成本样例、只读 VIA 参考范围、真实来源边界和开发批次
+- [docs/phase2/TRIAL_PREPARATION_20261013.md](phase2/TRIAL_PREPARATION_20261013.md) — PR #21 合并源码的开发签名隔离包、profile 有效期、合成文件选择样例及待执行短流程
 
 ## Dated plans, checkpoints and execution reports
 

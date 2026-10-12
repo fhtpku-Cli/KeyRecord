@@ -2,9 +2,9 @@
 
 KeyRecord is an in-development native macOS menu-bar app for local, aggregate keyboard-use statistics. It aims to count shortcuts by application and bare keys without storing typed text or event sequences. The codebase uses Swift 6, macOS 14+, and Apple system frameworks.
 
-**Current stage (2026-10-01): scoped Apple Silicon Phase 1 complete and merged.** [PR #17](https://github.com/fhtpku-Cli/KeyRecord/pull/17) merged into main as `8bb99e81a6ea411c5e167e156a548372e961c44d`; merge-commit CI passed. The development-signed Release candidate completed real shortcut capture, encrypted save/reopen readback and a bounded native UI walkthrough. Keychain, lock/startup/recovery and short ARM performance results retain their documented candidate scopes. This is not full G1/v1, Intel, general macOS support or public distribution qualification.
+**当前阶段（2026-10-12）：Phase 1 的 Apple Silicon MVP 已完成；Phase 2 增量 A 工程收尾完成。** A 的统计概览、全部候选、正向逻辑预览及加密偏好接入已随 [PR #19](https://github.com/fhtpku-Cli/KeyRecord/pull/19) 合并，提交为 `adae0c4e429ff2c955b978f67a0afd069ce7708c`。本次收尾修复连续忽略/恢复/撤销的覆盖问题，以及候选页保存失败提示，五项直接相关测试均有通过结果。已有合成界面走查继续有效。
 
-Capture permits only measured native arm64 macOS 27.0 build `26A428`; other platforms remain closed. The trial uses `com.keyrecord.phase1.probe.host`, separate from daily data; its development profile expires on 2026-10-07 at 17:39:57 Asia/Shanghai. Phase 2 has a logical-analysis prototype but is incomplete; the product UI currently exposes Phase 1 aggregates. See [current status](docs/PROJECT_STATUS.md), [roadmap](docs/ROADMAP.md), [acceptance evidence](docs/PHASE1_ACCEPTANCE.md) and [document index](docs/STATUS_INDEX.md).
+当前代码在原生 arm64 macOS 27 及以后版本读取实时锁屏状态；锁定或未知时仍关闭保护，不因系统版本未列入历史实测记录就自动禁用。Phase 1 实测范围仍为 macOS 27.0 build `26A428`，A 的同意与空统计试验运行于 27.0.1 build `26A434`，两者不代表所有后续系统均已实测。A 的真实输入及重开检查留到下一次实际试用，本次不单独再开验收轮次，也不标为通过。完整 Phase 2/G2、增量 B 和公开发行尚未完成。见[当前状态](docs/PROJECT_STATUS.md)、[路线图](docs/ROADMAP.md)、[验证记录](docs/phase2/VALIDATION.md)和[文档索引](docs/STATUS_INDEX.md)。
 
 ## Build and test
 
@@ -48,7 +48,7 @@ The portable implementation specification is [PHASE1_CONTRACT.md](docs/PHASE1_CO
 
 Any newly justified host run must identify the exact build configuration, App, identity, permitted store/Keychain namespace, actions and approved duration. Coordinate readiness before launch; use normal termination with an exact-instance forced-stop fallback. Historical 30–60 second and multi-minute controllers are candidate-specific, not a universal timer or instructions to repeat completed checks. New privacy, signing, Keychain or capture effects need applicable authorization; a successful build supplies none. Do not reset TCC, operate daily data or infer permission for a live run from build approval.
 
-No runtime result is claimed by these instructions. Harness results cannot substitute for the real product pipeline. Lock or crash can lose all statistics since the last completed durable save; the one-second flush cadence is a scheduling target, not a bounded-loss guarantee. Production recommendation integration, mapping, FR-P6 full password backup and public release remain later work. The logical-analysis prototype does not qualify these features.
+构建说明不代表实机行为已经验证，夹具结果也不替代真实产品链路。锁屏或崩溃可能丢失上次成功持久化之后的统计，一秒保存节奏不是数据丢失上限保证。A 已接入统计与逻辑预览；物理评分、后端约束、映射应用、FR-P6 完整密码备份和公开发行仍是后续工作。
 
 ## Repository layout
 

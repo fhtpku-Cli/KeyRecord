@@ -1,10 +1,8 @@
-# Roadmap and current delivery status
+# 路线图与当前交付状态
 
-Status date: 2026-10-01, Asia/Shanghai. Current main product merge:
-`8bb99e81a6ea411c5e167e156a548372e961c44d` ([PR #17](https://github.com/fhtpku-Cli/KeyRecord/pull/17)).
-Merge-commit [CI passed](https://github.com/fhtpku-Cli/KeyRecord/actions/runs/36768522338).
-This page reconciles the existing architecture §15 roadmap; it adds no gate,
-baseline, product requirement, feature implementation or host authorization.
+状态日期：2026-10-12，Asia/Shanghai。增量 A 的主体已由 [PR #19](https://github.com/fhtpku-Cli/KeyRecord/pull/19) 合并为
+`adae0c4e429ff2c955b978f67a0afd069ce7708c`，[主干 CI 通过](https://github.com/fhtpku-Cli/KeyRecord/actions/runs/38246915859)。
+本次工程收尾包括两项偏好交互修复及状态同步，不增加新门禁或实机验收轮次。
 
 ## Phase status
 
@@ -12,7 +10,7 @@ baseline, product requirement, feature implementation or host authorization.
 |---|---|---|
 | Phase 0: feasibility | Capture prerequisites progressed beyond the old G0 OPEN writeback; historical artifacts remain unchanged | Karabiner version/reload/disable latency, VIA protocol/dialect/importer, Vial importer/live capture and backup KDF/Intel evidence retain their own limits. Phase 0 is not globally all-green. |
 | Phase 1: collection, privacy, encrypted storage | **Approved Apple Silicon MVP complete and merged** | Measured arm64 macOS 27.0 build 26A428 only; development-signed local trial. Existing candidate-specific short ARM and lifecycle evidence retained. Full original G1/v1, all OS/architectures and public release are not claimed. |
-| Phase 2: deterministic analysis | **Increment A implemented; full FR-R/FR-E and G2 incomplete** | Statistics-first overview, positive-preview Top 5, all-candidates explanations, and ignore/restore are in the product. Physical scoring, backend constraints, manual candidates, and the owner UI walkthrough remain. Increment A is not G2. |
+| Phase 2：确定性分析 | **增量 A 工程收尾完成；完整 FR-R/FR-E 与 G2 未完成** | 概览、正向预览 Top 5、全部候选、忽略/恢复已接入，合成界面走查完成。真实输入及重开检查并入下次实际试用；物理评分、后端约束和手动候选属于 B。 |
 | Phase 3: Karabiner stable path | **Not qualified as a usable product backend** | Transactions, conflict handling, configuration application/readback, rollback, backup retention, emergency disable and real supported-version behavior. Existing spikes are not product delivery. |
 | Phase 4: VIA/Vial Beta | **Not qualified** | Separate definition/protocol/dialect/importer/device evidence, safe export/readback, and the specified real-keyboard coverage. Synthetic round trips do not establish device compatibility. |
 | Full v1 / public distribution | **Not qualified** | PRD §15 requirements, FR-P6 full password backup, Intel/full support matrix, public name/license decision, signing/notarization and backend requirements remain. |
@@ -21,32 +19,14 @@ Requirements remain in [PRD](PRD.md) and [architecture §15](TECHNICAL_ARCHITECT
 Current Phase 1 evidence is in [acceptance](PHASE1_ACCEPTANCE.md), not the old T24
 projection or the baseline-bound `milestone-allocation.json`.
 
-## Approved Phase 2 direction and next work
+## 已确认的 Phase 2 方向与后续工作
 
-The owner approved all five decisions in the [Phase 2 product plan](phase2/PRODUCT_PLAN.md)
-on 2026-10-01. Increment A is now implemented: statistics-first navigation, Top 5
-limited to positive simplification previews, and ignore/restore. Automated checks
-are recorded in [validation](phase2/VALIDATION.md). The owner UI walkthrough is
-still open. Physical scoring and full backend-aware analysis remain increment B.
-Neither increment A acceptance nor full G2 is complete.
+用户于 2026-10-01 确认[产品方案](phase2/PRODUCT_PLAN.md)的 D1–D5。A 的主体已合并，2026-10-12 合成预览走查已完成；本次修复连续偏好操作覆盖和候选页失败提示，复用已有检查，只补五项直接相关用例。合并后按“增量 A 工程收尾完成”记录，不宣称完整实机验收或 G2 完成。
 
-1. Make local development use maintainable: document a reproducible Release build,
-   update and signing-renewal path that preserves the trial's identity/data. The
-   installed development profile expires 2026-10-07 at 17:39:57 Asia/Shanghai.
-   Do not copy trial data into a daily identity or widen the observed platform
-   allowance without evidence. macOS 14+ is a deployment floor, not broad support.
-2. Integrate the existing Phase 2 statistics and explanatory logical previews into
-   the product. Reuse the existing analysis engine and protected snapshots; make
-   key/application labels understandable, retain exact/unknown provenance, and
-   cover empty, insufficient-sample, hidden and unavailable states.
-3. Map FR-R1–R7 and FR-E1–E2 to implemented behavior and remaining work. The current
-   engine accepts no complete physical evidence chain and performs no backend
-   conflict/applicability verification. A preset supplies geometry, not verified
-   firmware mapping. A logical-preview increment must not be called full G2.
-4. Use synthetic boundary/regression data for 19/20 uses, one/two days, 14 active
-   days, 70% application share, date rollback, privacy invalidation and restart.
-   Schedule only the smallest changed-surface owner check after automatic results;
-   do not require two days of manual typing or repeat completed Phase 1 rounds.
+1. 本次修复通过正常提交、CI 与合并流程交付，不另跑全量本机测试。已有结果及限制见[验证记录](phase2/VALIDATION.md)。
+2. 将 A 的真实输入、保存重开和产品链路偏好检查集中到下一次实际试用。真实按键下的 Top 5 尚无证据，不要求用户等两天或重复输入来补标签；合成跨日规则测试保留其独立范围。
+3. 进入 B 的方案细化：先用几何样例、计算表和排序反例确定物理成本表达，再实现后端能力/冲突约束、特殊键池和手动候选。完整需求映射沿用产品方案，不重开 D1–D5。
+4. 系统升级采用向前兼容策略，运行时锁定或未知仍关闭保护。历史实测平台是证据范围，不是逐版本放行名单。下次需要安装时再核对当前签名材料；历史 profile 到期记录不代表当前证书状态。
 
 Phase 3/4 application/export follows its original safety requirements. This
 recommendation does not waive physical scoring, manual-trigger confirmation,

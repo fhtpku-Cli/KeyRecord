@@ -262,6 +262,11 @@ final class AppFlowObservable: ObservableObject {
     private var recommendationAttention = RecommendationAttention()
     private var presentationCycleID: CycleID?
     private var ignoreUndoBaseline: Set<String>?
+    private var pendingIgnoreChange: Task<Void, Never>?
+
+    private enum IgnoreChange {
+        case ignore(String), restore(String), undo
+    }
     var saveLayoutAction: (@MainActor (LayoutPreference) async throws -> Void)?
     var saveIgnoredAction: (@MainActor (Set<String>) async throws -> Void)?
     #if DEBUG
@@ -389,18 +394,40 @@ final class AppFlowObservable: ObservableObject {
     }
 
     func ignoreRecommendation(_ id: String) async {
-        var next = ignoredRecommendationKeys
-        next.insert(id)
-        await replaceIgnoredRecommendations(next)
+        await enqueueIgnoreChange(.ignore(id))
     }
 
     func restoreRecommendation(_ id: String) async {
-        var next = ignoredRecommendationKeys
-        next.remove(id)
-        await replaceIgnoredRecommendations(next)
+        await enqueueIgnoreChange(.restore(id))
     }
 
     func undoIgnoredRecommendationChange() async {
+        await enqueueIgnoreChange(.undo)
+    }
+
+    private func enqueueIgnoreChange(_ change: IgnoreChange) async {
+        let previous = pendingIgnoreChange
+        let task = Task { @MainActor [weak self] in
+            await previous?.value
+            guard let self, self.sensitiveContentVisible else { return }
+            switch change {
+            case .ignore(let id):
+                var next = self.ignoredRecommendationKeys
+                next.insert(id)
+                await self.replaceIgnoredRecommendations(next)
+            case .restore(let id):
+                var next = self.ignoredRecommendationKeys
+                next.remove(id)
+                await self.replaceIgnoredRecommendations(next)
+            case .undo:
+                await self.applyIgnoreUndo()
+            }
+        }
+        pendingIgnoreChange = task
+        await task.value
+    }
+
+    private func applyIgnoreUndo() async {
         guard sensitiveContentVisible, let baseline = ignoreUndoBaseline, let saveIgnoredAction else { return }
         do {
             try await saveIgnoredAction(baseline)

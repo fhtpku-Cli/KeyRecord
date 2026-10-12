@@ -1,6 +1,12 @@
-# Current project status
+# 当前项目状态
 
-## Current Apple Silicon MVP status — 2026-10-01
+## 增量 A 工程收尾 — 2026-10-12
+
+A 的主体已由 [PR #19](https://github.com/fhtpku-Cli/KeyRecord/pull/19) 合并为 `adae0c4e429ff2c955b978f67a0afd069ce7708c`，主干 CI 已通过。本次收尾修复连续忽略/恢复/撤销的旧集合覆盖，以及“全部候选”页缺失的保存失败提示。五项直接相关用例均有通过结果，复用已有界面走查，不另开 Phase 1 或全套实机验收。
+
+本次修复合并后，A 按工程收尾完成管理。真实输入及重开、真实产品链路的偏好操作检查集中到下一次实际试用，仍记未验证；最近一次真实试验只有空统计，合成预览偏好只保存在内存中。该安排不代表完整 A 实机验收、Phase 2/G2 或公开发行已通过。下一阶段是 B 的物理成本方案、后端约束、特殊键池和手动候选。详见[路线图](ROADMAP.md)与[验证记录](phase2/VALIDATION.md)。
+
+## Phase 1 Apple Silicon MVP 完成记录 — 2026-10-01
 
 PR #17 merged into `main` as `8bb99e81a6ea411c5e167e156a548372e961c44d`
 on 2026-10-01 at 03:50:59 Asia/Shanghai. The merge has the same file tree as
@@ -42,16 +48,10 @@ rounds are not reopened.
 - Measured acceptance remains native arm64 macOS 27.0 build `26A428`. Later Apple
   Silicon macOS 27 updates still read the live lock and can open the local keychain;
   an unknown lock result stays closed. macOS 14+ is the deployment floor.
-- Trial identity: `com.keyrecord.phase1.probe.host`. Its development profile expires
-  2026-10-07 at 17:39:57 Asia/Shanghai. Public distribution is not qualified.
+- Phase 1 历史试验身份为 `com.keyrecord.phase1.probe.host`，当时的开发 profile 到期日为 2026-10-07 17:39:57 Asia/Shanghai；这是历史材料信息，下次安装前再核对当前有效材料。公开发行未完成。
 - Short ARM resource results remain Debug fixed replay, not a new Release event-tap
   benchmark. No routine repeat is required by this MVP.
-- Phase 2 increment A is implemented on `codex/phase2-product-plan`: the product
-  window can show overview, all candidates, and settings from the protected
-  analysis snapshot. On 2026-10-12 the isolated trial completed its consent and
-  empty-statistics segment, and the owner completed the synthetic preview
-  checklist without reporting a mismatch. Full FR-R/FR-E, G2, and increment B
-  remain incomplete. See [phase 2 validation](phase2/VALIDATION.md).
+- Phase 2 增量 A 已合并主体并完成合成预览走查，当前收尾和下一步以本页顶部为准。完整 FR-R/FR-E、G2 与增量 B 仍未完成。
 - Phase 3/4 backends, FR-P6, Intel and public release retain their own requirements.
 
 ## Historical checkpoint log

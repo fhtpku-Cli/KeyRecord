@@ -1,5 +1,25 @@
 # Phase 2 validation
 
+## 忽略操作与失败提示修复：验证计划（2026-10-12）
+
+本次仅修改忽略、恢复、撤销的异步操作顺序，以及“全部候选”页的偏好保存失败提示。两项修复完成后集中验证一次，复用已有无关验证结果。
+
+只构建一次未签名 App 与测试目标，并执行 `AnalysisFlowTests` 中以下五项：
+
+| 用例 | 本次需要证明的行为 |
+|---|---|
+| `testOverlappingIgnoresKeepBothSelectionsAndUndoOnlyTheLast` | 首次保存挂起时连续忽略两项，最终保留两项；撤销只撤回最后一项，界面与保存内容一致 |
+| `testQueuedIgnoreUsesSavedStateAfterEarlierFailure` | 前次保存失败不阻断后续操作，也不把失败项带入下一次保存 |
+| `testUndoWaitsForOverlappingRestore` | 恢复尚未保存时点击撤销，按操作顺序执行并恢复正确集合 |
+| `testIgnoreFailureRollsBackAndRestoreSurvivesMissingObservation` | 复用现有的失败回滚、撤销及缺失观察记录回归 |
+| `testCandidatesPageDisplaysPreferenceSaveFailure` | 合成候选页包含可被辅助功能读取的本地化保存失败提示 |
+
+使用临时偏好夹具和合成分析数据，不启动产品采集，不访问真实 Keychain 或日常统计库。此次不执行全量测试、签名、安装、跨日真实输入、锁屏/睡眠、网络观察、性能或全套界面验收。编译成功只证明代码可构建；界面测试若无法取得节点，应记录未验证，不追加整套人工走查。
+
+执行结果：两项生产修复的未签名构建成功，四项操作逻辑测试首次集中运行通过。界面测试初次按子节点标识定位失败；诊断树确认文案存在，但 SwiftUI 将其标识替换为父级标识。补全测试窗口布局并改为检查准确本地化文案及非零尺寸后，仅重跑该项并通过。未重复执行四项已通过测试；五项定向用例最终均有通过结果。本次未运行全量测试，也不新增实机验收要求。
+
+本地日志：`/private/tmp/keyrecord-ignore-fix-build.log`、`/private/tmp/keyrecord-ignore-fix-tests.log`（含首次界面失败）、`/private/tmp/keyrecord-ignore-fix-ui-final-build.log`、`/private/tmp/keyrecord-ignore-fix-ui-final-test.log`。独立子 agent 对生产修复及窄范围验证计划给出 APPROVE，报告为 `/private/tmp/keyrecord-ignore-fix-code-review.md`；该审查结论不冒充测试结果。
+
 ## Increment A automated checks — 2026-10-01
 
 These checks cover the statistics and logical-preview increment on

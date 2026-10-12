@@ -2,7 +2,7 @@
 
 KeyRecord is an in-development native macOS menu-bar app for local, aggregate keyboard-use statistics. It aims to count shortcuts by application and bare keys without storing typed text or event sequences. The codebase uses Swift 6, macOS 14+, and Apple system frameworks.
 
-**当前阶段（2026-10-13）：Phase 1 的 Apple Silicon MVP 已完成；Phase 2 增量 A/B 工程开发与离线自审已完成，真实 G2 证据集中后置。** A 主体及 B 基础此前由 PR #19/#21 合并；B 的剩余后端能力与冲突检查已补齐。下一阶段推进 Karabiner 稳定路径的工程开发。
+**当前阶段（2026-10-13）：Phase 1 Apple Silicon MVP 和 Phase 2 A/B 工程已完成；Phase 3 部署会话接线及 Phase 4 固件核心增量已落地。** 默认目标会话在空支持目录下保持只读；固件修补、加密副本和导出日志已离线执行，原生界面可保存及导出 VIA 恢复副本。卸载串联核心已测试，原生执行入口待审批；完整 G3/G4 及实际后端资格未完成。见[本批范围与证据](docs/phase3/DEPLOYMENT_FIRMWARE_20261013.md)。真实验证继续集中后置。
 
 增量 B 已实现特殊键池、手动候选/风险确认、后端能力过滤及有范围的冲突报告、物理成本/回退，以及只读 VIA/Karabiner 副本和会话内参考。保留逻辑排名，物理次数与跨度独立说明；配置副本不证明当前部署，实际后端仍未连接，完整物理链缺失时使用逻辑口径。见 [B 完成记录](docs/phase2/B_COMPLETION_20261013.md)、[实现](docs/phase2/IMPLEMENTATION.md)与[验证](docs/phase2/VALIDATION.md)。真实配置、设备、文件选择器和保存重开集中到后端稳定后的候选，不重复开展早期试用。
 

@@ -12,6 +12,7 @@ struct AnalysisCandidateView: View {
     var physicalEvidence: PhysicalEvidence?
     var viaReference: VIAImportedConfiguration?
     var conflictEvidence: CandidateConflictEvidence?
+    var createMapping: (@MainActor (Chord, Chord, RecommendationScope) -> Void)?
     var ignore: (() -> Void)?
     var restore: (() -> Void)?
     @State private var scopeOverride: Bool?
@@ -38,6 +39,10 @@ struct AnalysisCandidateView: View {
                 }
                 if candidate.simplificationPlan == .positivePreview {
                     ForEach(Array(candidate.triggers.enumerated()), id: \.offset) { _, trigger in
+                        if let createMapping {
+                            Button(text("phase3.createDraft")) { createMapping(candidate.chord, trigger.chord, selectedScope) }
+                                .accessibilityIdentifier("phase3.createDraft")
+                        }
                         VStack(alignment: .leading, spacing: NativeLayout.compact) {
                             Text(String(format: text("phase2.trigger"), AnalysisLabels.chord(trigger.chord, text: text), trigger.logicalKeysSaved))
                                 .accessibilityIdentifier("phase2.candidate.trigger")
@@ -81,6 +86,7 @@ struct AnalysisCandidateView: View {
                         AnalysisManualCandidateEditor(source: candidate.chord, scope: selectedScope,
                             backend: backend, layout: layout, keyboardPool: keyboardPool,
                             physicalEvidence: physicalEvidence, conflictEvidence: conflictEvidence, text: text)
+                            .environment(\.createMappingDraft, createMapping)
                             .id(candidate.id)
                     }
                     Text(text("phase2.previewOnly")).font(.caption)
@@ -175,6 +181,7 @@ enum AnalysisReadinessText {
 }
 
 struct AnalysisManualCandidateEditor: View {
+    @Environment(\.createMappingDraft) private var createMapping
     let source: Chord
     let scope: RecommendationScope
     let backend: BackendConnection
@@ -250,6 +257,9 @@ struct AnalysisManualCandidateEditor: View {
                             .accessibilityIdentifier("phase2.manual.cancel")
                     }
                 case .accepted(let chord):
+                    if let createMapping {
+                        Button(text("phase3.createDraft")) { createMapping(source, chord, scope) }
+                    }
                     comparison(chord)
                     AnalysisConflictView(input: CandidateCheckInput(source: source,
                         trigger: chord, scope: scope, backend: backend, layout: layout, keyboardPool: keyboardPool,

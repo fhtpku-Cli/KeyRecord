@@ -124,11 +124,11 @@ public struct AtomicFileSystem: Sendable {
     }
 
     public func commitFile(name: String, in root: URL, bytes: Data, phase: DurabilityPhase,
-                           injection: DurabilityInjection = .none) throws {
+                           injection: DurabilityInjection = .none, beforeRename: () throws -> Void = {}) throws {
         var state = ReplacementState()
         do {
             try createWriteAndSync(name: name, in: root, bytes: bytes,
-                                   phase: phase, injection: injection, state: &state)
+                                   phase: phase, injection: injection, beforeRename: beforeRename, state: &state)
         } catch {
             try? cleanup(state: &state)
             throw error
@@ -146,7 +146,7 @@ public struct AtomicFileSystem: Sendable {
     }
 
     private func createWriteAndSync(name: String, in root: URL, bytes: Data, phase: DurabilityPhase,
-                                    injection: DurabilityInjection, state: inout ReplacementState) throws {
+                                    injection: DurabilityInjection, beforeRename: () throws -> Void, state: inout ReplacementState) throws {
         let (fd, tempPath) = try createTemporaryFile(in: root)
         state.fd = fd; state.tempPath = tempPath
         try fchmodDescriptor(fd)
@@ -159,6 +159,7 @@ public struct AtomicFileSystem: Sendable {
             throw FileSystemError.posix(operation: "close(file)", code: errno)
         }
         state.fd = nil
+        try beforeRename()
         guard rename(tempPath, root.appendingPathComponent(name).path) == 0 else {
             throw FileSystemError.posix(operation: "rename", code: errno)
         }

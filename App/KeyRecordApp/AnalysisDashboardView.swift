@@ -51,6 +51,7 @@ struct AnalysisDashboardView: View {
     var ignoredKeys: Set<String> = []
     var keyboardPool: Set<KeyCode> = []
     var backend: BackendConnection = .disconnected(.karabiner)
+    var createMapping: (@MainActor (Chord, Chord, RecommendationScope) -> Void)?
     var physicalEvidence: PhysicalEvidence?
     var viaReference: VIAImportedConfiguration?
     var conflictEvidence: CandidateConflictEvidence?
@@ -259,6 +260,7 @@ struct AnalysisDashboardView: View {
                                           physicalEvidence: physicalEvidence,
                                           viaReference: viaReference,
                                           conflictEvidence: conflictEvidence,
+                                          createMapping: createMapping,
                                            ignore: { Task { @MainActor in await ignore(candidate.id) } })
                     Button(text("phase2.viewDetails")) { open(.candidate(candidate.id), focus: "phase2.candidateOpen.\(candidate.id)") }
                         .focused($focusedControl, equals: "phase2.candidateOpen.\(candidate.id)")
@@ -290,6 +292,7 @@ struct AnalysisDashboardView: View {
                                           physicalEvidence: physicalEvidence,
                                           viaReference: viaReference,
                                           conflictEvidence: conflictEvidence,
+                                          createMapping: createMapping,
                                            ignore: candidate.isIgnored ? nil : ignoreAction(for: candidate.id),
                                            restore: candidate.isIgnored ? restoreAction(for: candidate.id) : nil)
                     Button(text("phase2.viewDetails")) { open(.candidate(candidate.id), focus: "phase2.candidateOpen.\(candidate.id)") }
@@ -348,6 +351,7 @@ struct AnalysisDashboardView: View {
                                                   physicalEvidence: physicalEvidence,
                                                   viaReference: viaReference,
                                                   conflictEvidence: conflictEvidence,
+                                                  createMapping: createMapping,
                                                    ignore: candidate.isIgnored ? nil : ignoreAction(for: candidate.id),
                                                    restore: candidate.isIgnored ? restoreAction(for: candidate.id) : nil)
                         }

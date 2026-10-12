@@ -19,8 +19,6 @@ struct SettingsFlowView: View {
                     Text(text("phase2.layout"))
                 }
                 FunctionKeyPoolSection(flow: flow, text: text)
-                VIAImportSection(model: flow.viaImport, text: text)
-                KarabinerImportSection(model: flow.karabinerImport, text: text)
                 Section {
                     Picker(text("phase2.backendChoice"), selection: $flow.intendedBackend) {
                         Text("Karabiner").tag(RecommendationBackend.karabiner)
@@ -35,6 +33,10 @@ struct SettingsFlowView: View {
                 } header: {
                     Text(text("phase2.backend"))
                 }
+                if flow.intendedBackend == .karabiner {
+                    KarabinerImportSection(model: flow.karabinerImport, text: text)
+                    KarabinerMappingSection(model: flow.karabinerMappings, text: text)
+                } else { VIAImportSection(model: flow.viaImport, text: text) }
             }
             Section {
                 Text(text("consent.disclosure")).fixedSize(horizontal: false, vertical: true)

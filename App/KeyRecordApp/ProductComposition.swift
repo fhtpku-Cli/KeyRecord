@@ -115,6 +115,7 @@ final class ProductComposition: NSObject, NSMenuDelegate, NSWindowDelegate {
     private var quitApprovedForTermination = false
     private var window: NSWindow?
     private var statusItem: NSMenuItem?
+    private var mappingDisableItem: NSMenuItem?
     private weak var menuBarButton: NSStatusBarButton?
     private var pulse: Task<Void, Never>?
     private var observers: [any NSObjectProtocol] = []
@@ -636,6 +637,9 @@ final class ProductComposition: NSObject, NSMenuDelegate, NSWindowDelegate {
             entry.target = self
             menu.addItem(entry)
         }
+        let disable = NSMenuItem(title: text("phase3.disable"), action: #selector(disableManagedMapping), keyEquivalent: "")
+        disable.target = self; disable.isEnabled = flow.karabinerMappings.canManage
+        menu.addItem(disable); mappingDisableItem = disable
         #if DEBUG
         let developerMenu = LocalDevelopmentCaptureMenu(qualification: localCapture, transaction: self)
         developerMenu.diagnosisProvider = { [weak self] in
@@ -1482,6 +1486,8 @@ final class ProductComposition: NSObject, NSMenuDelegate, NSWindowDelegate {
     @objc private func settings() { showSettings() }
     @objc private func quit() { Task { await requestQuit() } }
     func menuWillOpen(_ menu: NSMenu) {
+        mappingDisableItem?.title = text("phase3.disable")
+        mappingDisableItem?.isEnabled = flow.karabinerMappings.canManage
         // KR-08 follow-up: opening the menu must re-READ liveness, not reuse the cached
         // value. The first fix only refreshed the cache on boot/pause/resume/close, so a
         // session that died afterwards still rendered as "Collecting" — the same
@@ -1502,6 +1508,8 @@ final class ProductComposition: NSObject, NSMenuDelegate, NSWindowDelegate {
         flow.presentStatistics()
         showWindow()
     }
+
+    @objc private func disableManagedMapping() { Task { @MainActor in await flow.karabinerMappings.disable() } }
 
     private func showSettings() {
         flow.presentSettings()
@@ -1601,6 +1609,10 @@ struct ProductScreens: View {
             ignoredKeys: flow.ignoredRecommendationKeys,
             keyboardPool: flow.keyboardPoolConfirmed,
             backend: .disconnected(flow.intendedBackend),
+            createMapping: flow.intendedBackend == .karabiner ? { output, trigger, scope in
+                flow.karabinerMappings.stage(output: output, trigger: trigger, scope: scope)
+                flow.presentSettings()
+            } : nil,
             physicalEvidence: flow.viaImport.configuration?.physicalEvidence,
             viaReference: flow.viaImport.configuration,
             conflictEvidence: flow.candidateConflictEvidence,

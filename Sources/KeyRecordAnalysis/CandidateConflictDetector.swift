@@ -3,6 +3,16 @@ import KeyRecordCore
 
 public enum CandidateConflictDetector {
     public static let ruleVersion = "phase2-conflicts-v1"
+    public static func hasMappingChain(_ input: CandidateCheckInput) -> Bool {
+        guard let evidence = input.conflictEvidence, let backend = evidence.backendRules,
+              evidence.profile == backend.profile else { return false }
+        return backend.rules.contains { rule in
+            guard rule.profile == backend.profile, domainsOverlap(input.scope, rule.scope),
+                  devicesOverlap(evidence.devices, rule.devices) else { return false }
+            if rule.anyModifiers ? rule.trigger.keyCode == input.source.keyCode : ChordOverlap.matches(rule.trigger, input.source) { return true }
+            return rule.output.map { ChordOverlap.matches($0, input.trigger) } ?? false
+        }
+    }
 
     public static func evaluate(_ input: CandidateCheckInput) -> CandidateConflictReport {
         var conflicts: Set<CandidateConflict> = []

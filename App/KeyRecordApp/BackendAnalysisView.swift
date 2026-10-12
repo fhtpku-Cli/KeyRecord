@@ -7,11 +7,18 @@ import KeyRecordAnalysis
 struct SelectedKarabinerFile: Sendable {
     let reference: KarabinerReference
     let monitor: VIAFileMonitor
+    let bytes: Data?
+    init(reference: KarabinerReference, monitor: VIAFileMonitor, bytes: Data? = nil) {
+        self.reference = reference; self.monitor = monitor; self.bytes = bytes
+    }
 }
+
+private struct KarabinerCopySnapshot: Sendable { let reference: KarabinerReference; let bytes: Data }
 
 @MainActor
 final class KarabinerImportModel: ObservableObject {
     @Published private var rawReference: KarabinerReference?
+    private var rawBytes: Data?
     @Published var profile: String? { didSet { onChange() } }
     @Published private(set) var filename: String?
     @Published private(set) var loading = false
@@ -20,8 +27,10 @@ final class KarabinerImportModel: ObservableObject {
     var protectedGate: KeyAvailabilityGate?
     var onChange: @MainActor () -> Void = {}
     var readFile: @Sendable (URL, VIAFileReadAccess, @escaping @Sendable () -> Void) throws -> SelectedKarabinerFile = {
-        let file = try VIAFileReader.readConfiguration(url: $0, access: $1, notify: $2, parse: KarabinerReferenceParser.parse)
-        return SelectedKarabinerFile(reference: file.reference, monitor: file.monitor)
+        let file = try VIAFileReader.readConfiguration(url: $0, access: $1, notify: $2) { bytes in
+            KarabinerCopySnapshot(reference: try KarabinerReferenceParser.parse(bytes), bytes: bytes)
+        }
+        return SelectedKarabinerFile(reference: file.reference.reference, monitor: file.monitor, bytes: file.reference.bytes)
     }
     private var request: UUID?
     private var job: Task<SelectedKarabinerFile, any Error>?
@@ -31,6 +40,10 @@ final class KarabinerImportModel: ObservableObject {
 
     var reference: KarabinerReference? { canRead() && monitor?.hasChanged != true ? rawReference : nil }
     var evidence: BackendRuleEvidence? { reference?.profiles.first { $0.id == profile }?.evidence }
+    var selectedConfiguration: (bytes: Data, profile: String)? {
+        guard let reference, let name = reference.profiles.first(where: { $0.id == profile })?.identityName, let rawBytes else { return nil }
+        return (rawBytes, name)
+    }
 
     func selectionTicket() -> UUID? {
         guard canRead() else { return nil }
@@ -64,6 +77,7 @@ final class KarabinerImportModel: ObservableObject {
             try access.use {}
             guard !selected.monitor.hasChanged else { selected.monitor.cancel(); throw VIAFileReadError.changed }
             rawReference = selected.reference
+            rawBytes = selected.bytes
             profile = selected.reference.selectedProfile
             monitor = selected.monitor
             loading = false
@@ -92,6 +106,7 @@ final class KarabinerImportModel: ObservableObject {
         job?.cancel(); job = nil
         monitor?.cancel(); monitor = nil
         rawReference = nil
+        rawBytes = nil
         profile = nil
         loading = false
     }

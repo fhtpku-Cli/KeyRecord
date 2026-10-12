@@ -320,6 +320,7 @@ final class AppFlowObservable: ObservableObject {
         karabinerMappings.protectedGate = protectedGate
         karabinerMappings.configuration = { [weak self] in self?.karabinerDeployment.selectedConfiguration ?? self?.karabinerImport.selectedConfiguration }
         karabinerMappings.observations = { [weak self] in self?.candidateConflictEvidence.observations }
+        karabinerMappings.synchronizeRuntime = { [weak self] in self?.karabinerDeployment.updateObservations() }
         karabinerMappings.onChange = { [weak self] in self?.objectWillChange.send() }
         karabinerDeployment.canRead = { [weak self] in self?.sensitiveContentVisible == true }
         karabinerDeployment.observations = { [weak self] in self?.candidateConflictEvidence.observations }
@@ -668,6 +669,7 @@ final class AppFlowObservable: ObservableObject {
 
     private func mirror() {
         karabinerDeployment.visibilityChanged(sensitiveContentVisible)
+        if sensitiveContentVisible { karabinerDeployment.updateObservations() }
         if !sensitiveContentVisible { firmwareCopies.clear() }
         if !sensitiveContentVisible { rawAnalysis = nil; viaImport.clear(); karabinerImport.clear(); karabinerMappings.clear() }
         dialog = flow.dialog

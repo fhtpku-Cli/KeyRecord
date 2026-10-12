@@ -130,6 +130,21 @@ final class KarabinerMappingFlowTests: XCTestCase {
         await fixture.flow.karabinerMappings.apply()
         XCTAssertEqual(try Data(contentsOf: file), bytes)
     }
+    func testCurrentObservationChangeCannotReusePreparedWrite() async throws {
+        let (fixture, file, _, _) = try await deployment()
+        var observed: [ChordBucket]? = []
+        fixture.flow.karabinerDeployment.observations = { observed }
+        await fixture.flow.karabinerDeployment.bind(url: file, profile: "Synthetic")
+        try stage(fixture.flow.karabinerMappings); await fixture.flow.karabinerMappings.check()
+        XCTAssertTrue(fixture.flow.karabinerMappings.canApply)
+        observed = [ChordBucket(chord: try XCTUnwrap(fixture.flow.karabinerMappings.drafts.first).trigger, appBucket: .bundleID("com.example.editor"))]
+        XCTAssertFalse(fixture.flow.karabinerMappings.canApply)
+        await fixture.flow.karabinerMappings.apply()
+        XCTAssertEqual(try Data(contentsOf: file), bytes)
+        await fixture.flow.karabinerMappings.check()
+        XCTAssertTrue(fixture.flow.karabinerMappings.prepared?.requiresRiskConfirmation == true)
+        XCTAssertFalse(fixture.flow.karabinerMappings.canApply)
+    }
     func testLateRecoveryRetentionCannotCrossPrivacyOrSourceChange() async throws {
         let (fixture, _, _, _) = try await deployment()
         let original = Data(#"{"name":"Fixture","vendorProductId":42,"layers":[["KC_NO"]]}"#.utf8)

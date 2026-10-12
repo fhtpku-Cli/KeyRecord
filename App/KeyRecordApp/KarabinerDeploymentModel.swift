@@ -79,7 +79,7 @@ final class KarabinerDeploymentModel: ObservableObject {
     }
     var selectedConfiguration: (bytes: Data, profile: String)? {
         guard canRead(), let port, let profile else { return nil }
-        runtime?.update(observations())
+        updateObservations()
         guard let bytes = try? port.read() else { return nil }
         return (bytes, profile)
     }
@@ -89,6 +89,7 @@ final class KarabinerDeploymentModel: ObservableObject {
         if !value { close() }
         else if store != nil { resumeTask = Task { await reopen() } }
     }
+    func updateObservations() { runtime?.update(observations()) }
     func close() {
         session = UUID(); resumeTask?.cancel(); resumeTask = nil
         runtime?.revoke(); runtime = nil; port = nil

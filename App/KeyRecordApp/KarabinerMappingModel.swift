@@ -26,6 +26,7 @@ final class KarabinerMappingModel: ObservableObject {
     var canRead: @MainActor () -> Bool = { false }
     var configuration: @MainActor () -> (bytes: Data, profile: String)? = { nil }
     var observations: @MainActor () -> [ChordBucket]? = { nil }
+    var synchronizeRuntime: @MainActor () -> Void = {}
     var onChange: @MainActor () -> Void = {}
     var protectedGate: KeyAvailabilityGate?
     var defaultName: @MainActor (Chord, RecommendationScope) -> String = { _, _ in "KeyRecord mapping" }
@@ -37,6 +38,7 @@ final class KarabinerMappingModel: ObservableObject {
     var maintenance = false { didSet { invalidate() } }
 
     var canApply: Bool {
+        synchronizeRuntime()
         guard canRead(), !maintenance, !working, let coordinator, let prepared, !prepared.hasBlockingConflict,
               (try? coordinator.currentContext()) == prepared.context,
               !prepared.requiresRiskConfirmation || riskConfirmed else { return false }
@@ -44,6 +46,7 @@ final class KarabinerMappingModel: ObservableObject {
         switch prepared.context.authority { case .readOnly: return false; default: return true }
     }
     var canManage: Bool {
+        synchronizeRuntime()
         guard canRead(), !maintenance, !working, let coordinator, let profile = lastLedger?.managedProfile else { return false }
         do { try coordinator.currentContext().requireWrite(profile: profile); return true } catch { return false }
     }

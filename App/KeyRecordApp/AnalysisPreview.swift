@@ -20,10 +20,12 @@ enum AnalysisPreview {
         panel.contentView = NSHostingView(rootView: AnalysisPreviewRoot())
         panel.center()
         panel.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
         window = panel
     }
 
     static func input(layout: LayoutPreference = LayoutPreference(),
+                      ignoredRecommendationKeys: Set<String> = [],
                       cycleID: CycleID = CycleID(rawValue: "synthetic-phase2")) throws -> AnalysisInput {
         let cycle = cycleID
         let days = [LocalDay("2026-09-01"), LocalDay("2026-09-02")]
@@ -53,7 +55,8 @@ enum AnalysisPreview {
                     suspectedInjection: Count(0)))
         }
         return AnalysisInput(cycleID: cycle, shortcuts: shortcuts, bareKeys: bare,
-                             activeDays: days, layout: layout)
+                             activeDays: days, layout: layout,
+                             ignoredRecommendationKeys: ignoredRecommendationKeys)
     }
 }
 
@@ -61,13 +64,16 @@ private struct AnalysisPreviewRoot: View {
     @State private var locale = "en"
     @State private var mode = "populated"
     @State private var layout = LayoutPreference()
+    @State private var ignored: Set<String> = []
+    @State private var ignoreUndoBaseline: Set<String>?
     private var snapshot: AnalysisSnapshot? {
         if mode == "hidden" { return nil }
         do {
-            let input = try AnalysisPreview.input(layout: layout)
+            let input = try AnalysisPreview.input(layout: layout, ignoredRecommendationKeys: ignored)
             if mode == "empty" {
                 return try AnalysisEngine.analyze(AnalysisInput(cycleID: input.cycleID,
-                    shortcuts: [], bareKeys: [], activeDays: [], layout: layout))
+                    shortcuts: [], bareKeys: [], activeDays: [], layout: layout,
+                    ignoredRecommendationKeys: ignored))
             }
             return try AnalysisEngine.analyze(input)
         } catch { return nil }
@@ -108,8 +114,21 @@ private struct AnalysisPreviewRoot: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(NativeLayout.group)
-            AnalysisDashboardView(snapshot: snapshot, layout: layout, text: NativeText(locale: locale),
-                saveLayout: { layout = LayoutPreference(preset: $0, hasAsked: true) })
+            AnalysisDashboardView(snapshot: snapshot, layout: layout, ignoredKeys: ignored,
+                text: NativeText(locale: locale), canUndoIgnore: ignoreUndoBaseline != nil,
+                saveLayout: { layout = LayoutPreference(preset: $0, hasAsked: true) },
+                ignore: { id in
+                    ignoreUndoBaseline = ignored
+                    ignored.insert(id)
+                },
+                restore: { id in
+                    ignoreUndoBaseline = ignored
+                    ignored.remove(id)
+                },
+                undoIgnore: {
+                    if let ignoreUndoBaseline { ignored = ignoreUndoBaseline }
+                    ignoreUndoBaseline = nil
+                })
         }
         .frame(minWidth: NativeLayout.minimum.width, minHeight: NativeLayout.minimum.height)
     }

@@ -58,6 +58,24 @@ stayed empty. It does not show typed shortcuts, Top 5, ignore or undo, a bilingu
 or VoiceOver pass, or the on-screen pause label. The final summary does not
 explain why the session count is two.
 
+## Synthetic preview walkthrough — 2026-10-12
+
+The owner finished the agreed synthetic-preview checklist and reported no
+mismatch. The window title was “Synthetic analysis preview”. The process was an
+unsigned Debug build launched with only `KEYRECORD_ANALYSIS_PREVIEW=1`; real
+capture, the trial store, and the trial namespace were not set. The preview
+keeps ignore, undo, restore, and layout choice in memory for that window. That
+wiring is a local preview change and is not part of commit `3b66af5ba`.
+
+The checklist covered Top 5 membership, the no-plan explanation in all
+candidates, ignore/undo/restore, layout choice and skip, English and Chinese,
+a narrowed window, keyboard focus, VoiceOver reading of a candidate status and
+count, and the empty and hidden fixtures. No apply, export, or remap control
+was part of the check. The owner did not write a separate note for each control,
+and this session did not capture screenshots or an accessibility tree. The
+ImageRenderer blank-image skip remains unresolved. This is the increment A
+interface check, not typed-shortcut evidence, increment B, or full Phase 2/G2.
+
 ## Historical prototype validation
 
 The sections below record the earlier read-only Debug prototype. They are not Phase 1 acceptance, Release qualification, or acceptance of increment A.

@@ -13,6 +13,7 @@ and G2 remain incomplete. See [roadmap](../ROADMAP.md).
 
 The [Phase 2 product plan](PRODUCT_PLAN.md) records owner approval of D1–D5 on
 2026-10-01. Increment A now implements P2-A1–A5 and the automated part of P2-A6.
+The 2026-10-12 owner synthetic-preview check is recorded in [validation](VALIDATION.md).
 Physical scoring, backend capability, manual candidates, and external apply/export
 stay in later scope. Increment A is not full Phase 2 or G2.
 

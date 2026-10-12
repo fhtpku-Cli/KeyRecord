@@ -49,9 +49,9 @@ rounds are not reopened.
 - Phase 2 increment A is implemented on `codex/phase2-product-plan`: the product
   window can show overview, all candidates, and settings from the protected
   analysis snapshot. On 2026-10-12 the isolated trial completed its consent and
-  empty-statistics segment; that is not the full owner UI walkthrough. Full
-  FR-R/FR-E, G2, and increment B remain incomplete. See
-  [phase 2 validation](phase2/VALIDATION.md).
+  empty-statistics segment, and the owner completed the synthetic preview
+  checklist without reporting a mismatch. Full FR-R/FR-E, G2, and increment B
+  remain incomplete. See [phase 2 validation](phase2/VALIDATION.md).
 - Phase 3/4 backends, FR-P6, Intel and public release retain their own requirements.
 
 ## Historical checkpoint log

@@ -15,10 +15,10 @@ fresh locked startup and signed existing-store separate-process restart support
 a candidate on native arm64 macOS 27.0, build `26A428`. These existing results are
 not repeated or upgraded to general API guarantees.
 
-The default provider checks the exact OS version, build and native architecture.
-Any other version/build/architecture, or a failed build query, produces unknown
-without registering lock notifications or issuing the live lock queries. Within
-the candidate platform, the existing before/console/after eligibility checks,
+The measured candidate remains the exact OS version, build and native architecture.
+Apple Silicon macOS 27 and later still issue the live lock queries, so a system
+update does not disable the reader. Other architectures, or a failed build query,
+produce unknown without those queries. Within a live read, the existing before/console/after eligibility checks,
 locked precedence, strict Boolean handling and notification closure are retained.
 The console/session fields remain implementation details, not documented atomic
 lock-state APIs. No field absence, elapsed time or successful Keychain read is

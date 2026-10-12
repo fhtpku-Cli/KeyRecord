@@ -39,16 +39,19 @@ rounds are not reopened.
 
 ### Current limits and next work
 
-- Runtime qualification is native arm64 macOS 27.0 build `26A428` only. macOS 14+
-  is the deployment floor, not verified support for every intervening version.
+- Measured acceptance remains native arm64 macOS 27.0 build `26A428`. Later Apple
+  Silicon macOS 27 updates still read the live lock and can open the local keychain;
+  an unknown lock result stays closed. macOS 14+ is the deployment floor.
 - Trial identity: `com.keyrecord.phase1.probe.host`. Its development profile expires
   2026-10-07 at 17:39:57 Asia/Shanghai. Public distribution is not qualified.
 - Short ARM resource results remain Debug fixed replay, not a new Release event-tap
   benchmark. No routine repeat is required by this MVP.
 - Phase 2 increment A is implemented on `codex/phase2-product-plan`: the product
   window can show overview, all candidates, and settings from the protected
-  analysis snapshot. Full FR-R/FR-E and G2 remain incomplete. The owner UI
-  walkthrough and increment B are not done. See [phase 2 validation](phase2/VALIDATION.md).
+  analysis snapshot. On 2026-10-12 the isolated trial completed its consent and
+  empty-statistics segment; that is not the full owner UI walkthrough. Full
+  FR-R/FR-E, G2, and increment B remain incomplete. See
+  [phase 2 validation](phase2/VALIDATION.md).
 - Phase 3/4 backends, FR-P6, Intel and public release retain their own requirements.
 
 ## Historical checkpoint log

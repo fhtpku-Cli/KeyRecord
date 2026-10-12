@@ -253,6 +253,10 @@ final class AppFlowObservable: ObservableObject {
     @Published private(set) var layout = LayoutPreference()
     @Published private(set) var ignoredRecommendationKeys: Set<String> = []
     @Published var statisticsSection: StatisticsSection = .overview
+    /// First-run consent stays available when a closed key gate forces the status to blocked.
+    @Published private(set) var awaitingConsent = false
+    @Published private(set) var hasSavedPreferences = false
+    var showsConsent: Bool { !hasSavedPreferences }
     @Published var statisticsWindowOpen = false
     @Published private(set) var canUndoIgnoreChange = false
     private var recommendationAttention = RecommendationAttention()
@@ -464,6 +468,7 @@ final class AppFlowObservable: ObservableObject {
     func update(phase: LifecyclePhase, loginItemEnabled: Bool = false,
                        loginItemErrorKey: String? = nil) {
         state = PrimitiveState(phase: phase)
+        awaitingConsent = phase == .unstarted || phase == .consent
         self.loginItemEnabled = loginItemEnabled
         self.loginItemErrorKey = loginItemErrorKey
         mirror()
@@ -479,6 +484,7 @@ final class AppFlowObservable: ObservableObject {
     /// Composition-root mirror after an orchestrator transition: the reducer keeps
     /// deciding login rejection wording; the observable only exposes its localized key.
     func sync(from lifecycleState: LifecycleState) {
+        hasSavedPreferences = lifecycleState.preferences != nil
         layout = lifecycleState.preferences?.layout ?? LayoutPreference()
         let visible = SensitiveVisibility.isVisible(lifecycleState)
         if visible {
@@ -497,6 +503,7 @@ final class AppFlowObservable: ObservableObject {
         presentationCycleID = cycle
         if !visible { noteRecommendations([], contentVisible: false) }
         state = PrimitiveState(phase: lifecycleState.phase)
+        awaitingConsent = lifecycleState.phase == .unstarted || lifecycleState.phase == .consent
         loginItemEnabled = lifecycleState.loginItem == .registered
         loginItemErrorKey = LoginItemPolicy.rejection(from: lifecycleState.notice) != nil
             ? "settings.login.error" : nil

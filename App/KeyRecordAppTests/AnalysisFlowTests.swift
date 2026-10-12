@@ -64,6 +64,23 @@ final class AnalysisFlowTests: XCTestCase {
         XCTAssertNil(try reduction.analysis(preferences: Preferences(currentCycleID: input.cycleID)))
     }
 
+    func testClosedKeyGateKeepsFirstRunConsentVisible() throws {
+        let fixture = try fixture()
+        fixture.flow.sync(from: LifecycleState(phase: .consent))
+        fixture.flow.showCaptureBlocked()
+        XCTAssertTrue(fixture.flow.awaitingConsent)
+        XCTAssertTrue(fixture.flow.showsConsent)
+        XCTAssertEqual(fixture.flow.state, .blocked)
+        fixture.flow.sync(from: LifecycleState(phase: .failed,
+            failure: .preferencesLoadFailed(.protectedDataUnavailable)))
+        fixture.flow.showCaptureBlocked()
+        XCTAssertTrue(fixture.flow.showsConsent)
+        fixture.flow.sync(from: LifecycleState(phase: .paused,
+            preferences: Preferences(currentCycleID: CycleID(rawValue: "kept"))))
+        fixture.flow.showCaptureBlocked()
+        XCTAssertFalse(fixture.flow.showsConsent)
+    }
+
     func testOpeningStatisticsDoesNotStartOrResumeCapture() async throws {
         let fixture = try fixture()
         fixture.showConsentIfNeeded()

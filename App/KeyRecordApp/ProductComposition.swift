@@ -141,7 +141,7 @@ final class ProductComposition: NSObject, NSMenuDelegate, NSWindowDelegate {
     static func productionBoundaries(platform: ObservedLockPlatform = .current,
         bundleIdentifier: String? = Bundle.main.bundleIdentifier, applicationSupport: URL? = nil) throws -> ProductHostBoundaries {
         let identity = try installation(bundleIdentifier: bundleIdentifier, applicationSupport: applicationSupport)
-        let backend: any KeychainBackend = platform.isObservedCandidate ? LocalKeychainBackend() : BlockedLiveKeychain()
+        let backend: any KeychainBackend = platform.readsLiveLock ? LocalKeychainBackend() : BlockedLiveKeychain()
         return ProductHostBoundaries(storeRoot: identity.storeRoot, namespace: identity.namespace,
             backend: backend, login: ProductLogin.make(),
             qualification: ObservedPlatformCaptureQualification(platform: platform),
@@ -534,9 +534,13 @@ final class ProductComposition: NSObject, NSMenuDelegate, NSWindowDelegate {
         if completed, lifecycle.phase != .collecting {
             let schedulerPending = await scheduler.hasPendingChanges()
             let unsaved = reduction.hasUnflushedChanges() || schedulerPending
+            let stillAwaitingFirstConsent = lifecycle.state.preferences == nil
+                && (lifecycle.phase == .unstarted || lifecycle.phase == .consent)
             // Closing the gate would make a failed flush unreadable. Keep it open so the
             // next Start can persist the pending counts instead of discarding them.
-            if !unsaved, maintenanceRecovery == nil { gate.update(.unknown) }
+            // A first run that has not stored preferences must also keep the gate: closing
+            // it turns the fresh-install placeholder into a blocked menu.
+            if !unsaved, maintenanceRecovery == nil, !stillAwaitingFirstConsent { gate.update(.unknown) }
         }
         await syncRuntimeRefreshingLiveness()
     }
@@ -1558,7 +1562,7 @@ struct ProductScreens: View {
     private var text: NativeText { NativeText(locale: flow.language) }
     var body: some View {
         Group {
-            if flow.state == .unstarted {
+            if flow.showsConsent {
                 ConsentFlowView(flow: flow, text: text)
             } else {
                 TabView(selection: $flow.statisticsSection) {

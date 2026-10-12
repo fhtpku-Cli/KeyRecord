@@ -31,6 +31,33 @@ limitation, not a new visual pass.
 - A separate review of the uncommitted increment A diff found no privacy,
   capture-lifecycle, stale-analysis, or network issue. It is not a signed host review.
 
+## Isolated trial, second segment — 2026-10-12
+
+The owner finished the agreed second segment on the isolated Debug trial and then
+quit. The trial bundle is `com.keyrecord.trial.mvp20260929`, namespace
+`com.keyrecord.trial.mvp20260929.phase2a20261001`, store
+`keyrecord-increment-a-trial-auto/runtime-phase2a/store`. The machine is Apple
+Silicon macOS 27.0.1 build `26A434`. That build is not the measured Phase 1
+acceptance platform, which remains arm64 macOS 27.0 build `26A428`. The binary
+uses the local Apple Development identity. This is not a notarized or public
+release, and it is not full Phase 2 or G2.
+
+Before this launch the trial store was empty. At 17:11:54 it contained a manifest
+and two encrypted objects, so first consent provisioned protected storage. The
+process was gone after the owner reported the segment complete. The termination
+summary written at 17:12:20 shows no live capture session, an open key gate, two
+sessions, one successful durable flush, and no flush failure. Tap callbacks and
+the aggregate delta are zero. Statistics publication ran 23 times with no
+rejection; snapshot publication ran 13 times with no read failure. The last
+published shortcut total and bare-key total are both zero. Sensitive content was
+not visible in that final snapshot.
+
+This establishes that consent on a fresh trial namespace can create the encrypted
+store, that capture was no longer live at exit, and that the published statistics
+stayed empty. It does not show typed shortcuts, Top 5, ignore or undo, a bilingual
+or VoiceOver pass, or the on-screen pause label. The final summary does not
+explain why the session count is two.
+
 ## Historical prototype validation
 
 The sections below record the earlier read-only Debug prototype. They are not Phase 1 acceptance, Release qualification, or acceptance of increment A.

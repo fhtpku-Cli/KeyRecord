@@ -59,6 +59,17 @@ private struct SilentLogin: LoginItemBackend {
     func unregister() async throws {}
 }
 
+private actor SyntheticUninstallLogin: LoginItemBackend {
+    private(set) var removals = 0
+    let rejected: Bool
+    init(rejected: Bool = false) { self.rejected = rejected }
+    func register() async throws {}
+    func unregister() async throws {
+        removals += 1
+        if rejected { throw LoginItemSystemRejection.unregistrationDenied }
+    }
+}
+
 private struct SyntheticQualification: CaptureQualification {
     func liveCaptureQualified() async -> Bool { true }
 }
@@ -283,6 +294,7 @@ private final class SyntheticProduct {
     let host = SyntheticHost()
     let keychain: MemoryKeychain
     var backendOverride: (any KeychainBackend)?
+    var loginOverride: (any LoginItemBackend)?
     var qualification: any CaptureQualification = SyntheticQualification()
     let notifications = ManualLockNotifications()
     let root: URL
@@ -325,7 +337,7 @@ private final class SyntheticProduct {
         let replayController = self.replayController
         var boundaries = ProductHostBoundaries(
             storeRoot: storeRoot, namespace: try KeychainNamespace("com.keyrecord.synthetic"),
-            backend: backendOverride ?? keychain, login: SilentLogin(),
+            backend: backendOverride ?? keychain, login: loginOverride ?? SilentLogin(),
             qualification: qualification,
             eventSource: { [weak self] queue, qualification, _ in
                 if let replayController {
@@ -496,9 +508,11 @@ final class ProductRecoveryQuitTests: XCTestCase {
         products.removeAll()
     }
 
-    private func collecting(journal: Bool = true, backend: (any KeychainBackend)? = nil) async throws -> SyntheticProduct {
+    private func collecting(journal: Bool = true, backend: (any KeychainBackend)? = nil,
+                            login: (any LoginItemBackend)? = nil) async throws -> SyntheticProduct {
         let product = try SyntheticProduct.fresh()
         product.backendOverride = backend
+        product.loginOverride = login
         products.append(product)
         try await product.boot(journal: journal)
         // Fresh install: Start opens consent, then the consent screen's Accept starts capture.
@@ -518,6 +532,43 @@ final class ProductRecoveryQuitTests: XCTestCase {
     }
 
     // MARK: - Recovery
+
+    func testSyntheticUninstallUsesProductionCompositionAndPreservesOrErasesOnlyFixtureData() async throws {
+        for erase in [false, true] {
+            let login = SyntheticUninstallLogin()
+            let product = try await collecting(journal: false, login: login)
+            let model = product.composition.flow.firmwareCopies
+            let original = Data(#"{"vendorProductId":42,"layers":[["KC_NO"]]}"#.utf8)
+            model.selectedOriginal = { original }
+            await model.retainVIA(original, ticket: try XCTUnwrap(model.selectionTicket()))
+            XCTAssertEqual(model.records.count, 1)
+            XCTAssertTrue(model.canPrepareUninstall)
+            await model.prepareUninstall(ticket: try XCTUnwrap(model.selectionTicket()), choice: 1, deleteData: erase, discard: false)
+            XCTAssertTrue(model.uninstallReady); XCTAssertNil(model.issueKey)
+            let calls = await login.removals
+            XCTAssertEqual(calls, erase ? 2 : 1)
+            let keys = await product.keychain.itemCount
+            if erase {
+                XCTAssertEqual(keys, 0); XCTAssertFalse(FileManager.default.fileExists(atPath: product.storeRoot.path))
+                XCTAssertFalse(product.composition.flow.sensitiveContentVisible); XCTAssertTrue(model.records.isEmpty)
+            } else {
+                XCTAssertGreaterThan(keys, 0); XCTAssertTrue(FileManager.default.fileExists(atPath: product.storeRoot.path))
+                XCTAssertEqual(product.composition.lifecycle.state.preferences?.loginItemEnabled, false)
+                XCTAssertEqual(model.records.count, 1)
+            }
+        }
+    }
+    func testSyntheticUninstallLoginFailureStopsProductionDataEraser() async throws {
+        let login = SyntheticUninstallLogin(rejected: true)
+        let product = try await collecting(journal: false, login: login)
+        let model = product.composition.flow.firmwareCopies
+        await model.prepareUninstall(ticket: try XCTUnwrap(model.selectionTicket()), choice: 1, deleteData: true, discard: false)
+        XCTAssertFalse(model.uninstallReady); XCTAssertNotNil(model.issueKey)
+        let calls = await login.removals; let keys = await product.keychain.itemCount
+        XCTAssertEqual(calls, 1); XCTAssertGreaterThan(keys, 0)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: product.storeRoot.path))
+        XCTAssertFalse(product.composition.flow.karabinerMappings.maintenance)
+    }
 
     func testUnqualifiedSharedCompositionNeverOpensStoreOrCapture() async throws {
         let product = try SyntheticProduct.fresh()

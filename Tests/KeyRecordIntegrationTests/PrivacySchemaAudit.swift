@@ -44,6 +44,10 @@ enum PrivacySchemaAudit {
         "ProtectedReferences.swift": ["KeyRotation"],
         "VIAReferenceParser.swift": ["VIAJSONValue"],
         "KarabinerPlan.swift": ["MappingScope", "MappingDevice", "KarabinerMappingDraft"],
+        "KarabinerDeployment.swift": ["KarabinerTargetReference"],
+        "FirmwarePatch.swift": ["FirmwareBackend", "FirmwareVersionAxes", "FirmwareSlot", "FirmwareSlotChange"],
+        "FirmwareOperations.swift": ["FirmwareMappingState", "FirmwareJournalPhase", "FirmwareExportReference", "FirmwareBatchRecord", "FirmwarePendingOperation", "FirmwareLedger"],
+        "UninstallPreparation.swift": ["FirmwareRecoveryDisposition", "UninstallPreparationStage", "UninstallPreparationRecord"],
         "KarabinerTransaction.swift": ["KarabinerMappingState", "KarabinerOperationKind", "KarabinerBackup",
             "KarabinerManagement", "KarabinerBatch", "KarabinerLedger"]
     ]
@@ -58,6 +62,14 @@ enum PrivacySchemaAudit {
     }
 
     static let recordFields: [String: [String: Set<String>]] = [
+        "KarabinerDeployment.swift": ["KarabinerTargetReference": ["namespace", "bookmark", "location", "profile"]],
+        "FirmwarePatch.swift": ["FirmwareVersionAxes": ["definitionSchema", "deviceProtocol", "layoutFormat", "keycodeDialect", "importer", "complete"],
+            "FirmwareSlot": ["layer", "row", "column"], "FirmwareSlotChange": ["slot", "output", "automatic"]],
+        "FirmwareOperations.swift": ["FirmwareExportReference": ["bookmark", "location"],
+            "FirmwareBatchRecord": ["id", "backend", "device", "axes", "baselineSHA256", "originalExportConfirmedAt", "state", "artifactSHA256", "exportedAt", "importClaimedAt", "verifiedAt", "verificationSource", "changes"],
+            "FirmwarePendingOperation": ["batch", "phase", "target", "recordedAt", "verificationPassed", "previousState"],
+            "FirmwareLedger": ["records", "pending"]],
+        "UninstallPreparation.swift": ["UninstallPreparationRecord": ["id", "choices", "deleteLocalData", "stage"]],
         "KarabinerPlan.swift": ["MappingDevice": ["vendorID", "productID", "identity"],
             "KarabinerMappingDraft": ["id", "name", "profile", "trigger", "output", "scope", "devices", "temporary", "backendRule"]],
         "KarabinerTransaction.swift": [

@@ -259,6 +259,8 @@ final class AppFlowObservable: ObservableObject {
     let viaImport = VIAImportModel()
     let karabinerImport = KarabinerImportModel()
     let karabinerMappings = KarabinerMappingModel()
+    lazy var karabinerDeployment = KarabinerDeploymentModel(mappings: karabinerMappings)
+    let firmwareCopies = FirmwareCopiesModel()
 
     var candidateConflictEvidence: CandidateConflictEvidence {
         let observations = snapshot.map { snapshot in
@@ -316,9 +318,16 @@ final class AppFlowObservable: ObservableObject {
         karabinerImport.onChange = { [weak self] in self?.karabinerMappings.invalidate(); self?.objectWillChange.send() }
         karabinerMappings.canRead = { [weak self] in self?.sensitiveContentVisible == true }
         karabinerMappings.protectedGate = protectedGate
-        karabinerMappings.configuration = { [weak self] in self?.karabinerImport.selectedConfiguration }
+        karabinerMappings.configuration = { [weak self] in self?.karabinerDeployment.selectedConfiguration ?? self?.karabinerImport.selectedConfiguration }
         karabinerMappings.observations = { [weak self] in self?.candidateConflictEvidence.observations }
+        karabinerMappings.synchronizeRuntime = { [weak self] in self?.karabinerDeployment.updateObservations() }
         karabinerMappings.onChange = { [weak self] in self?.objectWillChange.send() }
+        karabinerDeployment.canRead = { [weak self] in self?.sensitiveContentVisible == true }
+        karabinerDeployment.observations = { [weak self] in self?.candidateConflictEvidence.observations }
+        karabinerDeployment.onChange = { [weak self] in self?.objectWillChange.send() }
+        firmwareCopies.canRead = { [weak self] in self?.sensitiveContentVisible == true }
+        firmwareCopies.selectedOriginal = { [weak self] in self?.viaImport.selectedOriginalBytes }
+        firmwareCopies.onChange = { [weak self] in self?.objectWillChange.send() }
         karabinerMappings.defaultName = { [weak self] chord, scope in
             let text = NativeText(locale: self?.language ?? "en")
             let target = if case .application(let app) = scope { app } else { text("phase2.global") }
@@ -621,10 +630,11 @@ final class AppFlowObservable: ObservableObject {
     func quit() async { await actions.quit(); await refresh() }
     func openSettings() { actions.openSettings() }
 
-    func requestReset() { flow.requestReset(); mirror() }
-    func requestDeleteLocalData() { flow.requestDeleteLocalData(); mirror() }
+    func requestReset() { guard !firmwareCopies.working else { return }; flow.requestReset(); mirror() }
+    func requestDeleteLocalData() { guard !firmwareCopies.working else { return }; flow.requestDeleteLocalData(); mirror() }
 
     func choose(_ choice: DialogChoice) async {
+        if choice == .confirm, firmwareCopies.working { return }
         do {
             try await flow.choose(choice)
         } catch FlowError.actionUnavailable {
@@ -643,6 +653,7 @@ final class AppFlowObservable: ObservableObject {
     }
 
     func setLoginItem(enabled: Bool) async {
+        guard !firmwareCopies.working else { return }
         await actions.setLoginItem(enabled)
         await refresh()
     }
@@ -659,6 +670,9 @@ final class AppFlowObservable: ObservableObject {
     }
 
     private func mirror() {
+        karabinerDeployment.visibilityChanged(sensitiveContentVisible)
+        if sensitiveContentVisible { karabinerDeployment.updateObservations() }
+        if !sensitiveContentVisible { firmwareCopies.clear() }
         if !sensitiveContentVisible { rawAnalysis = nil; viaImport.clear(); karabinerImport.clear(); karabinerMappings.clear() }
         dialog = flow.dialog
         objectWillChange.send()

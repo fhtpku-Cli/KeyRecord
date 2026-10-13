@@ -67,6 +67,14 @@ public final class LifecycleOrchestrator {
         await run(.loginItemSetEnabled(enabled))
     }
 
+    public func removeLoginItemForUninstall() async throws {
+        try await preferenceTransactions.acquire()
+        defer { preferenceTransactions.release() }
+        try await LifecycleLoginRemoval.perform(ports: ports, current: { self.state },
+            removed: { self.state.loginItem = .unregistered },
+            saved: { self.state.preferences = self.state.preferences?.updating(loginItemEnabled: false) })
+    }
+
     public func setLocale(_ locale: ProductLocale) async throws {
         try await preferenceTransactions.acquire()
         defer { preferenceTransactions.release() }

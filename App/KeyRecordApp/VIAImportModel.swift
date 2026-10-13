@@ -23,6 +23,8 @@ final class VIAImportModel: ObservableObject {
     }
     private var layout: VIALayoutReference?
     private var definition: VIADefinitionReference?
+    private var layoutBytes: Data?
+    var selectedOriginalBytes: Data? { canRead() && monitors[.layout]?.hasChanged == false ? layoutBytes : nil }
     private var requests: [VIAImportFileKind: UUID] = [:]
     private var jobs: [VIAImportFileKind: Task<SelectedVIAFile, any Error>] = [:]
     private var monitors: [VIAImportFileKind: VIAFileMonitor] = [:]
@@ -70,7 +72,7 @@ final class VIAImportModel: ObservableObject {
             try access.use {}
             guard !selected.monitor.hasChanged else { selected.monitor.cancel(); throw VIAFileReadError.changed }
             switch (kind, selected.reference) {
-            case (.layout, .layout(let parsed)): layout = parsed
+            case (.layout, .layout(let parsed)): layout = parsed; layoutBytes = selected.bytes
             case (.definition, .definition(let parsed)): definition = parsed
             default: selected.monitor.cancel(); throw VIAImportError.malformedDocument
             }
@@ -106,6 +108,7 @@ final class VIAImportModel: ObservableObject {
         monitors.values.forEach { $0.cancel() }
         monitors.removeAll()
         layout = nil
+        layoutBytes = nil
         definition = nil
         layoutFilename = nil
         definitionFilename = nil
@@ -128,7 +131,7 @@ final class VIAImportModel: ObservableObject {
     }
 
     private func withdraw(_ kind: VIAImportFileKind) {
-        if kind == .layout { layout = nil } else { definition = nil }
+        if kind == .layout { layout = nil; layoutBytes = nil } else { definition = nil }
     }
 
     private func recompute() {

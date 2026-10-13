@@ -6,6 +6,39 @@ import KeyRecordTestSupport
 final class LifecycleOrchestrationTests: XCTestCase {
     private let cycle = CycleID(rawValue: "harness-cycle")
 
+    func testUninstallLoginRemovalPersistsDisabledAndStopsOnFailure() async throws {
+        let enabled = try PreferencesRepository.encode(Preferences(currentCycleID: cycle, expectedCollecting: false, loginItemEnabled: true))
+        let harness = LifecycleHarness(storage: InMemoryPreferencesStorage(ciphertext: enabled))
+        await harness.orchestrator.reload(); harness.orchestrator.observe(LifecycleHarnessConditions.open)
+        try await harness.orchestrator.removeLoginItemForUninstall()
+        let saved = await harness.storedPreferences()
+        XCTAssertEqual(saved?.loginItemEnabled, false)
+        XCTAssertEqual(harness.orchestrator.state.loginItem, .unregistered)
+        let removals = await harness.login.unregisterCount
+        XCTAssertEqual(removals, 1)
+        let rejected = LifecycleHarness(storage: InMemoryPreferencesStorage(ciphertext: enabled), loginUnregisterFailure: .unregistrationDenied)
+        await rejected.orchestrator.reload(); rejected.orchestrator.observe(LifecycleHarnessConditions.open)
+        let before = await rejected.storage.saveCount
+        do { try await rejected.orchestrator.removeLoginItemForUninstall(); XCTFail("Expected rejection") }
+        catch { }
+        let after = await rejected.storage.saveCount
+        XCTAssertEqual(after, before)
+        let retained = await rejected.storedPreferences()
+        XCTAssertEqual(retained?.loginItemEnabled, true)
+        rejected.orchestrator.observe(.unknown)
+        let calls = await rejected.login.unregisterCount
+        do { try await rejected.orchestrator.removeLoginItemForUninstall(); XCTFail("Expected privacy refusal") }
+        catch { }
+        let still = await rejected.login.unregisterCount
+        XCTAssertEqual(still, calls)
+        let failedSave = LifecycleHarness(storage: InMemoryPreferencesStorage(ciphertext: enabled))
+        await failedSave.orchestrator.reload(); failedSave.orchestrator.observe(LifecycleHarnessConditions.open)
+        await failedSave.storage.failSubsequentSaves()
+        do { try await failedSave.orchestrator.removeLoginItemForUninstall(); XCTFail("Expected save failure") }
+        catch { }
+        XCTAssertEqual(failedSave.orchestrator.state.loginItem, .unregistered)
+    }
+
     private func clock() -> any LocalClock {
         FixedClock(instant: Date(timeIntervalSince1970: 0),
                    calendar: Calendar(identifier: .gregorian), timeZone: TimeZone(identifier: "UTC")!)

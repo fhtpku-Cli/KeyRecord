@@ -26,6 +26,7 @@ final class KarabinerMappingModel: ObservableObject {
     var canRead: @MainActor () -> Bool = { false }
     var configuration: @MainActor () -> (bytes: Data, profile: String)? = { nil }
     var observations: @MainActor () -> [ChordBucket]? = { nil }
+    var synchronizeRuntime: @MainActor () -> Void = {}
     var onChange: @MainActor () -> Void = {}
     var protectedGate: KeyAvailabilityGate?
     var defaultName: @MainActor (Chord, RecommendationScope) -> String = { _, _ in "KeyRecord mapping" }
@@ -33,23 +34,43 @@ final class KarabinerMappingModel: ObservableObject {
     private var session = UUID()
     private var revision = UUID()
     private var exports: [MappingExportPermission] = []
+    private var refreshPending = false
+    var maintenance = false { didSet { invalidate() } }
 
     var canApply: Bool {
-        guard canRead(), !working, let coordinator, let prepared, !prepared.hasBlockingConflict,
+        synchronizeRuntime()
+        guard canRead(), !maintenance, !working, let coordinator, let prepared, !prepared.hasBlockingConflict,
               (try? coordinator.currentContext()) == prepared.context,
               !prepared.requiresRiskConfirmation || riskConfirmed else { return false }
         if let profile = lastLedger?.managedProfile, profile != prepared.plan.diff.profile { return false }
         switch prepared.context.authority { case .readOnly: return false; default: return true }
     }
     var canManage: Bool {
-        guard canRead(), !working, let coordinator, let profile = lastLedger?.managedProfile else { return false }
+        synchronizeRuntime()
+        guard canRead(), !maintenance, !working, let coordinator, let profile = lastLedger?.managedProfile else { return false }
         do { try coordinator.currentContext().requireWrite(profile: profile); return true } catch { return false }
+    }
+    var canInspect: Bool { canRead() && !working && coordinator != nil && lastLedger?.managedProfile != nil }
+    func detach() { coordinator = nil; lastLedger = nil; refreshPending = false; invalidate() }
+    func removeForUninstall() async throws {
+        guard canRead(), !working, let coordinator else { throw KarabinerMappingError.unavailable }
+        working = true; defer { working = false; onChange() }
+        let ticket = session
+        let result = try await coordinator.removeManagedRules()
+        guard canRead(), ticket == session, result.managedProfile == nil else { throw KarabinerMappingError.unavailable }
+        lastLedger = result; invalidate()
+    }
+    func attachReconciled(_ coordinator: KarabinerTransactionCoordinator) async throws {
+        let ticket = session
+        let ledger = try await coordinator.reconcile()
+        guard canRead(), ticket == session else { throw KarabinerMappingError.unavailable }
+        self.coordinator = coordinator; lastLedger = ledger; invalidate()
     }
     func attach(_ coordinator: KarabinerTransactionCoordinator) async {
         self.coordinator = coordinator; invalidate(); await refresh()
     }
     func stage(output: Chord, trigger: Chord, scope: RecommendationScope) {
-        guard canRead(), !working, let selection = configuration() else { issueKey = "phase3.selectProfile"; return }
+        guard canRead(), !maintenance, !working, let selection = configuration() else { issueKey = "phase3.selectProfile"; return }
         let selectedScope: MappingScope = if case .application(let id) = scope { .application(id) } else { .global }
         let draft = KarabinerMappingDraft(name: defaultName(output, scope), profile: selection.profile,
             trigger: trigger, output: output, scope: selectedScope)
@@ -58,10 +79,10 @@ final class KarabinerMappingModel: ObservableObject {
         onChange()
     }
     func update(_ draft: KarabinerMappingDraft) {
-        guard canRead(), !working, let index = drafts.firstIndex(where: { $0.id == draft.id }) else { return }
+        guard canRead(), !maintenance, !working, let index = drafts.firstIndex(where: { $0.id == draft.id }) else { return }
         drafts[index] = draft; invalidate(); onChange()
     }
-    func remove(_ id: UUID) { guard canRead(), !working else { return }; drafts.removeAll { $0.id == id }; invalidate(); onChange() }
+    func remove(_ id: UUID) { guard canRead(), !maintenance, !working else { return }; drafts.removeAll { $0.id == id }; invalidate(); onChange() }
     func invalidate() {
         exports.forEach { $0.invalidate() }; exports = []
         revision = UUID(); prepared = nil; riskConfirmed = false; issueKey = nil; onChange()
@@ -69,10 +90,10 @@ final class KarabinerMappingModel: ObservableObject {
     func clear() {
         session = UUID(); coordinator = nil; drafts = []; prepared = nil; lastLedger = nil
         exports.forEach { $0.invalidate() }; exports = []
-        issueKey = nil; working = false; riskConfirmed = false; onChange()
+        issueKey = nil; working = false; riskConfirmed = false; refreshPending = false; onChange()
     }
     func check() async {
-        guard canRead(), !working, let selection = configuration() else { issueKey = "phase3.selectProfile"; return }
+        guard canRead(), !maintenance, !working, let selection = configuration() else { issueKey = "phase3.selectProfile"; return }
         let currentSession = session
         let currentRevision = revision
         working = true; riskConfirmed = false; issueKey = nil
@@ -95,8 +116,12 @@ final class KarabinerMappingModel: ObservableObject {
         guard canApply, let coordinator, let prepared else { return }
         await run { try await coordinator.apply(prepared, riskConfirmed: self.riskConfirmed) }
     }
-    func refresh() async { guard let coordinator, canRead() else { return }; await run { try await coordinator.reconcile() } }
-    func verify() async { guard let coordinator, canManage else { return }; await run { try await coordinator.verifyConfiguration() } }
+    func refresh() async {
+        guard let coordinator, canRead() else { return }
+        if working { refreshPending = true; return }
+        await run { try await coordinator.reconcile() }
+    }
+    func verify() async { guard let coordinator, canInspect else { return }; await run { try await coordinator.verifyConfiguration() } }
     func disable() async {
         guard let coordinator, canManage else { return }
         await run { try await coordinator.setDisabled(true) }
@@ -107,7 +132,7 @@ final class KarabinerMappingModel: ObservableObject {
     }
     func rollback() async { guard let coordinator, canManage else { return }; await run { try await coordinator.rollbackLatest() } }
     func resolve(_ choice: KarabinerExternalChoice) async {
-        guard let coordinator, canManage else { return }
+        guard let coordinator, canInspect else { return }
         await run { try await coordinator.resolveExternal(choice, confirmation: self.riskConfirmed ? self.prepared : nil) }
     }
     func removeManaged() async { guard let coordinator, canManage else { return }; await run { try await coordinator.removeManagedRules() } }
@@ -136,6 +161,7 @@ final class KarabinerMappingModel: ObservableObject {
         }
         guard currentSession == session else { return }
         working = false; onChange()
+        if refreshPending { refreshPending = false; await refresh() }
     }
     func exportRules() throws -> Data {
         guard canRead(), let prepared, !prepared.hasBlockingConflict else { throw KarabinerMappingError.unavailable }
@@ -232,13 +258,13 @@ struct KarabinerMappingSection: View {
                 if let verified = batch.verifiedAt { Text(verified, style: .date); Text(text("phase3.configurationOnly")) }
                 HStack {
                     Button(text("phase3.verify")) { Task { await model.verify() } }.accessibilityIdentifier("phase3.verify")
-                    Button(text("phase3.disable")) { Task { await model.disable() } }.accessibilityIdentifier("phase3.disable")
-                    Button(text("phase3.restore")) { Task { await model.restore() } }.accessibilityIdentifier("phase3.restore")
-                    Button(text("phase3.rollback")) { Task { await model.rollback() } }
-                }.disabled(!model.canManage)
+                    Button(text("phase3.disable")) { Task { await model.disable() } }.disabled(!model.canManage).accessibilityIdentifier("phase3.disable")
+                    Button(text("phase3.restore")) { Task { await model.restore() } }.disabled(!model.canManage).accessibilityIdentifier("phase3.restore")
+                    Button(text("phase3.rollback")) { Task { await model.rollback() } }.disabled(!model.canManage)
+                }.disabled(!model.canInspect)
                 if batch.state == .externallyChanged {
                     Button(text("phase3.adopt")) { Task { await model.resolve(.adopt) } }.accessibilityIdentifier("phase3.adopt")
-                    Button(text("phase3.reapply")) { Task { await model.resolve(.reapply) } }.accessibilityIdentifier("phase3.reapply")
+                    Button(text("phase3.reapply")) { Task { await model.resolve(.reapply) } }.disabled(!model.canManage).accessibilityIdentifier("phase3.reapply")
                     Button(text("phase3.stopManaging")) { Task { await model.resolve(.stopManaging) } }.accessibilityIdentifier("phase3.stopManaging")
                 }
                 Button(text("phase3.removeManaged")) { Task { await model.removeManaged() } }.disabled(!model.canManage)

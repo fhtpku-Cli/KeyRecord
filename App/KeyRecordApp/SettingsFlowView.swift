@@ -35,8 +35,11 @@ struct SettingsFlowView: View {
                 }
                 if flow.intendedBackend == .karabiner {
                     KarabinerImportSection(model: flow.karabinerImport, text: text)
+                    KarabinerDeploymentSection(model: flow.karabinerDeployment,
+                        selectedProfile: flow.karabinerImport.selectedConfiguration?.profile, text: text)
                     KarabinerMappingSection(model: flow.karabinerMappings, text: text)
                 } else { VIAImportSection(model: flow.viaImport, text: text) }
+                FirmwareCopiesSection(model: flow.firmwareCopies, viaBytes: flow.viaImport.selectedOriginalBytes, text: text)
             }
             Section {
                 Text(text("consent.disclosure")).fixedSize(horizontal: false, vertical: true)
@@ -48,6 +51,7 @@ struct SettingsFlowView: View {
             LoginItemSection(flow: flow, text: text)
             LanguageSection(flow: flow, text: text)
             DangerSection(flow: flow, text: text)
+            if !flow.sensitiveContentVisible, flow.firmwareCopies.uninstallReady { Text(text("phase4.uninstallReady")) }
         }
         .formStyle(.grouped)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -156,6 +160,7 @@ private struct LoginItemSection: View {
             .accessibilityLabel(Text(text("settings.login")))
             .accessibilitySortPriority(4)
             .accessibilityIdentifier("settings.login")
+            .disabled(flow.firmwareCopies.working)
             if let errorKey = flow.loginItemErrorKey {
                 Label(text(errorKey), systemImage: "exclamationmark.triangle")
                     .labelStyle(.titleAndIcon)
@@ -210,11 +215,13 @@ private struct DangerSection: View {
                 flow.requestReset()
             }
             .accessibilitySortPriority(2)
+            .disabled(flow.firmwareCopies.working)
             SettingsRow(text: text, titleKey: "settings.delete",
                         rowIdentifier: "settings.delete", role: .destructive) {
                 flow.requestDeleteLocalData()
             }
             .accessibilitySortPriority(1)
+            .disabled(flow.firmwareCopies.working)
         } header: {
             Label(text("settings.danger"), systemImage: "exclamationmark.triangle")
         }

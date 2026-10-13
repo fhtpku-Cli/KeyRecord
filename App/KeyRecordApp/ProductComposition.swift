@@ -4,6 +4,7 @@ import KeyRecordCore
 import KeyRecordAnalysis
 import KeyRecordCapture
 import KeyRecordStore
+import KeyRecordMappings
 
 @MainActor
 final class ProductMaintenanceHooks {
@@ -272,6 +273,28 @@ final class ProductComposition: NSObject, NSMenuDelegate, NSWindowDelegate {
             afterErase: { hooks.erased() }, clear: { reduction.clear() })
         let flow = AppFlowObservable(flow: Phase1FlowModel(lifecycle: lifecycle,
             cycleReset: destruction, localDataEraser: destruction), protectedGate: gate)
+        flow.karabinerDeployment.configure(store: store, gate: gate)
+        flow.firmwareCopies.configure(store: store, gate: gate)
+        flow.firmwareCopies.configureUninstall(.init(
+            removeRules: { [weak flow] in
+                guard let flow else { throw FirmwareError.unavailable }
+                try await flow.karabinerDeployment.removeForUninstall()
+            },
+            removeLogin: { [weak flow] in
+                try await lifecycle.removeLoginItemForUninstall()
+                flow?.sync(from: lifecycle.state)
+            },
+            eraseData: { [weak flow] in
+                try await destruction.eraseAllLocalData()
+                await lifecycle.returnToConsentRequired()
+                flow?.sync(from: lifecycle.state)
+            },
+            editing: { [weak flow] active in flow?.karabinerMappings.maintenance = active },
+            ready: { [weak flow] in
+                guard let flow else { return false }
+                return !flow.karabinerDeployment.working && !flow.karabinerMappings.working && flow.dialog == .none &&
+                    lifecycle.state.loginItem != .registering && lifecycle.state.loginItem != .unregistering
+            }))
         let composition = ProductComposition(lifecycle: lifecycle, flow: flow, gate: gate, reduction: reduction,
                                   scheduler: scheduler, flush: flush, capture: capture, store: store, hooks: hooks,
                                   qualification: qualification, sessionLock: sessionLock,

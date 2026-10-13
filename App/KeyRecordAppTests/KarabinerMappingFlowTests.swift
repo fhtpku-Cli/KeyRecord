@@ -5,7 +5,6 @@ import KeyRecordCore
 import KeyRecordAnalysis
 import KeyRecordMappings
 import KeyRecordStore
-import ServiceManagement
 
 private actor NativeMappingFixtureKeys: ObjectStoreKeySource {
     var present = false
@@ -23,19 +22,17 @@ private final class DeploymentVersionProbe: @unchecked Sendable {
 @MainActor
 final class KarabinerMappingFlowTests: XCTestCase {
     func testLoginBackendRepeatedRemovalAcceptsOnlyNativeJobNotFound() async throws {
-        let removed = SMAppServiceLoginItemBackend(registrationStatus: { .notRegistered }, unregisterService: {
+        let removed = ProductLogin.make(registrationIsAbsent: { true }, unregisterService: {
             XCTFail("Absent login item must not be removed twice")
         })
         try await removed.unregister(); try await removed.unregister()
-        if #available(macOS 15.0, *) {
-            let absent = SMAppServiceLoginItemBackend(registrationStatus: { .enabled }, unregisterService: {
-                throw NSError(domain: SMAppServiceErrorDomain, code: Int(kSMErrorJobNotFound))
+        if let fixtures = ProductLogin.nativeRejectionFixtures {
+            let absent = ProductLogin.make(registrationIsAbsent: { false }, unregisterService: {
+                throw fixtures.absent
             })
             try await absent.unregister(); try await absent.unregister()
-            for (domain, code) in [(SMAppServiceErrorDomain, Int(kSMErrorInvalidSignature)),
-                                   (SMAppServiceErrorDomain, Int(kSMErrorAuthorizationFailure)),
-                                   (NSCocoaErrorDomain, Int(kSMErrorJobNotFound))] {
-                let rejected = SMAppServiceLoginItemBackend(registrationStatus: { .enabled }, unregisterService: { throw NSError(domain: domain, code: code) })
+            for failure in fixtures.denied {
+                let rejected = ProductLogin.make(registrationIsAbsent: { false }, unregisterService: { throw failure })
                 do { try await rejected.unregister(); XCTFail("Expected refusal") }
                 catch { XCTAssertEqual(error as? LoginItemSystemRejection, .unregistrationDenied) }
             }

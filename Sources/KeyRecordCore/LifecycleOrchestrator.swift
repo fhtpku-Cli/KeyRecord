@@ -70,16 +70,9 @@ public final class LifecycleOrchestrator {
     public func removeLoginItemForUninstall() async throws {
         try await preferenceTransactions.acquire()
         defer { preferenceTransactions.release() }
-        guard state.preferences != nil, SensitiveVisibility.isVisible(state) else {
-            throw PreferencesRepositoryError.storageUnavailable
-        }
-        try await ports.login.unregister()
-        state.loginItem = .unregistered
-        guard let preferences = state.preferences, SensitiveVisibility.isVisible(state) else {
-            throw PreferencesRepositoryError.storageUnavailable
-        }
-        try await ports.preferences.save(preferences.updating(loginItemEnabled: false))
-        state.preferences = state.preferences?.updating(loginItemEnabled: false)
+        try await LifecycleLoginRemoval.perform(ports: ports, current: { self.state },
+            removed: { self.state.loginItem = .unregistered },
+            saved: { self.state.preferences = self.state.preferences?.updating(loginItemEnabled: false) })
     }
 
     public func setLocale(_ locale: ProductLocale) async throws {

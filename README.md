@@ -2,7 +2,7 @@
 
 KeyRecord is an in-development native macOS menu-bar app for local, aggregate keyboard-use statistics. It aims to count shortcuts by application and bare keys without storing typed text or event sequences. The codebase uses Swift 6, macOS 14+, and Apple system frameworks.
 
-**当前阶段（2026-10-13）：Phase 1 Apple Silicon MVP 和 Phase 2 A/B 工程已完成；PR #25 原生卸载及固件流程已合并。** 后续增量补齐卸载前停采集、逐阶段进度及离线 Vial 键位图证据比对/恢复，75 项相关离线场景通过。生产支持目录仍为空，实际 Vial 读取端口未启用，真实 G3/G4 和完整后端资格未完成。见[本批范围与证据](docs/phase3/RECOVERY_READBACK_20261013.md)。真实验证继续集中后置。
+**当前阶段（2026-10-13）：Phase 1 Apple Silicon MVP 和 Phase 2 A/B 工程已完成；PR #26 卸载停采集与离线 Vial 证据增量已合并。** 本批补齐逐份恢复选择、最终确认、卸载历史阶段读取及维护期间后台对账互斥，81 项相关离线场景通过。生产支持目录仍为空，实际 Vial 读取端口未启用，真实 G3/G4 和完整后端资格未完成。见[本批范围与证据](docs/phase3/RECOVERY_CHOICES_20261013.md)。真实验证继续集中后置。
 
 增量 B 已实现特殊键池、手动候选/风险确认、后端能力过滤及有范围的冲突报告、物理成本/回退，以及只读 VIA/Karabiner 副本和会话内参考。保留逻辑排名，物理次数与跨度独立说明；配置副本不证明当前部署，实际后端仍未连接，完整物理链缺失时使用逻辑口径。见 [B 完成记录](docs/phase2/B_COMPLETION_20261013.md)、[实现](docs/phase2/IMPLEMENTATION.md)与[验证](docs/phase2/VALIDATION.md)。真实配置、设备、文件选择器和保存重开集中到后端稳定后的候选，不重复开展早期试用。
 

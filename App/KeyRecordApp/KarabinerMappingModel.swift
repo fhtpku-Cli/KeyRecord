@@ -35,7 +35,15 @@ final class KarabinerMappingModel: ObservableObject {
     private var revision = UUID()
     private var exports: [MappingExportPermission] = []
     private var refreshPending = false
-    var maintenance = false { didSet { invalidate() } }
+    var maintenance = false {
+        didSet {
+            invalidate()
+            if !maintenance, refreshPending {
+                refreshPending = false
+                Task { await refresh() }
+            }
+        }
+    }
 
     var canApply: Bool {
         synchronizeRuntime()
@@ -118,7 +126,7 @@ final class KarabinerMappingModel: ObservableObject {
     }
     func refresh() async {
         guard let coordinator, canRead() else { return }
-        if working { refreshPending = true; return }
+        if working || maintenance { refreshPending = true; return }
         await run { try await coordinator.reconcile() }
     }
     func verify() async { guard let coordinator, canInspect else { return }; await run { try await coordinator.verifyConfiguration() } }

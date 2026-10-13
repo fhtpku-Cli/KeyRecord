@@ -29,6 +29,14 @@ public final class UninstallPreparationCoordinator {
     private let onProgress: @MainActor (UninstallPreparationStage) -> Void
     private var busy = false
     private let identity: CanonicalLogicalIdentity
+    private static func recordIdentity() throws -> CanonicalLogicalIdentity {
+        try CanonicalLogicalIdentity(objectType: "com.keyrecord.uninstall-preparation", schemaVersion: 1, logicalIDText: "preparation")
+    }
+    public static func previousPreparation(store: ObjectStore) async throws -> UninstallPreparationRecord? {
+        let identity = try recordIdentity()
+        guard try await store.entries().contains(where: { $0.identity == identity }) else { return nil }
+        return try JSONDecoder().decode(UninstallPreparationRecord.self, from: await store.read(identity))
+    }
     public init(store: ObjectStore, firmware: FirmwareOperationCoordinator, gate: KeyAvailabilityGate,
                 stopCapture: @escaping @MainActor () async throws -> Void,
                 removeRules: @escaping @MainActor () async throws -> Void,
@@ -41,7 +49,7 @@ public final class UninstallPreparationCoordinator {
         self.authorize = authorize
         self.stopCapture = stopCapture; self.onProgress = onProgress
         self.gate = gate; self.generation = try gate.begin()
-        identity = try CanonicalLogicalIdentity(objectType: "com.keyrecord.uninstall-preparation", schemaVersion: 1, logicalIDText: "preparation")
+        identity = try Self.recordIdentity()
     }
     private func checkAccess() throws { try gate.use(generation) { try authorize() } }
     private func save(_ record: UninstallPreparationRecord) async throws {

@@ -6,6 +6,15 @@ import KeyRecordAnalysis
 import KeyRecordMappings
 import KeyRecordStore
 
+extension FirmwareCopiesModel {
+    func fixtureUninstallRequest(choice: Int, deleteData: Bool, discard: Bool) throws -> UninstallRequest {
+        let option = try XCTUnwrap(RecoveryOption(rawValue: choice))
+        return UninstallRequest(records: records, selections: Dictionary(uniqueKeysWithValues: records.map {
+            ($0.id, RecoverySelection(option: option, discardConfirmed: discard))
+        }), deleteLocalData: deleteData)
+    }
+}
+
 private actor NativeMappingFixtureKeys: ObjectStoreKeySource {
     var present = false
     func seed() { present = true }
@@ -279,7 +288,7 @@ final class KarabinerMappingFlowTests: XCTestCase {
         var calls: [String] = []
         model.configureUninstall(.init(stopCapture: {}, removeRules: { calls.append("rules") }, removeLogin: { calls.append("login") },
             eraseData: { calls.append("data") }, editing: { _ in }))
-        model.recoveryChoice = 1
+        model.recoverySelections[original.id] = .init(option: .heldElsewhere)
         let view = NSHostingView(rootView: Form {
             FirmwareCopiesSection(model: model, viaBytes: nil, text: NativeText(locale: "en"))
         }.formStyle(.grouped).frame(width: 900, height: 1200))
@@ -319,6 +328,9 @@ final class KarabinerMappingFlowTests: XCTestCase {
             let result = await XCTWaiter.fulfillment(of: [deleted], timeout: 5)
             XCTAssertEqual(result, .completed)
         }
+        NativeEvidence.update(view)
+        let retainedVial = try XCTUnwrap(model.records.first)
+        model.recoverySelections[retainedVial.id] = .init(option: .heldElsewhere)
         NativeEvidence.update(view)
         XCTAssertTrue(KRAXPress(try NativeEvidence.node("phase4.prepareUninstall", in: view)))
         NativeEvidence.update(view); XCTAssertTrue(calls.isEmpty)
@@ -360,7 +372,7 @@ final class KarabinerMappingFlowTests: XCTestCase {
         }, removeLogin: { order.append("login") }, eraseData: { order.append("data") },
         editing: { flow.karabinerMappings.maintenance = $0 }))
         XCTAssertFalse(model.deleteLocalData)
-        await model.prepareUninstall(ticket: try XCTUnwrap(model.selectionTicket()), choice: 0, deleteData: false, discard: false)
+        await model.prepareUninstall(ticket: try XCTUnwrap(model.selectionTicket()), request: try model.fixtureUninstallRequest(choice: 0, deleteData: false, discard: false))
         XCTAssertEqual(order, ["rules", "login"])
         XCTAssertTrue(model.uninstallReady); XCTAssertNil(model.issueKey)
         XCTAssertEqual(model.uninstallStage, .ready)
@@ -377,18 +389,181 @@ final class KarabinerMappingFlowTests: XCTestCase {
             removeLogin: { calls.append("login"); throw FirmwareError.unavailable },
             eraseData: { calls.append("data") }, editing: { _ in }))
         model.selectExport = { _ in nil }
-        await model.prepareUninstall(ticket: try XCTUnwrap(model.selectionTicket()), choice: 0, deleteData: true, discard: false)
+        await model.prepareUninstall(ticket: try XCTUnwrap(model.selectionTicket()), request: try model.fixtureUninstallRequest(choice: 0, deleteData: true, discard: false))
         XCTAssertTrue(calls.isEmpty); XCTAssertFalse(model.working)
-        await model.prepareUninstall(ticket: try XCTUnwrap(model.selectionTicket()), choice: 2, deleteData: true, discard: false)
+        await model.prepareUninstall(ticket: try XCTUnwrap(model.selectionTicket()), request: try model.fixtureUninstallRequest(choice: 2, deleteData: true, discard: false))
         XCTAssertTrue(calls.isEmpty); XCTAssertFalse(model.uninstallReady)
-        await model.prepareUninstall(ticket: try XCTUnwrap(model.selectionTicket()), choice: 1, deleteData: true, discard: false)
+        await model.prepareUninstall(ticket: try XCTUnwrap(model.selectionTicket()), request: try model.fixtureUninstallRequest(choice: 1, deleteData: true, discard: false))
         XCTAssertEqual(calls, ["rules", "login"]); XCTAssertFalse(model.uninstallReady)
         XCTAssertEqual(model.uninstallStage, .rulesRemoved)
         let ticket = try XCTUnwrap(model.selectionTicket())
         fixture.observeLocked(); fixture.flow.sync(from: fixture.orchestrator.state)
         fixture.observe(); fixture.flow.sync(from: fixture.orchestrator.state)
-        await model.prepareUninstall(ticket: ticket, choice: 1, deleteData: true, discard: false)
+        await model.prepareUninstall(ticket: ticket, request: try model.fixtureUninstallRequest(choice: 1, deleteData: true, discard: false))
         XCTAssertEqual(calls, ["rules", "login"])
+    }
+    func testDeploymentRefreshWaitsForUninstallMaintenanceThenReportsExternalChange() async throws {
+        let (fixture, file, _, _) = try await deployment()
+        let flow = fixture.flow
+        await flow.karabinerDeployment.bind(url: file, profile: "Synthetic")
+        try stage(flow.karabinerMappings); await flow.karabinerMappings.check(); await flow.karabinerMappings.apply()
+        let model = flow.karabinerMappings
+        let prior = model.lastLedger
+        model.maintenance = true
+        try (Data(contentsOf: file) + Data(" ".utf8)).write(to: file, options: .atomic)
+        await model.refresh()
+        XCTAssertFalse(model.working); XCTAssertEqual(model.lastLedger, prior)
+        let refreshed = XCTestExpectation(description: "External changes reconcile after maintenance")
+        var delivered = false
+        model.onChange = {
+            if !delivered, model.lastLedger?.batches.last?.state == .externallyChanged { delivered = true; refreshed.fulfill() }
+        }
+        model.maintenance = false
+        await fulfillment(of: [refreshed], timeout: 5)
+        XCTAssertEqual(model.lastLedger?.batches.last?.state, .externallyChanged)
+    }
+    func testUninstallMixedPerCopyChoicesRequireIndividualDiscardConfirmation() async throws {
+        let (fixture, file, store, _) = try await deployment()
+        let model = fixture.flow.firmwareCopies
+        let first = try await retainOriginal(model)
+        let second = try await retainOriginal(model)
+        let third = try await retainOriginal(model)
+        let output = file.deletingLastPathComponent().appendingPathComponent("mixed-recovery.json")
+        var exported: [UUID] = []; var calls: [String] = []
+        model.selectExport = { exported.append($0.id); return output }
+        model.configureUninstall(.init(stopCapture: { calls.append("capture") }, removeRules: { calls.append("rules") },
+            removeLogin: { calls.append("login") }, eraseData: { calls.append("data") }, editing: { _ in }))
+        model.recoverySelections[second.id] = .init(option: .heldElsewhere)
+        model.recoverySelections[third.id] = .init(option: .discard)
+        XCTAssertEqual(model.recoverySelection(for: first).option, .export)
+        XCTAssertFalse(model.canPrepareUninstall)
+        await model.prepareUninstall(ticket: try XCTUnwrap(model.selectionTicket()), request: model.uninstallRequest())
+        XCTAssertTrue(calls.isEmpty); XCTAssertTrue(exported.isEmpty)
+        model.recoverySelections[third.id] = .init(option: .discard, discardConfirmed: true)
+        XCTAssertTrue(model.canPrepareUninstall)
+        await model.prepareUninstall(ticket: try XCTUnwrap(model.selectionTicket()), request: model.uninstallRequest())
+        XCTAssertEqual(exported, [first.id]); XCTAssertEqual(calls, ["capture", "rules", "login"])
+        let loaded = try await UninstallPreparationCoordinator.previousPreparation(store: store)
+        let receipt = try XCTUnwrap(loaded)
+        XCTAssertEqual(receipt.choices, [first.id.uuidString: .exported, second.id.uuidString: .heldElsewhere, third.id.uuidString: .discarded])
+        XCTAssertFalse(receipt.deleteLocalData); XCTAssertEqual(model.records.count, 3)
+        XCTAssertNotNil(try? Data(contentsOf: output))
+    }
+    func testUninstallConfirmationRefusesChangedOrIncompleteCopyLists() async throws {
+        let (fixture, _, _, _) = try await deployment()
+        let model = fixture.flow.firmwareCopies
+        _ = try await retainOriginal(model)
+        var calls: [String] = []
+        model.configureUninstall(.init(stopCapture: { calls.append("capture") }, removeRules: { calls.append("rules") },
+            removeLogin: { calls.append("login") }, eraseData: { calls.append("data") }, editing: { _ in }))
+        let old = try model.fixtureUninstallRequest(choice: 1, deleteData: true, discard: false)
+        _ = try await retainOriginal(model)
+        await model.prepareUninstall(ticket: try XCTUnwrap(model.selectionTicket()), request: old)
+        XCTAssertTrue(calls.isEmpty); XCTAssertEqual(model.issueKey, "phase4.recoveryChanged")
+        let incomplete = FirmwareCopiesModel.UninstallRequest(records: model.records, selections: old.selections, deleteLocalData: true)
+        await model.prepareUninstall(ticket: try XCTUnwrap(model.selectionTicket()), request: incomplete)
+        XCTAssertTrue(calls.isEmpty)
+        model.selectExport = { _ in nil }
+        await model.prepareUninstall(ticket: try XCTUnwrap(model.selectionTicket()), request: model.uninstallRequest())
+        XCTAssertTrue(calls.isEmpty); XCTAssertFalse(model.working)
+    }
+    func testNativePerCopyDiscardToggleAndConfirmationInBothLanguages() throws {
+        ScreenEvidence.prepare()
+        for locale in ["en", "zh-Hans"] {
+            var fixture: FlowFixture!
+            var originals: [FirmwareBatchRecord] = []
+            ScreenEvidence.awaitMain {
+                do {
+                    fixture = try await self.deployment().0
+                    originals.append(try await self.retainOriginal(fixture.flow.firmwareCopies))
+                    originals.append(try await self.retainOriginal(fixture.flow.firmwareCopies))
+                } catch { XCTFail("Fixture setup failed: \(error)") }
+            }
+            XCTAssertEqual(originals.count, 2)
+            let model = fixture.flow.firmwareCopies
+            var calls: [String] = []
+            model.configureUninstall(.init(stopCapture: { calls.append("capture") }, removeRules: { calls.append("rules") },
+                removeLogin: { calls.append("login") }, eraseData: { calls.append("data") }, editing: { _ in }))
+            model.recoverySelections[originals[0].id] = .init(option: .heldElsewhere)
+            model.recoverySelections[originals[1].id] = .init(option: .discard)
+            let text = NativeText(locale: locale)
+            let view = NSHostingView(rootView: Form { FirmwareUninstallSection(model: model, text: text) }
+                .formStyle(.grouped).frame(width: 900, height: 1100))
+            view.sizingOptions = []
+            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 900, height: 1100),
+                styleMask: [.titled], backing: .buffered, defer: false)
+            window.isReleasedWhenClosed = false; window.contentView = view; window.makeKeyAndOrderFront(nil)
+            defer { window.contentView = nil; window.close() }
+            NativeEvidence.primeAccessibility(); NativeEvidence.update(view); NativeEvidence.update(view)
+            for original in originals {
+                XCTAssertTrue(KRAXEnabled(try NativeEvidence.node("recovery-choice-" + original.id.uuidString, in: view)))
+            }
+            XCTAssertFalse(KRAXEnabled(try NativeEvidence.node("phase4.prepareUninstall", in: view)))
+            XCTAssertTrue(KRAXPress(try NativeEvidence.node("recovery-discard-" + originals[1].id.uuidString, in: view)))
+            NativeEvidence.update(view)
+            XCTAssertTrue(model.recoverySelection(for: originals[1]).discardConfirmed)
+            XCTAssertEqual(model.recoverySelection(for: originals[0]).option, .heldElsewhere)
+            XCTAssertTrue(KRAXPress(try NativeEvidence.node("phase4.prepareUninstall", in: view)))
+            NativeEvidence.update(view); XCTAssertTrue(calls.isEmpty)
+            let labels = NativeEvidence.elements(in: view).compactMap { KRAXLabel($0) }
+            XCTAssertTrue(labels.contains(String(format: text("phase4.numberedCopy"), 1) + ": " + originals[0].device + ": " + text("phase4.recoveryHeld")))
+            XCTAssertTrue(labels.contains(String(format: text("phase4.numberedCopy"), 2) + ": " + originals[1].device + ": " + text("phase4.recoveryDiscard")))
+            XCTAssertTrue(labels.contains(text("phase4.confirmDataRetained")))
+            if let output = NativeEvidence.outputRoot() {
+                try FileManager.default.createDirectory(at: output, withIntermediateDirectories: true)
+                try ScreenEvidence.capturePNG(view).write(to: output.appendingPathComponent("per-copy-confirmation-" + locale + ".png"))
+            }
+            let done = XCTestExpectation(description: "Mixed synthetic preparation confirmed")
+            var delivered = false
+            model.onChange = { if !delivered, model.uninstallReady { delivered = true; done.fulfill() } }
+            XCTAssertTrue(KRAXPress(try NativeEvidence.node("phase4.confirmUninstall", in: view)))
+            ScreenEvidence.awaitMain {
+                let result = await XCTWaiter.fulfillment(of: [done], timeout: 5)
+                XCTAssertEqual(result, .completed)
+            }
+            XCTAssertEqual(calls, ["capture", "rules", "login"])
+        }
+    }
+    func testNativePreviousUninstallStageReopensWithoutRestoringDeletionOrExecutingPorts() throws {
+        ScreenEvidence.prepare()
+        var fixture: FlowFixture!
+        var calls: [String] = []
+        ScreenEvidence.awaitMain {
+            do {
+                fixture = try await self.deployment().0
+                let model = fixture.flow.firmwareCopies
+                _ = try await self.retainOriginal(model)
+                model.configureUninstall(.init(stopCapture: { calls.append("capture") }, removeRules: { calls.append("rules") },
+                    removeLogin: { calls.append("login"); throw FirmwareError.unavailable }, eraseData: { calls.append("data") }, editing: { _ in }))
+                await model.prepareUninstall(ticket: try XCTUnwrap(model.selectionTicket()),
+                    request: try model.fixtureUninstallRequest(choice: 1, deleteData: true, discard: false))
+                model.clear(); await model.refresh()
+            } catch { XCTFail("Fixture setup failed: \(error)") }
+        }
+        let model = fixture.flow.firmwareCopies
+        XCTAssertEqual(calls, ["capture", "rules", "login"])
+        XCTAssertEqual(model.previousPreparation?.stage, .rulesRemoved)
+        XCTAssertEqual(model.previousPreparation?.deleteLocalData, true)
+        XCTAssertNil(model.uninstallStage); XCTAssertFalse(model.uninstallReady); XCTAssertFalse(model.deleteLocalData)
+        XCTAssertEqual(model.recoverySelection(for: try XCTUnwrap(model.records.first)).option, .export)
+        let text = NativeText(locale: "en")
+        let view = NSHostingView(rootView: Form { FirmwareUninstallSection(model: model, text: text) }
+            .formStyle(.grouped).frame(width: 900, height: 800))
+        view.sizingOptions = []
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 900, height: 800),
+            styleMask: [.titled], backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false; window.contentView = view; window.makeKeyAndOrderFront(nil)
+        defer { window.contentView = nil; window.close() }
+        NativeEvidence.primeAccessibility(); NativeEvidence.update(view); NativeEvidence.update(view)
+        XCTAssertEqual(KRAXLabel(try NativeEvidence.node("phase4.previousUninstallProgress", in: view)), text("phase4.uninstallStage.rulesRemoved"))
+        XCTAssertTrue(NativeEvidence.elements(in: view).contains { KRAXLabel($0) == text("phase4.previousUninstallReview") })
+        XCTAssertEqual(calls, ["capture", "rules", "login"])
+        if let output = NativeEvidence.outputRoot() {
+            try FileManager.default.createDirectory(at: output, withIntermediateDirectories: true)
+            try ScreenEvidence.capturePNG(view).write(to: output.appendingPathComponent("previous-uninstall-en.png"))
+        }
+        fixture.observeLocked(); fixture.flow.sync(from: fixture.orchestrator.state)
+        XCTAssertNil(model.previousPreparation); XCTAssertTrue(model.records.isEmpty)
     }
     func testUninstallSelectedEraseFinishesWithoutRestoringSensitiveState() async throws {
         let (fixture, _, _, _) = try await deployment()
@@ -397,7 +572,7 @@ final class KarabinerMappingFlowTests: XCTestCase {
         var order: [String] = []
         model.configureUninstall(.init(stopCapture: {}, removeRules: { order.append("rules") }, removeLogin: { order.append("login") },
             eraseData: { order.append("data"); model.clear() }, editing: { _ in }))
-        await model.prepareUninstall(ticket: try XCTUnwrap(model.selectionTicket()), choice: 2, deleteData: true, discard: true)
+        await model.prepareUninstall(ticket: try XCTUnwrap(model.selectionTicket()), request: try model.fixtureUninstallRequest(choice: 2, deleteData: true, discard: true))
         XCTAssertEqual(order, ["rules", "login", "data"])
         XCTAssertTrue(model.uninstallReady); XCTAssertTrue(model.records.isEmpty); XCTAssertFalse(model.working)
         XCTAssertNil(model.uninstallStage)

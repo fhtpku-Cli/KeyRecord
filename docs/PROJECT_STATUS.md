@@ -1,5 +1,9 @@
 # 当前项目状态
 
+## 逐份恢复选择与卸载历史 — 2026-10-13
+
+[PR #26](https://github.com/fhtpku-Cli/KeyRecord/pull/26) 已合并为 `f5c53e93e0ba7c0b31196a6becaf8f6b06c7df0d`。后续增量补齐逐份导出/持有/放弃选择、独立放弃确认、最终逐份内容、历史阶段重开显示及维护期间后台对账延后/恢复。81 项不同的相关离线场景和未签名 arm64 构建通过；源码 `822d70d5838e759752a34c5b12e40c93026123c5`，见[本批记录](phase3/RECOVERY_CHOICES_20261013.md)。历史结果不会恢复删除选择或自动续执行，真实卸载、删除及设备验证仍未执行。下面保留前序批次证据。
+
 ## 卸载停采集与离线 Vial 证据增量 — 2026-10-13
 
 [PR #25](https://github.com/fhtpku-Cli/KeyRecord/pull/25) 已合并为 `454bf3f6edac6799a22f1e1a948fc341d85e5aa3`。本轮补齐卸载前暂停捕获及逐阶段展示；增加注入 Vial 键位图的完整比对、时间顺序和证据中断恢复。75 项不同的相关离线场景及未签名 arm64 构建通过，源码 `daf5e32bcb1af2ae7722c3fb56193ea8b64adabb`，见[本批记录](phase3/RECOVERY_READBACK_20261013.md)。

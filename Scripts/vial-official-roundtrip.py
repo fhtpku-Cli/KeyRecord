@@ -31,16 +31,30 @@ def main():
     parser.add_argument("--check", type=Path, help="restore a KeyRecord-patched synthetic export")
     parser.add_argument("--encoders", action="store_true", help="include sparse, bidirectional encoder mappings")
     parser.add_argument("--definition", type=Path, help="write the corresponding independent synthetic XZ definition")
+    parser.add_argument("--basic-keycodes", action="store_true", help="exercise official basic, navigation, numpad and ISO names")
+    parser.add_argument("--keycode-fixture", type=Path, help="write official basic/special/ISO raw values and declared aliases")
     args = parser.parse_args()
     if bool(args.generate) == bool(args.check):
         parser.error("choose exactly one of --generate and --check")
     source = args.source / "src/main/python"
     sys.path.insert(0, str(source))
-    from keycodes.keycodes import Keycode
+    from keycodes.keycodes import Keycode, KEYCODES_BASIC, KEYCODES_SPECIAL, KEYCODES_ISO
     from kle_serial import Serial
     from protocol.constants import (BUFFER_FETCH_CHUNK, CMD_VIA_KEYMAP_GET_BUFFER,
                                     CMD_VIA_VIAL_PREFIX, CMD_VIAL_GET_ENCODER)
     Keycode.protocol = 6
+    if args.keycode_fixture:
+        entries = []
+        for key in KEYCODES_SPECIAL + KEYCODES_BASIC + KEYCODES_ISO:
+            raw = Keycode.deserialize(key.qmk_id, reraise=True)
+            canonical = Keycode.serialize(raw)
+            assert canonical == key.qmk_id
+            assert Keycode.deserialize(canonical, reraise=True) == raw
+            for alias in key.alias:
+                assert Keycode.deserialize(alias, reraise=True) == raw
+            entries.append({"token": canonical, "raw": raw, "aliases": key.alias[1:]})
+        args.keycode_fixture.write_text("[\n" + ",\n".join("  " + json.dumps(entry) for entry in entries) + "\n]\n")
+        print(f"PASS: official serialize/deserialize checked {len(entries)} basic/special/ISO keycodes and their declared aliases")
 
     tree = ast.parse((source / "protocol/keyboard_comm.py").read_text())
     keyboard = next(node for node in tree.body if isinstance(node, ast.ClassDef) and node.name == "Keyboard")
@@ -68,6 +82,14 @@ def main():
             self.encoderpos = {2: True} if args.encoders else {}
             self.encoder_layout = {(0, 2, 0): Keycode.serialize(0x28), (0, 2, 1): Keycode.serialize(0x1106),
                                    (1, 2, 0): Keycode.serialize(6), (1, 2, 1): Keycode.serialize(1)} if args.encoders else {}
+            if args.basic_keycodes:
+                slots = [slot for slot in self.layout if slot not in ((0, 0, 0), (0, 0, 1))]
+                raw = [0x34, 0x31, 0x33, 0x35, 0x29, 0x4e, 0x59, 0x67, 0x65, 0x32, 0x64, 0x85]
+                assert len(slots) == len(raw)
+                self.layout.update({slot: Keycode.serialize(code) for slot, code in zip(slots, raw)})
+                if args.encoders:
+                    self.encoder_layout = {(0, 2, 0): Keycode.serialize(0x34), (0, 2, 1): Keycode.serialize(0x1234),
+                                           (1, 2, 0): Keycode.serialize(0x85), (1, 2, 1): Keycode.serialize(0x62)}
             self.rowcol = {(row, col): True for _, row, col in self.layout}
             self.layout_labels = []
             self.dev = 0

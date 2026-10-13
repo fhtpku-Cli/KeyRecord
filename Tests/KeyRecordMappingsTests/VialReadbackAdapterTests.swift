@@ -273,6 +273,10 @@ final class VialReadbackAdapterTests: XCTestCase {
         _ = try document.patch([.init(slot: .init(layer: 1, column: 0), output: "KC_C", automatic: true)], expectedDevice: document.device, axes: axes(bytes), support: support)
     }
     func testProtocolReadbackIntegratesWithExportClaimsAndEncryptedResultRecovery() async throws {
+        let originalBytes = Data(String(decoding: encoderBytes, as: UTF8.self)
+            .replacingOccurrences(of: "0x1234", with: "RSFT(KC_QUOTE)")
+            .replacingOccurrences(of: "KC_A", with: "KC_BSLASH")
+            .replacingOccurrences(of: "0x5fff", with: "KC_KP_COMMA").utf8)
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("vial-adapter-" + UUID().uuidString)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         addTeardownBlock { try? FileManager.default.removeItem(at: root) }
@@ -282,26 +286,29 @@ final class VialReadbackAdapterTests: XCTestCase {
         let axes = try axes(), device = "18446744073709551615"
         let support = FirmwareSupportDirectory(entries: [.init(backend: .vial, device: device, axes: axes, supportedOutputs: ["KC_C"])])
         let operations = try FirmwareOperationCoordinator(store: store, support: support, resolve: { try FirmwareFileDestination(reference: $0, gate: gate) })
-        let batch = try await operations.retainOriginal(encoderBytes, backend: .vial, axes: axes, confirmedAt: Date(timeIntervalSince1970: 1))
+        let batch = try await operations.retainOriginal(originalBytes, backend: .vial, axes: axes, confirmedAt: Date(timeIntervalSince1970: 1))
         _ = try await operations.export(batch.id, changes: [.init(slot: .init(layer: 0, column: 1), output: "KC_C", automatic: true)],
             destination: FirmwareFileDestination(target: root.appendingPathComponent("patched.vil"), gate: gate))
         _ = try await operations.claimImport(batch.id, at: Date(timeIntervalSince1970: 2))
-        var expected = vial6Keymap; expected[3] = 6
-        var external = expected; external[9] = 5
-        for (raw, encoderMismatch, state) in [(expected, false, FirmwareMappingState.verified), (vial6Keymap, false, .failed),
+        var baseline = vial6Keymap
+        for offset in [8,24] { baseline[offset + 1] = 0x31 }
+        for offset in [10,26] { baseline[offset] = 0; baseline[offset + 1] = 0x85 }
+        var expected = baseline; expected[3] = 6
+        var external = expected; external[9] = 0x34
+        for (raw, encoderMismatch, state) in [(expected, false, FirmwareMappingState.verified), (baseline, false, .failed),
                                               (external, false, .externallyChanged), (expected, true, .externallyChanged)] {
             let adapter = try VialReadbackAdapter(transport: SimulatedVialTransport(keymap: raw, encoderMismatch: encoderMismatch),
                 matrixRows: 2, matrixColumns: 4, encoderIndices: [2])
-            let observation = try await adapter.observe(record: batch, original: encoderBytes, at: { Date(timeIntervalSince1970: 3) })
+            let observation = try await adapter.observe(record: batch, original: originalBytes, at: { Date(timeIntervalSince1970: 3) })
             let result = try await operations.confirmVialReadback(batch.id, observation: observation)
             XCTAssertEqual(result.records.last?.state, state)
             let reopened = try FirmwareOperationCoordinator(store: store, support: support, resolve: { try FirmwareFileDestination(reference: $0, gate: gate) })
             let saved = try await reopened.reconcile(); XCTAssertEqual(saved.records.last?.state, state); XCTAssertNil(saved.pending)
         }
-        let missing = VialKeymapObservation(device: device, axes: axes, values: try FirmwareDocument(bytes: encoderBytes, backend: .vial).slotValues(),
+        let missing = VialKeymapObservation(device: device, axes: axes, values: try FirmwareDocument(bytes: originalBytes, backend: .vial).slotValues(),
             observedAt: Date(timeIntervalSince1970: 4))
         do { _ = try await operations.confirmVialReadback(batch.id, observation: missing); XCTFail("Expected missing encoder refusal") }
         catch { XCTAssertEqual(error as? FirmwareError, .invalidDocument) }
-        let original = try await operations.original(batch.id); XCTAssertEqual(original, encoderBytes)
+        let original = try await operations.original(batch.id); XCTAssertEqual(original, originalBytes)
     }
 }

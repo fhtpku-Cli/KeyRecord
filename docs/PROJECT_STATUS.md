@@ -1,5 +1,9 @@
 # 当前项目状态
 
+## Vial 6 官方基础键名兼容 — 2026-10-14
+
+从 [PR #33](https://github.com/fhtpku-Cli/KeyRecord/pull/33) 已合并主干 `0bd3ea0f` 继续。修复官方长名如 `KC_QUOTE`、导航和数字键盘名称导致完整读回 `unsupportedOutput` 的兼容缺口；覆盖官方基础/特殊/ISO 集合的 117 个名称和 68 个明确别名。80 项相关离线包/App 场景、官方源码方法往返与公开 API、未签名 arm64 build-for-testing 通过，原生按钮进入 Verified；未知动作、层/安全入口保护、编码器单独变化及隐私/取消继续按原有规则处理。见[本批记录](phase4/BASIC_KEYCODES_20261014.md)。正式工厂 nil、生产支持目录为空，真实设备和发布资格继续后置。下面保留历史证据。
+
 ## Vial 编码器只读回与完整比较 — 2026-10-14
 
 从 [PR #32](https://github.com/fhtpku-Cli/KeyRecord/pull/32) 已合并主干 `731d160c` 继续，其合并后 CI 已成功。独立定义现在保留编码器索引/方向，官方导出解析层和索引空洞；typed GET_ENCODER 读回两个方向，矩阵及编码器全部一致才记为 Verified。缺失/错位、矩阵正确但编码器变化、隐私和取消已贯穿真实 App 模型及原生按钮的离线场景。64 项相关包测试、13 项 App/原生测试、官方源码方法往返与未签名 arm64 build-for-testing 通过，见[本批记录](phase4/ENCODER_READBACK_20261014.md)。没有写编码器命令；正式连接工厂仍 nil、生产支持目录为空，真实设备与发布证据继续后置。下面保留历史证据。

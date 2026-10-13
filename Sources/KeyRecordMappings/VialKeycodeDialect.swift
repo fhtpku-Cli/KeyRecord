@@ -70,6 +70,33 @@ public enum VialKeycodeDialect {
         for (index, letter) in "ABCDEFGHIJKLMNOPQRSTUVWXYZ".enumerated() { result["KC_\(letter)"] = UInt16(4 + index) }
         for index in 0..<10 { result["KC_\((index + 1) % 10)"] = UInt16(0x1e + index) }
         for index in 0..<24 { result["KC_F\(index + 1)"] = UInt16(index < 12 ? 0x3a + index : 0x68 + index - 12) }
+        let names: [(UInt16, [String])] = [
+            (1, ["KC_TRANSPARENT"]), (0x29, ["KC_ESCAPE"]),
+            (0x2d, ["KC_MINUS"]), (0x2e, ["KC_EQUAL"]),
+            (0x2f, ["KC_LBRACKET"]), (0x30, ["KC_RBRACKET"]),
+            (0x31, ["KC_BSLASH"]), (0x33, ["KC_SCOLON"]), (0x34, ["KC_QUOTE"]),
+            (0x35, ["KC_GRAVE", "KC_ZKHK"]), (0x36, ["KC_COMMA"]), (0x38, ["KC_SLASH"]),
+            (0x39, ["KC_CAPSLOCK", "KC_CLCK"]),
+            (0x46, ["KC_PSCREEN", "KC_PSCR"]), (0x47, ["KC_SCROLLLOCK", "KC_SLCK", "KC_BRMD"]),
+            (0x48, ["KC_PAUSE", "KC_PAUS", "KC_BRK", "KC_BRMU"]), (0x49, ["KC_INSERT", "KC_INS"]),
+            (0x4c, ["KC_DELETE"]), (0x4e, ["KC_PGDOWN"]), (0x4f, ["KC_RGHT"]),
+            (0x53, ["KC_NUMLOCK", "KC_NLCK"]), (0x54, ["KC_KP_SLASH", "KC_PSLS"]),
+            (0x55, ["KC_KP_ASTERISK", "KC_PAST"]), (0x56, ["KC_KP_MINUS", "KC_PMNS"]),
+            (0x57, ["KC_KP_PLUS", "KC_PPLS"]), (0x58, ["KC_KP_ENTER", "KC_PENT"]),
+            (0x63, ["KC_KP_DOT", "KC_PDOT"]), (0x67, ["KC_KP_EQUAL", "KC_PEQL"]),
+            (0x85, ["KC_KP_COMMA", "KC_PCMM"]), (0x65, ["KC_APPLICATION", "KC_APP"]),
+            (0xe2, ["KC_LOPT"]), (0xe3, ["KC_LCMD", "KC_LWIN"]),
+            (0xe6, ["KC_ALGR", "KC_ROPT"]), (0xe7, ["KC_RCMD", "KC_RWIN"]),
+            (0x32, ["KC_NONUS_HASH", "KC_NUHS"]), (0x64, ["KC_NONUS_BSLASH", "KC_NUBS"]),
+            (0x87, ["KC_RO", "KC_INT1"]), (0x88, ["KC_KANA", "KC_INT2"]),
+            (0x89, ["KC_JYEN", "KC_INT3"]), (0x8a, ["KC_HENK", "KC_INT4"]),
+            (0x8b, ["KC_MHEN", "KC_INT5"]), (0x90, ["KC_LANG1", "KC_HAEN"]),
+            (0x91, ["KC_LANG2", "KC_HANJ"])]
+        for (raw, aliases) in names { for alias in aliases { result[alias] = raw } }
+        for index in 0..<10 {
+            let digit = (index + 1) % 10, raw = UInt16(0x59 + index)
+            result["KC_KP_\(digit)"] = raw; result["KC_P\(digit)"] = raw
+        }
         return result
     }()
 }

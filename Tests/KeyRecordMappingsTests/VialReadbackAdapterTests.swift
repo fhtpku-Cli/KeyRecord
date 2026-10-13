@@ -14,11 +14,12 @@ private actor SimulatedVialTransport: VialReadTransport {
     let keymap: [UInt8]
     let fault: ReadFault
     let encoderMismatch: Bool
+    let modifierNames: Bool
     let onExchange: (@Sendable (Int) async -> Void)?
     var requests: [VialReadRequest] = []
-    init(keymap: [UInt8] = vial6Keymap, fault: ReadFault = .none, encoderMismatch: Bool = false,
+    init(keymap: [UInt8] = vial6Keymap, fault: ReadFault = .none, encoderMismatch: Bool = false, modifierNames: Bool = false,
          onExchange: (@Sendable (Int) async -> Void)? = nil) {
-        self.keymap = keymap; self.fault = fault; self.encoderMismatch = encoderMismatch; self.onExchange = onExchange
+        self.keymap = keymap; self.fault = fault; self.encoderMismatch = encoderMismatch; self.modifierNames = modifierNames; self.onExchange = onExchange
     }
     func exchange(_ request: VialReadRequest, timeoutMilliseconds: Int) async throws -> [UInt8] {
         requests.append(request)
@@ -31,6 +32,9 @@ private actor SimulatedVialTransport: VialReadTransport {
             if request.bytes[1] == 3 {
                 XCTAssertEqual(request.bytes[3], 2)
                 bytes.replaceSubrange(0..<4, with: request.bytes[2] == 0 ? [0, 0x28, 0x12, 0x34] : [0, 6, 0, 1])
+                if modifierNames {
+                    bytes.replaceSubrange(0..<4, with: request.bytes[2] == 0 ? [0x0a, 0x28, 0x0f, 0x34] : [0x19, 6, 0, 1])
+                }
                 if encoderMismatch { bytes[3] ^= 1 }
                 return bytes
             }
@@ -273,10 +277,25 @@ final class VialReadbackAdapterTests: XCTestCase {
         _ = try document.patch([.init(slot: .init(layer: 1, column: 0), output: "KC_C", automatic: true)], expectedDevice: document.device, axes: axes(bytes), support: support)
     }
     func testProtocolReadbackIntegratesWithExportClaimsAndEncryptedResultRecovery() async throws {
-        let originalBytes = Data(String(decoding: encoderBytes, as: UTF8.self)
+        try await verifyEncryptedReadback(modifierNames: false)
+    }
+    func testCombinedModifierMatrixAndEncoderNamesUseFullComparisonAndEncryptedRecovery() async throws {
+        try await verifyEncryptedReadback(modifierNames: true)
+    }
+    private func verifyEncryptedReadback(modifierNames: Bool) async throws {
+        var text = String(decoding: encoderBytes, as: UTF8.self)
             .replacingOccurrences(of: "0x1234", with: "RSFT(KC_QUOTE)")
             .replacingOccurrences(of: "KC_A", with: "KC_BSLASH")
-            .replacingOccurrences(of: "0x5fff", with: "KC_KP_COMMA").utf8)
+            .replacingOccurrences(of: "0x5fff", with: "KC_KP_COMMA")
+        if modifierNames {
+            text = text.replacingOccurrences(of: "KC_BSLASH", with: "C_S(KC_BSLASH)")
+                .replacingOccurrences(of: "KC_KP_COMMA", with: "LCAG(KC_KP_COMMA)")
+                .replacingOccurrences(of: "RSFT(KC_QUOTE)", with: "HYPR(KC_QUOTE)")
+                .replacingOccurrences(of: #""KC_ENT""#, with: #""SCMD(KC_ENTER)""#)
+                .replacingOccurrences(of: #""KC_ENTER""#, with: #""SCMD(KC_ENTER)""#)
+                .replacingOccurrences(of: #""KC_C","KC_TRNS""#, with: #""RCG(KC_C)","KC_TRNS""#)
+        }
+        let originalBytes = Data(text.utf8)
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("vial-adapter-" + UUID().uuidString)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         addTeardownBlock { try? FileManager.default.removeItem(at: root) }
@@ -291,13 +310,14 @@ final class VialReadbackAdapterTests: XCTestCase {
             destination: FirmwareFileDestination(target: root.appendingPathComponent("patched.vil"), gate: gate))
         _ = try await operations.claimImport(batch.id, at: Date(timeIntervalSince1970: 2))
         var baseline = vial6Keymap
-        for offset in [8,24] { baseline[offset + 1] = 0x31 }
-        for offset in [10,26] { baseline[offset] = 0; baseline[offset + 1] = 0x85 }
+        for offset in [8,24] { baseline[offset] = modifierNames ? 3 : 0; baseline[offset + 1] = 0x31 }
+        for offset in [10,26] { baseline[offset] = modifierNames ? 0x0d : 0; baseline[offset + 1] = 0x85 }
+        if modifierNames { baseline[6] = 0x0a; baseline[22] = 0x0a }
         var expected = baseline; expected[3] = 6
         var external = expected; external[9] = 0x34
         for (raw, encoderMismatch, state) in [(expected, false, FirmwareMappingState.verified), (baseline, false, .failed),
                                               (external, false, .externallyChanged), (expected, true, .externallyChanged)] {
-            let adapter = try VialReadbackAdapter(transport: SimulatedVialTransport(keymap: raw, encoderMismatch: encoderMismatch),
+            let adapter = try VialReadbackAdapter(transport: SimulatedVialTransport(keymap: raw, encoderMismatch: encoderMismatch, modifierNames: modifierNames),
                 matrixRows: 2, matrixColumns: 4, encoderIndices: [2])
             let observation = try await adapter.observe(record: batch, original: originalBytes, at: { Date(timeIntervalSince1970: 3) })
             let result = try await operations.confirmVialReadback(batch.id, observation: observation)

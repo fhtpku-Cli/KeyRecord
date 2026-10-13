@@ -1,0 +1,20 @@
+[
+  {"token": "LCTL(KC_C)", "raw": 262, "aliases": ["C(KC_C)"]},
+  {"token": "LSFT(KC_C)", "raw": 518, "aliases": ["S(KC_C)"]},
+  {"token": "LALT(KC_C)", "raw": 1030, "aliases": ["LOPT(KC_C)", "A(KC_C)"]},
+  {"token": "LGUI(KC_C)", "raw": 2054, "aliases": ["LCMD(KC_C)", "LWIN(KC_C)", "G(KC_C)"]},
+  {"token": "RCTL(KC_C)", "raw": 4358, "aliases": []},
+  {"token": "RSFT(KC_C)", "raw": 4614, "aliases": []},
+  {"token": "RALT(KC_C)", "raw": 5126, "aliases": ["ALGR(KC_C)", "ROPT(KC_C)"]},
+  {"token": "RGUI(KC_C)", "raw": 6150, "aliases": ["RCMD(KC_C)", "RWIN(KC_C)"]},
+  {"token": "C_S(KC_C)", "raw": 774, "aliases": []},
+  {"token": "LCA(KC_C)", "raw": 1286, "aliases": []},
+  {"token": "LSA(KC_C)", "raw": 1542, "aliases": []},
+  {"token": "MEH(KC_C)", "raw": 1798, "aliases": []},
+  {"token": "LCG(KC_C)", "raw": 2310, "aliases": []},
+  {"token": "SGUI(KC_C)", "raw": 2566, "aliases": ["SCMD(KC_C)", "SWIN(KC_C)", "LSG(KC_C)"]},
+  {"token": "LAG(KC_C)", "raw": 3078, "aliases": []},
+  {"token": "LCAG(KC_C)", "raw": 3334, "aliases": []},
+  {"token": "HYPR(KC_C)", "raw": 3846, "aliases": []},
+  {"token": "RCG(KC_C)", "raw": 6406, "aliases": []}
+]

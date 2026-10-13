@@ -88,8 +88,8 @@ struct FirmwareIntegrationProbe {
     }
     static func run() async throws {
         let args = Array(CommandLine.arguments.dropFirst())
-        if args == ["--help"] { print("Usage: KeyRecordFirmwareIntegrationProbe <synthetic-original.vil> <patched-output.vil> [synthetic-definition.xz]\nOffline only: in-memory keys and simulated HID endpoint; no device is opened."); return }
-        guard args.count == 2 || args.count == 3 else { throw FirmwareError.invalidDocument }
+        if args == ["--help"] { print("Usage: KeyRecordFirmwareIntegrationProbe <synthetic-original.vil> <patched-output.vil> [synthetic-definition.xz [independent-keycodes.bin]]\nOffline only: in-memory keys and simulated HID endpoint; no device is opened."); return }
+        guard (2...4).contains(args.count) else { throw FirmwareError.invalidDocument }
         let bytes = try Data(contentsOf: URL(fileURLWithPath: args[0]))
         let document = try FirmwareDocument(bytes: bytes, backend: .vial)
         guard let shape = document.matrixDimensions, let uid = UInt64(document.device), let layers = UInt8(exactly: shape.layers),
@@ -101,7 +101,7 @@ struct FirmwareIntegrationProbe {
         _ = try await store.bootstrap(); await keys.seed(); try await store.initializeFreshInstallation(version: .init(rawValue: 1))
         let gate = KeyAvailabilityGate(); gate.update(.unlocked)
         let axes = try FirmwareVersionProvider.axes(bytes: bytes, backend: .vial,
-            definitionSchema: args.count == 3 ? VialDeviceDefinition.schema : "offline-official-source-matrix", importer: "offline-official-source-importer")
+            definitionSchema: args.count >= 3 ? VialDeviceDefinition.schema : "offline-official-source-matrix", importer: "offline-official-source-importer")
         let support = FirmwareSupportDirectory(entries: [.init(backend: .vial, device: document.device, axes: axes, supportedOutputs: ["KC_C"])])
         let operations = try FirmwareOperationCoordinator(store: store, support: support, resolve: { try FirmwareFileDestination(reference: $0, gate: gate) })
         let record = try await operations.retainOriginal(bytes, backend: .vial, axes: axes, confirmedAt: Date(timeIntervalSince1970: 1))
@@ -126,8 +126,22 @@ struct FirmwareIntegrationProbe {
             }
         }
         let observation: VialKeymapObservation
-        let encoders = try patched.encoderValues()
-        if args.count == 3 {
+        var encoders = try patched.encoderValues()
+        if args.count == 4 {
+            let independent = Array(try Data(contentsOf: URL(fileURLWithPath: args[3])))
+            let slots = encoders.keys.sorted {
+                ($0.layer, $0.index, $0.direction.rawValue) < ($1.layer, $1.index, $1.direction.rawValue)
+            }
+            let matrixSize = keymap.count
+            guard independent.count == matrixSize + slots.count * 2 else { throw FirmwareError.invalidDocument }
+            keymap = Array(independent.prefix(matrixSize))
+            for (index, slot) in slots.enumerated() {
+                let offset = matrixSize + index * 2
+                encoders[slot] = VialKeycodeDialect.token(UInt16(independent[offset]) << 8 | UInt16(independent[offset + 1]))
+            }
+            print("PASS: simulated reports use \(independent.count) independent keycode bytes")
+        }
+        if args.count >= 3 {
             let definition = try Data(contentsOf: URL(fileURLWithPath: args[2]))
             let endpoint = OfflineEndpoint(source: OfflineTransport(uid: uid, layers: layers, keymap: keymap, encoders: encoders, definition: definition))
             let transport = VialHIDTransport(endpoint: endpoint)

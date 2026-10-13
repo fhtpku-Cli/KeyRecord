@@ -1,5 +1,9 @@
 # 当前项目状态
 
+## Vial 6 普通组合修饰键兼容 — 2026-10-14
+
+从 [PR #34](https://github.com/fhtpku-Cli/KeyRecord/pull/34) 合并主干 `ad7c9c9c` 继续，其主干 CI 已成功。补齐 C_S、MEH、HYPR、RCG 等 10 个普通组合名称及 14 个有效别名，修复官方名称引发的 unsupportedOutput。84 项相关离线包/App 场景、官方独立字节及完整公开 API/加密重开、原生 AXPress 和未签名构建通过。LCS 无效别名、左右混用、未知动作和既有保护继续拒绝；正式工厂 nil、生产目录为空。见[本批记录](phase4/MODIFIER_KEYCODES_20261014.md)，真实设备与发布资格继续后置。下面保留历史证据。
+
 ## Vial 6 官方基础键名兼容 — 2026-10-14
 
 从 [PR #33](https://github.com/fhtpku-Cli/KeyRecord/pull/33) 已合并主干 `0bd3ea0f` 继续。修复官方长名如 `KC_QUOTE`、导航和数字键盘名称导致完整读回 `unsupportedOutput` 的兼容缺口；覆盖官方基础/特殊/ISO 集合的 117 个名称和 68 个明确别名。80 项相关离线包/App 场景、官方源码方法往返与公开 API、未签名 arm64 build-for-testing 通过，原生按钮进入 Verified；未知动作、层/安全入口保护、编码器单独变化及隐私/取消继续按原有规则处理。见[本批记录](phase4/BASIC_KEYCODES_20261014.md)。正式工厂 nil、生产支持目录为空，真实设备和发布资格继续后置。下面保留历史证据。

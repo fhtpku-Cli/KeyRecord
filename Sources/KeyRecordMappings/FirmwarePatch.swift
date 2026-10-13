@@ -133,7 +133,7 @@ public struct FirmwareDocument: Sendable {
         guard let node = slots[slot] else { throw FirmwareError.invalidSlot }
         return try JSONDecoder().decode(String.self, from: Data(bytes[node.range]))
     }
-    func slotValues() throws -> [FirmwareSlot: String] {
+    public func slotValues() throws -> [FirmwareSlot: String] {
         try Dictionary(uniqueKeysWithValues: slots.keys.map { ($0, try value(at: $0)) })
     }
     public func patch(_ changes: [FirmwareSlotChange], expectedDevice: String, axes: FirmwareVersionAxes,

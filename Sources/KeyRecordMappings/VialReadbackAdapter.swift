@@ -9,6 +9,11 @@ public struct VialReadRequest: Equatable, Sendable {
     public static let viaProtocol = VialReadRequest([0x01])
     public static let identity = VialReadRequest([0xfe, 0x00])
     public static let layerCount = VialReadRequest([0x11])
+    public static let definitionSize = VialReadRequest([0xfe, 0x01])
+    public static func definitionPage(_ page: UInt16) throws -> VialReadRequest {
+        guard page < 4096 else { throw VialReadbackError.invalidRequest }
+        return VialReadRequest([0xfe, 0x02, UInt8(page & 255), UInt8(page >> 8)])
+    }
     public static func keymap(offset: UInt16, length: UInt8) throws -> VialReadRequest {
         guard length > 0, length <= 28, Int(offset) + Int(length) <= 65_536 else { throw VialReadbackError.invalidRequest }
         return VialReadRequest([0x12, UInt8(offset >> 8), UInt8(offset & 255), length])

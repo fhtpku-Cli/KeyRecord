@@ -16,10 +16,10 @@ final class ProductBoundaryTests: XCTestCase {
         XCTAssertEqual(manifest.swiftLanguageVersions, ["6"])
         XCTAssertEqual(manifest.platforms.map(\.version), ["14.0"])
         XCTAssertEqual(manifest.platforms.map(\.platformName), ["macos"])
-        XCTAssertEqual(Set(manifest.products.map(\.name)), ["KeyRecordCore", "KeyRecordCapture", "KeyRecordStore", "KeyRecordAnalysis", "KeyRecordConfigurationRead", "KeyRecordMappings"])
+        XCTAssertEqual(Set(manifest.products.map(\.name)), ["KeyRecordCore", "KeyRecordCapture", "KeyRecordStore", "KeyRecordAnalysis", "KeyRecordConfigurationRead", "KeyRecordMappings", "KeyRecordDeviceRead"])
         XCTAssertTrue(manifest.products.allSatisfy { Set($0.type.keys) == ["library"] })
         let graph = Dictionary(uniqueKeysWithValues: manifest.targets.map { ($0.name, $0) })
-        XCTAssertEqual(Set(graph.keys), ["KeyRecordCore", "KeyRecordCapture", "KeyRecordStore", "KeyRecordAnalysis", "KeyRecordConfigurationRead", "KeyRecordAnalysisTests", "KeyRecordTestSupport", "KeyRecordStoreCrashProbe", "KeyRecordCaptureHarness", "KeyRecordCoreTests", "KeyRecordCaptureTests", "KeyRecordStoreTests", "KeyRecordIntegrationTests", "KeyRecordMeasurement", "KeyRecordResourceSampler", "KeyRecordPerformanceTrial", "KeyRecordMeasurementTests", "KeyRecordMappings", "KeyRecordMappingsTests", "KeyRecordMappingCrashProbe", "KeyRecordFirmwareIntegrationProbe"])
+        XCTAssertEqual(Set(graph.keys), ["KeyRecordCore", "KeyRecordCapture", "KeyRecordStore", "KeyRecordAnalysis", "KeyRecordConfigurationRead", "KeyRecordAnalysisTests", "KeyRecordTestSupport", "KeyRecordStoreCrashProbe", "KeyRecordCaptureHarness", "KeyRecordCoreTests", "KeyRecordCaptureTests", "KeyRecordStoreTests", "KeyRecordIntegrationTests", "KeyRecordMeasurement", "KeyRecordResourceSampler", "KeyRecordPerformanceTrial", "KeyRecordMeasurementTests", "KeyRecordMappings", "KeyRecordMappingsTests", "KeyRecordMappingCrashProbe", "KeyRecordFirmwareIntegrationProbe", "KeyRecordDeviceRead", "KeyRecordDeviceReadTests", "KeyRecordLimitedXZ"])
         // Resource measurement is test-only tooling: never a product, independent of every
         // product library, and the sampler links nothing but the measurement arithmetic.
         XCTAssertEqual(graph["KeyRecordMeasurement"]?.dependencies.count, 0)
@@ -31,7 +31,7 @@ final class ProductBoundaryTests: XCTestCase {
                        ["KeyRecordMeasurement"])
         for tool in ["KeyRecordMeasurement", "KeyRecordResourceSampler", "KeyRecordPerformanceTrial"] {
             XCTAssertFalse(manifest.products.map(\.name).contains(tool))
-            for product in ["KeyRecordCore", "KeyRecordCapture", "KeyRecordStore", "KeyRecordAnalysis", "KeyRecordConfigurationRead", "KeyRecordMappings"] {
+            for product in ["KeyRecordCore", "KeyRecordCapture", "KeyRecordStore", "KeyRecordAnalysis", "KeyRecordConfigurationRead", "KeyRecordMappings", "KeyRecordDeviceRead"] {
                 XCTAssertFalse(graph[product]?.dependencies.compactMap { $0.byName.first ?? nil }
                     .contains(tool) ?? true, "\(product) -> \(tool)")
             }
@@ -44,10 +44,13 @@ final class ProductBoundaryTests: XCTestCase {
         XCTAssertEqual(graph["KeyRecordAnalysis"]?.dependencies.compactMap { $0.byName.first ?? nil }, ["KeyRecordCore", "KeyRecordConfigurationRead"])
         XCTAssertEqual(graph["KeyRecordMappings"]?.dependencies.compactMap { $0.byName.first ?? nil }, ["KeyRecordCore", "KeyRecordAnalysis", "KeyRecordStore", "KeyRecordConfigurationRead"])
         XCTAssertEqual(graph["KeyRecordMappingsTests"]?.dependencies.compactMap { $0.byName.first ?? nil }, ["KeyRecordMappings"])
+        XCTAssertEqual(graph["KeyRecordDeviceRead"]?.dependencies.compactMap { $0.byName.first ?? nil }, ["KeyRecordMappings", "KeyRecordConfigurationRead", "KeyRecordLimitedXZ"])
+        XCTAssertEqual(graph["KeyRecordDeviceReadTests"]?.dependencies.compactMap { $0.byName.first ?? nil }, ["KeyRecordDeviceRead", "KeyRecordMappings"])
+        XCTAssertEqual(graph["KeyRecordLimitedXZ"]?.dependencies.count, 0)
         XCTAssertEqual(graph["KeyRecordMappingCrashProbe"]?.dependencies.compactMap { $0.byName.first ?? nil }, ["KeyRecordCore", "KeyRecordAnalysis", "KeyRecordStore", "KeyRecordMappings"])
         XCTAssertEqual(graph["KeyRecordMappingCrashProbe"]?.type, "executable")
         XCTAssertFalse(manifest.products.map(\.name).contains("KeyRecordMappingCrashProbe"))
-        XCTAssertEqual(graph["KeyRecordFirmwareIntegrationProbe"]?.dependencies.compactMap { $0.byName.first ?? nil }, ["KeyRecordCore", "KeyRecordStore", "KeyRecordMappings"])
+        XCTAssertEqual(graph["KeyRecordFirmwareIntegrationProbe"]?.dependencies.compactMap { $0.byName.first ?? nil }, ["KeyRecordCore", "KeyRecordStore", "KeyRecordMappings", "KeyRecordDeviceRead"])
         XCTAssertEqual(graph["KeyRecordFirmwareIntegrationProbe"]?.type, "executable")
         XCTAssertFalse(manifest.products.map(\.name).contains("KeyRecordFirmwareIntegrationProbe"))
         XCTAssertEqual(graph["KeyRecordCoreTests"]?.dependencies.compactMap { $0.byName.first ?? nil }, ["KeyRecordCore", "KeyRecordTestSupport"])
@@ -78,6 +81,7 @@ final class ProductBoundaryTests: XCTestCase {
             "KeyRecordCore": ["Foundation"],
             "KeyRecordAnalysis": ["Foundation", "KeyRecordCore", "KeyRecordConfigurationRead"],
             "KeyRecordMappings": ["Foundation", "Darwin", "CryptoKit", "KeyRecordCore", "KeyRecordAnalysis", "KeyRecordStore", "KeyRecordConfigurationRead"],
+            "KeyRecordDeviceRead": ["Foundation", "IOKit", "IOKit.hid", "KeyRecordMappings", "KeyRecordConfigurationRead", "KeyRecordLimitedXZ"],
             "KeyRecordConfigurationRead": ["Foundation"],
             "KeyRecordCapture": ["Foundation", "KeyRecordCore", "AppKit", "CoreGraphics"],
             "KeyRecordStore": ["Foundation", "KeyRecordCore", "CryptoKit", "Security"],
@@ -95,6 +99,9 @@ final class ProductBoundaryTests: XCTestCase {
             let imports = try SourceInspection.imports(in: String(contentsOf: file, encoding: .utf8))
             var allowed: Set<String> = ["Foundation", "XCTest", "KeyRecordCore", "KeyRecordCapture", "KeyRecordStore", "KeyRecordTestSupport"]
             if file.path.contains("Tests/KeyRecordAnalysisTests/") { allowed.formUnion(["KeyRecordAnalysis", "KeyRecordConfigurationRead"]) }
+            if file.path.contains("Tests/KeyRecordDeviceReadTests/") || file.path.contains("Tests/KeyRecordFirmwareIntegrationProbe/") {
+                allowed.formUnion(["KeyRecordDeviceRead", "KeyRecordMappings"])
+            }
             if file.path.contains("Tests/KeyRecordMappingsTests/") || file.path.contains("Tests/KeyRecordMappingCrashProbe/")
                 || file.path.contains("Tests/KeyRecordFirmwareIntegrationProbe/") {
                 allowed.formUnion(["KeyRecordMappings", "KeyRecordAnalysis", "Darwin"])

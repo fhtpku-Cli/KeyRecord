@@ -1,6 +1,6 @@
 # 路线图与当前交付状态
 
-状态日期：2026-10-13，Asia/Shanghai。增量 A 的主体已由 [PR #19](https://github.com/fhtpku-Cli/KeyRecord/pull/19) 合并为
+状态日期：2026-10-14，Asia/Shanghai。增量 A 的主体已由 [PR #19](https://github.com/fhtpku-Cli/KeyRecord/pull/19) 合并为
 `adae0c4e429ff2c955b978f67a0afd069ce7708c`，[主干 CI 通过](https://github.com/fhtpku-Cli/KeyRecord/actions/runs/38246915859)。
 B 的工程基础及只读 VIA 参考已由 [PR #21](https://github.com/fhtpku-Cli/KeyRecord/pull/21) 合并为 `2c29f18e6`。开发签名 arm64 隔离试用包和短流程已准备，实际试用未执行；见 [准备记录](phase2/TRIAL_PREPARATION_20261013.md)。不增加新门禁或实机验收轮次。
 
@@ -12,7 +12,7 @@ B 的工程基础及只读 VIA 参考已由 [PR #21](https://github.com/fhtpku-C
 | Phase 1: collection, privacy, encrypted storage | **Approved Apple Silicon MVP complete and merged** | Measured arm64 macOS 27.0 build 26A428 only; development-signed local trial. Existing candidate-specific short ARM and lifecycle evidence retained. Full original G1/v1, all OS/architectures and public release are not claimed. |
 | Phase 2：确定性分析 | **A/B 工程开发与离线自审完成；真实 G2 证据后置** | 能力过滤、范围明确的冲突检查、特殊键池、手动候选、物理链消费/回退与只读副本已接通。实际后端、完整真实部署/变换链、系统选择器授权和真实保存重开集中留后；产品不冒充已连接或真实物理收益。 |
 | Phase 3: Karabiner stable path | **部署会话和原生卸载工程增量完成；完整 G3 未完成** | 目标绑定、加密引用、隐私重开和外部监测已接通；暂停捕获→逐份恢复副本→规则→登录项→数据选择的默认卸载准备及阶段显示已离线执行。历史阶段仅供检查，维护期间后台对账延后并恢复。空生产支持目录只读，真实版本、重载、效果和停用 p95 后置。[本批记录](phase3/RECOVERY_CHOICES_20261013.md)。 |
-| Phase 4: VIA/Vial Beta | **Vial 6 协议与官方格式离线集成完成；未合格** | 部分版本轴、官方空位格式、Vial 6 / VIA 9 只读协议适配器及原生读回按钮已离线接通；官方源码方法保存/恢复与公开 API 闭环通过。正式支持目录为空，实际 HID/独立定义读取、完整键码及版本矩阵/真实设备覆盖仍缺失，VIA GUI 往返未执行。[本批记录](phase4/BACKEND_OFFLINE_INTEGRATION_20261013.md)。 |
+| Phase 4: VIA/Vial Beta | **HID 传输与独立定义源码/离线集成完成；未合格** | 独立模块已有原生异步 HID 源码、单交换/终止连接、分页 XZ 定义及逐层坐标匹配；公开 API 经模拟底层报告端口和真实系统解码闭环通过。正式 App 不打开 HID，空生产支持目录仍不合格；原生 IO 时序/权限、真实版本/键码矩阵、复杂定义/动态子协议及 VIA GUI/设备证据继续后置。[本批记录](phase4/HID_DEFINITION_20261014.md)。 |
 | Full v1 / public distribution | **Not qualified** | PRD §15 requirements, FR-P6 full password backup, Intel/full support matrix, public name/license decision, signing/notarization and backend requirements remain. |
 
 Requirements remain in [PRD](PRD.md) and [architecture §15](TECHNICAL_ARCHITECTURE.md#15-分阶段交付与发布门禁).

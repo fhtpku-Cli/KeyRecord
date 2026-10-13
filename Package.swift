@@ -5,6 +5,7 @@ let package = Package(
     name: "KeyRecord",
     platforms: [.macOS(.v14)],
     products: [
+        .library(name: "KeyRecordDeviceRead", targets: ["KeyRecordDeviceRead"]),
         .library(name: "KeyRecordMappings", targets: ["KeyRecordMappings"]),
         .library(name: "KeyRecordConfigurationRead", targets: ["KeyRecordConfigurationRead"]),
         .library(name: "KeyRecordAnalysis", targets: ["KeyRecordAnalysis"]),
@@ -14,10 +15,13 @@ let package = Package(
     ],
     dependencies: [],
     targets: [
+        .target(name: "KeyRecordLimitedXZ", linkerSettings: [.linkedLibrary("lzma.5")]),
+        .target(name: "KeyRecordDeviceRead", dependencies: ["KeyRecordMappings", "KeyRecordConfigurationRead", "KeyRecordLimitedXZ"]),
+        .testTarget(name: "KeyRecordDeviceReadTests", dependencies: ["KeyRecordDeviceRead", "KeyRecordMappings"]),
         .target(name: "KeyRecordMappings", dependencies: ["KeyRecordCore", "KeyRecordAnalysis", "KeyRecordStore", "KeyRecordConfigurationRead"]),
         .testTarget(name: "KeyRecordMappingsTests", dependencies: ["KeyRecordMappings"]),
         .executableTarget(name: "KeyRecordMappingCrashProbe", dependencies: ["KeyRecordCore", "KeyRecordAnalysis", "KeyRecordStore", "KeyRecordMappings"], path: "Tests/KeyRecordMappingCrashProbe"),
-        .executableTarget(name: "KeyRecordFirmwareIntegrationProbe", dependencies: ["KeyRecordCore", "KeyRecordStore", "KeyRecordMappings"], path: "Tests/KeyRecordFirmwareIntegrationProbe"),
+        .executableTarget(name: "KeyRecordFirmwareIntegrationProbe", dependencies: ["KeyRecordCore", "KeyRecordStore", "KeyRecordMappings", "KeyRecordDeviceRead"], path: "Tests/KeyRecordFirmwareIntegrationProbe"),
         .target(name: "KeyRecordConfigurationRead"),
         .target(name: "KeyRecordAnalysis", dependencies: ["KeyRecordCore", "KeyRecordConfigurationRead"]),
         .testTarget(name: "KeyRecordAnalysisTests", dependencies: ["KeyRecordAnalysis", "KeyRecordConfigurationRead"]),

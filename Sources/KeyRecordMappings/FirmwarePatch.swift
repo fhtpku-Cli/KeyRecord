@@ -55,6 +55,14 @@ public struct FirmwareSlotChange: Codable, Equatable, Sendable {
     public let automatic: Bool
     public init(slot: FirmwareSlot, output: String, automatic: Bool) { self.slot = slot; self.output = output; self.automatic = automatic }
 }
+public struct FirmwareSlotDifference: Equatable, Sendable {
+    public let change: FirmwareSlotChange
+    public let before: String
+}
+public struct FirmwarePatchPreview: Equatable, Sendable {
+    public let batch: UUID
+    public let differences: [FirmwareSlotDifference]
+}
 public struct VialKeymapObservation: Sendable {
     public let device: String
     public let axes: FirmwareVersionAxes

@@ -346,7 +346,15 @@
 "phase4.row" = "行（从 0 开始）";
 "phase4.column" = "位置（从 0 开始）";
 "phase4.outputKeycode" = "标准固件键码";
-"phase4.exportChanges" = "导出所选位置的修改";
+"phase4.exportChanges" = "导出已检查的修改";
+"phase4.stagePatchChange" = "加入或更新这个位置的修改";
+"phase4.removePatchChange" = "移除此修改";
+"phase4.previewPatch" = "预览所选修改";
+"phase4.patchPreviewTitle" = "所选位置差异";
+"phase4.patchPreviewExplanation" = "只修改列出的这些位置，宏及未知内容保持原样。导出不代表修改已部署到键盘。";
+"phase4.patchInvalid" = "无法预览这些修改，请检查位置、键码、可达层及最新原始副本。";
+"phase4.viaSlot" = "层 %d，位置 %d";
+"phase4.vialSlot" = "层 %d，行 %d，位置 %d";
 "phase4.confirmOperation" = "确认此操作";
 "phase4.exportedAt" = "导出日期";
 "phase4.importClaimedAt" = "导入声明日期";

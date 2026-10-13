@@ -11,6 +11,8 @@ final class FirmwareCopiesModel: ObservableObject {
     @Published private(set) var working = false
     @Published private(set) var uninstallReady = false
     @Published private(set) var uninstallStage: UninstallPreparationStage?
+    @Published private(set) var patchDrafts: [UUID: [FirmwareSlotChange]] = [:]
+    @Published private(set) var patchPreviews: [UUID: FirmwarePatchPreview] = [:]
     @Published private(set) var previousPreparation: UninstallPreparationRecord?
     @Published var recoverySelections: [UUID: RecoverySelection] = [:]
     @Published var deleteLocalData = false
@@ -66,6 +68,7 @@ final class FirmwareCopiesModel: ObservableObject {
                    vialReadback: (@Sendable (FirmwareBatchRecord) async throws -> VialKeymapObservation)? = nil) {
         self.store = store; self.gate = gate; self.support = support; self.versionAxes = versionAxes; firmware = nil
         self.vialReadback = vialReadback
+        patchPreviews = [:]
     }
     func configureUninstall(_ actions: UninstallActions) { uninstall = actions }
     var canPrepareUninstall: Bool {
@@ -82,6 +85,7 @@ final class FirmwareCopiesModel: ObservableObject {
         session = UUID(); records = []; firmware = nil; issueKey = nil; working = false
         recoverySelections = [:]; deleteLocalData = false
         uninstallStage = nil; previousPreparation = nil; uninstallReady = false
+        patchDrafts = [:]; patchPreviews = [:]
     }
     func refresh() async {
         guard canRead(), !working, store != nil else { return }
@@ -94,6 +98,8 @@ final class FirmwareCopiesModel: ObservableObject {
             if canRead(), ticket == session, request == readRequest {
                 records = ledger.records; previousPreparation = previous
                 recoverySelections = recoverySelections.filter { id, _ in records.contains(where: { $0.id == id }) }
+                patchDrafts = patchDrafts.filter { id, _ in records.contains(where: { $0.id == id && $0.state == .draft }) }
+                patchPreviews = patchPreviews.filter { id, _ in records.contains(where: { $0.id == id && canGenerate($0) }) }
                 onChange()
             }
         } catch { if canRead(), ticket == session { issueKey = "phase4.operationFailed"; onChange() } }
@@ -149,11 +155,44 @@ final class FirmwareCopiesModel: ObservableObject {
         if canRead(), ticket == session { working = false; await refresh(); onChange() }
     }
     func canGenerate(_ record: FirmwareBatchRecord) -> Bool {
-        canRead() && !working && record.state == .draft &&
+        !working && canInspectPatchDraft(record)
+    }
+    func canInspectPatchDraft(_ record: FirmwareBatchRecord) -> Bool {
+        canRead() && record.state == .draft &&
             records.last(where: { $0.backend == record.backend && $0.device == record.device })?.id == record.id &&
             isCompatible(record)
     }
     func isCompatible(_ record: FirmwareBatchRecord) -> Bool { support.supports(backend: record.backend, device: record.device, axes: record.axes) }
+    func stagePatchChange(_ change: FirmwareSlotChange, record: FirmwareBatchRecord, ticket: UUID) {
+        guard ticket == session, records.contains(record), canGenerate(record) else { return }
+        var changes = patchDrafts[record.id] ?? []
+        if let index = changes.firstIndex(where: { $0.slot == change.slot }) { changes[index] = change }
+        else { changes.append(change) }
+        patchDrafts[record.id] = changes; patchPreviews[record.id] = nil
+    }
+    func removePatchChange(slot: FirmwareSlot, record: FirmwareBatchRecord, ticket: UUID) {
+        guard ticket == session, records.contains(record), canGenerate(record),
+              var changes = patchDrafts[record.id], let index = changes.firstIndex(where: { $0.slot == slot }) else { return }
+        changes.remove(at: index); patchDrafts[record.id] = changes; patchPreviews[record.id] = nil
+    }
+    func previewPatch(_ record: FirmwareBatchRecord, ticket: UUID) async {
+        guard ticket == session, records.contains(record), canGenerate(record) else { return }
+        let changes = patchDrafts[record.id] ?? []
+        patchPreviews[record.id] = nil; working = true; readRequest = UUID(); issueKey = nil
+        defer { if ticket == session { working = false; onChange() } }
+        do {
+            let preview = try await coordinator().preview(record.id, changes: changes)
+            if canRead(), ticket == session, records.contains(record) { patchPreviews[record.id] = preview }
+        } catch { if canRead(), ticket == session { issueKey = "phase4.patchInvalid" } }
+    }
+    func canExportPreview(_ record: FirmwareBatchRecord) -> Bool {
+        canGenerate(record) && patchPreviews[record.id]?.differences.map(\.change) == patchDrafts[record.id]
+            && patchPreviews[record.id]?.differences.isEmpty == false
+    }
+    func exportPreview(_ record: FirmwareBatchRecord, ticket: UUID) async {
+        guard canExportPreview(record), let preview = patchPreviews[record.id] else { return }
+        await exportChanges(record, changes: preview.differences.map(\.change), ticket: ticket)
+    }
     func canVerifyVial(_ record: FirmwareBatchRecord) -> Bool {
         canRead() && !working && hasVialReadback(record)
     }
@@ -183,7 +222,9 @@ final class FirmwareCopiesModel: ObservableObject {
             _ = try await operations.prepare(record.id, changes: changes)
             guard canRead(), ticket == session, let url = selectExport(record), canRead(), ticket == session else { return }
             let ledger = try await operations.export(record.id, changes: changes, destination: FirmwareFileDestination(target: url, gate: gate))
-            if canRead(), ticket == session { records = ledger.records }
+            if canRead(), ticket == session {
+                records = ledger.records; patchPreviews[record.id] = nil; patchDrafts[record.id] = nil
+            }
         } catch { if canRead(), ticket == session { issueKey = "phase4.operationFailed" } }
     }
     enum RecordAction { case claimImport, abandon, rollback, viaPassed, viaFailed }
@@ -305,25 +346,14 @@ private struct FirmwareOperationRow: View {
     @ObservedObject var model: FirmwareCopiesModel
     let record: FirmwareBatchRecord
     let text: NativeText
-    @State private var layer = 0
-    @State private var row = 0
-    @State private var column = 0
-    @State private var output = "KC_C"
     @State private var pending: (FirmwareCopiesModel.RecordAction, UUID, String)?
     private func request(_ action: FirmwareCopiesModel.RecordAction, key: String) {
         if let ticket = model.selectionTicket() { pending = (action, ticket, key) }
     }
     var body: some View {
         if record.state == .draft {
-            if model.canGenerate(record) {
-                Stepper(text("phase4.layer") + ": \(layer)", value: $layer, in: 0...255)
-                if record.backend == .vial { Stepper(text("phase4.row") + ": \(row)", value: $row, in: 0...255) }
-                Stepper(text("phase4.column") + ": \(column)", value: $column, in: 0...255)
-                TextField(text("phase4.outputKeycode"), text: $output)
-                Button(text("phase4.exportChanges")) {
-                    let changes = [FirmwareSlotChange(slot: FirmwareSlot(layer: layer, row: row, column: column), output: output, automatic: false)]
-                    if let ticket = model.selectionTicket() { Task { await model.exportChanges(record, changes: changes, ticket: ticket) } }
-                }.accessibilityIdentifier("patch-" + record.id.uuidString)
+            if model.canInspectPatchDraft(record) {
+                FirmwarePatchDraftSection(model: model, record: record, text: text)
             }
         }
         if record.state == .awaitingUserImport {

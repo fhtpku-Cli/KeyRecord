@@ -78,6 +78,7 @@ enum LocalizationAudit {
         keys.formUnion(statuses.map { "phase2.status.\($0.rawValue)" })
         keys.formUnion(KarabinerMappingState.allCases.map { "phase3.state.\($0.rawValue)" })
         keys.formUnion(["draft", "awaitingUserImport", "importClaimed", "verified", "failed", "externallyChanged", "rolledBack"].map { "phase4.state.\($0)" })
+        keys.formUnion(["captureStopped", "recoverySecured", "rulesRemoved", "loginRemoved", "ready", "erasing", "completed"].map { "phase4.uninstallStage.\($0)" })
         keys.formUnion(CandidateConflict.allCases.map { "phase2.conflict.\($0.rawValue)" })
         keys.formUnion(ConflictLimitation.allCases.map { "phase2.conflict.limit.\($0.rawValue)" })
         keys.formUnion(["observed", "known-system-risk", "karabiner-overlap", "firmware-rules"].map { "phase2.evidence.\($0)" })

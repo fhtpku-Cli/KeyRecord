@@ -350,7 +350,8 @@
 "phase4.confirmOperation" = "确认此操作";
 "phase4.exportedAt" = "导出日期";
 "phase4.importClaimedAt" = "导入声明日期";
-"phase4.evidenceAt" = "行为测试记录日期";
+"phase4.evidenceAt" = "验证证据记录日期";
+"phase4.verifyVialReadback" = "比对 Vial 键位读回结果";
 "phase4.claimImport" = "我已使用官方导入器导入此文件";
 "phase4.claimImportConfirm" = "记录你的导入声明？此操作不验证键盘行为。";
 "phase4.abandonExport" = "放弃这份尚未导入的修改";
@@ -369,6 +370,13 @@
 "phase4.deleteOriginal" = "删除保留的原始副本";
 "phase4.deleteOriginalConfirm" = "删除此原始副本？不会改变外部文件和键盘。请先在其他位置保留恢复副本。";
 "phase4.uninstallTitle" = "卸载准备";
+"phase4.uninstallStage.captureStopped" = "采集已停止。";
+"phase4.uninstallStage.recoverySecured" = "恢复方式已记录，已导出的恢复副本已检查。";
+"phase4.uninstallStage.rulesRemoved" = "受管规则移除步骤已完成。";
+"phase4.uninstallStage.loginRemoved" = "登录项移除步骤已完成。";
+"phase4.uninstallStage.ready" = "规则与登录项清理已完成，本地数据仍保留。";
+"phase4.uninstallStage.erasing" = "本地数据清除已开始。如中断，请检查结果后再重试。";
+"phase4.uninstallStage.completed" = "所选本地数据清除已完成。";
 "phase4.uninstallExplanation" = "先处理恢复副本，再移除 KeyRecord 受管规则和登录项。除非勾选下方选项，否则保留本地数据。完成后请退出 KeyRecord，并自行将应用移到废纸篓。";
 "phase4.recoveryChoice" = "固件恢复副本";
 "phase4.recoveryExport" = "逐一导出保留的原始副本";

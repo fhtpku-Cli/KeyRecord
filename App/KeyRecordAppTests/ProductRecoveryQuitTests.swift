@@ -552,6 +552,10 @@ final class ProductRecoveryQuitTests: XCTestCase {
                 XCTAssertEqual(keys, 0); XCTAssertFalse(FileManager.default.fileExists(atPath: product.storeRoot.path))
                 XCTAssertFalse(product.composition.flow.sensitiveContentVisible); XCTAssertTrue(model.records.isEmpty)
             } else {
+                XCTAssertEqual(product.phase, .paused)
+                let live = await product.live
+                XCTAssertFalse(live)
+                XCTAssertEqual(model.uninstallStage, .ready)
                 XCTAssertGreaterThan(keys, 0); XCTAssertTrue(FileManager.default.fileExists(atPath: product.storeRoot.path))
                 XCTAssertEqual(product.composition.lifecycle.state.preferences?.loginItemEnabled, false)
                 XCTAssertEqual(model.records.count, 1)
@@ -564,6 +568,8 @@ final class ProductRecoveryQuitTests: XCTestCase {
         let model = product.composition.flow.firmwareCopies
         await model.prepareUninstall(ticket: try XCTUnwrap(model.selectionTicket()), choice: 1, deleteData: true, discard: false)
         XCTAssertFalse(model.uninstallReady); XCTAssertNotNil(model.issueKey)
+        XCTAssertEqual(product.phase, .paused)
+        XCTAssertEqual(model.uninstallStage, .rulesRemoved)
         let calls = await login.removals; let keys = await product.keychain.itemCount
         XCTAssertEqual(calls, 1); XCTAssertGreaterThan(keys, 0)
         XCTAssertTrue(FileManager.default.fileExists(atPath: product.storeRoot.path))

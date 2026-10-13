@@ -34,6 +34,8 @@ public struct FirmwarePendingOperation: Codable, Equatable, Sendable {
     public var recordedAt: Date?
     public var verificationPassed: Bool?
     public var previousState: FirmwareMappingState = .draft
+    public var verificationState: FirmwareMappingState?
+    public var verificationSource: String?
 }
 public struct FirmwareLedger: Codable, Equatable, Sendable {
     public var records: [FirmwareBatchRecord] = []
@@ -164,6 +166,46 @@ public actor FirmwareOperationCoordinator {
         ledger.records[index].state = .draft; ledger.records[index].artifactSHA256 = nil; ledger.records[index].exportedAt = nil
         ledger.pending = nil; try await save(ledger); return ledger
     }
+    public func confirmVialReadback(_ batch: UUID, observation: VialKeymapObservation) async throws -> FirmwareLedger {
+        try begin(); defer { busy = false }
+        var ledger = try await ledger()
+        guard ledger.pending == nil, let index = ledger.records.firstIndex(where: { $0.id == batch }),
+              ledger.records[index].backend == .vial,
+              [.importClaimed, .verified, .failed, .externallyChanged].contains(ledger.records[index].state) else {
+            throw FirmwareError.invalidState
+        }
+        let record = ledger.records[index]
+        guard observation.device == record.device else { throw FirmwareError.identityMismatch }
+        guard observation.axes == record.axes,
+              support.supports(backend: .vial, device: record.device, axes: observation.axes) else { throw FirmwareError.unknownCompatibility }
+        guard let claim = record.importClaimedAt, observation.observedAt >= claim,
+              observation.observedAt >= (record.verifiedAt ?? claim) else { throw FirmwareError.unavailable }
+        let bytes = try await store.read(identity(batch, original: false))
+        guard KarabinerTransactionCoordinator.fileDigest(bytes) == record.artifactSHA256 else { throw FirmwareError.unavailable }
+        let expected = try FirmwareDocument(bytes: bytes, backend: .vial).slotValues()
+        let baseline = try FirmwareDocument(bytes: await original(batch), backend: .vial).slotValues()
+        guard Set(observation.values.keys) == Set(expected.keys) else { throw FirmwareError.invalidDocument }
+        let result: FirmwareMappingState = observation.values == expected ? .verified
+            : observation.values == baseline ? .failed : .externallyChanged
+        let pending = FirmwarePendingOperation(batch: batch, phase: .evidenceRecorded, recordedAt: observation.observedAt,
+            verificationState: result, verificationSource: "vialKeymapReadback")
+        ledger.pending = pending
+        try await checkpoint(.evidenceRecorded, ledger: &ledger)
+        try applyEvidence(pending, to: &ledger.records[index])
+        ledger.pending = nil; try await save(ledger); return ledger
+    }
+    private func applyEvidence(_ pending: FirmwarePendingOperation, to record: inout FirmwareBatchRecord) throws {
+        guard let date = pending.recordedAt else { throw FirmwareError.unavailable }
+        if let state = pending.verificationState {
+            guard record.backend == .vial, [.verified, .failed, .externallyChanged].contains(state),
+                  pending.verificationSource == "vialKeymapReadback" else { throw FirmwareError.unavailable }
+            record.state = state; record.verificationSource = pending.verificationSource
+        } else {
+            guard record.backend == .via, let passed = pending.verificationPassed else { throw FirmwareError.unavailable }
+            record.state = passed ? .verified : .failed; record.verificationSource = "userBehaviorTestConfirmation"
+        }
+        record.verifiedAt = date
+    }
     public func confirmGuidedRollback(_ batch: UUID) async throws -> FirmwareLedger {
         try begin(); defer { busy = false }
         var ledger = try await ledger()
@@ -191,9 +233,7 @@ public actor FirmwareOperationCoordinator {
                 guard let date = pending.recordedAt else { throw FirmwareError.unavailable }
                 ledger.records[index].state = .importClaimed; ledger.records[index].importClaimedAt = date
             case .evidenceRecorded:
-                guard let date = pending.recordedAt, let passed = pending.verificationPassed else { throw FirmwareError.unavailable }
-                ledger.records[index].state = passed ? .verified : .failed
-                ledger.records[index].verifiedAt = date; ledger.records[index].verificationSource = "userBehaviorTestConfirmation"
+                try applyEvidence(pending, to: &ledger.records[index])
             case .abandonRequested:
                 try await deleteArtifact(pending.batch)
                 ledger.records[index].state = .draft; ledger.records[index].artifactSHA256 = nil; ledger.records[index].exportedAt = nil

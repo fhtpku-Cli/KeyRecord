@@ -57,7 +57,8 @@ Phase 1 native UI evidence does not automatically qualify the separate dashboard
 
 ## Dated plans, checkpoints and execution reports
 
-- [docs/phase3/RECOVERY_CHOICES_20261013.md](phase3/RECOVERY_CHOICES_20261013.md) — PR #26 已合并；最新逐份恢复选择、历史阶段和维护对账互斥、81 项相关测试及资格边界
+- [docs/phase4/PATCH_PREVIEW_20261013.md](phase4/PATCH_PREVIEW_20261013.md) — PR #27 已合并；最新固件多槽草稿、差异预览、86 项离线测试及资格边界
+- [docs/phase3/RECOVERY_CHOICES_20261013.md](phase3/RECOVERY_CHOICES_20261013.md) — 前一批逐份恢复选择、历史阶段和维护对账互斥、81 项相关测试
 - [docs/phase3/RECOVERY_READBACK_20261013.md](phase3/RECOVERY_READBACK_20261013.md) — 前一批卸载停采集/进度、离线 Vial 证据比对和恢复、75 项相关测试
 - [docs/phase3/NATIVE_UNINSTALL_20261013.md](phase3/NATIVE_UNINSTALL_20261013.md) — 前一批原生卸载/固件流程、107 项离线执行及自审记录
 - [docs/phase3/DEPLOYMENT_FIRMWARE_20261013.md](phase3/DEPLOYMENT_FIRMWARE_20261013.md) — 前一部署会话/固件核心增量及当时的审批限制

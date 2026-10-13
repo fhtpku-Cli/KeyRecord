@@ -1,5 +1,7 @@
 # 逐份恢复选择与卸载历史阶段
 
+后续状态：本批 [PR #27](https://github.com/fhtpku-Cli/KeyRecord/pull/27) 已合并为 `98477201d0f71edcc7df0fe252c33c92d7cfbfbf`。最新固件多槽预览见[后续记录](../phase4/PATCH_PREVIEW_20261013.md)，下文保留本批范围。
+
 状态日期：2026-10-13，Asia/Shanghai。源码提交：`822d70d5838e759752a34c5b12e40c93026123c5`。
 
 ## 交付范围

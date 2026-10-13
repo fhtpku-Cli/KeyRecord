@@ -346,7 +346,15 @@
 "phase4.row" = "Row (starting at 0)";
 "phase4.column" = "Position (starting at 0)";
 "phase4.outputKeycode" = "Standard firmware keycode";
-"phase4.exportChanges" = "Export the selected slot change";
+"phase4.exportChanges" = "Export the reviewed changes";
+"phase4.stagePatchChange" = "Add or update this slot change";
+"phase4.removePatchChange" = "Remove this change";
+"phase4.previewPatch" = "Preview the selected changes";
+"phase4.patchPreviewTitle" = "Selected slot differences";
+"phase4.patchPreviewExplanation" = "Only these slots change. Macros and unknown sections are preserved. Exporting does not deploy the changes to the keyboard.";
+"phase4.patchInvalid" = "The changes could not be previewed. Check the slot, keycode, reachable layer and latest original copy.";
+"phase4.viaSlot" = "Layer %d, position %d";
+"phase4.vialSlot" = "Layer %d, row %d, position %d";
 "phase4.confirmOperation" = "Confirm this operation";
 "phase4.exportedAt" = "Exported on";
 "phase4.importClaimedAt" = "Import declared on";

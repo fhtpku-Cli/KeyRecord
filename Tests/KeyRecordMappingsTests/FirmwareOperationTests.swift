@@ -38,6 +38,50 @@ final class FirmwareOperationTests: XCTestCase {
         VialKeymapObservation(device: device, axes: axes,
             values: [FirmwareSlot(layer: 0, column: 0): first, FirmwareSlot(layer: 0, column: 1): second], observedAt: at)
     }
+    func testMultiSlotPreviewIsReadOnlyAndMatchesPreparedArtifact() async throws {
+        let (_, store, _, gate) = try await fixture()
+        let operations = try coordinator(store, gate)
+        let batch = try await retain(operations)
+        let before = try await operations.ledger()
+        let changes = [firmwareChanges[0], FirmwareSlotChange(slot: .init(layer: 1, column: 0), output: "KC_A", automatic: true)]
+        let preview = try await operations.preview(batch.id, changes: changes)
+        XCTAssertEqual(preview.batch, batch.id)
+        XCTAssertEqual(preview.differences.map(\.change), changes)
+        XCTAssertEqual(preview.differences.map(\.before), ["KC_NO", "KC_NO"])
+        let prepared = try await operations.prepare(batch.id, changes: changes)
+        let expected = Data(#"{"name":"Fixture","vendorProductId":42,"layers":[["MO(1)","KC_C","CUSTOM"],["KC_A","KC_TRNS","QK_BOOT"]], "macros":["sensitive macro"],"unknown": { "spaces" : [1,2] }}"#.utf8)
+        XCTAssertEqual(prepared, expected)
+        let after = try await operations.ledger()
+        let original = try await operations.original(batch.id)
+        XCTAssertEqual(after, before); XCTAssertEqual(original, firmwareBytes)
+    }
+    func testVialPreviewRetainsRowCoordinatesAndRejectsInvalidOrStaleChanges() async throws {
+        let (_, store, _, gate) = try await fixture()
+        let operations = try FirmwareOperationCoordinator(store: store, support: firmwareSupport(.vial, device: "fixture-vial"),
+            resolve: { try FirmwareFileDestination(reference: $0, gate: gate) })
+        let bytes = Data(#"{"version":1,"uid":"fixture-vial","layout":[[["MO(1)","KC_NO"],["KC_NO","CUSTOM"]],[["KC_NO","KC_TRNS"],["KC_NO","QK_BOOT"]]],"macros":["opaque"]}"#.utf8)
+        let batch = try await operations.retainOriginal(bytes, backend: .vial, axes: firmwareAxes, confirmedAt: Date())
+        let valid = FirmwareSlotChange(slot: .init(layer: 0, row: 1, column: 0), output: "KC_A", automatic: false)
+        let preview = try await operations.preview(batch.id, changes: [valid])
+        XCTAssertEqual(preview.differences.first?.change, valid); XCTAssertEqual(preview.differences.first?.before, "KC_NO")
+        let invalid: [([FirmwareSlotChange], FirmwareError)] = [
+            ([valid, valid], .invalidSlot),
+            ([.init(slot: .init(layer: 0, row: 0, column: 0), output: "KC_C", automatic: false)], .protectedEntry),
+            ([.init(slot: .init(layer: 0, row: 9, column: 0), output: "KC_C", automatic: false)], .invalidSlot),
+            ([.init(slot: valid.slot, output: "MACRO(1)", automatic: false)], .unsupportedOutput),
+            ([.init(slot: .init(layer: 1, row: 0, column: 1), output: "KC_C", automatic: true)], .occupiedAutomaticSlot)
+        ]
+        for (changes, expectedError) in invalid {
+            do { _ = try await operations.preview(batch.id, changes: changes); XCTFail("Expected invalid preview") }
+            catch { XCTAssertEqual(error as? FirmwareError, expectedError) }
+        }
+        let unknown = try FirmwareOperationCoordinator(store: store, resolve: { try FirmwareFileDestination(reference: $0, gate: gate) })
+        do { _ = try await unknown.preview(batch.id, changes: [valid]); XCTFail("Expected unknown compatibility refusal") }
+        catch FirmwareError.unknownCompatibility {}
+        _ = try await operations.retainOriginal(bytes, backend: .vial, axes: firmwareAxes, confirmedAt: Date())
+        do { _ = try await operations.preview(batch.id, changes: [valid]); XCTFail("Expected stale copy refusal") }
+        catch FirmwareError.staleBaseline {}
+    }
     func testVialReadbackComparesAllSlotsAndClassifiesExpectedBaselineAndExternal() async throws {
         let (root, store, _, gate) = try await fixture()
         let (operations, batch) = try await exportedVial(store, gate, root: root)

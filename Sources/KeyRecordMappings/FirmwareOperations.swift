@@ -100,12 +100,23 @@ public actor FirmwareOperationCoordinator {
         guard KarabinerTransactionCoordinator.fileDigest(bytes) == record.baselineSHA256 else { throw FirmwareError.unavailable }
         return bytes
     }
-    public func prepare(_ batch: UUID, changes: [FirmwareSlotChange]) async throws -> Data {
+    private func draftDocument(_ batch: UUID) async throws -> (FirmwareBatchRecord, FirmwareDocument) {
         let ledger = try await ledger()
         guard ledger.pending == nil, let record = ledger.records.first(where: { $0.id == batch }), record.state == .draft else { throw FirmwareError.invalidState }
         guard ledger.records.last(where: { $0.backend == record.backend && $0.device == record.device })?.id == batch else { throw FirmwareError.staleBaseline }
         let document = try FirmwareDocument(bytes: await original(batch), backend: record.backend)
+        return (record, document)
+    }
+    public func prepare(_ batch: UUID, changes: [FirmwareSlotChange]) async throws -> Data {
+        let (record, document) = try await draftDocument(batch)
         return try document.patch(changes, expectedDevice: record.device, axes: record.axes, support: support)
+    }
+    public func preview(_ batch: UUID, changes: [FirmwareSlotChange]) async throws -> FirmwarePatchPreview {
+        let (record, document) = try await draftDocument(batch)
+        _ = try document.patch(changes, expectedDevice: record.device, axes: record.axes, support: support)
+        return try FirmwarePatchPreview(batch: batch, differences: changes.map {
+            FirmwareSlotDifference(change: $0, before: try document.value(at: $0.slot))
+        })
     }
     public func export(_ batch: UUID, changes: [FirmwareSlotChange], destination: any FirmwareExportDestination) async throws -> FirmwareLedger {
         try begin(); defer { busy = false }

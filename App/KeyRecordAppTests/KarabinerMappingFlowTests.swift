@@ -152,7 +152,8 @@ final class KarabinerMappingFlowTests: XCTestCase {
         XCTAssertEqual(model.patchPreviews[record.id]?.differences.first?.change.output, "KC_C")
         model.stagePatchChange(.init(slot: .init(layer: 0, column: 9), output: "KC_A", automatic: false), record: record, ticket: ticket)
         await model.previewPatch(record, ticket: ticket)
-        XCTAssertNil(model.patchPreviews[record.id]); XCTAssertEqual(model.issueKey, "phase4.patchInvalid")
+        XCTAssertNil(model.patchPreviews[record.id]); XCTAssertEqual(model.patchIssueKeys[record.id], "phase4.patchIssue.slot")
+        XCTAssertNil(model.issueKey)
         await model.exportPreview(record, ticket: ticket)
         XCTAssertEqual(selections, 0)
     }
@@ -178,6 +179,164 @@ final class KarabinerMappingFlowTests: XCTestCase {
         await model.previewPatch(second, ticket: old)
         XCTAssertTrue(model.patchDrafts.isEmpty); XCTAssertTrue(model.patchPreviews.isEmpty)
         XCTAssertFalse(model.canExportPreview(second))
+    }
+    func testPatchFailureReasonsPreserveDraftAndCorrectWithoutExport() async throws {
+        let (fixture, _, store, gate) = try await deployment()
+        let model = fixture.flow.firmwareCopies
+        qualifiedFirmware(model, store: store, gate: gate)
+        let bytes = Data(#"{"vendorProductId":42,"layers":[["MO(1)","KC_NO","KC_A","QK_BOOT"],["KC_NO","KC_NO","KC_NO","KC_NO"],["KC_NO","KC_NO","KC_NO","KC_NO"]],"macros":["opaque private content"]}"#.utf8)
+        model.selectedOriginal = { bytes }
+        await model.retainVIA(bytes, ticket: try XCTUnwrap(model.selectionTicket()))
+        let record = try XCTUnwrap(model.records.last)
+        let ticket = try XCTUnwrap(model.selectionTicket())
+        let operations = try FirmwareOperationCoordinator(store: store, resolve: { try FirmwareFileDestination(reference: $0, gate: gate) })
+        let initial = try await operations.ledger()
+        var selections = 0; model.selectExport = { _ in selections += 1; return nil }
+        let cases: [(FirmwareSlotChange, String)] = [
+            (.init(slot: .init(layer: 0, column: 9), output: "KC_C", automatic: false), "phase4.patchIssue.slot"),
+            (.init(slot: .init(layer: 0, column: 1), output: "MACRO_PRIVATE_TOKEN", automatic: false), "phase4.patchIssue.output"),
+            (.init(slot: .init(layer: 0, column: 3), output: "KC_C", automatic: false), "phase4.patchIssue.protected"),
+            (.init(slot: .init(layer: 0, column: 2), output: "KC_C", automatic: true), "phase4.patchIssue.occupied"),
+            (.init(slot: .init(layer: 2, column: 1), output: "KC_C", automatic: false), "phase4.patchIssue.layer")
+        ]
+        for (change, key) in cases {
+            model.stagePatchChange(change, record: record, ticket: ticket)
+            await model.previewPatch(record, ticket: ticket)
+            XCTAssertEqual(model.patchIssueKeys[record.id], key)
+            XCTAssertEqual(model.patchDrafts[record.id], [change]); XCTAssertNil(model.patchPreviews[record.id])
+            XCTAssertFalse(model.canExportPreview(record)); XCTAssertFalse(model.working); XCTAssertNil(model.issueKey)
+            await model.exportPreview(record, ticket: ticket)
+            let ledger = try await operations.ledger()
+            let original = try await operations.original(record.id)
+            XCTAssertEqual(ledger, initial); XCTAssertEqual(original, bytes); XCTAssertEqual(selections, 0)
+            for locale in ["en", "zh-Hans"] {
+                let message = NativeText(locale: locale)(key)
+                XCTAssertNotEqual(message, key); XCTAssertFalse(message.contains("MACRO_PRIVATE_TOKEN"))
+                XCTAssertFalse(message.contains("opaque private content"))
+            }
+            model.removePatchChange(slot: change.slot, record: record, ticket: ticket)
+            XCTAssertNil(model.patchIssueKeys[record.id])
+        }
+        model.stagePatchChange(.init(slot: .init(layer: 1, column: 1), output: "KC_C", automatic: false), record: record, ticket: ticket)
+        await model.previewPatch(record, ticket: ticket)
+        XCTAssertTrue(model.canExportPreview(record)); XCTAssertTrue(model.patchIssueKeys.isEmpty)
+        XCTAssertEqual(selections, 0)
+    }
+    func testPatchFailureStaysWithItsDeviceAndCannotCrossPrivacySession() async throws {
+        let (fixture, _, store, gate) = try await deployment()
+        let model = fixture.flow.firmwareCopies
+        let axes = fixtureAxes
+        model.configure(store: store, gate: gate, support: FirmwareSupportDirectory(entries: ["42", "43"].map {
+            FirmwareCompatibility(backend: .via, device: $0, axes: axes, supportedOutputs: ["KC_C"])
+        }), versionAxes: { _ in axes })
+        let firstBytes = Data(#"{"vendorProductId":42,"layers":[["KC_NO"]]}"#.utf8)
+        model.selectedOriginal = { firstBytes }
+        await model.retainVIA(firstBytes, ticket: try XCTUnwrap(model.selectionTicket()))
+        let first = try XCTUnwrap(model.records.last)
+        let old = try XCTUnwrap(model.selectionTicket())
+        model.stagePatchChange(.init(slot: .init(layer: 0, column: 9), output: "KC_C", automatic: false), record: first, ticket: old)
+        await model.previewPatch(first, ticket: old)
+        let secondBytes = Data(#"{"vendorProductId":43,"layers":[["KC_NO"]]}"#.utf8)
+        model.selectedOriginal = { secondBytes }
+        await model.retainVIA(secondBytes, ticket: try XCTUnwrap(model.selectionTicket()))
+        let second = try XCTUnwrap(model.records.last)
+        model.stagePatchChange(.init(slot: .init(layer: 0, column: 0), output: "KC_C", automatic: false), record: second, ticket: old)
+        await model.previewPatch(second, ticket: old)
+        XCTAssertEqual(model.patchIssueKeys, [first.id: "phase4.patchIssue.slot"])
+        XCTAssertTrue(model.canExportPreview(second)); XCTAssertFalse(model.canExportPreview(first))
+        gate.update(.locked); fixture.observeLocked(); fixture.flow.sync(from: fixture.orchestrator.state)
+        XCTAssertTrue(model.patchIssueKeys.isEmpty)
+        gate.update(.unlocked); fixture.observe(); fixture.flow.sync(from: fixture.orchestrator.state)
+        await model.refresh()
+        await model.previewPatch(first, ticket: old)
+        XCTAssertTrue(model.patchIssueKeys.isEmpty); XCTAssertTrue(model.patchPreviews.isEmpty)
+    }
+    func testNativePatchFailureCorrectionForBothBackendsAndLanguages() throws {
+        ScreenEvidence.prepare()
+        for backend in [FirmwareBackend.via, .vial] {
+            for locale in ["en", "zh-Hans"] {
+                var fixture: FlowFixture?
+                var retained: FirmwareBatchRecord?
+                var target: URL?
+                let original = Data((backend == .via ? #"{"vendorProductId":42,"layers":[["KC_NO"]],"macro":["opaque"]}"# :
+                    #"{"version":1,"uid":"42","layout":[[["KC_NO"]]],"macro":["opaque"]}"#).utf8)
+                ScreenEvidence.awaitMain {
+                    do {
+                        let result = try await self.deployment(); fixture = result.0; target = result.1
+                        let model = result.0.flow.firmwareCopies
+                        self.qualifiedFirmware(model, store: result.2, gate: result.3, backend: backend)
+                        if backend == .via {
+                            model.selectedOriginal = { original }
+                            await model.retainVIA(original, ticket: try XCTUnwrap(model.selectionTicket()))
+                        } else {
+                            let file = result.1.deletingLastPathComponent().appendingPathComponent("correction-original.vil")
+                            try original.write(to: file); model.selectVial = { file }
+                            await model.retainVial(ticket: try XCTUnwrap(model.selectionTicket()))
+                        }
+                        retained = model.records.last
+                    } catch { XCTFail("Fixture setup failed: \(error)") }
+                }
+                let model = try XCTUnwrap(fixture?.flow.firmwareCopies)
+                let record = try XCTUnwrap(retained)
+                let ticket = try XCTUnwrap(model.selectionTicket())
+                model.stagePatchChange(.init(slot: .init(layer: 0, column: 9), output: "KC_C", automatic: false), record: record, ticket: ticket)
+                let artifact = try XCTUnwrap(target).deletingLastPathComponent().appendingPathComponent("corrected-patch.json")
+                var selections = 0; model.selectExport = { _ in selections += 1; return artifact }
+                let text = NativeText(locale: locale)
+                let view = NSHostingView(rootView: Form { FirmwareCopiesSection(model: model, viaBytes: nil, text: text) }
+                    .formStyle(.grouped).frame(width: 1000, height: 1400))
+                view.sizingOptions = []
+                let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1000, height: 1400), styleMask: [.titled], backing: .buffered, defer: false)
+                window.isReleasedWhenClosed = false; window.contentView = view; window.makeKeyAndOrderFront(nil)
+                defer { window.contentView = nil; window.close() }
+                NativeEvidence.primeAccessibility(); NativeEvidence.update(view); NativeEvidence.update(view)
+                func pressPreview(expectIssue: Bool) throws {
+                    let done = XCTestExpectation(description: "Native correction preview")
+                    var delivered = false
+                    model.onChange = {
+                        let completed = expectIssue ? model.patchIssueKeys[record.id] != nil : model.patchPreviews[record.id] != nil
+                        if !delivered, !model.working, completed { delivered = true; done.fulfill() }
+                    }
+                    XCTAssertTrue(KRAXPress(try NativeEvidence.node("preview-" + record.id.uuidString, in: view)))
+                    ScreenEvidence.awaitMain {
+                        let result = await XCTWaiter.fulfillment(of: [done], timeout: 5)
+                        XCTAssertEqual(result, .completed)
+                    }
+                    NativeEvidence.update(view)
+                }
+                try pressPreview(expectIssue: true)
+                let issue = try NativeEvidence.node("patch-issue-" + record.id.uuidString, in: view)
+                XCTAssertEqual(KRAXLabel(issue), text("phase4.patchIssue.slot"))
+                XCTAssertFalse(KRAXEnabled(try NativeEvidence.node("patch-" + record.id.uuidString, in: view)))
+                XCTAssertEqual(selections, 0); XCTAssertEqual(model.records.last, record)
+                XCTAssertFalse(FileManager.default.fileExists(atPath: artifact.path))
+                if let root = NativeEvidence.outputRoot() {
+                    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+                    let name = "firmware-correction-" + backend.rawValue + "-" + locale
+                    try ScreenEvidence.capturePNG(view).write(to: root.appendingPathComponent(name + ".png"))
+                    try Data(("\(KRAXIdentifier(issue) ?? "-") | \(KRAXLabel(issue) ?? "") | \(KRAXFrame(issue))").utf8)
+                        .write(to: root.appendingPathComponent(name + ".ax.txt"))
+                }
+                XCTAssertTrue(KRAXPress(try NativeEvidence.node("remove-patch-" + record.id.uuidString + "-0-0-9", in: view)))
+                NativeEvidence.update(view); XCTAssertTrue(model.patchIssueKeys.isEmpty)
+                XCTAssertFalse(NativeEvidence.elements(in: view).contains { KRAXIdentifier($0) == "patch-issue-" + record.id.uuidString })
+                XCTAssertTrue(KRAXPress(try NativeEvidence.node("stage-" + record.id.uuidString, in: view)))
+                NativeEvidence.update(view)
+                try pressPreview(expectIssue: false)
+                XCTAssertTrue(KRAXEnabled(try NativeEvidence.node("patch-" + record.id.uuidString, in: view)))
+                let done = XCTestExpectation(description: "Corrected fixture export")
+                var delivered = false
+                model.onChange = { if !delivered, model.records.last?.state == .awaitingUserImport { delivered = true; done.fulfill() } }
+                XCTAssertTrue(KRAXPress(try NativeEvidence.node("patch-" + record.id.uuidString, in: view)))
+                ScreenEvidence.awaitMain {
+                    let result = await XCTWaiter.fulfillment(of: [done], timeout: 5)
+                    XCTAssertEqual(result, .completed)
+                }
+                XCTAssertEqual(selections, 1)
+                XCTAssertEqual(try Data(contentsOf: artifact), Data(String(decoding: original, as: UTF8.self).replacingOccurrences(of: "KC_NO", with: "KC_C").utf8))
+                XCTAssertNil(model.records.last?.verifiedAt)
+            }
+        }
     }
     func testNativeMultiSlotPreviewAndExportForBothBackendsAndLanguages() throws {
         ScreenEvidence.prepare()

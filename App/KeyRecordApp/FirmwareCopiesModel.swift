@@ -13,6 +13,7 @@ final class FirmwareCopiesModel: ObservableObject {
     @Published private(set) var uninstallStage: UninstallPreparationStage?
     @Published private(set) var patchDrafts: [UUID: [FirmwareSlotChange]] = [:]
     @Published private(set) var patchPreviews: [UUID: FirmwarePatchPreview] = [:]
+    @Published private(set) var patchIssueKeys: [UUID: String] = [:]
     @Published private(set) var previousPreparation: UninstallPreparationRecord?
     @Published var recoverySelections: [UUID: RecoverySelection] = [:]
     @Published var deleteLocalData = false
@@ -68,7 +69,7 @@ final class FirmwareCopiesModel: ObservableObject {
                    vialReadback: (@Sendable (FirmwareBatchRecord) async throws -> VialKeymapObservation)? = nil) {
         self.store = store; self.gate = gate; self.support = support; self.versionAxes = versionAxes; firmware = nil
         self.vialReadback = vialReadback
-        patchPreviews = [:]
+        patchPreviews = [:]; patchIssueKeys = [:]
     }
     func configureUninstall(_ actions: UninstallActions) { uninstall = actions }
     var canPrepareUninstall: Bool {
@@ -85,7 +86,7 @@ final class FirmwareCopiesModel: ObservableObject {
         session = UUID(); records = []; firmware = nil; issueKey = nil; working = false
         recoverySelections = [:]; deleteLocalData = false
         uninstallStage = nil; previousPreparation = nil; uninstallReady = false
-        patchDrafts = [:]; patchPreviews = [:]
+        patchDrafts = [:]; patchPreviews = [:]; patchIssueKeys = [:]
     }
     func refresh() async {
         guard canRead(), !working, store != nil else { return }
@@ -100,6 +101,7 @@ final class FirmwareCopiesModel: ObservableObject {
                 recoverySelections = recoverySelections.filter { id, _ in records.contains(where: { $0.id == id }) }
                 patchDrafts = patchDrafts.filter { id, _ in records.contains(where: { $0.id == id && $0.state == .draft }) }
                 patchPreviews = patchPreviews.filter { id, _ in records.contains(where: { $0.id == id && canGenerate($0) }) }
+                patchIssueKeys = patchIssueKeys.filter { id, _ in records.contains(where: { $0.id == id && canGenerate($0) }) }
                 onChange()
             }
         } catch { if canRead(), ticket == session { issueKey = "phase4.operationFailed"; onChange() } }
@@ -168,22 +170,40 @@ final class FirmwareCopiesModel: ObservableObject {
         var changes = patchDrafts[record.id] ?? []
         if let index = changes.firstIndex(where: { $0.slot == change.slot }) { changes[index] = change }
         else { changes.append(change) }
-        patchDrafts[record.id] = changes; patchPreviews[record.id] = nil
+        patchDrafts[record.id] = changes; patchPreviews[record.id] = nil; patchIssueKeys[record.id] = nil
     }
     func removePatchChange(slot: FirmwareSlot, record: FirmwareBatchRecord, ticket: UUID) {
         guard ticket == session, records.contains(record), canGenerate(record),
               var changes = patchDrafts[record.id], let index = changes.firstIndex(where: { $0.slot == slot }) else { return }
-        changes.remove(at: index); patchDrafts[record.id] = changes; patchPreviews[record.id] = nil
+        changes.remove(at: index); patchDrafts[record.id] = changes; patchPreviews[record.id] = nil; patchIssueKeys[record.id] = nil
     }
     func previewPatch(_ record: FirmwareBatchRecord, ticket: UUID) async {
         guard ticket == session, records.contains(record), canGenerate(record) else { return }
         let changes = patchDrafts[record.id] ?? []
-        patchPreviews[record.id] = nil; working = true; readRequest = UUID(); issueKey = nil
+        patchPreviews[record.id] = nil; patchIssueKeys[record.id] = nil; working = true; readRequest = UUID(); issueKey = nil
         defer { if ticket == session { working = false; onChange() } }
         do {
             let preview = try await coordinator().preview(record.id, changes: changes)
             if canRead(), ticket == session, records.contains(record) { patchPreviews[record.id] = preview }
-        } catch { if canRead(), ticket == session { issueKey = "phase4.patchInvalid" } }
+        } catch {
+            if canRead(), ticket == session, records.contains(record) { patchIssueKeys[record.id] = Self.patchIssueKey(error) }
+        }
+    }
+    private static func patchIssueKey(_ error: Error) -> String {
+        guard let error = error as? FirmwareError else { return "phase4.patchInvalid" }
+        switch error {
+        case .invalidSlot: return "phase4.patchIssue.slot"
+        case .unsupportedOutput: return "phase4.patchIssue.output"
+        case .protectedEntry: return "phase4.patchIssue.protected"
+        case .occupiedAutomaticSlot: return "phase4.patchIssue.occupied"
+        case .unreachableLayer: return "phase4.patchIssue.layer"
+        case .staleBaseline: return "phase4.patchIssue.latest"
+        case .unknownCompatibility: return "phase4.patchIssue.compatibility"
+        case .invalidDocument, .identityMismatch: return "phase4.patchIssue.original"
+        case .busy, .invalidState: return "phase4.patchIssue.state"
+        case .unavailable: return "phase4.patchIssue.unavailable"
+        case .externalChange: return "phase4.patchIssue.changed"
+        }
     }
     func canExportPreview(_ record: FirmwareBatchRecord) -> Bool {
         canGenerate(record) && patchPreviews[record.id]?.differences.map(\.change) == patchDrafts[record.id]

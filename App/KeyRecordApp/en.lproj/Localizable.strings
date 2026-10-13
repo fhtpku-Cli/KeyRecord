@@ -353,6 +353,17 @@
 "phase4.patchPreviewTitle" = "Selected slot differences";
 "phase4.patchPreviewExplanation" = "Only these slots change. Macros and unknown sections are preserved. Exporting does not deploy the changes to the keyboard.";
 "phase4.patchInvalid" = "The changes could not be previewed. Check the slot, keycode, reachable layer and latest original copy.";
+"phase4.patchIssue.slot" = "Choose a layer, row and position that exist in this original copy. Add at least one change and preview again.";
+"phase4.patchIssue.output" = "A keycode is unsupported for this copy. Use a supported standard keycode, then preview again. Macros and custom actions cannot be generated.";
+"phase4.patchIssue.protected" = "A selected position contains a protected layer switch or recovery key. Remove that change and choose another position.";
+"phase4.patchIssue.occupied" = "An automatic change requires an empty KC_NO position. Remove the change or choose an empty position.";
+"phase4.patchIssue.layer" = "A selected layer cannot be reached from the original keymap. Choose a reachable layer without replacing its layer switches.";
+"phase4.patchIssue.latest" = "This original copy has been superseded. Review and edit the latest copy for this device.";
+"phase4.patchIssue.compatibility" = "This device and its version information have no qualified generation support. Keep the original copy; generation remains unavailable.";
+"phase4.patchIssue.original" = "The original copy cannot be used for these changes. Review its device identity and file format before retaining another copy.";
+"phase4.patchIssue.state" = "This batch is no longer ready for a draft preview. Review its current state before retrying.";
+"phase4.patchIssue.unavailable" = "The original copy is currently unavailable. Reopen the copies after local data becomes available, then preview again.";
+"phase4.patchIssue.changed" = "The copy changed during the operation. Reopen and review the current copy before retrying.";
 "phase4.viaSlot" = "Layer %d, position %d";
 "phase4.vialSlot" = "Layer %d, row %d, position %d";
 "phase4.confirmOperation" = "Confirm this operation";

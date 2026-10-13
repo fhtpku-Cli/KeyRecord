@@ -55,6 +55,7 @@ final class FirmwareCopiesModel: ObservableObject {
     private var support = FirmwareSupportDirectory()
     private var versionAxes: @MainActor (FirmwareBackend) -> FirmwareVersionAxes? = { _ in nil }
     private var vialReadback: (@Sendable (FirmwareBatchRecord) async throws -> VialKeymapObservation)?
+    private var vialAdapter: VialReadbackAdapter?
     private var uninstall: UninstallActions?
     struct UninstallActions {
         let stopCapture: @MainActor () async throws -> Void
@@ -66,9 +67,11 @@ final class FirmwareCopiesModel: ObservableObject {
     }
     func configure(store: ObjectStore, gate: KeyAvailabilityGate, support: FirmwareSupportDirectory = FirmwareSupportDirectory(),
                    versionAxes: @escaping @MainActor (FirmwareBackend) -> FirmwareVersionAxes? = { _ in nil },
-                   vialReadback: (@Sendable (FirmwareBatchRecord) async throws -> VialKeymapObservation)? = nil) {
+                   vialReadback: (@Sendable (FirmwareBatchRecord) async throws -> VialKeymapObservation)? = nil,
+                   vialAdapter: VialReadbackAdapter? = nil) {
         self.store = store; self.gate = gate; self.support = support; self.versionAxes = versionAxes; firmware = nil
         self.vialReadback = vialReadback
+        self.vialAdapter = vialAdapter
         patchPreviews = [:]; patchIssueKeys = [:]
     }
     func configureUninstall(_ actions: UninstallActions) { uninstall = actions }
@@ -133,7 +136,7 @@ final class FirmwareCopiesModel: ObservableObject {
         guard canRead(), !working, let bytes else { return }
         let ticket = session; readRequest = UUID(); working = true
         do {
-            let axes = versionAxes(backend) ?? FirmwareVersionAxes(definitionSchema: nil, deviceProtocol: nil, layoutFormat: nil, keycodeDialect: nil, importer: nil)
+            let axes = try versionAxes(backend) ?? FirmwareVersionProvider.axes(bytes: bytes, backend: backend)
             _ = try await coordinator().retainOriginal(bytes, backend: backend, axes: axes, confirmedAt: Date())
             guard canRead(), ticket == session else { return }
             working = false; await refresh()
@@ -217,16 +220,25 @@ final class FirmwareCopiesModel: ObservableObject {
         canRead() && !working && hasVialReadback(record)
     }
     func hasVialReadback(_ record: FirmwareBatchRecord) -> Bool {
-        record.backend == .vial && vialReadback != nil && isCompatible(record) &&
+        record.backend == .vial && (vialReadback != nil || vialAdapter != nil) && isCompatible(record) &&
             [.importClaimed, .verified, .failed, .externallyChanged].contains(record.state)
     }
     func verifyVial(_ record: FirmwareBatchRecord, ticket: UUID) async {
-        guard ticket == session, records.contains(record), canVerifyVial(record), let gate, let vialReadback else { return }
+        guard ticket == session, records.contains(record), canVerifyVial(record), let gate else { return }
         working = true; issueKey = nil
         defer { if ticket == session { working = false; onChange() } }
         do {
             let generation = try gate.begin()
-            let observation = try await vialReadback(record)
+            let observation: VialKeymapObservation
+            if let vialReadback {
+                observation = try await vialReadback(record)
+            } else if let vialAdapter {
+                let original = try await coordinator().original(record.id)
+                try gate.check(generation)
+                guard canRead(), ticket == session else { return }
+                observation = try await vialAdapter.observe(record: record, original: original,
+                    authorize: { try gate.check(generation) })
+            } else { throw FirmwareError.unavailable }
             try gate.check(generation)
             guard canRead(), ticket == session else { return }
             let ledger = try await coordinator().confirmVialReadback(record.id, observation: observation)

@@ -76,10 +76,12 @@ public struct FirmwareDocument: Sendable {
     public let backend: FirmwareBackend
     public let device: String
     public let bytes: Data
+    public let matrixDimensions: (layers: Int, rows: Int, columns: Int)?
     private let slots: [FirmwareSlot: JSONDocumentRanges.Node]
     public init(bytes: Data, backend: FirmwareBackend) throws {
         let root = try JSONDocumentRanges(bytes).root
         var slots: [FirmwareSlot: JSONDocumentRanges.Node] = [:]
+        var dimensions: (layers: Int, rows: Int, columns: Int)?
         switch backend {
         case .via:
             guard let identity = root.members["vendorProductId"], let id = UInt32(String(decoding: bytes[identity.range], as: UTF8.self)),
@@ -110,14 +112,22 @@ public struct FirmwareDocument: Sendable {
                 for (row, array) in rows.enumerated() {
                     guard let entries = array.elements, !entries.isEmpty else { throw FirmwareError.invalidDocument }
                     current.append(entries.count)
-                    for (column, node) in entries.enumerated() { slots[FirmwareSlot(layer: layer, row: row, column: column)] = node }
+                    for (column, node) in entries.enumerated() {
+                        // Vial's official saver uses -1 for matrix positions absent from the definition.
+                        if String(decoding: bytes[node.range], as: UTF8.self) != "-1" {
+                            slots[FirmwareSlot(layer: layer, row: row, column: column)] = node
+                        }
+                    }
                 }
                 guard shape == nil || shape == current else { throw FirmwareError.invalidDocument }
                 shape = current
             }
+            if let shape, let columns = shape.first, shape.allSatisfy({ $0 == columns }) {
+                dimensions = (layers.count, shape.count, columns)
+            }
         }
         for node in slots.values { _ = try JSONDecoder().decode(String.self, from: Data(bytes[node.range])) }
-        self.backend = backend; self.bytes = bytes; self.slots = slots
+        self.backend = backend; self.bytes = bytes; self.slots = slots; self.matrixDimensions = dimensions
     }
     public func value(at slot: FirmwareSlot) throws -> String {
         guard let node = slots[slot] else { throw FirmwareError.invalidSlot }
@@ -130,15 +140,18 @@ public struct FirmwareDocument: Sendable {
                       support: FirmwareSupportDirectory) throws -> Data {
         guard device == expectedDevice else { throw FirmwareError.identityMismatch }
         let outputs = try support.outputs(backend: backend, device: device, axes: axes)
+        let vial6 = backend == .vial && axes.keycodeDialect == VialKeycodeDialect.name
         guard !changes.isEmpty, Set(changes.map(\.slot)).count == changes.count else { throw FirmwareError.invalidSlot }
         var edits: [(Range<Int>, Data)] = []
         for change in changes {
             guard outputs.contains(change.output), VIAReferenceParser.isStandardFirmwareOutput(change.output), !Self.protected(change.output) else { throw FirmwareError.unsupportedOutput }
             guard let node = slots[change.slot] else { throw FirmwareError.invalidSlot }
             let old = try value(at: change.slot)
-            guard !Self.protected(old) else { throw FirmwareError.protectedEntry }
-            if change.automatic, old != "KC_NO" { throw FirmwareError.occupiedAutomaticSlot }
-            guard try reachable(automatic: change.automatic).contains(change.slot.layer) else { throw FirmwareError.unreachableLayer }
+            guard !Self.protected(old), !(vial6 && VialKeycodeDialect.protectedEntry(old)) else { throw FirmwareError.protectedEntry }
+            if change.automatic, old != "KC_NO", !(vial6 && (try? VialKeycodeDialect.rawValue(old)) == 0) {
+                throw FirmwareError.occupiedAutomaticSlot
+            }
+            guard try reachable(automatic: change.automatic, vial6: vial6).contains(change.slot.layer) else { throw FirmwareError.unreachableLayer }
             edits.append((node.range, try JSONEncoder().encode(change.output)))
         }
         var result = bytes
@@ -151,13 +164,14 @@ public struct FirmwareDocument: Sendable {
         ["MO(", "LT(", "TG(", "TO(", "TT(", "DF(", "OSL("].contains { token.hasPrefix($0) }
             || ["QK_BOOT", "QK_REBOOT", "QK_CLEAR_EEPROM", "RESET", "EE_CLR"].contains(token)
     }
-    private func reachable(automatic: Bool) throws -> Set<Int> {
+    private func reachable(automatic: Bool, vial6: Bool) throws -> Set<Int> {
         var reachable: Set<Int> = [0]
         var frontier: Set<Int> = [0]
         while !frontier.isEmpty {
             var next: Set<Int> = []
             for (slot, _) in slots where frontier.contains(slot.layer) {
-                let token = try value(at: slot)
+                let old = try value(at: slot)
+                let token = vial6 ? VialKeycodeDialect.layerEntry(old) : old
                 let prefixes = automatic ? ["MO(", "LT("] : ["MO(", "LT(", "TG(", "TO(", "TT(", "DF(", "OSL("]
                 guard let prefix = prefixes.first(where: { token.hasPrefix($0) }), token.hasSuffix(")") else { continue }
                 let remainder = token.dropFirst(prefix.count).dropLast()

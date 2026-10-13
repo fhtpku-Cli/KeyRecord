@@ -21,6 +21,23 @@ private actor NativeMappingFixtureKeys: ObjectStoreKeySource {
     func namespaceKeyVersions() -> Set<KeyVersion> { present ? [KeyVersion(rawValue: 1)] : [] }
     func material(for version: KeyVersion) throws -> Data { Data(repeating: 0xb3, count: 32) }
 }
+private actor NativeVialProtocolFixture: VialReadTransport {
+    var requests: [VialReadRequest] = []
+    func exchange(_ request: VialReadRequest, timeoutMilliseconds: Int) async throws -> [UInt8] {
+        requests.append(request)
+        var bytes = request.bytes
+        switch bytes[0] {
+        case 1: bytes[1] = 0; bytes[2] = 9
+        case 0xfe:
+            bytes[0] = 6; bytes[1] = 0
+            bytes.replaceSubrange(4..<12, with: [UInt8](repeating: 255, count: 8))
+        case 0x11: bytes[1] = 1
+        case 0x12: bytes.replaceSubrange(4..<10, with: [0, 6, 255, 255, 0, 0x28])
+        default: throw VialReadbackError.invalidRequest
+        }
+        return bytes
+    }
+}
 private final class DeploymentVersionProbe: @unchecked Sendable {
     private let lock = NSLock()
     private var current: String? = "fixture-v1"
@@ -553,6 +570,81 @@ final class KarabinerMappingFlowTests: XCTestCase {
         await model.verifyVial(record, ticket: try XCTUnwrap(model.selectionTicket()))
         await model.refresh()
         XCTAssertEqual(model.records.last?.state, .importClaimed); XCTAssertNil(model.records.last?.verifiedAt)
+    }
+    func testVialOfficialMetadataAndHolesRemainReadOnlyInDefaultComposition() async throws {
+        let (fixture, file, store, gate) = try await deployment()
+        let model = fixture.flow.firmwareCopies
+        model.configure(store: store, gate: gate)
+        let selected = file.deletingLastPathComponent().appendingPathComponent("official-default.vil")
+        try Data(#"{"version":1,"uid":18446744073709551615,"via_protocol":9,"vial_protocol":6,"layout":[[["KC_NO",-1,"KC_ENT"]]]}"#.utf8).write(to: selected)
+        model.selectVial = { selected }
+        await model.retainVial(ticket: try XCTUnwrap(model.selectionTicket()))
+        let record = try XCTUnwrap(model.records.last)
+        XCTAssertEqual(record.axes.deviceProtocol, "via-9/vial-6")
+        XCTAssertEqual(record.axes.keycodeDialect, VialKeycodeDialect.name)
+        XCTAssertNil(record.axes.definitionSchema); XCTAssertNil(record.axes.importer)
+        XCTAssertFalse(model.canGenerate(record)); XCTAssertFalse(model.canVerifyVial(record))
+        XCTAssertNil(model.issueKey)
+    }
+    func testVialProtocolAdapterFlowsThroughProductRetentionExportAndReadback() throws {
+        ScreenEvidence.prepare()
+        var retainedFixture: FlowFixture?
+        var patchURL: URL?
+        var transportPort: NativeVialProtocolFixture?
+        let bytes = Data(#"{"version":1,"uid":18446744073709551615,"via_protocol":9,"vial_protocol":6,"layout":[[["KC_NO",-1,"KC_ENT"]]],"macro":[],"encoder_layout":[[]],"settings":{}}"#.utf8)
+        ScreenEvidence.awaitMain {
+            do {
+                let (fixture, file, store, gate) = try await self.deployment()
+                retainedFixture = fixture
+                let model = fixture.flow.firmwareCopies
+                let axes = try FirmwareVersionProvider.axes(bytes: bytes, backend: .vial, definitionSchema: "offline-schema", importer: "offline-importer")
+                let transport = NativeVialProtocolFixture(), adapter = try VialReadbackAdapter(transport: transport, matrixRows: 1, matrixColumns: 3)
+                transportPort = transport
+                model.configure(store: store, gate: gate, support: .init(entries: [.init(backend: .vial,
+                    device: "18446744073709551615", axes: axes, supportedOutputs: ["KC_C"])]),
+                    versionAxes: { _ in axes }, vialAdapter: adapter)
+                let original = file.deletingLastPathComponent().appendingPathComponent("official-adapter.vil")
+                try bytes.write(to: original); model.selectVial = { original }
+                await model.retainVial(ticket: try XCTUnwrap(model.selectionTicket()))
+                let record = try XCTUnwrap(model.records.last)
+                let patch = file.deletingLastPathComponent().appendingPathComponent("official-adapter-patch.vil")
+                patchURL = patch; model.selectExport = { _ in patch }
+                await model.exportChanges(record, changes: [.init(slot: .init(layer: 0, column: 0), output: "KC_C", automatic: true)], ticket: try XCTUnwrap(model.selectionTicket()))
+                await model.perform(.claimImport, record: try XCTUnwrap(model.records.last), ticket: try XCTUnwrap(model.selectionTicket()))
+            } catch { XCTFail("\(error)") }
+        }
+        let model = try XCTUnwrap(retainedFixture?.flow.firmwareCopies)
+        let patch = try XCTUnwrap(patchURL), transport = try XCTUnwrap(transportPort)
+        let claimed = try XCTUnwrap(model.records.last)
+        XCTAssertTrue(model.canVerifyVial(claimed))
+        let view = NSHostingView(rootView: Form {
+            FirmwareCopiesSection(model: model, viaBytes: nil, text: NativeText(locale: "en"))
+        }.formStyle(.grouped).frame(width: 900, height: 1200))
+        view.sizingOptions = []
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 900, height: 1200), styleMask: [.titled], backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false; window.contentView = view; window.makeKeyAndOrderFront(nil)
+        defer { window.contentView = nil; window.close() }
+        NativeEvidence.primeAccessibility(); NativeEvidence.update(view); NativeEvidence.update(view)
+        let verified = XCTestExpectation(description: "Protocol adapter completed product readback")
+        var delivered = false
+        model.onChange = {
+            if !delivered, model.records.last?.state == .verified { delivered = true; verified.fulfill() }
+        }
+        XCTAssertTrue(KRAXPress(try NativeEvidence.node("readback-" + claimed.id.uuidString, in: view)))
+        ScreenEvidence.awaitMain {
+            let waitResult = await XCTWaiter.fulfillment(of: [verified], timeout: 5)
+            XCTAssertEqual(waitResult, .completed)
+        }
+        XCTAssertEqual(model.records.last?.state, .verified); XCTAssertNil(model.issueKey)
+        NativeEvidence.update(view)
+        if let directory = NativeEvidence.outputRoot() {
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            try ScreenEvidence.capturePNG(view).write(to: directory.appendingPathComponent("vial-protocol-readback-en.png"))
+        }
+        var requests: [VialReadRequest] = []
+        ScreenEvidence.awaitMain { requests = await transport.requests }
+        XCTAssertEqual(requests, [.viaProtocol, .identity, .layerCount, try .keymap(offset: 0, length: 6), .identity, .layerCount])
+        XCTAssertEqual(try Data(contentsOf: patch), Data(String(decoding: bytes, as: UTF8.self).replacingOccurrences(of: "KC_NO", with: "KC_C").utf8))
     }
     func testVialOriginalRetentionExportAndInvalidSelectionRemainOffline() async throws {
         let (fixture, file, store, gate) = try await deployment()

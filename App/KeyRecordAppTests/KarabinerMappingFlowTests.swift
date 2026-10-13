@@ -4,6 +4,7 @@ import SwiftUI
 import KeyRecordCore
 import KeyRecordAnalysis
 import KeyRecordMappings
+import KeyRecordDeviceRead
 import KeyRecordStore
 
 extension FirmwareCopiesModel {
@@ -21,22 +22,50 @@ private actor NativeMappingFixtureKeys: ObjectStoreKeySource {
     func namespaceKeyVersions() -> Set<KeyVersion> { present ? [KeyVersion(rawValue: 1)] : [] }
     func material(for version: KeyVersion) throws -> Data { Data(repeating: 0xb3, count: 32) }
 }
-private actor NativeVialProtocolFixture: VialReadTransport {
-    var requests: [VialReadRequest] = []
-    func exchange(_ request: VialReadRequest, timeoutMilliseconds: Int) async throws -> [UInt8] {
-        requests.append(request)
+private final class NativeVialHIDFixture: VialHIDEndpoint, @unchecked Sendable {
+    static let definition = Data(base64Encoded: "/Td6WFoAAATm1rRGAgAhARYAAAB0L+Wj4AB8AG5dAD2IicZUNsMXT+Tj0LL2o1xY9+vhKXbIvBy+vt7ajJ9ByJ+U3t83EJIzjavDD0/txhM7o8p2unsGnnWbxEuUfVifBNNdOsvnERH+MjQdNyzfGKOpZsOfDPQyS8tONaoxr0YNL+3+QwvQXI28Cr7JAAAAOXSVpUTMuNUAAYoBfQAAAJKyS9ixxGf7AgAAAAAEWVo=")!
+    private let lock = NSLock()
+    private var receive: (@Sendable (Result<VialHIDFrame, VialHIDError>) -> Void)?
+    private var reports: [VialReadRequest] = []
+    private var closes = 0
+    private let pause: VialReadRequest?
+    private let mismatch: Bool
+    let paused = XCTestExpectation(description: "Selected HID report paused")
+    init(pause: VialReadRequest? = nil, mismatch: Bool = false) { self.pause = pause; self.mismatch = mismatch }
+    var requests: [VialReadRequest] { lock.withLock { reports } }
+    var closeCount: Int { lock.withLock { closes } }
+    func start(receive: @escaping @Sendable (Result<VialHIDFrame, VialHIDError>) -> Void) { lock.withLock { self.receive = receive } }
+    func send(_ request: VialReadRequest, timeoutMilliseconds: Int, completion: @escaping @Sendable (Result<Void, VialHIDError>) -> Void) {
+        lock.withLock { reports.append(request) }
+        if request == pause { paused.fulfill(); return }
+        emit(request); completion(.success(()))
+    }
+    func emit(_ request: VialReadRequest) {
         var bytes = request.bytes
         switch bytes[0] {
         case 1: bytes[1] = 0; bytes[2] = 9
-        case 0xfe:
-            bytes[0] = 6; bytes[1] = 0
-            bytes.replaceSubrange(4..<12, with: [UInt8](repeating: 255, count: 8))
         case 0x11: bytes[1] = 1
-        case 0x12: bytes.replaceSubrange(4..<10, with: [0, 6, 255, 255, 0, 0x28])
-        default: throw VialReadbackError.invalidRequest
+        case 0x12: bytes.replaceSubrange(4..<10, with: [0, mismatch ? 7 : 6, 255, 255, 0, 0x28])
+        case 0xfe:
+            switch bytes[1] {
+            case 0:
+                bytes = Array(repeating: 0, count: 32); bytes[0] = 6
+                bytes.replaceSubrange(4..<12, with: Array(repeating: 255, count: 8))
+            case 1:
+                bytes = Array(repeating: 0, count: 32)
+                for index in 0..<4 { bytes[index] = UInt8(truncatingIfNeeded: Self.definition.count >> (index * 8)) }
+            case 2:
+                let start = (Int(bytes[2]) | Int(bytes[3]) << 8) * 32
+                bytes = Array(Self.definition[start..<min(start + 32, Self.definition.count)])
+                bytes += Array(repeating: 0, count: 32 - bytes.count)
+            default: XCTFail("Unexpected Vial query")
+            }
+        default: XCTFail("Unexpected HID command")
         }
-        return bytes
+        lock.withLock { receive }?(.success(.init(reportID: 0, bytes: bytes)))
     }
+    func disconnect() { lock.withLock { receive }?(.failure(.disconnected)) }
+    func close() { lock.withLock { closes += 1 } }
 }
 private final class DeploymentVersionProbe: @unchecked Sendable {
     private let lock = NSLock()
@@ -586,23 +615,25 @@ final class KarabinerMappingFlowTests: XCTestCase {
         XCTAssertFalse(model.canGenerate(record)); XCTAssertFalse(model.canVerifyVial(record))
         XCTAssertNil(model.issueKey)
     }
-    func testVialProtocolAdapterFlowsThroughProductRetentionExportAndReadback() throws {
+    func testVialDeviceConnectionFlowsThroughNativeButtonAndEncryptedTransaction() throws {
         ScreenEvidence.prepare()
         var retainedFixture: FlowFixture?
         var patchURL: URL?
-        var transportPort: NativeVialProtocolFixture?
+        var transportPort: NativeVialHIDFixture?
         let bytes = Data(#"{"version":1,"uid":18446744073709551615,"via_protocol":9,"vial_protocol":6,"layout":[[["KC_NO",-1,"KC_ENT"]]],"macro":[],"encoder_layout":[[]],"settings":{}}"#.utf8)
         ScreenEvidence.awaitMain {
             do {
                 let (fixture, file, store, gate) = try await self.deployment()
                 retainedFixture = fixture
                 let model = fixture.flow.firmwareCopies
-                let axes = try FirmwareVersionProvider.axes(bytes: bytes, backend: .vial, definitionSchema: "offline-schema", importer: "offline-importer")
-                let transport = NativeVialProtocolFixture(), adapter = try VialReadbackAdapter(transport: transport, matrixRows: 1, matrixColumns: 3)
+                let axes = try FirmwareVersionProvider.axes(bytes: bytes, backend: .vial, definitionSchema: VialDeviceDefinition.schema, importer: "offline-importer")
+                let transport = NativeVialHIDFixture()
                 transportPort = transport
                 model.configure(store: store, gate: gate, support: .init(entries: [.init(backend: .vial,
                     device: "18446744073709551615", axes: axes, supportedOutputs: ["KC_C"])]),
-                    versionAxes: { _ in axes }, vialAdapter: adapter)
+                    versionAxes: { _ in axes }, vialConnection: { _ in
+                        VialDeviceReadConnection(endpoint: transport, vendorID: 0x1234, productID: 0x5678)
+                    })
                 let original = file.deletingLastPathComponent().appendingPathComponent("official-adapter.vil")
                 try bytes.write(to: original); model.selectVial = { original }
                 await model.retainVial(ticket: try XCTUnwrap(model.selectionTicket()))
@@ -642,9 +673,148 @@ final class KarabinerMappingFlowTests: XCTestCase {
             try ScreenEvidence.capturePNG(view).write(to: directory.appendingPathComponent("vial-protocol-readback-en.png"))
         }
         var requests: [VialReadRequest] = []
-        ScreenEvidence.awaitMain { requests = await transport.requests }
-        XCTAssertEqual(requests, [.viaProtocol, .identity, .layerCount, try .keymap(offset: 0, length: 6), .identity, .layerCount])
+        requests = transport.requests
+        XCTAssertEqual(requests.count, 16)
+        XCTAssertEqual(Array(requests.prefix(3)), [.viaProtocol, .identity, .definitionSize])
+        XCTAssertEqual(Array(requests.suffix(6)), [.viaProtocol, .identity, .layerCount, try .keymap(offset: 0, length: 6), .identity, .layerCount])
+        XCTAssertEqual(transport.closeCount, 1)
         XCTAssertEqual(try Data(contentsOf: patch), Data(String(decoding: bytes, as: UTF8.self).replacingOccurrences(of: "KC_NO", with: "KC_C").utf8))
+    }
+    private func claimedHID(_ endpoint: NativeVialHIDFixture, vendorID: UInt16 = 0x1234,
+                            original: String? = nil) async throws -> (FlowFixture, ObjectStore, KeyAvailabilityGate, FirmwareBatchRecord) {
+        let (fixture, file, store, gate) = try await deployment()
+        let model = fixture.flow.firmwareCopies
+        let bytes = Data((original ?? #"{"version":1,"uid":18446744073709551615,"via_protocol":9,"vial_protocol":6,"layout":[[["KC_NO",-1,"KC_ENT"]]]}"#).utf8)
+        let axes = try FirmwareVersionProvider.axes(bytes: bytes, backend: .vial,
+            definitionSchema: VialDeviceDefinition.schema, importer: "offline-importer")
+        model.configure(store: store, gate: gate, support: .init(entries: [.init(backend: .vial,
+            device: "18446744073709551615", axes: axes, supportedOutputs: ["KC_C"])]),
+            versionAxes: { _ in axes }, vialConnection: { _ in
+                VialDeviceReadConnection(endpoint: endpoint, vendorID: vendorID, productID: 0x5678)
+            })
+        let selected = file.deletingLastPathComponent().appendingPathComponent("hid-original.vil")
+        try bytes.write(to: selected); model.selectVial = { selected }
+        await model.retainVial(ticket: try XCTUnwrap(model.selectionTicket()))
+        model.selectExport = { _ in file.deletingLastPathComponent().appendingPathComponent("hid-patched.vil") }
+        await model.exportChanges(try XCTUnwrap(model.records.last),
+            changes: [.init(slot: .init(layer: 0, column: 0), output: "KC_C", automatic: true)],
+            ticket: try XCTUnwrap(model.selectionTicket()))
+        await model.perform(.claimImport, record: try XCTUnwrap(model.records.last), ticket: try XCTUnwrap(model.selectionTicket()))
+        let record = try XCTUnwrap(model.records.last)
+        XCTAssertEqual(record.state, .importClaimed)
+        return (fixture, store, gate, record)
+    }
+    func testVialHIDRejectsIndependentIdentityAndOccupiedPositionMismatchBeforeKeymap() async throws {
+        for wrongVendor in [true, false] {
+            let endpoint = NativeVialHIDFixture()
+            let (fixture, store, gate, record) = try await claimedHID(endpoint, vendorID: wrongVendor ? 1 : 0x1234,
+                original: wrongVendor ? nil : #"{"version":1,"uid":18446744073709551615,"via_protocol":9,"vial_protocol":6,"layout":[[["KC_NO","KC_ENT",-1]]]}"#)
+            let model = fixture.flow.firmwareCopies
+            await model.verifyVial(record, ticket: try XCTUnwrap(model.selectionTicket()))
+            XCTAssertEqual(model.records.last?.state, .importClaimed); XCTAssertNotNil(model.issueKey)
+            XCTAssertFalse(endpoint.requests.contains(where: { $0.bytes[0] == 0x12 }))
+            XCTAssertEqual(endpoint.closeCount, 1); XCTAssertFalse(model.working)
+            let ledger = try await FirmwareOperationCoordinator(store: store,
+                resolve: { try FirmwareFileDestination(reference: $0, gate: gate) }).ledger()
+            XCTAssertNil(ledger.records.last?.verifiedAt)
+        }
+    }
+    func testVialHIDKeymapMismatchIsRecordedByExistingTransaction() async throws {
+        let endpoint = NativeVialHIDFixture(mismatch: true)
+        let (fixture, store, gate, record) = try await claimedHID(endpoint)
+        let model = fixture.flow.firmwareCopies
+        await model.verifyVial(record, ticket: try XCTUnwrap(model.selectionTicket()))
+        XCTAssertEqual(model.records.last?.state, .externallyChanged); XCTAssertNotNil(model.records.last?.verifiedAt)
+        XCTAssertNil(model.issueKey); XCTAssertEqual(endpoint.requests.count, 16); XCTAssertEqual(endpoint.closeCount, 1)
+        let ledger = try await FirmwareOperationCoordinator(store: store,
+            resolve: { try FirmwareFileDestination(reference: $0, gate: gate) }).ledger()
+        XCTAssertEqual(ledger.records.last?.state, .externallyChanged)
+    }
+    func testVialHIDCancelDisconnectPrivacyAndReselectionClosePendingReports() async throws {
+        for action in 0..<5 {
+            let pausedRequest = try action % 2 == 0 ? VialReadRequest.definitionPage(0) : .keymap(offset: 0, length: 6)
+            let endpoint = NativeVialHIDFixture(pause: pausedRequest)
+            let (fixture, store, gate, record) = try await claimedHID(endpoint)
+            let model = fixture.flow.firmwareCopies
+            let ticket = try XCTUnwrap(model.selectionTicket())
+            let task = Task { await model.verifyVial(record, ticket: ticket) }
+            let arrived = await XCTWaiter.fulfillment(of: [endpoint.paused], timeout: 5)
+            XCTAssertEqual(arrived, .completed)
+            XCTAssertTrue(model.working)
+            switch action {
+            case 0: task.cancel()
+            case 1: endpoint.disconnect()
+            case 2:
+                gate.update(.locked); fixture.observeLocked(); fixture.flow.sync(from: fixture.orchestrator.state)
+                gate.update(.unlocked); fixture.observe(); fixture.flow.sync(from: fixture.orchestrator.state)
+                XCTAssertEqual(endpoint.closeCount, 1)
+            case 3:
+                model.configure(store: store, gate: gate)
+                XCTAssertEqual(endpoint.closeCount, 1)
+            default:
+                model.cancelVialReadback()
+                XCTAssertEqual(endpoint.closeCount, 1)
+            }
+            await task.value
+            let count = endpoint.requests.count
+            endpoint.emit(pausedRequest)
+            await model.refresh()
+            XCTAssertEqual(endpoint.requests.count, count); XCTAssertEqual(endpoint.closeCount, 1)
+            XCTAssertEqual(model.records.last?.state, .importClaimed); XCTAssertNil(model.records.last?.verifiedAt)
+            XCTAssertFalse(model.working)
+            if action >= 2 { XCTAssertNil(model.issueKey) } else { XCTAssertNotNil(model.issueKey) }
+            let ledger = try await FirmwareOperationCoordinator(store: store,
+                resolve: { try FirmwareFileDestination(reference: $0, gate: gate) }).ledger()
+            XCTAssertNil(ledger.records.last?.verifiedAt)
+        }
+    }
+    func testVialHIDUnavailableCompatibilityAndCancelledTaskNeverOpenConnection() async throws {
+        let endpoint = NativeVialHIDFixture()
+        let (fixture, store, gate, record) = try await claimedHID(endpoint)
+        let model = fixture.flow.firmwareCopies
+        let ticket = try XCTUnwrap(model.selectionTicket())
+        let task = Task { await model.verifyVial(record, ticket: ticket) }
+        task.cancel(); await task.value
+        XCTAssertTrue(endpoint.requests.isEmpty); XCTAssertEqual(endpoint.closeCount, 0)
+        model.configure(store: store, gate: gate, vialConnection: { _ in
+            XCTFail("Unknown support must not open HID")
+            return VialDeviceReadConnection(endpoint: endpoint, vendorID: 0x1234, productID: 0x5678)
+        })
+        await model.refresh()
+        let current = try XCTUnwrap(model.records.last)
+        XCTAssertFalse(model.canVerifyVial(current))
+        await model.verifyVial(current, ticket: try XCTUnwrap(model.selectionTicket()))
+        XCTAssertTrue(endpoint.requests.isEmpty); XCTAssertEqual(endpoint.closeCount, 0)
+    }
+    func testVialHIDRetryUsesFreshConnectionAndOldCompletionCannotOverwriteIt() async throws {
+        let pending = NativeVialHIDFixture(pause: .identity), fresh = NativeVialHIDFixture()
+        let (fixture, store, gate, record) = try await claimedHID(pending)
+        let model = fixture.flow.firmwareCopies
+        var opens = 0
+        model.configure(store: store, gate: gate, support: .init(entries: [.init(backend: .vial,
+            device: record.device, axes: record.axes, supportedOutputs: ["KC_C"])]),
+            vialConnection: { _ in
+                opens += 1
+                return VialDeviceReadConnection(endpoint: opens == 1 ? pending : fresh, vendorID: 0x1234, productID: 0x5678)
+            })
+        await model.refresh()
+        let ticket = try XCTUnwrap(model.selectionTicket())
+        let old = Task { await model.verifyVial(record, ticket: ticket) }
+        let arrived = await XCTWaiter.fulfillment(of: [pending.paused], timeout: 5)
+        XCTAssertEqual(arrived, .completed)
+        await model.verifyVial(record, ticket: ticket)
+        XCTAssertEqual(opens, 1)
+        model.cancelVialReadback()
+        await model.verifyVial(record, ticket: try XCTUnwrap(model.selectionTicket()))
+        await old.value; pending.emit(.identity)
+        XCTAssertEqual(model.records.last?.state, .verified); XCTAssertNil(model.issueKey)
+        XCTAssertFalse(model.working); XCTAssertEqual(opens, 2)
+        XCTAssertEqual(pending.requests.count, 2); XCTAssertEqual(pending.closeCount, 1)
+        XCTAssertEqual(fresh.requests.count, 16); XCTAssertEqual(fresh.closeCount, 1)
+        let reopened = try await FirmwareOperationCoordinator(store: store,
+            resolve: { try FirmwareFileDestination(reference: $0, gate: gate) }).ledger()
+        XCTAssertEqual(reopened.records.last?.state, .verified)
+        XCTAssertEqual(reopened.records.last?.verificationSource, "vialKeymapReadback")
     }
     func testVialOriginalRetentionExportAndInvalidSelectionRemainOffline() async throws {
         let (fixture, file, store, gate) = try await deployment()

@@ -52,7 +52,7 @@ public final class VialHIDTransport: VialReadTransport, @unchecked Sendable {
         self.endpoint = endpoint; self.deadline = deadline
         endpoint.start { [weak self] frame in self?.receive(frame) }
     }
-    deinit { endpoint.close() }
+    deinit { if !closed { endpoint.close() } }
     public func close() { lock.withLock { fail(.closed) } }
     public func exchange(_ request: VialReadRequest, timeoutMilliseconds: Int) async throws -> [UInt8] {
         guard timeoutMilliseconds > 0, timeoutMilliseconds <= Int(UInt32.max) else { throw VialReadbackError.invalidRequest }

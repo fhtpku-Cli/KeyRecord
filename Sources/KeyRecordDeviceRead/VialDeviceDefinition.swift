@@ -116,6 +116,29 @@ public actor VialDefinitionReader {
         return try VialDeviceDefinition(bytes: decoded, uid: uid)
     }
 }
+// One selected connection belongs to one readback operation. Closing is
+// synchronous so a UI selection/privacy change can stop pending I/O immediately.
+public final class VialDeviceReadConnection: Sendable {
+    private let transport: VialHIDTransport
+    private let session: VialDeviceReadSession
+    public init(endpoint: any VialHIDEndpoint, vendorID: UInt16, productID: UInt16,
+                deadline: any VialHIDDeadline = DispatchVialHIDDeadline()) {
+        let transport = VialHIDTransport(endpoint: endpoint, deadline: deadline)
+        self.transport = transport
+        session = VialDeviceReadSession(transport: transport, vendorID: vendorID, productID: productID)
+    }
+    deinit { transport.close() }
+    public func close() { transport.close() }
+    public func observe(record: FirmwareBatchRecord, original: Data,
+                        authorize: @escaping @Sendable () throws -> Void) async throws -> VialKeymapObservation {
+        defer { close() }
+        return try await withTaskCancellationHandler {
+            try Task.checkCancellation()
+            return try await session.observe(record: record, original: original, authorize: authorize)
+        } onCancel: { self.close() }
+    }
+}
+
 public actor VialDeviceReadSession {
     private let transport: any VialReadTransport
     private let vendorID: UInt16

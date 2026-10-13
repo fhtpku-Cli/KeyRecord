@@ -543,7 +543,7 @@ final class ProductRecoveryQuitTests: XCTestCase {
             await model.retainVIA(original, ticket: try XCTUnwrap(model.selectionTicket()))
             XCTAssertEqual(model.records.count, 1)
             XCTAssertTrue(model.canPrepareUninstall)
-            await model.prepareUninstall(ticket: try XCTUnwrap(model.selectionTicket()), choice: 1, deleteData: erase, discard: false)
+            await model.prepareUninstall(ticket: try XCTUnwrap(model.selectionTicket()), request: try model.fixtureUninstallRequest(choice: 1, deleteData: erase, discard: false))
             XCTAssertTrue(model.uninstallReady); XCTAssertNil(model.issueKey)
             let calls = await login.removals
             XCTAssertEqual(calls, erase ? 2 : 1)
@@ -566,7 +566,7 @@ final class ProductRecoveryQuitTests: XCTestCase {
         let login = SyntheticUninstallLogin(rejected: true)
         let product = try await collecting(journal: false, login: login)
         let model = product.composition.flow.firmwareCopies
-        await model.prepareUninstall(ticket: try XCTUnwrap(model.selectionTicket()), choice: 1, deleteData: true, discard: false)
+        await model.prepareUninstall(ticket: try XCTUnwrap(model.selectionTicket()), request: try model.fixtureUninstallRequest(choice: 1, deleteData: true, discard: false))
         XCTAssertFalse(model.uninstallReady); XCTAssertNotNil(model.issueKey)
         XCTAssertEqual(product.phase, .paused)
         XCTAssertEqual(model.uninstallStage, .rulesRemoved)

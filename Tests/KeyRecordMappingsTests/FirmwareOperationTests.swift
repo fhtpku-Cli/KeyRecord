@@ -312,6 +312,40 @@ final class FirmwareOperationTests: XCTestCase {
         let next = try await retain(firmware)
         XCTAssertNotEqual(next.id, original.id)
     }
+    func testPreviousPreparationLoadsLastCompletedStageAndRetryRequiresCurrentCopies() async throws {
+        let (_, store, _, gate) = try await fixture()
+        let firmware = try coordinator(store, gate)
+        let missing = try await UninstallPreparationCoordinator.previousPreparation(store: store)
+        XCTAssertNil(missing)
+        let first = try await retain(firmware)
+        var calls: [String] = []
+        let failed = try UninstallPreparationCoordinator(store: store, firmware: firmware, gate: gate,
+            stopCapture: { calls.append("capture") }, removeRules: { calls.append("rules") },
+            removeLogin: { calls.append("login"); throw FirmwareError.unavailable }, eraseData: { calls.append("data") })
+        do { _ = try await failed.prepare(choices: [first.id: .heldElsewhere], deleteLocalData: true); XCTFail("Expected login failure") }
+        catch FirmwareError.unavailable {}
+        let loaded = try await UninstallPreparationCoordinator.previousPreparation(store: store)
+        let previous = try XCTUnwrap(loaded)
+        XCTAssertEqual(previous.stage, .rulesRemoved); XCTAssertTrue(previous.deleteLocalData)
+        XCTAssertEqual(previous.choices, [first.id.uuidString: .heldElsewhere])
+        let second = try await retain(firmware)
+        calls = []
+        let retry = try UninstallPreparationCoordinator(store: store, firmware: firmware, gate: gate,
+            stopCapture: { calls.append("capture") }, removeRules: { calls.append("rules") },
+            removeLogin: { calls.append("login") }, eraseData: { calls.append("data") })
+        do { _ = try await retry.prepare(choices: [first.id: .heldElsewhere], deleteLocalData: false); XCTFail("Expected new copy refusal") }
+        catch FirmwareError.unavailable {}
+        XCTAssertEqual(calls, ["capture"])
+        let unchanged = try await UninstallPreparationCoordinator.previousPreparation(store: store)
+        XCTAssertEqual(unchanged, previous)
+        calls = []
+        let result = try await retry.prepare(choices: [first.id: .heldElsewhere, second.id: .discardConfirmed], deleteLocalData: false)
+        XCTAssertEqual(calls, ["capture", "rules", "login"])
+        XCTAssertEqual(result.stage, .ready); XCTAssertFalse(result.deleteLocalData)
+        XCTAssertNotEqual(result.id, previous.id)
+        let reopened = try await UninstallPreparationCoordinator.previousPreparation(store: store)
+        XCTAssertEqual(reopened, result)
+    }
     func testCaptureStopFailureLeavesRecoveryCopiesAndLaterPortsUntouched() async throws {
         let (_, store, _, gate) = try await fixture()
         let firmware = try coordinator(store, gate)

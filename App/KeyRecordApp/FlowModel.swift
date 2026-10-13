@@ -630,10 +630,11 @@ final class AppFlowObservable: ObservableObject {
     func quit() async { await actions.quit(); await refresh() }
     func openSettings() { actions.openSettings() }
 
-    func requestReset() { flow.requestReset(); mirror() }
-    func requestDeleteLocalData() { flow.requestDeleteLocalData(); mirror() }
+    func requestReset() { guard !firmwareCopies.working else { return }; flow.requestReset(); mirror() }
+    func requestDeleteLocalData() { guard !firmwareCopies.working else { return }; flow.requestDeleteLocalData(); mirror() }
 
     func choose(_ choice: DialogChoice) async {
+        if choice == .confirm, firmwareCopies.working { return }
         do {
             try await flow.choose(choice)
         } catch FlowError.actionUnavailable {
@@ -652,6 +653,7 @@ final class AppFlowObservable: ObservableObject {
     }
 
     func setLoginItem(enabled: Bool) async {
+        guard !firmwareCopies.working else { return }
         await actions.setLoginItem(enabled)
         await refresh()
     }

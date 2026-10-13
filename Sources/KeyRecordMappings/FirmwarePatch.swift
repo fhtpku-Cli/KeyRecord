@@ -29,6 +29,9 @@ public struct FirmwareCompatibility: Equatable, Sendable {
 public struct FirmwareSupportDirectory: Sendable {
     private let entries: [FirmwareCompatibility]
     public init(entries: [FirmwareCompatibility] = []) { self.entries = entries }
+    public func supports(backend: FirmwareBackend, device: String, axes: FirmwareVersionAxes) -> Bool {
+        axes.complete && entries.contains { $0.backend == backend && $0.device == device && $0.axes == axes }
+    }
     func outputs(backend: FirmwareBackend, device: String, axes: FirmwareVersionAxes) throws -> Set<String> {
         guard axes.complete, let entry = entries.first(where: { $0.backend == backend && $0.device == device && $0.axes == axes }) else {
             throw FirmwareError.unknownCompatibility

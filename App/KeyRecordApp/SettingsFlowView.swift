@@ -51,6 +51,7 @@ struct SettingsFlowView: View {
             LoginItemSection(flow: flow, text: text)
             LanguageSection(flow: flow, text: text)
             DangerSection(flow: flow, text: text)
+            if !flow.sensitiveContentVisible, flow.firmwareCopies.uninstallReady { Text(text("phase4.uninstallReady")) }
         }
         .formStyle(.grouped)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -159,6 +160,7 @@ private struct LoginItemSection: View {
             .accessibilityLabel(Text(text("settings.login")))
             .accessibilitySortPriority(4)
             .accessibilityIdentifier("settings.login")
+            .disabled(flow.firmwareCopies.working)
             if let errorKey = flow.loginItemErrorKey {
                 Label(text(errorKey), systemImage: "exclamationmark.triangle")
                     .labelStyle(.titleAndIcon)
@@ -213,11 +215,13 @@ private struct DangerSection: View {
                 flow.requestReset()
             }
             .accessibilitySortPriority(2)
+            .disabled(flow.firmwareCopies.working)
             SettingsRow(text: text, titleKey: "settings.delete",
                         rowIdentifier: "settings.delete", role: .destructive) {
                 flow.requestDeleteLocalData()
             }
             .accessibilitySortPriority(1)
+            .disabled(flow.firmwareCopies.working)
         } header: {
             Label(text("settings.danger"), systemImage: "exclamationmark.triangle")
         }

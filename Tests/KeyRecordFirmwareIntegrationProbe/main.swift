@@ -15,6 +15,7 @@ private struct OfflineTransport: VialReadTransport {
     let uid: UInt64
     let layers: UInt8
     let keymap: [UInt8]
+    var encoders: [FirmwareEncoderSlot: String] = [:]
     var definition: Data?
     func exchange(_ request: VialReadRequest, timeoutMilliseconds: Int) async throws -> [UInt8] {
         try respond(request)
@@ -38,6 +39,14 @@ private struct OfflineTransport: VialReadTransport {
                 guard start < definition.count else { throw VialDefinitionError.invalidSize }
                 bytes = Array(definition[start..<min(start + 32, definition.count)])
                 bytes += Array(repeating: 0, count: 32 - bytes.count)
+            case 3:
+                for direction in [FirmwareEncoderDirection.clockwise, .counterclockwise] {
+                    guard let token = encoders[.init(layer: Int(request.bytes[2]), index: Int(request.bytes[3]), direction: direction)] else {
+                        throw VialReadbackError.invalidEncoders
+                    }
+                    let raw = try VialKeycodeDialect.rawValue(token), offset = direction.rawValue * 2
+                    bytes[offset] = UInt8(raw >> 8); bytes[offset + 1] = UInt8(raw & 255)
+                }
             default: throw VialReadbackError.invalidRequest
             }
         case 0x11: bytes[1] = layers
@@ -117,23 +126,24 @@ struct FirmwareIntegrationProbe {
             }
         }
         let observation: VialKeymapObservation
+        let encoders = try patched.encoderValues()
         if args.count == 3 {
             let definition = try Data(contentsOf: URL(fileURLWithPath: args[2]))
-            let endpoint = OfflineEndpoint(source: OfflineTransport(uid: uid, layers: layers, keymap: keymap, definition: definition))
+            let endpoint = OfflineEndpoint(source: OfflineTransport(uid: uid, layers: layers, keymap: keymap, encoders: encoders, definition: definition))
             let transport = VialHIDTransport(endpoint: endpoint)
             defer { transport.close() }
             let session = VialDeviceReadSession(transport: transport, vendorID: 0x1234, productID: 0x5678)
             observation = try await session.observe(record: record, original: bytes, at: { Date(timeIntervalSince1970: 3) })
             print("PASS: simulated HID exchanged \(endpoint.reportCount) reports; fetched and decoded \(definition.count) XZ bytes before keymap readback")
         } else {
-            let adapter = try VialReadbackAdapter(transport: OfflineTransport(uid: uid, layers: layers, keymap: keymap),
-                matrixRows: shape.rows, matrixColumns: shape.columns)
+            let adapter = try VialReadbackAdapter(transport: OfflineTransport(uid: uid, layers: layers, keymap: keymap, encoders: encoders),
+                matrixRows: shape.rows, matrixColumns: shape.columns, encoderIndices: Set(encoders.keys.map(\.index)))
             observation = try await adapter.observe(record: record, original: bytes, at: { Date(timeIntervalSince1970: 3) })
         }
         let result = try await operations.confirmVialReadback(record.id, observation: observation)
         guard result.records.last?.state == .verified, try await operations.original(record.id) == bytes else { throw FirmwareError.invalidState }
         let reopened = try FirmwareOperationCoordinator(store: store, support: support, resolve: { try FirmwareFileDestination(reference: $0, gate: gate) })
         guard try await reopened.reconcile().records.last?.state == .verified else { throw FirmwareError.invalidState }
-        print("PASS: public API retained official export, previewed one change, exported, claimed import, read \(observation.values.count) slots, verified and reopened encrypted result")
+        print("PASS: public API retained official export, previewed one change, exported, claimed import, read \(observation.values.count) matrix and \(observation.encoderValues.count) encoder slots, verified and reopened encrypted result")
     }
 }

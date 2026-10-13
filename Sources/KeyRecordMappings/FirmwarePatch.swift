@@ -55,6 +55,15 @@ public struct FirmwareSlotChange: Codable, Equatable, Sendable {
     public let automatic: Bool
     public init(slot: FirmwareSlot, output: String, automatic: Bool) { self.slot = slot; self.output = output; self.automatic = automatic }
 }
+public struct VialKeymapObservation: Sendable {
+    public let device: String
+    public let axes: FirmwareVersionAxes
+    public let values: [FirmwareSlot: String]
+    public let observedAt: Date
+    public init(device: String, axes: FirmwareVersionAxes, values: [FirmwareSlot: String], observedAt: Date) {
+        self.device = device; self.axes = axes; self.values = values; self.observedAt = observedAt
+    }
+}
 public struct FirmwareDocument: Sendable {
     public let backend: FirmwareBackend
     public let device: String
@@ -105,6 +114,9 @@ public struct FirmwareDocument: Sendable {
     public func value(at slot: FirmwareSlot) throws -> String {
         guard let node = slots[slot] else { throw FirmwareError.invalidSlot }
         return try JSONDecoder().decode(String.self, from: Data(bytes[node.range]))
+    }
+    func slotValues() throws -> [FirmwareSlot: String] {
+        try Dictionary(uniqueKeysWithValues: slots.keys.map { ($0, try value(at: $0)) })
     }
     public func patch(_ changes: [FirmwareSlotChange], expectedDevice: String, axes: FirmwareVersionAxes,
                       support: FirmwareSupportDirectory) throws -> Data {

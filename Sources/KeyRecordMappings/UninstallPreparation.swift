@@ -8,7 +8,7 @@ public enum FirmwareRecoveryChoice: Sendable {
     case discardConfirmed
 }
 public enum FirmwareRecoveryDisposition: String, Codable, Sendable { case exported, heldElsewhere, discarded }
-public enum UninstallPreparationStage: String, Codable, Sendable { case recoverySecured, rulesRemoved, loginRemoved, ready, erasing, completed }
+public enum UninstallPreparationStage: String, Codable, Sendable { case captureStopped, recoverySecured, rulesRemoved, loginRemoved, ready, erasing, completed }
 public struct UninstallPreparationRecord: Codable, Equatable, Sendable {
     public let id: UUID
     public let choices: [String: FirmwareRecoveryDisposition]
@@ -19,33 +19,41 @@ public struct UninstallPreparationRecord: Codable, Equatable, Sendable {
 public final class UninstallPreparationCoordinator {
     private let store: ObjectStore
     private let firmware: FirmwareOperationCoordinator
+    private let stopCapture: @MainActor () async throws -> Void
     private let removeRules: @MainActor () async throws -> Void
     private let removeLogin: @MainActor () async throws -> Void
     private let eraseData: @MainActor () async throws -> Void
     private let authorize: @MainActor () throws -> Void
     private let gate: KeyAvailabilityGate
     private let generation: CaptureGeneration
+    private let onProgress: @MainActor (UninstallPreparationStage) -> Void
     private var busy = false
     private let identity: CanonicalLogicalIdentity
     public init(store: ObjectStore, firmware: FirmwareOperationCoordinator, gate: KeyAvailabilityGate,
+                stopCapture: @escaping @MainActor () async throws -> Void,
                 removeRules: @escaping @MainActor () async throws -> Void,
                 removeLogin: @escaping @MainActor () async throws -> Void,
                 eraseData: @escaping @MainActor () async throws -> Void,
-                authorize: @escaping @MainActor () throws -> Void = {}) throws {
+                authorize: @escaping @MainActor () throws -> Void = {},
+                onProgress: @escaping @MainActor (UninstallPreparationStage) -> Void = { _ in }) throws {
         self.store = store; self.firmware = firmware; self.removeRules = removeRules
         self.removeLogin = removeLogin; self.eraseData = eraseData
         self.authorize = authorize
+        self.stopCapture = stopCapture; self.onProgress = onProgress
         self.gate = gate; self.generation = try gate.begin()
         identity = try CanonicalLogicalIdentity(objectType: "com.keyrecord.uninstall-preparation", schemaVersion: 1, logicalIDText: "preparation")
     }
     private func checkAccess() throws { try gate.use(generation) { try authorize() } }
     private func save(_ record: UninstallPreparationRecord) async throws {
         _ = try await store.put(identity: identity, payload: JSONEncoder().encode(record))
+        onProgress(record.stage)
     }
     public func prepare(choices: [UUID: FirmwareRecoveryChoice], deleteLocalData: Bool) async throws -> UninstallPreparationRecord {
         guard !busy else { throw FirmwareError.busy }
         busy = true; defer { busy = false }
         try checkAccess()
+        try await stopCapture()
+        try checkAccess(); onProgress(.captureStopped)
         _ = try await firmware.reconcile()
         return try await firmware.withRecoveryPreparation { [self] in
             try await prepareReserved(choices: choices, deleteLocalData: deleteLocalData)
@@ -84,6 +92,7 @@ public final class UninstallPreparationCoordinator {
             record.stage = .erasing; try await save(record)
             try checkAccess(); try await eraseData()
             record.stage = .completed
+            onProgress(.completed)
         }
         return record
     }

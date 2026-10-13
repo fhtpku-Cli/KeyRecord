@@ -67,7 +67,7 @@ enum PrivacySchemaAudit {
             "FirmwareSlot": ["layer", "row", "column"], "FirmwareSlotChange": ["slot", "output", "automatic"]],
         "FirmwareOperations.swift": ["FirmwareExportReference": ["bookmark", "location"],
             "FirmwareBatchRecord": ["id", "backend", "device", "axes", "baselineSHA256", "originalExportConfirmedAt", "state", "artifactSHA256", "exportedAt", "importClaimedAt", "verifiedAt", "verificationSource", "changes"],
-            "FirmwarePendingOperation": ["batch", "phase", "target", "recordedAt", "verificationPassed", "previousState"],
+            "FirmwarePendingOperation": ["batch", "phase", "target", "recordedAt", "verificationPassed", "previousState", "verificationState", "verificationSource"],
             "FirmwareLedger": ["records", "pending"]],
         "UninstallPreparation.swift": ["UninstallPreparationRecord": ["id", "choices", "deleteLocalData", "stage"]],
         "KarabinerPlan.swift": ["MappingDevice": ["vendorID", "productID", "identity"],

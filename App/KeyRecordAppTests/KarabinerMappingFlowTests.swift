@@ -141,6 +141,84 @@ final class KarabinerMappingFlowTests: XCTestCase {
         XCTAssertNotEqual(original, external)
     }
     private let vialOriginal = Data(#"{"version":1,"uid":18446744073709551615,"layout":[[["KC_NO","CUSTOM"]]],"macros":["opaque recovery marker"],"unknown": { "spaces" : [1,2] }}"#.utf8)
+    private func claimedVial(_ fixture: FlowFixture, file: URL, store: ObjectStore, gate: KeyAvailabilityGate,
+                             readback: (@Sendable (FirmwareBatchRecord) async throws -> VialKeymapObservation)?) async throws -> FirmwareBatchRecord {
+        let model = fixture.flow.firmwareCopies
+        let axes = fixtureAxes
+        model.configure(store: store, gate: gate,
+            support: FirmwareSupportDirectory(entries: [FirmwareCompatibility(backend: .vial, device: "18446744073709551615", axes: axes, supportedOutputs: ["KC_C"])]),
+            versionAxes: { _ in axes }, vialReadback: readback)
+        let original = file.deletingLastPathComponent().appendingPathComponent("readback-original.vil")
+        try vialOriginal.write(to: original); model.selectVial = { original }
+        await model.retainVial(ticket: try XCTUnwrap(model.selectionTicket()))
+        let patch = file.deletingLastPathComponent().appendingPathComponent("readback-patch.vil")
+        model.selectExport = { _ in patch }
+        var record = try XCTUnwrap(model.records.last)
+        await model.exportChanges(record, changes: [FirmwareSlotChange(slot: FirmwareSlot(layer: 0, column: 0), output: "KC_C", automatic: false)],
+            ticket: try XCTUnwrap(model.selectionTicket()))
+        record = try XCTUnwrap(model.records.last)
+        await model.perform(.claimImport, record: record, ticket: try XCTUnwrap(model.selectionTicket()))
+        return try XCTUnwrap(model.records.last)
+    }
+    func testNativeVialReadbackButtonUsesOnlyInjectedQualifiedSnapshot() throws {
+        ScreenEvidence.prepare()
+        var fixture: FlowFixture?
+        var record: FirmwareBatchRecord?
+        ScreenEvidence.awaitMain {
+            do {
+                let value = try await self.deployment(); fixture = value.0
+                let axes = self.fixtureAxes
+                record = try await self.claimedVial(value.0, file: value.1, store: value.2, gate: value.3, readback: { _ in
+                    VialKeymapObservation(device: "18446744073709551615", axes: axes,
+                        values: [FirmwareSlot(layer: 0, column: 0): "KC_C", FirmwareSlot(layer: 0, column: 1): "CUSTOM"], observedAt: Date())
+                })
+            } catch { XCTFail("\(error)") }
+        }
+        let model = try XCTUnwrap(fixture?.flow.firmwareCopies); let batch = try XCTUnwrap(record)
+        XCTAssertEqual(batch.state, .importClaimed); XCTAssertNil(batch.verifiedAt)
+        let view = NSHostingView(rootView: Form {
+            FirmwareCopiesSection(model: model, viaBytes: nil, text: NativeText(locale: "en"))
+        }.formStyle(.grouped).frame(width: 900, height: 1200))
+        view.sizingOptions = []
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 900, height: 1200), styleMask: [.titled], backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false; window.contentView = view; window.makeKeyAndOrderFront(nil)
+        defer { window.contentView = nil; window.close() }
+        NativeEvidence.primeAccessibility(); NativeEvidence.update(view); NativeEvidence.update(view)
+        let verified = XCTestExpectation(description: "Synthetic Vial comparison recorded")
+        var delivered = false
+        model.onChange = {
+            if !delivered, model.records.last?.state == .verified { delivered = true; verified.fulfill() }
+        }
+        XCTAssertTrue(KRAXPress(try NativeEvidence.node("readback-" + batch.id.uuidString, in: view)))
+        ScreenEvidence.awaitMain {
+            let result = await XCTWaiter.fulfillment(of: [verified], timeout: 5)
+            XCTAssertEqual(result, .completed)
+        }
+        XCTAssertEqual(model.records.last?.verificationSource, "vialKeymapReadback")
+        NativeEvidence.update(view)
+        if let directory = NativeEvidence.outputRoot() {
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            try ScreenEvidence.capturePNG(view).write(to: directory.appendingPathComponent("synthetic-vial-readback-en.png"))
+        }
+    }
+    func testVialReadbackNoDefaultPortAndLateResponseCannotCrossPrivacyGeneration() async throws {
+        let (fixture, file, store, gate) = try await deployment()
+        let model = fixture.flow.firmwareCopies
+        let withoutPort = try await claimedVial(fixture, file: file, store: store, gate: gate, readback: nil)
+        XCTAssertFalse(model.canVerifyVial(withoutPort))
+        let axes = fixtureAxes
+        let record = try await claimedVial(fixture, file: file, store: store, gate: gate, readback: { _ in
+            await MainActor.run {
+                gate.update(.locked); fixture.observeLocked(); fixture.flow.sync(from: fixture.orchestrator.state)
+                gate.update(.unlocked); fixture.observe(); fixture.flow.sync(from: fixture.orchestrator.state)
+            }
+            return VialKeymapObservation(device: "18446744073709551615", axes: axes,
+                values: [FirmwareSlot(layer: 0, column: 0): "KC_C", FirmwareSlot(layer: 0, column: 1): "CUSTOM"], observedAt: Date())
+        })
+        await model.verifyVial(record, ticket: try XCTUnwrap(model.selectionTicket()))
+        await model.refresh()
+        XCTAssertEqual(model.records.last?.state, .importClaimed); XCTAssertNil(model.records.last?.verifiedAt)
+    }
     func testVialOriginalRetentionExportAndInvalidSelectionRemainOffline() async throws {
         let (fixture, file, store, gate) = try await deployment()
         let model = fixture.flow.firmwareCopies
@@ -199,7 +277,7 @@ final class KarabinerMappingFlowTests: XCTestCase {
         XCTAssertNotNil(fixture); XCTAssertNotNil(original)
         let model = fixture.flow.firmwareCopies
         var calls: [String] = []
-        model.configureUninstall(.init(removeRules: { calls.append("rules") }, removeLogin: { calls.append("login") },
+        model.configureUninstall(.init(stopCapture: {}, removeRules: { calls.append("rules") }, removeLogin: { calls.append("login") },
             eraseData: { calls.append("data") }, editing: { _ in }))
         model.recoveryChoice = 1
         let view = NSHostingView(rootView: Form {
@@ -256,6 +334,7 @@ final class KarabinerMappingFlowTests: XCTestCase {
             XCTAssertEqual(result, .completed)
         }
         XCTAssertEqual(calls, ["rules", "login"])
+        XCTAssertEqual(model.uninstallStage, .ready)
         XCTAssertEqual(model.records.count, 1)
         if let output = NativeEvidence.outputRoot() {
             try FileManager.default.createDirectory(at: output, withIntermediateDirectories: true)
@@ -273,7 +352,7 @@ final class KarabinerMappingFlowTests: XCTestCase {
         XCTAssertNotEqual(try Data(contentsOf: file), bytes)
         var order: [String] = []
         flow.actions.setLoginItem = { _ in XCTFail("Login toggle cannot race uninstall") }
-        model.configureUninstall(.init(removeRules: {
+        model.configureUninstall(.init(stopCapture: {}, removeRules: {
             XCTAssertNotNil(try? Data(contentsOf: copy)); order.append("rules")
             flow.requestReset(); flow.requestDeleteLocalData(); await flow.setLoginItem(enabled: true)
             XCTAssertEqual(flow.dialog, .none)
@@ -284,6 +363,7 @@ final class KarabinerMappingFlowTests: XCTestCase {
         await model.prepareUninstall(ticket: try XCTUnwrap(model.selectionTicket()), choice: 0, deleteData: false, discard: false)
         XCTAssertEqual(order, ["rules", "login"])
         XCTAssertTrue(model.uninstallReady); XCTAssertNil(model.issueKey)
+        XCTAssertEqual(model.uninstallStage, .ready)
         XCTAssertEqual(try Data(contentsOf: file), bytes)
         XCTAssertEqual(model.records.map(\.id), [original.id])
         XCTAssertFalse(flow.karabinerMappings.maintenance)
@@ -293,7 +373,7 @@ final class KarabinerMappingFlowTests: XCTestCase {
         let model = fixture.flow.firmwareCopies
         _ = try await retainOriginal(model)
         var calls: [String] = []
-        model.configureUninstall(.init(removeRules: { calls.append("rules") },
+        model.configureUninstall(.init(stopCapture: {}, removeRules: { calls.append("rules") },
             removeLogin: { calls.append("login"); throw FirmwareError.unavailable },
             eraseData: { calls.append("data") }, editing: { _ in }))
         model.selectExport = { _ in nil }
@@ -303,6 +383,7 @@ final class KarabinerMappingFlowTests: XCTestCase {
         XCTAssertTrue(calls.isEmpty); XCTAssertFalse(model.uninstallReady)
         await model.prepareUninstall(ticket: try XCTUnwrap(model.selectionTicket()), choice: 1, deleteData: true, discard: false)
         XCTAssertEqual(calls, ["rules", "login"]); XCTAssertFalse(model.uninstallReady)
+        XCTAssertEqual(model.uninstallStage, .rulesRemoved)
         let ticket = try XCTUnwrap(model.selectionTicket())
         fixture.observeLocked(); fixture.flow.sync(from: fixture.orchestrator.state)
         fixture.observe(); fixture.flow.sync(from: fixture.orchestrator.state)
@@ -314,11 +395,12 @@ final class KarabinerMappingFlowTests: XCTestCase {
         let model = fixture.flow.firmwareCopies
         _ = try await retainOriginal(model)
         var order: [String] = []
-        model.configureUninstall(.init(removeRules: { order.append("rules") }, removeLogin: { order.append("login") },
+        model.configureUninstall(.init(stopCapture: {}, removeRules: { order.append("rules") }, removeLogin: { order.append("login") },
             eraseData: { order.append("data"); model.clear() }, editing: { _ in }))
         await model.prepareUninstall(ticket: try XCTUnwrap(model.selectionTicket()), choice: 2, deleteData: true, discard: true)
         XCTAssertEqual(order, ["rules", "login", "data"])
         XCTAssertTrue(model.uninstallReady); XCTAssertTrue(model.records.isEmpty); XCTAssertFalse(model.working)
+        XCTAssertNil(model.uninstallStage)
     }
     func testOriginalDeletionRequiresCurrentSessionAndDeletesOnlySelectedCopy() async throws {
         let (fixture, _, store, gate) = try await deployment()

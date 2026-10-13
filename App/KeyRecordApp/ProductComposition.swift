@@ -276,6 +276,11 @@ final class ProductComposition: NSObject, NSMenuDelegate, NSWindowDelegate {
         flow.karabinerDeployment.configure(store: store, gate: gate)
         flow.firmwareCopies.configure(store: store, gate: gate)
         flow.firmwareCopies.configureUninstall(.init(
+            stopCapture: { [weak flow] in
+                await lifecycle.pause()
+                flow?.sync(from: lifecycle.state)
+                guard lifecycle.phase == .paused else { throw LifecycleFlushError.failed }
+            },
             removeRules: { [weak flow] in
                 guard let flow else { throw FirmwareError.unavailable }
                 try await flow.karabinerDeployment.removeForUninstall()

@@ -10,6 +10,7 @@ final class FirmwareCopiesModel: ObservableObject {
     @Published private(set) var issueKey: String?
     @Published private(set) var working = false
     @Published private(set) var uninstallReady = false
+    @Published private(set) var uninstallStage: UninstallPreparationStage?
     @Published var recoveryChoice = 0
     @Published var deleteLocalData = false
     @Published var discardConfirmed = false
@@ -31,8 +32,10 @@ final class FirmwareCopiesModel: ObservableObject {
     private var readRequest = UUID()
     private var support = FirmwareSupportDirectory()
     private var versionAxes: @MainActor (FirmwareBackend) -> FirmwareVersionAxes? = { _ in nil }
+    private var vialReadback: (@Sendable (FirmwareBatchRecord) async throws -> VialKeymapObservation)?
     private var uninstall: UninstallActions?
     struct UninstallActions {
+        let stopCapture: @MainActor () async throws -> Void
         let removeRules: @MainActor () async throws -> Void
         let removeLogin: @MainActor () async throws -> Void
         let eraseData: @MainActor () async throws -> Void
@@ -40,8 +43,10 @@ final class FirmwareCopiesModel: ObservableObject {
         var ready: @MainActor () -> Bool = { true }
     }
     func configure(store: ObjectStore, gate: KeyAvailabilityGate, support: FirmwareSupportDirectory = FirmwareSupportDirectory(),
-                   versionAxes: @escaping @MainActor (FirmwareBackend) -> FirmwareVersionAxes? = { _ in nil }) {
+                   versionAxes: @escaping @MainActor (FirmwareBackend) -> FirmwareVersionAxes? = { _ in nil },
+                   vialReadback: (@Sendable (FirmwareBatchRecord) async throws -> VialKeymapObservation)? = nil) {
         self.store = store; self.gate = gate; self.support = support; self.versionAxes = versionAxes; firmware = nil
+        self.vialReadback = vialReadback
     }
     func configureUninstall(_ actions: UninstallActions) { uninstall = actions }
     var canPrepareUninstall: Bool {
@@ -57,6 +62,7 @@ final class FirmwareCopiesModel: ObservableObject {
     func clear() {
         session = UUID(); records = []; firmware = nil; issueKey = nil; working = false
         recoveryChoice = 0; deleteLocalData = false; discardConfirmed = false
+        uninstallStage = nil
     }
     func refresh() async {
         guard canRead(), !working, store != nil else { return }
@@ -123,6 +129,26 @@ final class FirmwareCopiesModel: ObservableObject {
             isCompatible(record)
     }
     func isCompatible(_ record: FirmwareBatchRecord) -> Bool { support.supports(backend: record.backend, device: record.device, axes: record.axes) }
+    func canVerifyVial(_ record: FirmwareBatchRecord) -> Bool {
+        canRead() && !working && hasVialReadback(record)
+    }
+    func hasVialReadback(_ record: FirmwareBatchRecord) -> Bool {
+        record.backend == .vial && vialReadback != nil && isCompatible(record) &&
+            [.importClaimed, .verified, .failed, .externallyChanged].contains(record.state)
+    }
+    func verifyVial(_ record: FirmwareBatchRecord, ticket: UUID) async {
+        guard ticket == session, records.contains(record), canVerifyVial(record), let gate, let vialReadback else { return }
+        working = true; issueKey = nil
+        defer { if ticket == session { working = false; onChange() } }
+        do {
+            let generation = try gate.begin()
+            let observation = try await vialReadback(record)
+            try gate.check(generation)
+            guard canRead(), ticket == session else { return }
+            let ledger = try await coordinator().confirmVialReadback(record.id, observation: observation)
+            if canRead(), ticket == session { records = ledger.records }
+        } catch { if canRead(), ticket == session { issueKey = "phase4.operationFailed" } }
+    }
     func exportChanges(_ record: FirmwareBatchRecord, changes: [FirmwareSlotChange], ticket: UUID) async {
         guard ticket == session, records.contains(record), canGenerate(record), !changes.isEmpty, let gate else { return }
         working = true; issueKey = nil
@@ -157,6 +183,7 @@ final class FirmwareCopiesModel: ObservableObject {
         guard canRead(), ticket == session, !working, let actions = uninstall, actions.ready(), let store, let gate,
               (0...2).contains(choice) else { return }
         working = true; issueKey = nil; uninstallReady = false; actions.editing(true)
+        uninstallStage = nil
         onChange()
         defer { actions.editing(false); if ticket == session { working = false; onChange() } }
         do {
@@ -178,9 +205,13 @@ final class FirmwareCopiesModel: ObservableObject {
                 }
             }
             let preparation = try UninstallPreparationCoordinator(store: store, firmware: firmware, gate: gate,
+                stopCapture: actions.stopCapture,
                 removeRules: actions.removeRules, removeLogin: actions.removeLogin, eraseData: actions.eraseData,
                 authorize: { [weak self] in
                     guard let self, self.canRead(), self.session == ticket else { throw FirmwareError.unavailable }
+                }, onProgress: { [weak self] stage in
+                    guard let self, self.canRead(), self.session == ticket else { return }
+                    self.uninstallStage = stage; self.onChange()
                 })
             let result = try await preparation.prepare(choices: choices, deleteLocalData: deleteData)
             if result.stage == .completed || (ticket == session && canRead()) { uninstallReady = true }
@@ -254,6 +285,10 @@ struct FirmwareCopiesSection: View {
                 }
             }.disabled(!model.canPrepareUninstall || preparation != nil).accessibilityIdentifier("phase4.prepareUninstall")
             if model.uninstallReady { Text(text("phase4.uninstallReady")) }
+            if let stage = model.uninstallStage {
+                Text(text("phase4.uninstallStage.\(stage.rawValue)"))
+                    .accessibilityIdentifier("phase4.uninstallProgress")
+            }
         } header: { Text(text("phase4.uninstallTitle")) }
         if let (ticket, choice, deleteData, discard) = preparation {
             Section {
@@ -299,13 +334,17 @@ private struct FirmwareOperationRow: View {
             Button(text("phase4.abandonExport")) { request(.abandon, key: "phase4.abandonConfirm") }
                 .disabled(model.working || pending != nil)
         }
-        if [.importClaimed, .verified, .failed].contains(record.state) {
-            if record.backend == .via {
+        if [.importClaimed, .verified, .failed, .externallyChanged].contains(record.state) {
+            if record.backend == .via && record.state != .externallyChanged {
                 Button(text("phase4.behaviorPassed")) { request(.viaPassed, key: "phase4.behaviorConfirm") }
                     .disabled(model.working || pending != nil).accessibilityIdentifier("passed-" + record.id.uuidString)
                 Button(text("phase4.behaviorFailed")) { request(.viaFailed, key: "phase4.behaviorConfirm") }
                     .disabled(model.working || pending != nil)
-            } else { Text(text("phase4.vialReadbackUnavailable")) }
+            } else if model.hasVialReadback(record) {
+                Button(text("phase4.verifyVialReadback")) {
+                    if let ticket = model.selectionTicket() { Task { await model.verifyVial(record, ticket: ticket) } }
+                }.disabled(!model.canVerifyVial(record)).accessibilityIdentifier("readback-" + record.id.uuidString)
+            } else if record.backend == .vial { Text(text("phase4.vialReadbackUnavailable")) }
         }
         if [.importClaimed, .verified, .failed, .externallyChanged].contains(record.state) {
             Button(text("phase4.guidedRollback")) { request(.rollback, key: "phase4.rollbackConfirm") }

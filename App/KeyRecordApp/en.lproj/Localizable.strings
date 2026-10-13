@@ -350,7 +350,8 @@
 "phase4.confirmOperation" = "Confirm this operation";
 "phase4.exportedAt" = "Exported on";
 "phase4.importClaimedAt" = "Import declared on";
-"phase4.evidenceAt" = "Behavior test recorded on";
+"phase4.evidenceAt" = "Verification evidence recorded on";
+"phase4.verifyVialReadback" = "Compare the Vial keymap readback";
 "phase4.claimImport" = "I imported this export using the official importer";
 "phase4.claimImportConfirm" = "Record your import declaration? It does not verify the keyboard behavior.";
 "phase4.abandonExport" = "Abandon this unimported export";
@@ -369,6 +370,13 @@
 "phase4.deleteOriginal" = "Delete retained original";
 "phase4.deleteOriginalConfirm" = "Delete this retained original? External files and the keyboard are unchanged. Keep a recovery copy elsewhere first.";
 "phase4.uninstallTitle" = "Prepare to uninstall";
+"phase4.uninstallStage.captureStopped" = "Capture has stopped.";
+"phase4.uninstallStage.recoverySecured" = "Recovery choices recorded; exported recovery copies checked.";
+"phase4.uninstallStage.rulesRemoved" = "Managed-rule removal step completed.";
+"phase4.uninstallStage.loginRemoved" = "Login-item removal step completed.";
+"phase4.uninstallStage.ready" = "Rule and login cleanup completed; local data is still retained.";
+"phase4.uninstallStage.erasing" = "Local data removal started. If interrupted, review the result before retrying.";
+"phase4.uninstallStage.completed" = "Selected local data removal completed.";
 "phase4.uninstallExplanation" = "Secure recovery copies, remove KeyRecord-managed rules, then remove the login item. Local data is kept unless selected below. Finally quit KeyRecord and move the app to Trash yourself.";
 "phase4.recoveryChoice" = "Firmware recovery copies";
 "phase4.recoveryExport" = "Export each retained original";

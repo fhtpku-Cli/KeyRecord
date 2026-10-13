@@ -21,6 +21,74 @@ private final class FirmwareFault: @unchecked Sendable {
 }
 @MainActor
 final class FirmwareOperationTests: XCTestCase {
+    private let vialBytes = Data(#"{"version":1,"uid":"fixture-vial","layout":[[["KC_NO","CUSTOM"]]],"macros":["opaque macro"]}"#.utf8)
+    private func exportedVial(_ store: ObjectStore, _ gate: KeyAvailabilityGate, root: URL,
+                              fault: FirmwareFault? = nil) async throws -> (FirmwareOperationCoordinator, FirmwareBatchRecord) {
+        let operations = try FirmwareOperationCoordinator(store: store, support: firmwareSupport(.vial, device: "fixture-vial"),
+            resolve: { try FirmwareFileDestination(reference: $0, gate: gate) }, injection: { try fault?.hit($0) })
+        let batch = try await operations.retainOriginal(vialBytes, backend: .vial, axes: firmwareAxes, confirmedAt: Date(timeIntervalSince1970: 1))
+        _ = try await operations.export(batch.id,
+            changes: [FirmwareSlotChange(slot: FirmwareSlot(layer: 0, column: 0), output: "KC_C", automatic: false)],
+            destination: FirmwareFileDestination(target: root.appendingPathComponent("patch.vil"), gate: gate))
+        let ledger = try await operations.claimImport(batch.id, at: Date(timeIntervalSince1970: 2))
+        return (operations, try XCTUnwrap(ledger.records.last))
+    }
+    private func observation(_ first: String, second: String = "CUSTOM", device: String = "fixture-vial",
+                             axes: FirmwareVersionAxes = firmwareAxes, at: Date = Date(timeIntervalSince1970: 3)) -> VialKeymapObservation {
+        VialKeymapObservation(device: device, axes: axes,
+            values: [FirmwareSlot(layer: 0, column: 0): first, FirmwareSlot(layer: 0, column: 1): second], observedAt: at)
+    }
+    func testVialReadbackComparesAllSlotsAndClassifiesExpectedBaselineAndExternal() async throws {
+        let (root, store, _, gate) = try await fixture()
+        let (operations, batch) = try await exportedVial(store, gate, root: root)
+        for (snapshot, state) in [(observation("KC_C"), FirmwareMappingState.verified),
+                                  (observation("KC_NO"), .failed), (observation("KC_C", second: "KC_A"), .externallyChanged)] {
+            let result = try await operations.confirmVialReadback(batch.id, observation: snapshot)
+            XCTAssertEqual(result.records.last?.state, state)
+            XCTAssertEqual(result.records.last?.verificationSource, "vialKeymapReadback")
+        }
+        let restored = try await operations.original(batch.id)
+        XCTAssertEqual(restored, vialBytes)
+    }
+    func testVialReadbackRejectsWrongDeviceAxesPartialShapeStaleEvidenceAndUnknownDirectory() async throws {
+        let (root, store, _, gate) = try await fixture()
+        let (operations, batch) = try await exportedVial(store, gate, root: root)
+        let partial = VialKeymapObservation(device: batch.device, axes: firmwareAxes,
+            values: [FirmwareSlot(layer: 0, column: 0): "KC_C"], observedAt: Date(timeIntervalSince1970: 3))
+        let unknown = FirmwareVersionAxes(definitionSchema: nil, deviceProtocol: nil, layoutFormat: nil, keycodeDialect: nil, importer: nil)
+        for value in [observation("KC_C", device: "other"), observation("KC_C", axes: unknown), partial,
+                      observation("KC_C", at: Date(timeIntervalSince1970: 1))] {
+            do { _ = try await operations.confirmVialReadback(batch.id, observation: value); XCTFail("Expected invalid observation") }
+            catch { }
+            let current = try await operations.ledger()
+            XCTAssertEqual(current.records.last?.state, .importClaimed); XCTAssertNil(current.pending)
+        }
+        let denied = try FirmwareOperationCoordinator(store: store, resolve: { try FirmwareFileDestination(reference: $0, gate: gate) })
+        do { _ = try await denied.confirmVialReadback(batch.id, observation: observation("KC_C")); XCTFail("Expected unknown directory refusal") }
+        catch FirmwareError.unknownCompatibility {}
+        _ = try await operations.confirmVialReadback(batch.id, observation: observation("KC_C", at: Date(timeIntervalSince1970: 4)))
+        do { _ = try await operations.confirmVialReadback(batch.id, observation: observation("KC_NO")); XCTFail("Expected older evidence refusal") }
+        catch FirmwareError.unavailable {}
+        let latest = try await operations.ledger()
+        XCTAssertEqual(latest.records.last?.state, .verified)
+        XCTAssertEqual(latest.records.last?.verifiedAt, Date(timeIntervalSince1970: 4))
+    }
+    func testVialReadbackEvidenceReopensAfterEveryRecordedResult() async throws {
+        for (snapshot, state) in [(observation("KC_C"), FirmwareMappingState.verified),
+                                  (observation("KC_NO"), .failed), (observation("KC_C", second: "KC_A"), .externallyChanged)] {
+            let (root, store, _, gate) = try await fixture()
+            let fault = FirmwareFault()
+            let (operations, batch) = try await exportedVial(store, gate, root: root, fault: fault)
+            fault.set(.evidenceRecorded)
+            do { _ = try await operations.confirmVialReadback(batch.id, observation: snapshot); XCTFail("Expected interruption") }
+            catch FirmwareError.unavailable {}
+            let reopened = try FirmwareOperationCoordinator(store: store, resolve: { try FirmwareFileDestination(reference: $0, gate: gate) })
+            let result = try await reopened.reconcile()
+            XCTAssertEqual(result.records.last?.state, state); XCTAssertNil(result.pending)
+            XCTAssertEqual(result.records.last?.verifiedAt, snapshot.observedAt)
+            XCTAssertEqual(result.records.last?.verificationSource, "vialKeymapReadback")
+        }
+    }
     private func fixture() async throws -> (URL, ObjectStore, MappingFixtureKeys, KeyAvailabilityGate) {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("firmware-operation-" + UUID().uuidString)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
@@ -183,11 +251,14 @@ final class FirmwareOperationTests: XCTestCase {
         let record = try await retain(firmware)
         let output = root.appendingPathComponent("restore.json")
         var events: [String] = []
+        var phases: [UninstallPreparationStage] = []
         let preparation = try UninstallPreparationCoordinator(store: store, firmware: firmware, gate: gate,
+            stopCapture: { events.append("capture") },
             removeRules: { XCTAssertEqual(try Data(contentsOf: output), firmwareBytes); events.append("rules") },
-            removeLogin: { events.append("login") }, eraseData: { events.append("data") })
+            removeLogin: { events.append("login") }, eraseData: { events.append("data") }, onProgress: { phases.append($0) })
         let receipt = try await preparation.prepare(choices: [record.id: .export(FirmwareFileDestination(target: output, gate: gate))], deleteLocalData: true)
-        XCTAssertEqual(events, ["rules", "login", "data"])
+        XCTAssertEqual(events, ["capture", "rules", "login", "data"])
+        XCTAssertEqual(phases, [.captureStopped, .recoverySecured, .rulesRemoved, .loginRemoved, .ready, .erasing, .completed])
         XCTAssertEqual(receipt.choices[record.id.uuidString], .exported)
     }
     func testUninstallFailureAndPrivacyClosureStopSubsequentSideEffects() async throws {
@@ -196,6 +267,7 @@ final class FirmwareOperationTests: XCTestCase {
         let record = try await retain(firmware)
         var events: [String] = []
         let failed = try UninstallPreparationCoordinator(store: store, firmware: firmware, gate: gate,
+            stopCapture: {},
             removeRules: { events.append("rules"); throw FirmwareError.externalChange },
             removeLogin: { events.append("login") }, eraseData: { events.append("data") })
         do { _ = try await failed.prepare(choices: [record.id: .heldElsewhere], deleteLocalData: true); XCTFail("Expected stop") } catch FirmwareError.externalChange {}
@@ -203,6 +275,7 @@ final class FirmwareOperationTests: XCTestCase {
         events = []
         let generation = try gate.begin()
         let closed = try UninstallPreparationCoordinator(store: store, firmware: firmware, gate: gate,
+            stopCapture: {},
             removeRules: { events.append("rules"); gate.update(.locked) },
             removeLogin: { events.append("login") }, eraseData: { events.append("data") },
             authorize: { try gate.use(generation) {} })
@@ -216,6 +289,7 @@ final class FirmwareOperationTests: XCTestCase {
         let output = root.appendingPathComponent("restore.json")
         var erased = false
         let preparation = try UninstallPreparationCoordinator(store: store, firmware: firmware, gate: gate,
+            stopCapture: {},
             removeRules: { try (firmwareBytes + Data(" ".utf8)).write(to: output, options: .atomic) },
             removeLogin: {}, eraseData: { erased = true })
         do {
@@ -230,11 +304,28 @@ final class FirmwareOperationTests: XCTestCase {
         let original = try await retain(firmware)
         var erased = false
         let preparation = try UninstallPreparationCoordinator(store: store, firmware: firmware, gate: gate,
+            stopCapture: {},
             removeRules: { _ = try await self.retain(firmware) }, removeLogin: {}, eraseData: { erased = true })
         do { _ = try await preparation.prepare(choices: [original.id: .heldElsewhere], deleteLocalData: true); XCTFail("Expected serialization") }
         catch FirmwareError.busy {}
         XCTAssertFalse(erased)
         let next = try await retain(firmware)
         XCTAssertNotEqual(next.id, original.id)
+    }
+    func testCaptureStopFailureLeavesRecoveryCopiesAndLaterPortsUntouched() async throws {
+        let (_, store, _, gate) = try await fixture()
+        let firmware = try coordinator(store, gate)
+        let original = try await retain(firmware)
+        var events: [String] = []
+        var phases: [UninstallPreparationStage] = []
+        let preparation = try UninstallPreparationCoordinator(store: store, firmware: firmware, gate: gate,
+            stopCapture: { events.append("capture"); throw FirmwareError.unavailable },
+            removeRules: { events.append("rules") }, removeLogin: { events.append("login") },
+            eraseData: { events.append("data") }, onProgress: { phases.append($0) })
+        do { _ = try await preparation.prepare(choices: [original.id: .heldElsewhere], deleteLocalData: true); XCTFail("Expected stop failure") }
+        catch FirmwareError.unavailable {}
+        XCTAssertEqual(events, ["capture"]); XCTAssertTrue(phases.isEmpty)
+        let retained = try await firmware.original(original.id)
+        XCTAssertEqual(retained, firmwareBytes)
     }
 }

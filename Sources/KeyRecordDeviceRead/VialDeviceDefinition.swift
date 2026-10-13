@@ -13,6 +13,7 @@ public struct VialDeviceDefinition: Sendable {
     public let rows: Int
     public let columns: Int
     public let positions: Set<FirmwareSlot>
+    public let encoderPositions: Set<FirmwareEncoderSlot>
     public let bytes: Data
     public static let schema = "vial-embedded-json"
     public init(bytes: Data, uid: UInt64) throws {
@@ -36,6 +37,7 @@ public struct VialDeviceDefinition: Sendable {
         }
         let rows = try dimension("rows"), columns = try dimension("cols")
         var positions: Set<FirmwareSlot> = []
+        var encoderPositions: Set<FirmwareEncoderSlot> = []
         for row in keymap {
             guard let keys = row.elements else { throw VialDefinitionError.invalidDefinition }
             for key in keys {
@@ -52,16 +54,26 @@ public struct VialDeviceDefinition: Sendable {
                 }
                 let label = try text(key)
                 let fields = label.components(separatedBy: "\n")
-                guard fields.count < 10 || fields[9] != "e" else { throw VialDefinitionError.unsupportedLayout }
                 let coordinate = fields[0].split(separator: ",", omittingEmptySubsequences: false)
-                guard coordinate.count == 2, let r = Int(coordinate[0]), let c = Int(coordinate[1]),
-                      r >= 0, r < rows, c >= 0, c < columns else { throw VialDefinitionError.invalidDefinition }
-                positions.insert(.init(layer: 0, row: r, column: c))
+                guard coordinate.count == 2, let r = Int(coordinate[0]), let c = Int(coordinate[1]) else {
+                    throw VialDefinitionError.invalidDefinition
+                }
+                // For supported KLE alignments 0 and 4, raw label 9 normalizes to label 4.
+                if fields.count >= 10, fields[9] == "e" {
+                    guard (0...255).contains(r), let direction = FirmwareEncoderDirection(rawValue: c) else {
+                        throw VialDefinitionError.invalidDefinition
+                    }
+                    encoderPositions.insert(.init(layer: 0, index: r, direction: direction))
+                } else {
+                    guard r >= 0, r < rows, c >= 0, c < columns else { throw VialDefinitionError.invalidDefinition }
+                    positions.insert(.init(layer: 0, row: r, column: c))
+                }
             }
         }
         guard !positions.isEmpty else { throw VialDefinitionError.invalidDefinition }
         self.uid = uid; self.vendorID = vendorID; self.productID = productID
         self.rows = rows; self.columns = columns; self.positions = positions; self.bytes = bytes
+        self.encoderPositions = encoderPositions
     }
 }
 public enum VialXZDecoder {
@@ -167,7 +179,10 @@ public actor VialDeviceReadSession {
             let positions = Set(values.keys.filter { $0.layer == layer }.map { FirmwareSlot(layer: 0, row: $0.row, column: $0.column) })
             guard positions == definition.positions else { throw VialReadbackError.invalidMatrix }
         }
-        let adapter = try VialReadbackAdapter(transport: transport, matrixRows: definition.rows, matrixColumns: definition.columns)
+        // Upstream reads both directions for every declared index, even when KLE
+        // shows only one direction. These are not matrix positions.
+        let adapter = try VialReadbackAdapter(transport: transport, matrixRows: definition.rows, matrixColumns: definition.columns,
+            encoderIndices: Set(definition.encoderPositions.map(\.index)))
         return try await adapter.observe(record: record, original: original, authorize: authorize, at: date)
     }
 }

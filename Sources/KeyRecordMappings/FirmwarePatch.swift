@@ -49,6 +49,15 @@ public struct FirmwareSlot: Codable, Hashable, Sendable {
     public let column: Int
     public init(layer: Int, row: Int = 0, column: Int) { self.layer = layer; self.row = row; self.column = column }
 }
+public enum FirmwareEncoderDirection: Int, Hashable, Sendable { case clockwise = 0, counterclockwise = 1 }
+public struct FirmwareEncoderSlot: Hashable, Sendable {
+    public let layer: Int
+    public let index: Int
+    public let direction: FirmwareEncoderDirection
+    public init(layer: Int, index: Int, direction: FirmwareEncoderDirection) {
+        self.layer = layer; self.index = index; self.direction = direction
+    }
+}
 public struct FirmwareSlotChange: Codable, Equatable, Sendable {
     public let slot: FirmwareSlot
     public let output: String
@@ -67,9 +76,11 @@ public struct VialKeymapObservation: Sendable {
     public let device: String
     public let axes: FirmwareVersionAxes
     public let values: [FirmwareSlot: String]
+    public let encoderValues: [FirmwareEncoderSlot: String]
     public let observedAt: Date
-    public init(device: String, axes: FirmwareVersionAxes, values: [FirmwareSlot: String], observedAt: Date) {
-        self.device = device; self.axes = axes; self.values = values; self.observedAt = observedAt
+    public init(device: String, axes: FirmwareVersionAxes, values: [FirmwareSlot: String],
+                encoderValues: [FirmwareEncoderSlot: String] = [:], observedAt: Date) {
+        self.device = device; self.axes = axes; self.values = values; self.encoderValues = encoderValues; self.observedAt = observedAt
     }
 }
 public struct FirmwareDocument: Sendable {
@@ -77,10 +88,14 @@ public struct FirmwareDocument: Sendable {
     public let device: String
     public let bytes: Data
     public let matrixDimensions: (layers: Int, rows: Int, columns: Int)?
+    public let encoderCount: Int
     private let slots: [FirmwareSlot: JSONDocumentRanges.Node]
+    private let encoders: [FirmwareEncoderSlot: JSONDocumentRanges.Node]
     public init(bytes: Data, backend: FirmwareBackend) throws {
         let root = try JSONDocumentRanges(bytes).root
         var slots: [FirmwareSlot: JSONDocumentRanges.Node] = [:]
+        var encoders: [FirmwareEncoderSlot: JSONDocumentRanges.Node] = [:]
+        var encoderCount = 0
         var dimensions: (layers: Int, rows: Int, columns: Int)?
         switch backend {
         case .via:
@@ -125,9 +140,29 @@ public struct FirmwareDocument: Sendable {
             if let shape, let columns = shape.first, shape.allSatisfy({ $0 == columns }) {
                 dimensions = (layers.count, shape.count, columns)
             }
+            if let node = root.members["encoder_layout"] {
+                guard let encoderLayers = node.elements, encoderLayers.count == layers.count else { throw FirmwareError.invalidDocument }
+                var count: Int?
+                for (layer, node) in encoderLayers.enumerated() {
+                    guard let entries = node.elements, entries.count <= 256,
+                          count == nil || count == entries.count else { throw FirmwareError.invalidDocument }
+                    count = entries.count
+                    for (index, node) in entries.enumerated() {
+                        guard let pair = node.elements, pair.count == 2 else { throw FirmwareError.invalidDocument }
+                        let absent = pair.map { String(decoding: bytes[$0.range], as: UTF8.self) == "-1" }
+                        guard absent[0] == absent[1] else { throw FirmwareError.invalidDocument }
+                        if absent[0] { continue }
+                        encoders[.init(layer: layer, index: index, direction: .clockwise)] = pair[0]
+                        encoders[.init(layer: layer, index: index, direction: .counterclockwise)] = pair[1]
+                    }
+                }
+                encoderCount = count ?? 0
+            }
         }
         for node in slots.values { _ = try JSONDecoder().decode(String.self, from: Data(bytes[node.range])) }
+        for node in encoders.values { _ = try JSONDecoder().decode(String.self, from: Data(bytes[node.range])) }
         self.backend = backend; self.bytes = bytes; self.slots = slots; self.matrixDimensions = dimensions
+        self.encoders = encoders; self.encoderCount = encoderCount
     }
     public func value(at slot: FirmwareSlot) throws -> String {
         guard let node = slots[slot] else { throw FirmwareError.invalidSlot }
@@ -135,6 +170,9 @@ public struct FirmwareDocument: Sendable {
     }
     public func slotValues() throws -> [FirmwareSlot: String] {
         try Dictionary(uniqueKeysWithValues: slots.keys.map { ($0, try value(at: $0)) })
+    }
+    public func encoderValues() throws -> [FirmwareEncoderSlot: String] {
+        try encoders.mapValues { try JSONDecoder().decode(String.self, from: Data(bytes[$0.range])) }
     }
     public func patch(_ changes: [FirmwareSlotChange], expectedDevice: String, axes: FirmwareVersionAxes,
                       support: FirmwareSupportDirectory) throws -> Data {

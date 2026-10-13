@@ -7,15 +7,18 @@ import KeyRecordStore
 private let vial6Bytes = Data(#"{"version":1,"uid":18446744073709551615,"via_protocol":9,"vial_protocol":6,"layout":[[["MO(1)","KC_NO",-1,"KC_ENT"],["KC_A","0x5fff","KC_NO","KC_TRNS"]],[["KC_NO","KC_NO",-1,"KC_ENTER"],["KC_A","0x5fff","KC_NO","KC_TRNS"]]],"macro":[["opaque"]],"encoder_layout":[[],[]],"layout_options":0,"settings":{}}"#.utf8)
 private let vial6Keymap: [UInt8] = [0x52,0x21, 0,0, 0xff,0xff, 0,0x28, 0,4, 0x5f,0xff, 0,0, 0,1,
                                    0,0, 0,0, 0xff,0xff, 0,0x28, 0,4, 0x5f,0xff, 0,0, 0,1]
+private let encoderBytes = Data(String(decoding: vial6Bytes, as: UTF8.self).replacingOccurrences(of: #""encoder_layout":[[],[]]"#,
+    with: #""encoder_layout":[[[-1,-1],[-1,-1],["KC_ENT","0x1234"]],[[-1,-1],[-1,-1],["KC_C","KC_TRNS"]]]"#).utf8)
 private enum ReadFault: Sendable { case none, short, long, header, protocolVersion, uid, layers, rebound, timeout }
 private actor SimulatedVialTransport: VialReadTransport {
     let keymap: [UInt8]
     let fault: ReadFault
+    let encoderMismatch: Bool
     let onExchange: (@Sendable (Int) async -> Void)?
     var requests: [VialReadRequest] = []
-    init(keymap: [UInt8] = vial6Keymap, fault: ReadFault = .none,
+    init(keymap: [UInt8] = vial6Keymap, fault: ReadFault = .none, encoderMismatch: Bool = false,
          onExchange: (@Sendable (Int) async -> Void)? = nil) {
-        self.keymap = keymap; self.fault = fault; self.onExchange = onExchange
+        self.keymap = keymap; self.fault = fault; self.encoderMismatch = encoderMismatch; self.onExchange = onExchange
     }
     func exchange(_ request: VialReadRequest, timeoutMilliseconds: Int) async throws -> [UInt8] {
         requests.append(request)
@@ -25,6 +28,12 @@ private actor SimulatedVialTransport: VialReadTransport {
         switch request.bytes[0] {
         case 0x01: bytes[0] = 1; bytes[2] = fault == .protocolVersion ? 10 : 9
         case 0xfe:
+            if request.bytes[1] == 3 {
+                XCTAssertEqual(request.bytes[3], 2)
+                bytes.replaceSubrange(0..<4, with: request.bytes[2] == 0 ? [0, 0x28, 0x12, 0x34] : [0, 6, 0, 1])
+                if encoderMismatch { bytes[3] ^= 1 }
+                return bytes
+            }
             bytes[0] = 6
             bytes.replaceSubrange(4..<12, with: Array(repeating: UInt8(255), count: 8))
             if fault == .uid || (fault == .rebound && requests.count > 3) { bytes[4] = 0 }
@@ -66,6 +75,55 @@ final class VialReadbackAdapterTests: XCTestCase {
     private func record() throws -> FirmwareBatchRecord {
         FirmwareBatchRecord(id: UUID(), backend: .vial, device: "18446744073709551615", axes: try axes(),
             baselineSHA256: "fixture", originalExportConfirmedAt: Date(timeIntervalSince1970: 1))
+    }
+    func testEncoderExportParsesSeparateSlotsAndRejectsMalformedPairsAndLayers() throws {
+        let document = try FirmwareDocument(bytes: encoderBytes, backend: .vial)
+        XCTAssertEqual(try document.slotValues().count, 14)
+        XCTAssertEqual(document.encoderCount, 3)
+        XCTAssertEqual(try document.encoderValues()[.init(layer: 0, index: 2, direction: .clockwise)], "KC_ENT")
+        XCTAssertEqual(try document.encoderValues()[.init(layer: 0, index: 2, direction: .counterclockwise)], "0x1234")
+        for layout in ["null", "[]", "[[]]", "[[[\"KC_C\"]],[[\"KC_C\"]]]",
+                       "[[[-1,\"KC_C\"]],[[-1,\"KC_C\"]]]", "[[[0,0]],[[0,0]]]", "[[],[[-1,-1]]]" ] {
+            let text = String(decoding: vial6Bytes, as: UTF8.self).replacingOccurrences(of: #""encoder_layout":[[],[]]"#,
+                with: #""encoder_layout":"# + layout)
+            XCTAssertThrowsError(try FirmwareDocument(bytes: Data(text.utf8), backend: .vial))
+        }
+    }
+    func testEncoderQueriesReadBothDirectionsAcrossLayersWithoutQueryingHoles() async throws {
+        let transport = SimulatedVialTransport()
+        let adapter = try VialReadbackAdapter(transport: transport, matrixRows: 2, matrixColumns: 4, encoderIndices: [2])
+        let observed = try await adapter.observe(record: record(), original: encoderBytes)
+        XCTAssertEqual(observed.encoderValues, [
+            .init(layer: 0, index: 2, direction: .clockwise): "0x0028",
+            .init(layer: 0, index: 2, direction: .counterclockwise): "0x1234",
+            .init(layer: 1, index: 2, direction: .clockwise): "0x0006",
+            .init(layer: 1, index: 2, direction: .counterclockwise): "0x0001"])
+        let requests = await transport.requests
+        XCTAssertEqual(Array(requests.suffix(4)), [.encoder(layer: 0, index: 2), .encoder(layer: 1, index: 2), .identity, .layerCount])
+        XCTAssertEqual(requests.filter { $0.bytes[0] == 0xfe && $0.bytes[1] == 3 }.count, 2)
+        XCTAssertEqual(VialReadRequest.encoder(layer: 254, index: 255).bytes.prefix(4), [0xfe, 3, 254, 255])
+    }
+    func testEncoderMismatchWithIndependentIndicesSendsNothing() async throws {
+        let transport = SimulatedVialTransport()
+        for indices: Set<Int> in [[], [0], [1,2]] {
+            let adapter = try VialReadbackAdapter(transport: transport, matrixRows: 2, matrixColumns: 4, encoderIndices: indices)
+            do { _ = try await adapter.observe(record: record(), original: encoderBytes); XCTFail("Expected encoder refusal") }
+            catch { XCTAssertEqual(error as? VialReadbackError, .invalidEncoders) }
+        }
+        for indices: Set<Int> in [[-1], [256]] {
+            XCTAssertThrowsError(try VialReadbackAdapter(transport: transport, matrixRows: 2, matrixColumns: 4, encoderIndices: indices))
+        }
+        let requests = await transport.requests; XCTAssertTrue(requests.isEmpty)
+    }
+    func testPrivacyRevokedDuringEncoderQueryCannotPublishPartialObservation() async throws {
+        let gate = KeyAvailabilityGate(); gate.update(.unlocked)
+        let generation = try gate.begin()
+        let transport = SimulatedVialTransport(onExchange: { index in if index == 6 { gate.update(.locked) } })
+        let adapter = try VialReadbackAdapter(transport: transport, matrixRows: 2, matrixColumns: 4, encoderIndices: [2])
+        do { _ = try await adapter.observe(record: record(), original: encoderBytes, authorize: { try gate.check(generation) }); XCTFail("Expected denial") }
+        catch { }
+        let requests = await transport.requests
+        XCTAssertEqual(requests.last, .encoder(layer: 0, index: 2)); XCTAssertEqual(requests.count, 6)
     }
     func testOfficialUnusedSlotsPreserveBytesAndCannotBePatched() throws {
         let document = try FirmwareDocument(bytes: vial6Bytes, backend: .vial)
@@ -224,20 +282,26 @@ final class VialReadbackAdapterTests: XCTestCase {
         let axes = try axes(), device = "18446744073709551615"
         let support = FirmwareSupportDirectory(entries: [.init(backend: .vial, device: device, axes: axes, supportedOutputs: ["KC_C"])])
         let operations = try FirmwareOperationCoordinator(store: store, support: support, resolve: { try FirmwareFileDestination(reference: $0, gate: gate) })
-        let batch = try await operations.retainOriginal(vial6Bytes, backend: .vial, axes: axes, confirmedAt: Date(timeIntervalSince1970: 1))
+        let batch = try await operations.retainOriginal(encoderBytes, backend: .vial, axes: axes, confirmedAt: Date(timeIntervalSince1970: 1))
         _ = try await operations.export(batch.id, changes: [.init(slot: .init(layer: 0, column: 1), output: "KC_C", automatic: true)],
             destination: FirmwareFileDestination(target: root.appendingPathComponent("patched.vil"), gate: gate))
         _ = try await operations.claimImport(batch.id, at: Date(timeIntervalSince1970: 2))
         var expected = vial6Keymap; expected[3] = 6
         var external = expected; external[9] = 5
-        for (raw, state) in [(expected, FirmwareMappingState.verified), (vial6Keymap, .failed), (external, .externallyChanged)] {
-            let adapter = try VialReadbackAdapter(transport: SimulatedVialTransport(keymap: raw), matrixRows: 2, matrixColumns: 4)
-            let observation = try await adapter.observe(record: batch, original: vial6Bytes, at: { Date(timeIntervalSince1970: 3) })
+        for (raw, encoderMismatch, state) in [(expected, false, FirmwareMappingState.verified), (vial6Keymap, false, .failed),
+                                              (external, false, .externallyChanged), (expected, true, .externallyChanged)] {
+            let adapter = try VialReadbackAdapter(transport: SimulatedVialTransport(keymap: raw, encoderMismatch: encoderMismatch),
+                matrixRows: 2, matrixColumns: 4, encoderIndices: [2])
+            let observation = try await adapter.observe(record: batch, original: encoderBytes, at: { Date(timeIntervalSince1970: 3) })
             let result = try await operations.confirmVialReadback(batch.id, observation: observation)
             XCTAssertEqual(result.records.last?.state, state)
             let reopened = try FirmwareOperationCoordinator(store: store, support: support, resolve: { try FirmwareFileDestination(reference: $0, gate: gate) })
             let saved = try await reopened.reconcile(); XCTAssertEqual(saved.records.last?.state, state); XCTAssertNil(saved.pending)
         }
-        let original = try await operations.original(batch.id); XCTAssertEqual(original, vial6Bytes)
+        let missing = VialKeymapObservation(device: device, axes: axes, values: try FirmwareDocument(bytes: encoderBytes, backend: .vial).slotValues(),
+            observedAt: Date(timeIntervalSince1970: 4))
+        do { _ = try await operations.confirmVialReadback(batch.id, observation: missing); XCTFail("Expected missing encoder refusal") }
+        catch { XCTAssertEqual(error as? FirmwareError, .invalidDocument) }
+        let original = try await operations.original(batch.id); XCTAssertEqual(original, encoderBytes)
     }
 }

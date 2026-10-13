@@ -8,8 +8,20 @@ Supply a local checkout and its simpleeval dependency, never a real device.
 import argparse
 import ast
 import json
+import lzma
 from pathlib import Path
+import struct
 import sys
+
+
+class OfficialReadCommandError(RuntimeError):
+    def __init__(self, request: bytes) -> None:
+        super().__init__(f"unexpected official read command: {request.hex()}")
+
+
+class OfficialMethodsMissingError(RuntimeError):
+    def __init__(self, count: int) -> None:
+        super().__init__(f"expected three official save/restore/read methods, found {count}")
 
 
 def main():
@@ -17,20 +29,27 @@ def main():
     parser.add_argument("--source", type=Path, required=True, help="official vial-gui checkout")
     parser.add_argument("--generate", type=Path, help="write an official synthetic export")
     parser.add_argument("--check", type=Path, help="restore a KeyRecord-patched synthetic export")
+    parser.add_argument("--encoders", action="store_true", help="include sparse, bidirectional encoder mappings")
+    parser.add_argument("--definition", type=Path, help="write the corresponding independent synthetic XZ definition")
     args = parser.parse_args()
     if bool(args.generate) == bool(args.check):
         parser.error("choose exactly one of --generate and --check")
     source = args.source / "src/main/python"
     sys.path.insert(0, str(source))
     from keycodes.keycodes import Keycode
+    from kle_serial import Serial
+    from protocol.constants import (BUFFER_FETCH_CHUNK, CMD_VIA_KEYMAP_GET_BUFFER,
+                                    CMD_VIA_VIAL_PREFIX, CMD_VIAL_GET_ENCODER)
     Keycode.protocol = 6
 
     tree = ast.parse((source / "protocol/keyboard_comm.py").read_text())
     keyboard = next(node for node in tree.body if isinstance(node, ast.ClassDef) and node.name == "Keyboard")
-    methods = [node for node in keyboard.body if isinstance(node, ast.FunctionDef) and node.name in ("save_layout", "restore_layout")]
-    if len(methods) != 2:
-        raise RuntimeError("official save/restore methods missing")
-    namespace = {"json": json, "Keycode": Keycode}
+    methods = [node for node in keyboard.body if isinstance(node, ast.FunctionDef) and node.name in ("save_layout", "restore_layout", "reload_keymap")]
+    if len(methods) != 3:
+        raise OfficialMethodsMissingError(len(methods))
+    namespace = {"json": json, "struct": struct, "Keycode": Keycode, "BUFFER_FETCH_CHUNK": BUFFER_FETCH_CHUNK,
+                 "CMD_VIA_KEYMAP_GET_BUFFER": CMD_VIA_KEYMAP_GET_BUFFER, "CMD_VIA_VIAL_PREFIX": CMD_VIA_VIAL_PREFIX,
+                 "CMD_VIAL_GET_ENCODER": CMD_VIAL_GET_ENCODER}
     exec(compile(ast.Module(body=methods, type_ignores=[]), str(source / "protocol/keyboard_comm.py"), "exec"), namespace)
 
     class Port:
@@ -45,20 +64,43 @@ def main():
                            for layer in range(2) for row in range(2) for col in range(4) if (row, col) != (0, 2)}
             self.layout[(0, 0, 0)] = "MO(1)"
             self.layout[(0, 0, 3)] = "KC_ENT"
+            self.encoder_count = 3 if args.encoders else 0
+            self.encoderpos = {2: True} if args.encoders else {}
+            self.encoder_layout = {(0, 2, 0): Keycode.serialize(0x28), (0, 2, 1): Keycode.serialize(0x1106),
+                                   (1, 2, 0): Keycode.serialize(6), (1, 2, 1): Keycode.serialize(1)} if args.encoders else {}
+            self.rowcol = {(row, col): True for _, row, col in self.layout}
+            self.layout_labels = []
+            self.dev = 0
+            self.queries: list[bytes] = []
             self.opaque = {"macro": [["synthetic opaque macro"]], "tap_dance": [[4, 0, 0, 0, 200]],
                            "combo": [[4, 5, 0, 0, 6]], "key_override": [], "alt_repeat_key": []}
 
         def set_key(self, layer, row, col, code):
             self.layout[(layer, row, col)] = code
 
-        def set_encoder(self, *args):
-            raise RuntimeError("fixture has no encoders")
+        def set_encoder(self, layer: int, index: int, direction: int, code: str) -> None:
+            if index in self.encoderpos:
+                self.encoder_layout[(layer, index, direction)] = code
+
+        def usb_send(self, device: int, request: bytes, retries: int) -> bytes:
+            self.queries.append(request)
+            if request[0] == CMD_VIA_KEYMAP_GET_BUFFER:
+                offset, size = struct.unpack(">HB", request[1:4])
+                keymap = b"".join(struct.pack(">H", Keycode.deserialize(self.layout.get((layer, row, col), "KC_NO"), reraise=True))
+                                  for layer in range(self.layers) for row in range(self.rows) for col in range(self.cols))
+                return request + keymap[offset:offset + size] + bytes(28 - size)
+            if request[:2] == bytes([CMD_VIA_VIAL_PREFIX, CMD_VIAL_GET_ENCODER]):
+                layer, index = request[2:4]
+                return b"".join(struct.pack(">H", Keycode.deserialize(self.encoder_layout[(layer, index, direction)], reraise=True))
+                                for direction in range(2)) + bytes(28)
+            raise OfficialReadCommandError(request)
 
         def set_layout_options(self, value):
             self.layout_options = value
 
     Port.save_layout = namespace["save_layout"]
     Port.restore_layout = namespace["restore_layout"]
+    Port.reload_keymap = namespace["reload_keymap"]
     for field, method in (("macro", "macros"), ("tap_dance", "tap_dance"), ("combo", "combo"),
                           ("key_override", "key_override"), ("alt_repeat_key", "alt_repeat_key")):
         def save(self, field=field):
@@ -68,6 +110,17 @@ def main():
         setattr(Port, "save_" + ("macro" if field == "macro" else method), save)
         setattr(Port, "restore_" + method, restore)
     port = Port()
+    if args.definition:
+        keys = [f"{row},{col}" for row in range(2) for col in range(4) if (row, col) != (0, 2)]
+        if args.encoders:
+            keys += [{"a": 0}, "2,1" + "\n" * 9 + "e"]
+            for alignment in (0, 4):
+                parsed = Serial().deserialize([[{"a": alignment}, "2,1" + "\n" * 9 + "e"]])
+                assert parsed.keys[0].labels[4] == "e"
+                assert parsed.keys[0].labels[0] == "2,1"
+        definition = {"vendorId": "0x1234", "productId": "0x5678", "matrix": {"rows": 2, "cols": 4},
+                      "layouts": {"keymap": [keys]}}
+        args.definition.write_bytes(lzma.compress(json.dumps(definition).encode()))
     if args.generate:
         args.generate.write_bytes(port.save_layout())
         print("PASS: official save_layout generated decimal UInt64 UID, Vial 6 metadata and -1 holes")
@@ -89,6 +142,14 @@ def main():
                       "tap_dance", "combo", "key_override", "alt_repeat_key", "settings"):
             assert restored[field] == expected[field], field
         print("PASS: official restore_layout accepted patched KC_C; official save_layout preserved holes, UID and opaque fixture fields")
+    before_matrix = {slot: Keycode.deserialize(code, reraise=True) for slot, code in port.layout.items()}
+    before_encoders = {slot: Keycode.deserialize(code, reraise=True) for slot, code in port.encoder_layout.items()}
+    port.reload_keymap()
+    assert {slot: Keycode.deserialize(code, reraise=True) for slot, code in port.layout.items()} == before_matrix
+    assert {slot: Keycode.deserialize(code, reraise=True) for slot, code in port.encoder_layout.items()} == before_encoders
+    encoder_queries = [query for query in port.queries if query[:2] == bytes([CMD_VIA_VIAL_PREFIX, CMD_VIAL_GET_ENCODER])]
+    assert encoder_queries == ([bytes([0xfe, 3, 0, 2]), bytes([0xfe, 3, 1, 2])] if args.encoders else [])
+    print(f"PASS: official reload_keymap issued {len(encoder_queries)} encoder queries and preserved both directions")
 
 
 if __name__ == "__main__":

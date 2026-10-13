@@ -193,17 +193,26 @@ public actor FirmwareOperationCoordinator {
               observation.observedAt >= (record.verifiedAt ?? claim) else { throw FirmwareError.unavailable }
         let bytes = try await store.read(identity(batch, original: false))
         guard KarabinerTransactionCoordinator.fileDigest(bytes) == record.artifactSHA256 else { throw FirmwareError.unavailable }
-        var expected = try FirmwareDocument(bytes: bytes, backend: .vial).slotValues()
-        var baseline = try FirmwareDocument(bytes: await original(batch), backend: .vial).slotValues()
+        let expectedDocument = try FirmwareDocument(bytes: bytes, backend: .vial)
+        let baselineDocument = try FirmwareDocument(bytes: await original(batch), backend: .vial)
+        var expected = try expectedDocument.slotValues()
+        var baseline = try baselineDocument.slotValues()
         var observed = observation.values
-        guard Set(observation.values.keys) == Set(expected.keys) else { throw FirmwareError.invalidDocument }
+        var expectedEncoders = try expectedDocument.encoderValues()
+        var baselineEncoders = try baselineDocument.encoderValues()
+        var observedEncoders = observation.encoderValues
+        guard Set(observation.values.keys) == Set(expected.keys),
+              Set(observedEncoders.keys) == Set(expectedEncoders.keys) else { throw FirmwareError.invalidDocument }
         if record.axes.keycodeDialect == VialKeycodeDialect.name {
             expected = try VialKeycodeDialect.normalized(expected)
             baseline = try VialKeycodeDialect.normalized(baseline)
             observed = try VialKeycodeDialect.normalized(observed)
+            expectedEncoders = try VialKeycodeDialect.normalized(expectedEncoders)
+            baselineEncoders = try VialKeycodeDialect.normalized(baselineEncoders)
+            observedEncoders = try VialKeycodeDialect.normalized(observedEncoders)
         }
-        let result: FirmwareMappingState = observed == expected ? .verified
-            : observed == baseline ? .failed : .externallyChanged
+        let result: FirmwareMappingState = observed == expected && observedEncoders == expectedEncoders ? .verified
+            : observed == baseline && observedEncoders == baselineEncoders ? .failed : .externallyChanged
         let pending = FirmwarePendingOperation(batch: batch, phase: .evidenceRecorded, recordedAt: observation.observedAt,
             verificationState: result, verificationSource: "vialKeymapReadback")
         ledger.pending = pending

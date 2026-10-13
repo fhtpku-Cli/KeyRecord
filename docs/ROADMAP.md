@@ -12,7 +12,7 @@ B 的工程基础及只读 VIA 参考已由 [PR #21](https://github.com/fhtpku-C
 | Phase 1: collection, privacy, encrypted storage | **Approved Apple Silicon MVP complete and merged** | Measured arm64 macOS 27.0 build 26A428 only; development-signed local trial. Existing candidate-specific short ARM and lifecycle evidence retained. Full original G1/v1, all OS/architectures and public release are not claimed. |
 | Phase 2：确定性分析 | **A/B 工程开发与离线自审完成；真实 G2 证据后置** | 能力过滤、范围明确的冲突检查、特殊键池、手动候选、物理链消费/回退与只读副本已接通。实际后端、完整真实部署/变换链、系统选择器授权和真实保存重开集中留后；产品不冒充已连接或真实物理收益。 |
 | Phase 3: Karabiner stable path | **部署会话和原生卸载工程增量完成；完整 G3 未完成** | 目标绑定、加密引用、隐私重开和外部监测已接通；暂停捕获→逐份恢复副本→规则→登录项→数据选择的默认卸载准备及阶段显示已离线执行。历史阶段仅供检查，维护期间后台对账延后并恢复。空生产支持目录只读，真实版本、重载、效果和停用 p95 后置。[本批记录](phase3/RECOVERY_CHOICES_20261013.md)。 |
-| Phase 4: VIA/Vial Beta | **独立定义读回已接入 App 离线路径；未合格** | 原生按钮可注入单次连接，执行分页 XZ 定义、逐层坐标和完整键图比对后进入加密事务；取消、断开、隐私/选择失效关闭连接，重新验证使用新连接。66 项相关离线包/App 场景通过。正式 App 不打开 HID，空生产支持目录仍不合格；原生 IO 时序/权限、真实版本/键码矩阵、复杂定义/动态子协议及 VIA GUI/设备证据继续后置。[本批记录](phase4/APP_DEVICE_READ_20261014.md)。 |
+| Phase 4: VIA/Vial Beta | **矩阵与编码器独立读回已接入 App 离线路径；未合格** | 原生按钮经分页 XZ 独立定义，匹配矩阵位置及编码器索引/方向，再完整读取比较后进入加密事务；编码器空洞、缺失/错位、外部变化和隐私/取消已离线验证。77 项相关包/App 场景及官方源码方法往返通过。正式 App 不打开 HID，空生产支持目录仍不合格；原生 IO 时序/权限、真实版本/键码矩阵、复杂定义/动态子协议及 VIA GUI/设备证据继续后置。[本批记录](phase4/ENCODER_READBACK_20261014.md)。 |
 | Full v1 / public distribution | **Not qualified** | PRD §15 requirements, FR-P6 full password backup, Intel/full support matrix, public name/license decision, signing/notarization and backend requirements remain. |
 
 Requirements remain in [PRD](PRD.md) and [architecture §15](TECHNICAL_ARCHITECTURE.md#15-分阶段交付与发布门禁).

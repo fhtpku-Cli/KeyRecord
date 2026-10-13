@@ -24,14 +24,19 @@ private actor NativeMappingFixtureKeys: ObjectStoreKeySource {
 }
 private final class NativeVialHIDFixture: VialHIDEndpoint, @unchecked Sendable {
     static let definition = Data(base64Encoded: "/Td6WFoAAATm1rRGAgAhARYAAAB0L+Wj4AB8AG5dAD2IicZUNsMXT+Tj0LL2o1xY9+vhKXbIvBy+vt7ajJ9ByJ+U3t83EJIzjavDD0/txhM7o8p2unsGnnWbxEuUfVifBNNdOsvnERH+MjQdNyzfGKOpZsOfDPQyS8tONaoxr0YNL+3+QwvQXI28Cr7JAAAAOXSVpUTMuNUAAYoBfQAAAJKyS9ixxGf7AgAAAAAEWVo=")!
+    static let encoderDefinition = Data(base64Encoded: "/Td6WFoAAATm1rRGAgAhARYAAAB0L+Wj4ACMAHNdAD2IisaUL8LEIpnpbzWhi9MuaJSxOkspsVw55Xn7bInuMyewnJZLH9loZQHt+8O/0aPdImbC/zOhSY0hKRF6Qo860nDK00pvvQj4zzfzFDhGIM4qAJCwnLNQi6XluttcNvwdRtrS0/ZXMW7fRhPfGKahBwAAAGoknprQ9flsAAGPAY0BAACxXyIPscRn+wIAAAAABFla")!
     private let lock = NSLock()
     private var receive: (@Sendable (Result<VialHIDFrame, VialHIDError>) -> Void)?
     private var reports: [VialReadRequest] = []
     private var closes = 0
     private let pause: VialReadRequest?
     private let mismatch: Bool
+    private let encoders: Bool
+    private let encoderMismatch: Bool
     let paused = XCTestExpectation(description: "Selected HID report paused")
-    init(pause: VialReadRequest? = nil, mismatch: Bool = false) { self.pause = pause; self.mismatch = mismatch }
+    init(pause: VialReadRequest? = nil, mismatch: Bool = false, encoders: Bool = false, encoderMismatch: Bool = false) {
+        self.pause = pause; self.mismatch = mismatch; self.encoders = encoders; self.encoderMismatch = encoderMismatch
+    }
     var requests: [VialReadRequest] { lock.withLock { reports } }
     var closeCount: Int { lock.withLock { closes } }
     func start(receive: @escaping @Sendable (Result<VialHIDFrame, VialHIDError>) -> Void) { lock.withLock { self.receive = receive } }
@@ -41,6 +46,7 @@ private final class NativeVialHIDFixture: VialHIDEndpoint, @unchecked Sendable {
         emit(request); completion(.success(()))
     }
     func emit(_ request: VialReadRequest) {
+        let definition = encoders ? Self.encoderDefinition : Self.definition
         var bytes = request.bytes
         switch bytes[0] {
         case 1: bytes[1] = 0; bytes[2] = 9
@@ -53,11 +59,14 @@ private final class NativeVialHIDFixture: VialHIDEndpoint, @unchecked Sendable {
                 bytes.replaceSubrange(4..<12, with: Array(repeating: 255, count: 8))
             case 1:
                 bytes = Array(repeating: 0, count: 32)
-                for index in 0..<4 { bytes[index] = UInt8(truncatingIfNeeded: Self.definition.count >> (index * 8)) }
+                for index in 0..<4 { bytes[index] = UInt8(truncatingIfNeeded: definition.count >> (index * 8)) }
             case 2:
                 let start = (Int(bytes[2]) | Int(bytes[3]) << 8) * 32
-                bytes = Array(Self.definition[start..<min(start + 32, Self.definition.count)])
+                bytes = Array(definition[start..<min(start + 32, definition.count)])
                 bytes += Array(repeating: 0, count: 32 - bytes.count)
+            case 3:
+                XCTAssertTrue(encoders); XCTAssertEqual(request.bytes[3], 2)
+                bytes.replaceSubrange(0..<4, with: [0, 0x28, 0x12, encoderMismatch ? 0x35 : 0x34])
             default: XCTFail("Unexpected Vial query")
             }
         default: XCTFail("Unexpected HID command")
@@ -620,14 +629,14 @@ final class KarabinerMappingFlowTests: XCTestCase {
         var retainedFixture: FlowFixture?
         var patchURL: URL?
         var transportPort: NativeVialHIDFixture?
-        let bytes = Data(#"{"version":1,"uid":18446744073709551615,"via_protocol":9,"vial_protocol":6,"layout":[[["KC_NO",-1,"KC_ENT"]]],"macro":[],"encoder_layout":[[]],"settings":{}}"#.utf8)
+        let bytes = Data(#"{"version":1,"uid":18446744073709551615,"via_protocol":9,"vial_protocol":6,"layout":[[["KC_NO",-1,"KC_ENT"]]],"macro":[],"encoder_layout":[[[-1,-1],[-1,-1],["KC_ENT","0x1234"]]],"settings":{}}"#.utf8)
         ScreenEvidence.awaitMain {
             do {
                 let (fixture, file, store, gate) = try await self.deployment()
                 retainedFixture = fixture
                 let model = fixture.flow.firmwareCopies
                 let axes = try FirmwareVersionProvider.axes(bytes: bytes, backend: .vial, definitionSchema: VialDeviceDefinition.schema, importer: "offline-importer")
-                let transport = NativeVialHIDFixture()
+                let transport = NativeVialHIDFixture(encoders: true)
                 transportPort = transport
                 model.configure(store: store, gate: gate, support: .init(entries: [.init(backend: .vial,
                     device: "18446744073709551615", axes: axes, supportedOutputs: ["KC_C"])]),
@@ -670,13 +679,14 @@ final class KarabinerMappingFlowTests: XCTestCase {
         NativeEvidence.update(view)
         if let directory = NativeEvidence.outputRoot() {
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-            try ScreenEvidence.capturePNG(view).write(to: directory.appendingPathComponent("vial-protocol-readback-en.png"))
+            try ScreenEvidence.capturePNG(view).write(to: directory.appendingPathComponent("vial-encoder-readback-en.png"))
         }
         var requests: [VialReadRequest] = []
         requests = transport.requests
-        XCTAssertEqual(requests.count, 16)
+        XCTAssertEqual(requests.count, 17)
         XCTAssertEqual(Array(requests.prefix(3)), [.viaProtocol, .identity, .definitionSize])
-        XCTAssertEqual(Array(requests.suffix(6)), [.viaProtocol, .identity, .layerCount, try .keymap(offset: 0, length: 6), .identity, .layerCount])
+        XCTAssertEqual(Array(requests.suffix(7)), [.viaProtocol, .identity, .layerCount, try .keymap(offset: 0, length: 6),
+            .encoder(layer: 0, index: 2), .identity, .layerCount])
         XCTAssertEqual(transport.closeCount, 1)
         XCTAssertEqual(try Data(contentsOf: patch), Data(String(decoding: bytes, as: UTF8.self).replacingOccurrences(of: "KC_NO", with: "KC_C").utf8))
     }
@@ -729,6 +739,51 @@ final class KarabinerMappingFlowTests: XCTestCase {
         let ledger = try await FirmwareOperationCoordinator(store: store,
             resolve: { try FirmwareFileDestination(reference: $0, gate: gate) }).ledger()
         XCTAssertEqual(ledger.records.last?.state, .externallyChanged)
+    }
+    private var encoderOriginal: String {
+        #"{"version":1,"uid":18446744073709551615,"via_protocol":9,"vial_protocol":6,"layout":[[["KC_NO",-1,"KC_ENT"]]],"encoder_layout":[[[-1,-1],[-1,-1],["KC_ENT","0x1234"]]]}"#
+    }
+    func testVialHIDEncoderChangeWithMatchingMatrixRecordsExternalChangeAndReopens() async throws {
+        let endpoint = NativeVialHIDFixture(encoders: true, encoderMismatch: true)
+        let (fixture, store, gate, record) = try await claimedHID(endpoint, original: encoderOriginal)
+        let model = fixture.flow.firmwareCopies
+        await model.verifyVial(record, ticket: try XCTUnwrap(model.selectionTicket()))
+        XCTAssertEqual(model.records.last?.state, .externallyChanged)
+        XCTAssertEqual(endpoint.closeCount, 1)
+        let reopened = try await FirmwareOperationCoordinator(store: store,
+            resolve: { try FirmwareFileDestination(reference: $0, gate: gate) }).reconcile()
+        XCTAssertEqual(reopened.records.last?.state, .externallyChanged)
+    }
+    func testVialHIDEncoderPositionMismatchStopsBeforeMatrixAndEncoderQueries() async throws {
+        let endpoint = NativeVialHIDFixture(encoders: true)
+        let (fixture, store, gate, record) = try await claimedHID(endpoint)
+        let model = fixture.flow.firmwareCopies
+        await model.verifyVial(record, ticket: try XCTUnwrap(model.selectionTicket()))
+        XCTAssertEqual(model.records.last?.state, .importClaimed)
+        XCTAssertNotNil(model.issueKey); XCTAssertEqual(endpoint.closeCount, 1)
+        XCTAssertFalse(endpoint.requests.contains { $0.bytes[0] == 0x12 || ($0.bytes[0] == 0xfe && $0.bytes[1] == 3) })
+        let ledger = try await FirmwareOperationCoordinator(store: store,
+            resolve: { try FirmwareFileDestination(reference: $0, gate: gate) }).ledger()
+        XCTAssertNil(ledger.records.last?.verifiedAt)
+    }
+    func testVialHIDEncoderCancellationAndPrivacyClosePendingReportsAndIgnoreLateReply() async throws {
+        for privacy in [false, true] {
+            let pausedRequest = VialReadRequest.encoder(layer: 0, index: 2)
+            let endpoint = NativeVialHIDFixture(pause: pausedRequest, encoders: true)
+            let (fixture, store, gate, record) = try await claimedHID(endpoint, original: encoderOriginal)
+            let model = fixture.flow.firmwareCopies, ticket = try XCTUnwrap(model.selectionTicket())
+            let task = Task { await model.verifyVial(record, ticket: ticket) }
+            await fulfillment(of: [endpoint.paused], timeout: 5)
+            let before = endpoint.requests.count
+            if privacy { gate.update(.locked); model.clear(); gate.update(.unlocked) }
+            else { task.cancel() }
+            await task.value
+            endpoint.emit(pausedRequest)
+            XCTAssertEqual(endpoint.requests.count, before); XCTAssertEqual(endpoint.closeCount, 1)
+            let ledger = try await FirmwareOperationCoordinator(store: store,
+                resolve: { try FirmwareFileDestination(reference: $0, gate: gate) }).ledger()
+            XCTAssertEqual(ledger.records.last?.state, .importClaimed); XCTAssertNil(ledger.records.last?.verifiedAt)
+        }
     }
     func testVialHIDCancelDisconnectPrivacyAndReselectionClosePendingReports() async throws {
         for action in 0..<5 {

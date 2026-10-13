@@ -5,6 +5,8 @@ import KeyRecordDeviceRead
 
 private let definitionXZ = Data(base64Encoded: "/Td6WFoAAATm1rRGAgAhARYAAAB0L+Wj4AB8AG5dAD2IicZUNsMXT+Tj0LL2o1xY9+vhKXbIvBy+vt7ajJ9ByJ+U3t83EJIzjavDD0/txhM7o8p2unsGnnWbxEuUfVifBNNdOsvnERH+MjQdNyzfGKOpZsOfDPQyS8tONaoxr0YNL+3+QwvQXI28Cr7JAAAAOXSVpUTMuNUAAYoBfQAAAJKyS9ixxGf7AgAAAAAEWVo=")!
 private let originalVial = Data(#"{"version":1,"uid":42,"via_protocol":9,"vial_protocol":6,"layout":[[["KC_C",-1,"KC_ENT"]]]}"#.utf8)
+private let encoderDefinitionXZ = Data(base64Encoded: "/Td6WFoAAATm1rRGAgAhARYAAAB0L+Wj4ACMAHNdAD2IisaUL8LEIpnpbzWhi9MuaJSxOkspsVw55Xn7bInuMyewnJZLH9loZQHt+8O/0aPdImbC/zOhSY0hKRF6Qo860nDK00pvvQj4zzfzFDhGIM4qAJCwnLNQi6XluttcNvwdRtrS0/ZXMW7fRhPfGKahBwAAAGoknprQ9flsAAGPAY0BAACxXyIPscRn+wIAAAAABFla")!
+private let encoderVial = Data(#"{"version":1,"uid":42,"via_protocol":9,"vial_protocol":6,"layout":[[["KC_C",-1,"KC_ENT"]]],"encoder_layout":[[[-1,-1],[-1,-1],["KC_ENT","0x1234"]]]}"#.utf8)
 private final class Endpoint: VialHIDEndpoint, @unchecked Sendable {
     private let lock = NSLock()
     private var receiver: (@Sendable (Result<VialHIDFrame, VialHIDError>) -> Void)?
@@ -66,6 +68,7 @@ private func response(_ request: VialReadRequest, compressed: Data = definitionX
             let start = (Int(bytes[2]) | Int(bytes[3]) << 8) * 32
             bytes = Array(compressed[start..<min(start + 32, compressed.count)])
             bytes += Array(repeating: 0, count: 32 - bytes.count)
+        case 3: bytes.replaceSubrange(0..<4, with: [0,0x28,0x12,0x34])
         default: break
         }
     default: break
@@ -78,6 +81,49 @@ final class VialDeviceReadTests: XCTestCase {
         .init(id: UUID(), backend: .vial, device: "42", axes: .init(definitionSchema: VialDeviceDefinition.schema,
             deviceProtocol: "via-9/vial-6", layoutFormat: "vial-save-1", keycodeDialect: VialKeycodeDialect.name,
             importer: "offline-importer"), baselineSHA256: "fixture", originalExportConfirmedAt: Date())
+    }
+    func testDefinitionKeepsEncoderIndexAndDirectionSeparateFromMatrixCoordinates() throws {
+        let decoded = try VialXZDecoder.decode(encoderDefinitionXZ)
+        let definition = try VialDeviceDefinition(bytes: decoded, uid: 42)
+        XCTAssertEqual(definition.positions, [.init(layer: 0, column: 0), .init(layer: 0, column: 2)])
+        XCTAssertEqual(definition.encoderPositions, [.init(layer: 0, index: 2, direction: .counterclockwise)])
+        let text = String(decoding: decoded, as: UTF8.self)
+        let maximum = try VialDeviceDefinition(bytes: Data(text.replacingOccurrences(of: "2,1", with: "255,0").utf8), uid: 42)
+        XCTAssertEqual(maximum.encoderPositions, [.init(layer: 0, index: 255, direction: .clockwise)])
+        let aligned = try VialDeviceDefinition(bytes: Data(text.replacingOccurrences(of: #""a":0"#, with: #""a":4"#).utf8), uid: 42)
+        XCTAssertEqual(aligned.encoderPositions, definition.encoderPositions)
+        for coordinate in ["-1,0", "256,0", "2,-1", "2,2", "2,x"] {
+            XCTAssertThrowsError(try VialDeviceDefinition(bytes: Data(text.replacingOccurrences(of: "2,1", with: coordinate).utf8), uid: 42))
+        }
+    }
+    func testSessionMatchesIndependentEncoderIndicesAndReadsBothDirections() async throws {
+        let endpoint = Endpoint(response: { response($0, compressed: encoderDefinitionXZ) })
+        let transport = VialHIDTransport(endpoint: endpoint, deadline: Deadline())
+        defer { transport.close() }
+        let session = VialDeviceReadSession(transport: transport, vendorID: 0x1234, productID: 0x5678)
+        let observed = try await session.observe(record: batch(), original: encoderVial)
+        XCTAssertEqual(observed.encoderValues, [.init(layer: 0, index: 2, direction: .clockwise): "0x0028",
+            .init(layer: 0, index: 2, direction: .counterclockwise): "0x1234"])
+        XCTAssertEqual(endpoint.requests.filter { $0.bytes[0] == 0xfe && $0.bytes[1] == 3 }, [.encoder(layer: 0, index: 2)])
+        let before = endpoint.requests.count
+        for text in [String(decoding: originalVial, as: UTF8.self),
+                     String(decoding: encoderVial, as: UTF8.self).replacingOccurrences(of: #"[-1,-1],[-1,-1],["KC_ENT","0x1234"]"#,
+                        with: #"["KC_ENT","0x1234"],[-1,-1],[-1,-1]"#)] {
+            do { _ = try await session.observe(record: batch(), original: Data(text.utf8)); XCTFail("Expected encoder position refusal") }
+            catch { XCTAssertEqual(error as? VialReadbackError, .invalidEncoders) }
+        }
+        XCTAssertFalse(endpoint.requests.dropFirst(before).contains { $0.bytes[0] == 0x12 || ($0.bytes[0] == 0xfe && $0.bytes[1] == 3) })
+    }
+    func testEncoderShortResponseNeverProducesObservation() async throws {
+        let endpoint = Endpoint(response: { request in
+            let bytes = response(request, compressed: encoderDefinitionXZ)
+            return request == .encoder(layer: 0, index: 2) ? Array(bytes.dropLast()) : bytes
+        })
+        let connection = VialDeviceReadConnection(endpoint: endpoint, vendorID: 0x1234, productID: 0x5678, deadline: Deadline())
+        do { _ = try await connection.observe(record: batch(), original: encoderVial, authorize: {}); XCTFail("Expected short report refusal") }
+        catch { XCTAssertEqual(error as? VialHIDError, .invalidReport) }
+        XCTAssertEqual(endpoint.closeCount, 1)
+        XCTAssertEqual(endpoint.requests.last, .encoder(layer: 0, index: 2))
     }
     func testTransportWaitsForSendAndInputInEitherOrder() async throws {
         for inputFirst in [true, false] {

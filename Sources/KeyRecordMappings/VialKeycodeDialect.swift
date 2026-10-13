@@ -34,7 +34,7 @@ public enum VialKeycodeDialect {
         throw FirmwareError.unsupportedOutput
     }
     public static func token(_ raw: UInt16) -> String { String(format: "0x%04x", raw) }
-    static func normalized(_ values: [FirmwareSlot: String]) throws -> [FirmwareSlot: String] {
+    static func normalized<Slot: Hashable>(_ values: [Slot: String]) throws -> [Slot: String] {
         try values.mapValues { token(try rawValue($0)) }
     }
     static func protectedEntry(_ token: String) -> Bool {

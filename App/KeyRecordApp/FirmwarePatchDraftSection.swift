@@ -35,6 +35,10 @@ struct FirmwarePatchDraftSection: View {
         Button(text("phase4.previewPatch")) {
             if let ticket = model.selectionTicket() { Task { await model.previewPatch(record, ticket: ticket) } }
         }.disabled(!model.canGenerate(record) || changes.isEmpty).accessibilityIdentifier("preview-" + record.id.uuidString)
+        if let issue = model.patchIssueKeys[record.id] {
+            Text(text(issue)).fixedSize(horizontal: false, vertical: true)
+                .accessibilityIdentifier("patch-issue-" + record.id.uuidString)
+        }
         if let preview = model.patchPreviews[record.id] {
             Text(text("phase4.patchPreviewTitle"))
             ForEach(preview.differences.map { (id: "difference-" + slotID($0.change.slot), difference: $0) }, id: \.id) { entry in

@@ -353,6 +353,17 @@
 "phase4.patchPreviewTitle" = "所选位置差异";
 "phase4.patchPreviewExplanation" = "只修改列出的这些位置，宏及未知内容保持原样。导出不代表修改已部署到键盘。";
 "phase4.patchInvalid" = "无法预览这些修改，请检查位置、键码、可达层及最新原始副本。";
+"phase4.patchIssue.slot" = "请选择原始副本中存在的层、行和位置，加入至少一项修改后重新预览。";
+"phase4.patchIssue.output" = "某个键码不受此副本支持，请改用受支持的标准键码后重新预览。宏和自定义动作不能生成。";
+"phase4.patchIssue.protected" = "所选位置包含受保护的切层或恢复键，请移除该修改并选择其他位置。";
+"phase4.patchIssue.occupied" = "自动修改只能使用空白 KC_NO 位置，请移除该修改或选择空白位置。";
+"phase4.patchIssue.layer" = "原始键位图无法到达所选层，请选择可达层，并保留原有切层入口。";
+"phase4.patchIssue.latest" = "已有更新的原始副本，请查看并编辑此设备的最新副本。";
+"phase4.patchIssue.compatibility" = "此设备及其版本信息没有合格的生成支持，请保留原始副本；当前仍无法生成。";
+"phase4.patchIssue.original" = "原始副本无法用于这些修改，请核对设备身份和文件格式后再保留新的副本。";
+"phase4.patchIssue.state" = "此批次当前不能预览草稿，请查看当前状态后再重试。";
+"phase4.patchIssue.unavailable" = "当前无法读取原始副本，请在本地数据可用后重新打开副本并再次预览。";
+"phase4.patchIssue.changed" = "操作期间副本发生了变化，请重新打开并查看当前副本后再重试。";
 "phase4.viaSlot" = "层 %d，位置 %d";
 "phase4.vialSlot" = "层 %d，行 %d，位置 %d";
 "phase4.confirmOperation" = "确认此操作";

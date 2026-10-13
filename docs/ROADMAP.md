@@ -12,12 +12,12 @@ B 的工程基础及只读 VIA 参考已由 [PR #21](https://github.com/fhtpku-C
 | Phase 1: collection, privacy, encrypted storage | **Approved Apple Silicon MVP complete and merged** | Measured arm64 macOS 27.0 build 26A428 only; development-signed local trial. Existing candidate-specific short ARM and lifecycle evidence retained. Full original G1/v1, all OS/architectures and public release are not claimed. |
 | Phase 2：确定性分析 | **A/B 工程开发与离线自审完成；真实 G2 证据后置** | 能力过滤、范围明确的冲突检查、特殊键池、手动候选、物理链消费/回退与只读副本已接通。实际后端、完整真实部署/变换链、系统选择器授权和真实保存重开集中留后；产品不冒充已连接或真实物理收益。 |
 | Phase 3: Karabiner stable path | **部署会话和原生卸载工程增量完成；完整 G3 未完成** | 目标绑定、加密引用、隐私重开和外部监测已接通；暂停捕获→逐份恢复副本→规则→登录项→数据选择的默认卸载准备及阶段显示已离线执行。历史阶段仅供检查，维护期间后台对账延后并恢复。空生产支持目录只读，真实版本、重载、效果和停用 p95 后置。[本批记录](phase3/RECOVERY_CHOICES_20261013.md)。 |
-| Phase 4: VIA/Vial Beta | **安全修补/日志、原生多槽预览及离线读回比对完成；未合格** | VIA/Vial 原始副本、多槽编辑/差异预览/合格批次导出、失败说明与纠正、声明和恢复流程已接通；Vial 注入键位图比对及结果中断恢复通过。实际读取端口未启用，版本矩阵、官方导入器及真实键盘覆盖仍缺失。合成往返不证明兼容性。[本批记录](phase4/PREVIEW_CORRECTIONS_20261013.md)。 |
+| Phase 4: VIA/Vial Beta | **Vial 6 协议与官方格式离线集成完成；未合格** | 部分版本轴、官方空位格式、Vial 6 / VIA 9 只读协议适配器及原生读回按钮已离线接通；官方源码方法保存/恢复与公开 API 闭环通过。正式支持目录为空，实际 HID/独立定义读取、完整键码及版本矩阵/真实设备覆盖仍缺失，VIA GUI 往返未执行。[本批记录](phase4/BACKEND_OFFLINE_INTEGRATION_20261013.md)。 |
 | Full v1 / public distribution | **Not qualified** | PRD §15 requirements, FR-P6 full password backup, Intel/full support matrix, public name/license decision, signing/notarization and backend requirements remain. |
 
 Requirements remain in [PRD](PRD.md) and [architecture §15](TECHNICAL_ARCHITECTURE.md#15-分阶段交付与发布门禁).
 
-2026-10-13 最新工程增量为[固件预览失败说明与纠正流程](phase4/PREVIEW_CORRECTIONS_20261013.md)，89 项不同的相关离线测试通过；前一批多槽草稿和差异预览由 PR #28 合并。生产支持目录仍为空、实际读取端口未启用。继续自主推进不需要真实验证的源码和离线测试；实际版本轴、设备/官方导入器、HID 资格和候选实测集中后置，不将临时配置、注入端口或旧 spike 当作真实后端资格。以下保留前序批次范围。
+2026-10-13 最新增量为[Vial 6 协议与官方格式离线集成](phase4/BACKEND_OFFLINE_INTEGRATION_20261013.md)，47 项相关离线测试通过，并实际执行官方源码保存/恢复方法及公开 API 驱动。正式支持目录仍为空，文件只能提供部分版本事实，实际 HID 端口未启用；真实设备/版本矩阵和发布证据继续后置。下文保留前序批次范围。
 
 2026-10-13 最新开发结论：**增量 B 工程开发与离线自审已完成**，后端能力过滤、观测/系统风险/规则重叠/映射环/保护入口检查及证据失效已接通产品；见 [完成记录](phase2/B_COMPLETION_20261013.md)。正式 G2 的真实证据仍后置，下一阶段的工程开发进入 Phase 3。下列早期试用安排仅保留历史范围，当前不要求执行那一轮试用。
 Current Phase 1 evidence is in [acceptance](PHASE1_ACCEPTANCE.md), not the old T24

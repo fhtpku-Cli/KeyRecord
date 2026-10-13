@@ -17,6 +17,7 @@ let package = Package(
         .target(name: "KeyRecordMappings", dependencies: ["KeyRecordCore", "KeyRecordAnalysis", "KeyRecordStore", "KeyRecordConfigurationRead"]),
         .testTarget(name: "KeyRecordMappingsTests", dependencies: ["KeyRecordMappings"]),
         .executableTarget(name: "KeyRecordMappingCrashProbe", dependencies: ["KeyRecordCore", "KeyRecordAnalysis", "KeyRecordStore", "KeyRecordMappings"], path: "Tests/KeyRecordMappingCrashProbe"),
+        .executableTarget(name: "KeyRecordFirmwareIntegrationProbe", dependencies: ["KeyRecordCore", "KeyRecordStore", "KeyRecordMappings"], path: "Tests/KeyRecordFirmwareIntegrationProbe"),
         .target(name: "KeyRecordConfigurationRead"),
         .target(name: "KeyRecordAnalysis", dependencies: ["KeyRecordCore", "KeyRecordConfigurationRead"]),
         .testTarget(name: "KeyRecordAnalysisTests", dependencies: ["KeyRecordAnalysis", "KeyRecordConfigurationRead"]),

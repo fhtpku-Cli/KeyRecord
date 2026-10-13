@@ -2,6 +2,7 @@ import SwiftUI
 import AppKit
 import KeyRecordCore
 import KeyRecordMappings
+import KeyRecordDeviceRead
 import KeyRecordStore
 
 @MainActor
@@ -56,6 +57,9 @@ final class FirmwareCopiesModel: ObservableObject {
     private var versionAxes: @MainActor (FirmwareBackend) -> FirmwareVersionAxes? = { _ in nil }
     private var vialReadback: (@Sendable (FirmwareBatchRecord) async throws -> VialKeymapObservation)?
     private var vialAdapter: VialReadbackAdapter?
+    private var vialConnection: (@MainActor (FirmwareBatchRecord) throws -> VialDeviceReadConnection)?
+    private var activeVialConnection: VialDeviceReadConnection?
+    private var vialVerification: UUID?
     private var uninstall: UninstallActions?
     struct UninstallActions {
         let stopCapture: @MainActor () async throws -> Void
@@ -68,10 +72,13 @@ final class FirmwareCopiesModel: ObservableObject {
     func configure(store: ObjectStore, gate: KeyAvailabilityGate, support: FirmwareSupportDirectory = FirmwareSupportDirectory(),
                    versionAxes: @escaping @MainActor (FirmwareBackend) -> FirmwareVersionAxes? = { _ in nil },
                    vialReadback: (@Sendable (FirmwareBatchRecord) async throws -> VialKeymapObservation)? = nil,
-                   vialAdapter: VialReadbackAdapter? = nil) {
+                   vialAdapter: VialReadbackAdapter? = nil,
+                   vialConnection: (@MainActor (FirmwareBatchRecord) throws -> VialDeviceReadConnection)? = nil) {
+        clear()
         self.store = store; self.gate = gate; self.support = support; self.versionAxes = versionAxes; firmware = nil
         self.vialReadback = vialReadback
         self.vialAdapter = vialAdapter
+        self.vialConnection = vialConnection
         patchPreviews = [:]; patchIssueKeys = [:]
     }
     func configureUninstall(_ actions: UninstallActions) { uninstall = actions }
@@ -86,6 +93,8 @@ final class FirmwareCopiesModel: ObservableObject {
         firmware = coordinator; return coordinator
     }
     func clear() {
+        activeVialConnection?.close(); activeVialConnection = nil
+        vialVerification = nil
         session = UUID(); records = []; firmware = nil; issueKey = nil; working = false
         recoverySelections = [:]; deleteLocalData = false
         uninstallStage = nil; previousPreparation = nil; uninstallReady = false
@@ -220,30 +229,53 @@ final class FirmwareCopiesModel: ObservableObject {
         canRead() && !working && hasVialReadback(record)
     }
     func hasVialReadback(_ record: FirmwareBatchRecord) -> Bool {
-        record.backend == .vial && (vialReadback != nil || vialAdapter != nil) && isCompatible(record) &&
+        record.backend == .vial && (vialConnection != nil || vialReadback != nil || vialAdapter != nil) && isCompatible(record) &&
             [.importClaimed, .verified, .failed, .externallyChanged].contains(record.state)
     }
     func verifyVial(_ record: FirmwareBatchRecord, ticket: UUID) async {
         guard ticket == session, records.contains(record), canVerifyVial(record), let gate else { return }
+        let request = UUID(); readRequest = request
+        vialVerification = request
         working = true; issueKey = nil
-        defer { if ticket == session { working = false; onChange() } }
+        defer {
+            if ticket == session, request == readRequest {
+                activeVialConnection?.close(); activeVialConnection = nil
+                vialVerification = nil
+                working = false; onChange()
+            }
+        }
         do {
             let generation = try gate.begin()
             let observation: VialKeymapObservation
-            if let vialReadback {
+            if let vialConnection {
+                let original = try await coordinator().original(record.id)
+                try gate.check(generation); try Task.checkCancellation()
+                guard canRead(), ticket == session, request == readRequest else { return }
+                let connection = try vialConnection(record)
+                activeVialConnection = connection
+                observation = try await connection.observe(record: record, original: original,
+                    authorize: { try gate.check(generation) })
+            } else if let vialReadback {
                 observation = try await vialReadback(record)
             } else if let vialAdapter {
                 let original = try await coordinator().original(record.id)
                 try gate.check(generation)
-                guard canRead(), ticket == session else { return }
+                guard canRead(), ticket == session, request == readRequest else { return }
                 observation = try await vialAdapter.observe(record: record, original: original,
                     authorize: { try gate.check(generation) })
             } else { throw FirmwareError.unavailable }
-            try gate.check(generation)
-            guard canRead(), ticket == session else { return }
+            try gate.check(generation); try Task.checkCancellation()
+            guard canRead(), ticket == session, request == readRequest else { return }
             let ledger = try await coordinator().confirmVialReadback(record.id, observation: observation)
-            if canRead(), ticket == session { records = ledger.records }
-        } catch { if canRead(), ticket == session { issueKey = "phase4.operationFailed" } }
+            if canRead(), ticket == session, request == readRequest { records = ledger.records }
+        } catch { if canRead(), ticket == session, request == readRequest { issueKey = "phase4.operationFailed" } }
+    }
+    func cancelVialReadback() {
+        guard vialVerification != nil else { return }
+        readRequest = UUID()
+        vialVerification = nil
+        activeVialConnection?.close(); activeVialConnection = nil
+        working = false; onChange()
     }
     func exportChanges(_ record: FirmwareBatchRecord, changes: [FirmwareSlotChange], ticket: UUID) async {
         guard ticket == session, records.contains(record), canGenerate(record), !changes.isEmpty, let gate else { return }

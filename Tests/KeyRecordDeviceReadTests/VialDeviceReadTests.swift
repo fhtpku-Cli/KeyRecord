@@ -91,6 +91,15 @@ final class VialDeviceReadTests: XCTestCase {
             transport.close(); XCTAssertEqual(endpoint.closeCount, 1)
         }
     }
+    func testExplicitCloseAndDeallocationCloseEndpointOnlyOnce() {
+        let endpoint = Endpoint()
+        var transport: VialHIDTransport? = VialHIDTransport(endpoint: endpoint)
+        transport?.close(); transport?.close(); transport = nil
+        XCTAssertEqual(endpoint.closeCount, 1)
+        var unclosed: VialHIDTransport? = VialHIDTransport(endpoint: endpoint)
+        XCTAssertNotNil(unclosed); unclosed = nil
+        XCTAssertEqual(endpoint.closeCount, 2)
+    }
     func testTransportRejectsBadLengthAndReportIDAndCannotReuseThatConnection() async throws {
         for (count, id) in [(31, 0), (33, 0), (32, 1)] {
             let endpoint = Endpoint(), transport = VialHIDTransport(endpoint: endpoint, deadline: Deadline())

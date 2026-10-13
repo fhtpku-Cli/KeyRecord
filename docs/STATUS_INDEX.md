@@ -57,7 +57,7 @@ Phase 1 native UI evidence does not automatically qualify the separate dashboard
 
 ## Dated plans, checkpoints and execution reports
 
-- [docs/phase3/NATIVE_UNINSTALL_20261013.md](phase3/NATIVE_UNINSTALL_20261013.md) — 当前原生卸载/固件流程、100 项离线执行、自审及真实资格边界
+- [docs/phase3/NATIVE_UNINSTALL_20261013.md](phase3/NATIVE_UNINSTALL_20261013.md) — 当前原生卸载/固件流程、107 项离线执行、自审及真实资格边界
 - [docs/phase3/DEPLOYMENT_FIRMWARE_20261013.md](phase3/DEPLOYMENT_FIRMWARE_20261013.md) — 前一部署会话/固件核心增量及当时的审批限制
 - [docs/phase3/CORE_ENGINEERING_20261013.md](phase3/CORE_ENGINEERING_20261013.md) — 前序事务/原生草稿增量，按原源码与范围保留
 

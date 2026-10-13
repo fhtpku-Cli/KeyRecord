@@ -628,7 +628,7 @@ sourceReliability(chord) = table( ordinaryCount / (ordinaryCount + suspectedCoun
 
 ### 9.1 KarabinerAdapter：plan / diff / commit / reconcile（ADR-007）
 
-**部署会话增量（2026-10-13）**：默认组成已连接用户应用意向触发的目标/Profile 授权、版本读取端口、加密引用、隐私重开/撤回、外部文件监测和重绑定保护。空生产支持目录保持只读。卸载串联核心已通过注入端口，原生执行入口被自动审批拦截；完整 G3 和 FR-A4 未完成。固件核心与本批 75 项相关场景见[部署/固件增量记录](phase3/DEPLOYMENT_FIRMWARE_20261013.md)。下段为先前核心批次的范围。
+**部署会话与卸载增量（2026-10-13）**：默认组成已连接目标/Profile 授权、版本端口、加密引用、隐私重开、外部监测和重绑定保护。原生卸载准备在恢复副本保障后依次移除受管规则、登录项并按选择清除数据；相邻操作互斥，独立确认票据跨隐私失效。空生产支持目录仍只读；完整 G3/FR-A4 未取得真实资格。100 项相关离线场景见[本批记录](phase3/NATIVE_UNINSTALL_20261013.md)。下段为先前核心批次范围。
 
 **工程增量（2026-10-13）**：`KeyRecordMappings` 和原生草稿/检查组件已实现并实际执行本节核心事务、恢复、备份及停用路径，62 项不同的相关离线场景最终通过；见[本批记录](phase3/CORE_ENGINEERING_20261013.md)。默认产品仍未接入真实写入适配器，部署会话与完整卸载串联继续开发。下面 Phase 0 材料保留其历史范围；未知版本只读、真实支持矩阵、重载和停用实测要求不变，不据本批测试宣称完整 Phase 3 或 G3 合格。
 
@@ -690,7 +690,7 @@ commit(batch):
 
 ### 9.2 ViaAdapter
 
-**固件核心增量（2026-10-13）**：KeyRecordMappings 已实现有界槽位修补、五轴/设备匹配阻断、加密原始副本/产物、外部导出读回及声明/证据/放弃的持久阶段对账。默认支持目录为空，原生未知轴保持 nil，仅保留和导出恢复副本；没有取得 VIA/Vial 生成或设备验证资格。细节及未完成 UI 范围见[本批记录](phase3/DEPLOYMENT_FIRMWARE_20261013.md)。
+**固件核心与原生流程增量（2026-10-13）**：有界修补、五轴/设备匹配、加密副本和阶段对账已接通 VIA/Vial 恢复副本、合格批次导出、导入声明、VIA 用户行为结果、放弃和恢复声明界面。默认支持目录为空，未知轴保持 nil，无法生成；导入不代表 verified，Vial 没有实际读回能力。没有取得真实设备资格。细节见[本批记录](phase3/NATIVE_UNINSTALL_20261013.md)。
 
 **Phase 0 证据状态**：SP-4A：PASS（仅定义 schema）（V2/V3 定义解析与不透明保留），不得外推其他轴。SP-4B 只在 SHA-256 固定的合成夹具上验证未版本化 `.layout.json` 形状、边界与选中槽修补；该布局产物不是有版本的稳定交换标准。设备协议、固件选择的键码方言、官方导入器与真实设备行为均阻塞；协议/键码字典依赖固件，VIA protocol 13 与固定版本 Vial GUI 不兼容。VIA_GENERATION 保持阻塞，合成往返不是部署兼容性。[证据：`evidence/phase0/sp4a/evidence.json`；`evidence/phase0/sp4b/axes.json`；`evidence/phase0/sp4b/round-trip.json`；`evidence/phase0/fixtures/synthetic/via-layout.json`；`evidence/phase0/conclusions.json`]
 

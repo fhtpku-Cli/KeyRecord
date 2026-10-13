@@ -1,5 +1,7 @@
 # 卸载停采集、进度与离线 Vial 证据比对
 
+后续状态：本批 [PR #26](https://github.com/fhtpku-Cli/KeyRecord/pull/26) 已合并为 `f5c53e93e0ba7c0b31196a6becaf8f6b06c7df0d`。最新逐份恢复选择、历史阶段和维护对账互斥见[后续记录](RECOVERY_CHOICES_20261013.md)，下文保留本批范围。
+
 状态日期：2026-10-13，Asia/Shanghai。源码提交：`daf5e32bcb1af2ae7722c3fb56193ea8b64adabb`。
 
 ## 范围与交付

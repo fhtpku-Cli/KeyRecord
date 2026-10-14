@@ -343,6 +343,32 @@ final class VialReadbackAdapterTests: XCTestCase {
             }
         }
     }
+    func testLeadingWhitespaceCannotBypassExistingVialEntryProtection() throws {
+        let entries = ["MO(1)", "LT1(KC_C)", "LT(1,KC_C)", "TG(1)", "TO(1)", "TT(1)", "DF(1)", "OSL(1)",
+                       "MO(USER00)", "LT16(KC_C)", "LT1(USER00)", "LM(1,MOD_LCTL)", "PDF(1)",
+                       "FN_MO13", "QK_LAYER_LOCK", "QK_BOOT", "QK_REBOOT", "QK_CLEAR_EEPROM", "RESET", "EE_CLR",
+                       "OSM(0x40)", "OSM(MOD_LCTL)"]
+        for entry in entries {
+            for whitespace in [" ", "\t", "\n"] {
+                let token = whitespace + entry
+                let replacement = String(decoding: try JSONEncoder().encode(token), as: UTF8.self)
+                let bytes = Data(String(decoding: vial6Bytes, as: UTF8.self).replacingOccurrences(of: #""MO(1)""#, with: replacement).utf8)
+                let document = try FirmwareDocument(bytes: bytes, backend: .vial), axes = try axes(bytes)
+                XCTAssertEqual(try document.value(at: .init(layer: 0, column: 0)), token)
+                XCTAssertThrowsError(try VialKeycodeDialect.rawValue(token), token)
+                let support = FirmwareSupportDirectory(entries: [.init(backend: .vial, device: document.device,
+                    axes: axes, supportedOutputs: ["KC_C", token])])
+                for automatic in [true, false] {
+                    XCTAssertThrowsError(try document.patch([.init(slot: .init(layer: 0, column: 0), output: "KC_C", automatic: automatic)],
+                        expectedDevice: document.device, axes: axes, support: support), token) { XCTAssertEqual($0 as? FirmwareError, .protectedEntry, token) }
+                    XCTAssertThrowsError(try document.patch([.init(slot: .init(layer: 1, column: 1), output: "KC_C", automatic: automatic)],
+                        expectedDevice: document.device, axes: axes, support: support), token) { XCTAssertEqual($0 as? FirmwareError, .unreachableLayer, token) }
+                    XCTAssertThrowsError(try document.patch([.init(slot: .init(layer: 0, column: 1), output: token, automatic: automatic)],
+                        expectedDevice: document.device, axes: axes, support: support), token) { XCTAssertEqual($0 as? FirmwareError, .unsupportedOutput, token) }
+                }
+            }
+        }
+    }
     func testLayerModifiersCannotBeOverwrittenOrGrantLayerAndOutputPermissions() throws {
         let names = ["LM(0,0)", "LM(1,MOD_LCTL)", "LM(15,31)", "LM(16,32)", "LM(-1,-1)",
                      "LM(USER00,MOD_LCTL)", "LM(1,USER00)", "LM()", "LM (1,MOD_LCTL)", "LM",

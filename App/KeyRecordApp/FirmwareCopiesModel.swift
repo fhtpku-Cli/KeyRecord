@@ -57,7 +57,7 @@ final class FirmwareCopiesModel: ObservableObject {
     private var versionAxes: @MainActor (FirmwareBackend) -> FirmwareVersionAxes? = { _ in nil }
     private var vialReadback: (@Sendable (FirmwareBatchRecord) async throws -> VialKeymapObservation)?
     private var vialAdapter: VialReadbackAdapter?
-    private var vialConnection: (@MainActor (FirmwareBatchRecord) throws -> VialDeviceReadConnection)?
+    private var vialConnection: (@MainActor (FirmwareBatchRecord, @MainActor () throws -> Void) throws -> VialDeviceReadConnection)?
     private var activeVialConnection: VialDeviceReadConnection?
     private var vialVerification: UUID?
     private var uninstall: UninstallActions?
@@ -73,7 +73,7 @@ final class FirmwareCopiesModel: ObservableObject {
                    versionAxes: @escaping @MainActor (FirmwareBackend) -> FirmwareVersionAxes? = { _ in nil },
                    vialReadback: (@Sendable (FirmwareBatchRecord) async throws -> VialKeymapObservation)? = nil,
                    vialAdapter: VialReadbackAdapter? = nil,
-                   vialConnection: (@MainActor (FirmwareBatchRecord) throws -> VialDeviceReadConnection)? = nil) {
+                   vialConnection: (@MainActor (FirmwareBatchRecord, @MainActor () throws -> Void) throws -> VialDeviceReadConnection)? = nil) {
         clear()
         self.store = store; self.gate = gate; self.support = support; self.versionAxes = versionAxes; firmware = nil
         self.vialReadback = vialReadback
@@ -251,7 +251,10 @@ final class FirmwareCopiesModel: ObservableObject {
                 let original = try await coordinator().original(record.id)
                 try gate.check(generation); try Task.checkCancellation()
                 guard canRead(), ticket == session, request == readRequest else { return }
-                let connection = try vialConnection(record)
+                let connection = try vialConnection(record) {
+                    try gate.check(generation)
+                    guard self.canRead(), ticket == self.session, request == self.readRequest else { throw CancellationError() }
+                }
                 activeVialConnection = connection
                 observation = try await connection.observe(record: record, original: original,
                     authorize: { try gate.check(generation) })

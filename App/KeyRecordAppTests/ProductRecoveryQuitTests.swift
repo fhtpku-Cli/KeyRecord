@@ -5,6 +5,8 @@ import SwiftUI
 import Combine
 import Security
 import KeyRecordCore
+import KeyRecordMappings
+import KeyRecordDeviceRead
 import LifecycleHosted
 import LifecyclePreflight
 @testable import KeyRecordCapture
@@ -293,6 +295,7 @@ private final class SyntheticTap: CaptureTapBackend, @unchecked Sendable {
 
 @MainActor
 private final class SyntheticProduct {
+    var configureBackends: ((inout ProductHostBoundaries) -> Void)?
     let host = SyntheticHost()
     let keychain: MemoryKeychain
     var backendOverride: (any KeychainBackend)?
@@ -357,6 +360,7 @@ private final class SyntheticProduct {
         boundaries.foreground = host
         boundaries.secureInput = host
         boundaries.lockNotifications = notifications
+        configureBackends?(&boundaries)
         // AppKit's `terminate` asks the delegate synchronously, inside the caller's main-actor job.
         boundaries.terminate = { [weak self] in
             guard let self else { return }
@@ -504,6 +508,58 @@ private func waitUntil(_ label: String, timeout: Duration = .seconds(8),
 @MainActor
 final class ProductRecoveryQuitTests: XCTestCase {
     private var products: [SyntheticProduct] = []
+
+    func testProductionCompositionUsesHostBackendDependenciesAndKeepsUnknownDevicesReadOnly() async throws {
+        let product = try SyntheticProduct.fresh(); products.append(product)
+        let axes = FirmwareVersionAxes(definitionSchema: "synthetic-schema", deviceProtocol: "via-9/vial-6",
+            layoutFormat: "vial-save-1", keycodeDialect: VialKeycodeDialect.name, importer: "synthetic-importer")
+        var discoveries = 0
+        product.configureBackends = { host in
+            host.karabinerDeployment = KarabinerDeploymentDependencies(version: { "synthetic-version" }, authority: { _, _ in .temporaryConfiguration })
+            host.firmwareVersionAxes = { _ in axes }
+            host.firmwareSupport = FirmwareSupportDirectory(entries: [FirmwareCompatibility(backend: .vial,
+                device: "42", axes: axes, supportedOutputs: ["KC_C"])])
+            host.vialDevices = VialDeviceSelection(devices: { discoveries += 1; return [] },
+                choose: { _, _ in XCTFail("Empty device list must not open a picker"); return nil },
+                open: { _ in XCTFail("Cancelled selection must not open HID"); throw FirmwareError.unavailable })
+        }
+        try await product.boot(journal: false)
+        await product.composition.startOrRetry(); await product.composition.flow.accept()
+        XCTAssertEqual(product.phase, .collecting)
+        let target = product.root.appendingPathComponent("karabiner-copy.json")
+        try Data(#"{"profiles":[{"name":"Synthetic","selected":true,"complex_modifications":{"rules":[]}}]}"#.utf8).write(to: target)
+        let deployment = product.composition.flow.karabinerDeployment
+        deployment.selectTarget = { target }
+        await deployment.requestApplication(profile: "Synthetic")
+        XCTAssertTrue(deployment.connected); XCTAssertEqual(deployment.version, "synthetic-version")
+        let firmware = product.composition.flow.firmwareCopies
+        let original = product.root.appendingPathComponent("original.vil")
+        try Data(#"{"version":1,"uid":42,"via_protocol":9,"vial_protocol":6,"layout":[[["KC_NO"]]]}"#.utf8).write(to: original)
+        firmware.selectVial = { original }
+        await firmware.retainVial(ticket: try XCTUnwrap(firmware.selectionTicket()))
+        var record = try XCTUnwrap(firmware.records.last)
+        XCTAssertEqual(record.axes, axes); XCTAssertTrue(firmware.canGenerate(record))
+        firmware.selectExport = { _ in product.root.appendingPathComponent("patch.vil") }
+        await firmware.exportChanges(record, changes: [FirmwareSlotChange(slot: FirmwareSlot(layer: 0, column: 0), output: "KC_C", automatic: false)],
+            ticket: try XCTUnwrap(firmware.selectionTicket()))
+        record = try XCTUnwrap(firmware.records.last)
+        await firmware.perform(.claimImport, record: record, ticket: try XCTUnwrap(firmware.selectionTicket()))
+        record = try XCTUnwrap(firmware.records.last)
+        XCTAssertTrue(firmware.canVerifyVial(record))
+        await firmware.verifyVial(record, ticket: try XCTUnwrap(firmware.selectionTicket()))
+        XCTAssertEqual(discoveries, 1)
+        XCTAssertEqual(firmware.records.last?.state, .importClaimed)
+        XCTAssertNil(firmware.records.last?.verifiedAt)
+        await product.composition.stopBackgroundMaintenanceForFixture()
+
+        let unqualified = try await collecting(journal: false)
+        let unknown = unqualified.composition.flow.firmwareCopies
+        unknown.selectVial = { original }
+        await unknown.retainVial(ticket: try XCTUnwrap(unknown.selectionTicket()))
+        let unknownRecord = try XCTUnwrap(unknown.records.last)
+        XCTAssertFalse(unknown.canGenerate(unknownRecord)); XCTAssertFalse(unknown.canVerifyVial(unknownRecord))
+        await unqualified.composition.stopBackgroundMaintenanceForFixture()
+    }
 
     func testNativePasswordBackupButtonInBothLanguages() throws {
         ScreenEvidence.prepare()

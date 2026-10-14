@@ -112,6 +112,96 @@ private final class DeploymentVersionProbe: @unchecked Sendable {
 
 @MainActor
 final class KarabinerMappingFlowTests: XCTestCase {
+    func testReadbackCancellationInsideDevicePickerCannotOpenDevice() async throws {
+        let (fixture, file, store, gate) = try await deployment()
+        let record = try await claimedVial(fixture, file: file, store: store, gate: gate, readback: nil)
+        let model = fixture.flow.firmwareCopies
+        let support = FirmwareSupportDirectory(entries: [FirmwareCompatibility(backend: .vial,
+            device: record.device, axes: record.axes, supportedOutputs: ["KC_C"])])
+        let device = VialHIDDevice(registryEntryID: 12, vendorID: 0x1234, productID: 0x5678, name: "Synthetic")
+        var opens = 0
+        let selector = VialDeviceSelection(devices: { [device] }, choose: { _, _ in
+            model.cancelVialReadback()
+            return device
+        }, open: { _ in opens += 1; return NativeVialHIDFixture() })
+        model.configure(store: store, gate: gate, support: support, versionAxes: { _ in record.axes },
+            vialConnection: { record, authorize in
+                try selector.connect(record: record, support: support, text: NativeText(locale: "en"), authorize: authorize)
+            })
+        await model.refresh()
+        await model.verifyVial(record, ticket: try XCTUnwrap(model.selectionTicket()))
+        XCTAssertEqual(opens, 0); XCTAssertFalse(model.working)
+        XCTAssertEqual(model.records.last?.state, .importClaimed)
+    }
+    func testDeviceSelectionRefusesUnknownCancelledUnlistedAndRevokedChoices() async throws {
+        let (fixture, file, store, originalGate) = try await deployment()
+        let record = try await claimedVial(fixture, file: file, store: store, gate: originalGate, readback: nil)
+        let device = VialHIDDevice(registryEntryID: 12, vendorID: 0x1234, productID: 0x5678, name: "Synthetic")
+        let supported = FirmwareSupportDirectory(entries: [FirmwareCompatibility(backend: .vial,
+            device: record.device, axes: record.axes, supportedOutputs: ["KC_C"])])
+        for scenario in ["unknown", "cancel", "unlisted", "locked-in-picker", "locked-on-open"] {
+            let gate = KeyAvailabilityGate(); gate.update(.unlocked)
+            let generation = try gate.begin()
+            let endpoint = NativeVialHIDFixture()
+            var discoveries = 0, opens = 0
+            let selector = VialDeviceSelection(devices: { discoveries += 1; return [device] }, choose: { _, _ in
+                if scenario == "cancel" { return nil }
+                if scenario == "unlisted" { return VialHIDDevice(registryEntryID: 99, vendorID: 1, productID: 1, name: "Other") }
+                if scenario == "locked-in-picker" { gate.update(.locked) }
+                return device
+            }, open: { _ in
+                opens += 1
+                if scenario == "locked-on-open" { gate.update(.locked) }
+                return endpoint
+            })
+            XCTAssertThrowsError(try selector.connect(record: record,
+                support: scenario == "unknown" ? FirmwareSupportDirectory() : supported,
+                text: NativeText(locale: "en"), authorize: { try gate.check(generation) }))
+            XCTAssertEqual(discoveries, scenario == "unknown" ? 0 : 1)
+            XCTAssertEqual(opens, scenario == "locked-on-open" ? 1 : 0)
+            XCTAssertEqual(endpoint.closeCount, scenario == "locked-on-open" ? 1 : 0)
+            XCTAssertTrue(endpoint.requests.isEmpty)
+        }
+    }
+
+    func testNativeVialDevicePickerOpensOnlyExplicitSelection() throws {
+        ScreenEvidence.prepare()
+        var saved: FirmwareBatchRecord?
+        ScreenEvidence.awaitMain {
+            do {
+                let (fixture, file, store, gate) = try await self.deployment()
+                saved = try await self.claimedVial(fixture, file: file, store: store, gate: gate, readback: nil)
+            } catch { XCTFail("\(error)") }
+        }
+        let record = try XCTUnwrap(saved)
+        let support = FirmwareSupportDirectory(entries: [FirmwareCompatibility(backend: .vial,
+            device: record.device, axes: record.axes, supportedOutputs: ["KC_C"])])
+        let device = VialHIDDevice(registryEntryID: 12, vendorID: 0x1234, productID: 0x5678, name: "Synthetic keyboard")
+        for locale in ["en", "zh-Hans"] {
+            let endpoint = NativeVialHIDFixture()
+            var opened: [VialHIDDevice] = []
+            var selector = VialDeviceSelection()
+            selector.devices = { [device] }
+            selector.open = { opened.append($0); return endpoint }
+            DispatchQueue.main.async {
+                do {
+                    let content = try XCTUnwrap(NSApp.modalWindow?.contentView?.superview)
+                    func buttons(_ view: NSView) -> [NSButton] {
+                        (view as? NSButton).map { [$0] } ?? view.subviews.flatMap(buttons)
+                    }
+                    let button = try XCTUnwrap(buttons(content).first {
+                        $0.accessibilityIdentifier() == "vial.select.confirm"
+                    })
+                    XCTAssertEqual(button.title, NativeText(locale: locale)("phase4.readSelectedDevice"))
+                    button.performClick(nil)
+                } catch { XCTFail("\(error)"); NSApp.abortModal() }
+            }
+            let connection = try selector.connect(record: record, support: support,
+                                                    text: NativeText(locale: locale), authorize: {})
+            XCTAssertEqual(opened, [device]); XCTAssertTrue(endpoint.requests.isEmpty)
+            connection.close(); XCTAssertEqual(endpoint.closeCount, 1)
+        }
+    }
     func testLoginBackendRepeatedRemovalAcceptsOnlyNativeJobNotFound() async throws {
         let removed = ProductLogin.make(registrationIsAbsent: { true }, unregisterService: {
             XCTFail("Absent login item must not be removed twice")
@@ -714,7 +804,7 @@ final class KarabinerMappingFlowTests: XCTestCase {
                 transportPort = transport
                 model.configure(store: store, gate: gate, support: .init(entries: [.init(backend: .vial,
                     device: "18446744073709551615", axes: axes, supportedOutputs: ["KC_C"])]),
-                    versionAxes: { _ in axes }, vialConnection: { _ in
+                    versionAxes: { _ in axes }, vialConnection: { _, _ in
                         VialDeviceReadConnection(endpoint: transport, vendorID: 0x1234, productID: 0x5678)
                     })
                 let original = file.deletingLastPathComponent().appendingPathComponent("official-adapter.vil")
@@ -774,7 +864,7 @@ final class KarabinerMappingFlowTests: XCTestCase {
             definitionSchema: VialDeviceDefinition.schema, importer: "offline-importer")
         model.configure(store: store, gate: gate, support: .init(entries: [.init(backend: .vial,
             device: "18446744073709551615", axes: axes, supportedOutputs: ["KC_C"])]),
-            versionAxes: { _ in axes }, vialConnection: { _ in
+            versionAxes: { _ in axes }, vialConnection: { _, _ in
                 VialDeviceReadConnection(endpoint: endpoint, vendorID: vendorID, productID: 0x5678)
             })
         let selected = file.deletingLastPathComponent().appendingPathComponent("hid-original.vil")
@@ -985,7 +1075,7 @@ final class KarabinerMappingFlowTests: XCTestCase {
         let task = Task { await model.verifyVial(record, ticket: ticket) }
         task.cancel(); await task.value
         XCTAssertTrue(endpoint.requests.isEmpty); XCTAssertEqual(endpoint.closeCount, 0)
-        model.configure(store: store, gate: gate, vialConnection: { _ in
+        model.configure(store: store, gate: gate, vialConnection: { _, _ in
             XCTFail("Unknown support must not open HID")
             return VialDeviceReadConnection(endpoint: endpoint, vendorID: 0x1234, productID: 0x5678)
         })
@@ -1002,7 +1092,7 @@ final class KarabinerMappingFlowTests: XCTestCase {
         var opens = 0
         model.configure(store: store, gate: gate, support: .init(entries: [.init(backend: .vial,
             device: record.device, axes: record.axes, supportedOutputs: ["KC_C"])]),
-            vialConnection: { _ in
+            vialConnection: { _, _ in
                 opens += 1
                 return VialDeviceReadConnection(endpoint: opens == 1 ? pending : fresh, vendorID: 0x1234, productID: 0x5678)
             })

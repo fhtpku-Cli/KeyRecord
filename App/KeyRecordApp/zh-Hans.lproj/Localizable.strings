@@ -433,3 +433,6 @@
 "backup.restoreFailed" = "恢复未完成。请检查密码、备份文件和会话访问权限。恢复需要空资料库。";
 "backup.exported" = "加密备份已保存，采集保持暂停。";
 "backup.restored" = "备份已恢复，采集保持暂停。";
+"phase4.selectDevice" = "选择要读回的 Vial 键盘";
+"phase4.selectDeviceDetail" = "比较前会核对所选键盘的身份和布局。此操作不会应用键位映射。";
+"phase4.readSelectedDevice" = "读回所选键盘";

@@ -433,3 +433,6 @@
 "backup.restoreFailed" = "Restore did not finish. Check the password, backup file and session access. Recovery requires an empty installation.";
 "backup.exported" = "Encrypted backup saved. Capture remains paused.";
 "backup.restored" = "Backup restored. Capture remains paused.";
+"phase4.selectDevice" = "Select the Vial keyboard to read";
+"phase4.selectDeviceDetail" = "The selected keyboard's identity and layout will be checked before comparison. This does not apply a keymap.";
+"phase4.readSelectedDevice" = "Read selected keyboard";

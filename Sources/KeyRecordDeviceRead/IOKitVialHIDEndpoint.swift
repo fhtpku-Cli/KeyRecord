@@ -3,6 +3,17 @@ import IOKit
 import IOKit.hid
 import KeyRecordMappings
 
+public struct VialHIDDevice: Equatable, Sendable {
+    public let registryEntryID: UInt64
+    public let vendorID: UInt16
+    public let productID: UInt16
+    public let name: String
+    public init(registryEntryID: UInt64, vendorID: UInt16, productID: UInt16, name: String) {
+        self.registryEntryID = registryEntryID; self.vendorID = vendorID
+        self.productID = productID; self.name = name
+    }
+}
+
 // All mutable state and callbacks belong to queue. Retained callback ownership
 // lasts until IOKit's cancel handler has drained its events; buffers never move.
 public final class IOKitVialHIDEndpoint: VialHIDEndpoint, @unchecked Sendable {
@@ -27,12 +38,40 @@ public final class IOKitVialHIDEndpoint: VialHIDEndpoint, @unchecked Sendable {
     private var closed = false
     private var opened = true
     private init(device: IOHIDDevice) { self.device = device }
+    public static func availableDevices() throws -> [VialHIDDevice] {
+        var iterator: io_iterator_t = 0
+        guard IOServiceGetMatchingServices(kIOMainPortDefault, IOServiceMatching("IOHIDDevice"), &iterator) == KERN_SUCCESS
+        else { throw VialHIDError.disconnected }
+        defer { IOObjectRelease(iterator) }
+        var result: [VialHIDDevice] = []
+        while true {
+            let service = IOIteratorNext(iterator)
+            if service == 0 { break }
+            defer { IOObjectRelease(service) }
+            func property(_ key: String) -> Any? {
+                IORegistryEntryCreateCFProperty(service, key as CFString, kCFAllocatorDefault, 0)?.takeRetainedValue()
+            }
+            guard let vendor = (property(kIOHIDVendorIDKey) as? NSNumber)?.uint64Value,
+                  let product = (property(kIOHIDProductIDKey) as? NSNumber)?.uint64Value,
+                  vendor <= UInt16.max, product <= UInt16.max,
+                  (property(kIOHIDPrimaryUsagePageKey) as? NSNumber)?.intValue == 0xff60,
+                  (property(kIOHIDPrimaryUsageKey) as? NSNumber)?.intValue == 0x61,
+                  (property(kIOHIDMaxInputReportSizeKey) as? NSNumber)?.intValue == 32,
+                  (property(kIOHIDMaxOutputReportSizeKey) as? NSNumber)?.intValue == 32 else { continue }
+            var registry: UInt64 = 0
+            guard IORegistryEntryGetRegistryEntryID(service, &registry) == KERN_SUCCESS else { continue }
+            let name = String(((property(kIOHIDProductKey) as? String) ?? "Vial").prefix(120))
+            result.append(VialHIDDevice(registryEntryID: registry, vendorID: UInt16(vendor),
+                                         productID: UInt16(product), name: name))
+        }
+        return result.sorted { $0.registryEntryID < $1.registryEntryID }
+    }
     deinit {
         input.deallocate()
         if opened, !activated { IOHIDDeviceClose(device, IOOptionBits(kIOHIDOptionsTypeNone)) }
     }
-    // Explicit selected registry entry only. No manager enumeration, keyboard
-    // event capture, automatic discovery or production composition opens it.
+    // Open only the explicitly selected registry entry. Discovery above reads
+    // registry properties without opening a device or sending HID reports.
     public static func open(registryEntryID: UInt64, vendorID: UInt16, productID: UInt16) throws -> IOKitVialHIDEndpoint {
         let service = IOServiceGetMatchingService(kIOMainPortDefault, IORegistryEntryIDMatching(registryEntryID))
         guard service != 0 else { throw VialHIDError.disconnected }

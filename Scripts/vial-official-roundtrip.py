@@ -41,6 +41,8 @@ def main():
     parser.add_argument("--one-shot-fixture", type=Path, help="write actual canonical one-shot modifier names and raw values")
     parser.add_argument("--persistent-layer-keycodes", action="store_true", help="exercise canonical persistent default layers on a synthetic 32-layer keyboard")
     parser.add_argument("--persistent-layer-fixture", type=Path, help="write actual canonical persistent default layer names and raw values")
+    parser.add_argument("--static-layer-keycodes", action="store_true", help="exercise canonical static layer actions on a synthetic four-layer keyboard")
+    parser.add_argument("--static-layer-fixture", type=Path, help="write actual static layer action names and raw values")
     parser.add_argument("--layer-tap-keycodes", action="store_true", help="exercise per-keyboard canonical layer taps on a synthetic 16-layer keyboard")
     parser.add_argument("--raw-keycodes", type=Path, help="write independent big-endian matrix then encoder values for the patched KC_C fixture")
     args = parser.parse_args()
@@ -53,9 +55,34 @@ def main():
     from protocol.constants import (BUFFER_FETCH_CHUNK, CMD_VIA_KEYMAP_GET_BUFFER,
                                     CMD_VIA_VIAL_PREFIX, CMD_VIAL_GET_ENCODER)
     from types import SimpleNamespace
-    layers = 32 if args.persistent_layer_keycodes else (16 if args.layer_tap_keycodes else 2)
+    layers = 32 if args.persistent_layer_keycodes else (16 if args.layer_tap_keycodes else (4 if args.static_layer_keycodes else 2))
+    features = {"persistent_default_layer"} if args.persistent_layer_keycodes else set()
+    if args.static_layer_keycodes:
+        features.add("layer_lock")
     recreate_keyboard_keycodes(SimpleNamespace(vial_protocol=6, layers=layers, macro_count=0, tap_dance_count=0,
-                                              custom_keycodes=None, midi="disabled", supported_features={"persistent_default_layer"} if args.persistent_layer_keycodes else set()))
+                                              custom_keycodes=None, midi="disabled", supported_features=features))
+    if args.static_layer_fixture:
+        from keycodes.keycodes import KEYCODES_LAYERS
+        from simpleeval import NameNotDefined
+        entries = []
+        for key in KEYCODES_LAYERS:
+            if key.qmk_id not in ("FN_MO13", "FN_MO23", "QK_LAYER_LOCK"):
+                continue
+            raw = Keycode.deserialize(key.qmk_id, reraise=True)
+            assert Keycode.serialize(raw) == key.qmk_id
+            assert Keycode.deserialize(Keycode.serialize(raw), reraise=True) == raw
+            if key.qmk_id == "QK_LAYER_LOCK":
+                assert key.requires_feature == "layer_lock" and "QK_LLCK" in key.alias
+            entries.append({"token": key.qmk_id, "raw": raw, "aliases": []})
+        assert {entry["raw"] for entry in entries} == {0x7c77, 0x7c78, 0x7c7b}
+        try:
+            Keycode.deserialize("QK_LLCK", reraise=True)
+        except NameNotDefined:
+            assert Keycode.deserialize("QK_LLCK") == 0
+        else:
+            raise AssertionError("QK_LLCK unexpectedly became a registered upstream alias")
+        args.static_layer_fixture.write_text("[\n" + ",\n".join("  " + json.dumps(entry) for entry in entries) + "\n]\n")
+        print(f"PASS: official static layer actions checked {len(entries)} canonical names; QK_LLCK is not registered")
     if args.persistent_layer_fixture:
         from keycodes.keycodes import KEYCODES_LAYERS
         from any_keycode import functions
@@ -244,6 +271,14 @@ def main():
                     if args.encoders:
                         self.encoder_layout[(layer, 2, 0)] = Keycode.serialize(0x52e0 + layer)
                         self.encoder_layout[(layer, 2, 1)] = Keycode.serialize(0x52ff - layer)
+            if args.static_layer_keycodes:
+                actions = (0x7c77, 0x7c78, 0x7c7b)
+                for layer in range(self.layers):
+                    for col, raw in enumerate(actions):
+                        self.layout[(layer, 1, col)] = Keycode.serialize(raw)
+                    if args.encoders:
+                        self.encoder_layout[(layer, 2, 0)] = Keycode.serialize(actions[layer % 3])
+                        self.encoder_layout[(layer, 2, 1)] = Keycode.serialize(actions[(layer + 1) % 3])
             self.rowcol = {(row, col): True for _, row, col in self.layout}
             self.layout_labels = []
             self.dev = 0

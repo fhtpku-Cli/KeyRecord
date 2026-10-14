@@ -11,6 +11,7 @@ public enum VialKeycodeDialect {
         guard depth <= 4 else { throw FirmwareError.unsupportedOutput }
         if let value = basic[token] { return value }
         if let value = oneShotModifiers[token] { return value }
+        if let value = staticLayerActions[token] { return value }
         for layer in 0..<32 where token == "PDF(\(layer))" { return 0x52e0 + UInt16(layer) }
         if token.hasPrefix("0x"), let value = UInt16(token.dropFirst(2), radix: 16) { return value }
         for (prefix, base) in layerCodes where token.hasPrefix(prefix + "(") && token.hasSuffix(")") {
@@ -54,11 +55,12 @@ public enum VialKeycodeDialect {
     }
     static func protectedEntry(_ token: String) -> Bool {
         if token.hasPrefix("LT") { return true }
+        if ["FN_MO", "QK_LAYER_LOCK", "QK_LLCK"].contains(where: { token.trimmingCharacters(in: .whitespacesAndNewlines).hasPrefix($0) }) { return true }
         if token.trimmingCharacters(in: .whitespacesAndNewlines).hasPrefix("PDF") { return true }
         if token.trimmingCharacters(in: .whitespacesAndNewlines).hasPrefix("OSM"), oneShotModifiers[token] == nil { return true }
         guard let raw = try? rawValue(token) else { return false }
         return (0x4000...0x4fff).contains(raw) || (0x5200...0x529f).contains(raw)
-            || (0x52c0...0x52ff).contains(raw) || [0x7c00, 0x7c01, 0x7c03].contains(raw)
+            || (0x52c0...0x52ff).contains(raw) || [0x7c00, 0x7c01, 0x7c03, 0x7c77, 0x7c78, 0x7c7b].contains(raw)
     }
     static func layerEntry(_ token: String) -> String {
         guard let raw = try? rawValue(token) else { return token }
@@ -70,6 +72,8 @@ public enum VialKeycodeDialect {
     }
     private static let layerCodes: [(String, UInt16)] = [
         ("TO", 0x5210), ("MO", 0x5220), ("DF", 0x5240), ("TG", 0x5260), ("OSL", 0x5280), ("TT", 0x52c0)]
+    private static let staticLayerActions: [String: UInt16] = [
+        "FN_MO13": 0x7c77, "FN_MO23": 0x7c78, "QK_LAYER_LOCK": 0x7c7b]
     private static let oneShotModifiers: [String: UInt16] = [
         "OSM(MOD_LCTL)": 0x52a1, "OSM(MOD_LSFT)": 0x52a2,
         "OSM(MOD_LCTL|MOD_LSFT)": 0x52a3, "OSM(MOD_LALT)": 0x52a4,

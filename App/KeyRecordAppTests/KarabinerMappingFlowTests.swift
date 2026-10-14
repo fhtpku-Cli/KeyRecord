@@ -897,14 +897,12 @@ final class KarabinerMappingFlowTests: XCTestCase {
         }
     }
     func testDecoratedVialDefinitionReachesCompleteReadbackAndPersistsMismatch() async throws {
-        struct Fixtures: Decodable {
-            struct Item: Decodable { let name: String; let compressed: Data }
-            let cases: [Item]
-        }
         let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
-        let fixtures = try JSONDecoder().decode(Fixtures.self, from: Data(contentsOf:
-            root.appendingPathComponent("evidence/phase4/fixtures/synthetic/vial6-definition-topology.json")))
-        let definition = try XCTUnwrap(fixtures.cases.first { $0.name == "alignment-7" }).compressed
+        let fixtures = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf:
+            root.appendingPathComponent("evidence/phase4/fixtures/synthetic/vial6-definition-topology.json"))) as? [String: Any])
+        let cases = try XCTUnwrap(fixtures["cases"] as? [[String: Any]])
+        let encoded = try XCTUnwrap(cases.first { $0["name"] as? String == "alignment-7" }?["compressed"] as? String)
+        let definition = try XCTUnwrap(Data(base64Encoded: encoded))
         for mismatch in [false, true] {
             let endpoint = NativeVialHIDFixture(encoders: true, encoderMismatch: mismatch, definitionOverride: definition)
             let original = #"{"version":1,"uid":18446744073709551615,"via_protocol":9,"vial_protocol":6,"layout":[[["KC_NO",-1,"KC_ENT"]]],"encoder_layout":[[[-1,-1],[-1,-1],["KC_ENT","0x1234"]]]}"#

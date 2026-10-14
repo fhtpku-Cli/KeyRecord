@@ -55,11 +55,11 @@ public enum VialKeycodeDialect {
     }
     static func protectedEntry(_ token: String) -> Bool {
         if token.hasPrefix("LT") { return true }
-        if ["FN_MO", "QK_LAYER_LOCK", "QK_LLCK"].contains(where: { token.trimmingCharacters(in: .whitespacesAndNewlines).hasPrefix($0) }) { return true }
+        if ["LM", "FN_MO", "QK_LAYER_LOCK", "QK_LLCK"].contains(where: { token.trimmingCharacters(in: .whitespacesAndNewlines).hasPrefix($0) }) { return true }
         if token.trimmingCharacters(in: .whitespacesAndNewlines).hasPrefix("PDF") { return true }
         if token.trimmingCharacters(in: .whitespacesAndNewlines).hasPrefix("OSM"), oneShotModifiers[token] == nil { return true }
         guard let raw = try? rawValue(token) else { return false }
-        return (0x4000...0x4fff).contains(raw) || (0x5200...0x529f).contains(raw)
+        return (0x4000...0x51ff).contains(raw) || (0x5200...0x529f).contains(raw)
             || (0x52c0...0x52ff).contains(raw) || [0x7c00, 0x7c01, 0x7c03, 0x7c77, 0x7c78, 0x7c7b].contains(raw)
     }
     static func layerEntry(_ token: String) -> String {

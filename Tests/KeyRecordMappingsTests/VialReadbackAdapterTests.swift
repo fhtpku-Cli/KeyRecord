@@ -301,6 +301,8 @@ final class VialReadbackAdapterTests: XCTestCase {
                 expectedDevice: document.device, axes: axes, support: support)) { XCTAssertEqual($0 as? FirmwareError, .protectedEntry) }
             for entry in ["LT0(KC_C)", "LT15(KC_C)", "LT16(KC_C)", "LT01(KC_C)", "LT1(USER00)"] {
                 let unreachable = try FirmwareDocument(bytes: Data(text.replacingOccurrences(of: "LT1(KC_KP_ENTER)", with: entry).utf8), backend: .vial)
+                XCTAssertThrowsError(try unreachable.patch([.init(slot: .init(layer: 0, column: 0), output: "KC_C", automatic: automatic)],
+                    expectedDevice: document.device, axes: axes, support: support)) { XCTAssertEqual($0 as? FirmwareError, .protectedEntry) }
                 XCTAssertThrowsError(try unreachable.patch([.init(slot: .init(layer: 1, column: 1), output: "KC_C", automatic: automatic)],
                     expectedDevice: document.device, axes: axes, support: support)) { XCTAssertEqual($0 as? FirmwareError, .unreachableLayer) }
             }

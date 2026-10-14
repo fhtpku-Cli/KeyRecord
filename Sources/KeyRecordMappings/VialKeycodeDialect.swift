@@ -45,6 +45,7 @@ public enum VialKeycodeDialect {
         try values.mapValues { token(try rawValue($0)) }
     }
     static func protectedEntry(_ token: String) -> Bool {
+        if token.hasPrefix("LT") { return true }
         guard let raw = try? rawValue(token) else { return false }
         return (0x4000...0x4fff).contains(raw) || (0x5200...0x529f).contains(raw)
             || (0x52c0...0x52ff).contains(raw) || [0x7c00, 0x7c01, 0x7c03].contains(raw)

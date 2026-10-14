@@ -8,6 +8,8 @@
 
 Swift 增加 canonical `LTn(basic)` 解析，层范围仍为 0..<16，子键仍限制为原有基础名称集合及其别名。既有 `LT(layer,key)`、raw hex、修饰键方向和深度规则保留。名称归一化复用既有 `protectedEntry` 和 `layerEntry`：LT1 允许对应现有层的普通槽修补，入口本身不可自动或手动覆盖；LT0、缺失目的层和非法入口不能让另一层变成可达层。没有扩大自动输出允许集合，没有新增 hash、冻结 contract、baseline 或 gate。
 
+后续自审发现解析失败的 `LT16(KC_C)`、`LT01(KC_C)`、`LT1(USER00)` 可能绕过原有手动入口保护。补充测试实际复现后，将现有保护覆盖到 LT 名称族，再解析有效值；非法语法不能借解析失败获得覆盖权限。原有 numeric LT 对非法子键的入口保护也保留。
+
 官方离线脚本现在按夹具实际层数初始化键码表。新增 `--layer-tap-keycodes` 生成匹配的 16 层矩阵、稀疏编码器和独立原始字节。Python 仅是开发验证工具，不进入 App 运行时。
 
 ## 本轮实际证据
@@ -15,6 +17,7 @@ Swift 增加 canonical `LTn(basic)` 解析，层范围仍为 0..<16，子键仍�
 | 场景 | 结果 | 本机证据 |
 | --- | --- | --- |
 | 修复前键码回归及公开探针 | 1920 失败断言；探针 exit 2/unsupportedOutput | `/private/tmp/keyrecord-layer-tap-red.log`、`keyrecord-layer-tap-probe-red.log` |
+| 非法名称入口回归 | 保护补丁前入口覆盖/错误类型断言失败，补丁后通过 | `/private/tmp/keyrecord-layer-tap-protection-red.log`、`keyrecord-layer-tap-core.log` |
 | 包测试 | 6 键码、20 适配、19 固件事务、18 设备、6 产品边界；共 69 项通过 | `/private/tmp/keyrecord-layer-tap-core.log` |
 | 隐私边界 | 4 项通过 | `/private/tmp/keyrecord-layer-tap-privacy.log` |
 | App/原生 | 16 项通过；实际 AXPress 读回按钮后 Verified，时间已记录 | `/private/tmp/keyrecord-layer-tap-native.log`、`keyrecord-layer-tap-qa/vial-layer-tap-readback-en.png` |

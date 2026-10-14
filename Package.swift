@@ -13,7 +13,10 @@ let package = Package(
         .library(name: "KeyRecordCapture", targets: ["KeyRecordCapture"]),
         .library(name: "KeyRecordStore", targets: ["KeyRecordStore"]),
     ],
-    dependencies: [],
+    dependencies: [
+        .package(url: "https://github.com/P-H-C/phc-winner-argon2.git",
+                 revision: "f57e61e19229e23c4445b85494dbf7c07de721cb"),
+    ],
     targets: [
         .target(name: "KeyRecordLimitedXZ", linkerSettings: [.linkedLibrary("lzma.5")]),
         .target(name: "KeyRecordDeviceRead", dependencies: ["KeyRecordMappings", "KeyRecordConfigurationRead", "KeyRecordLimitedXZ"]),
@@ -27,7 +30,8 @@ let package = Package(
         .testTarget(name: "KeyRecordAnalysisTests", dependencies: ["KeyRecordAnalysis", "KeyRecordConfigurationRead"]),
         .target(name: "KeyRecordCore"),
         .target(name: "KeyRecordCapture", dependencies: ["KeyRecordCore"]),
-        .target(name: "KeyRecordStore", dependencies: ["KeyRecordCore"]),
+        .target(name: "KeyRecordStore", dependencies: ["KeyRecordCore",
+            .product(name: "argon2", package: "phc-winner-argon2")]),
         .target(name: "KeyRecordTestSupport", dependencies: ["KeyRecordCore"], path: "Tests/KeyRecordTestSupport"),
         // Crash probe is a first-class build product so the store tests never have to
         // reconstruct a link line by walking ancestor directories for object files.

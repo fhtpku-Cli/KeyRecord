@@ -8,17 +8,21 @@ struct ConsentFlowView: View {
     let text: NativeText
 
     var body: some View {
-        ConsentPanel(text: text, action: {})
-            .environment(\.primitiveActionObserver) { identifier in
-                switch identifier {
-                case "consent.accept":
-                    Task { @MainActor in await flow.accept() }
-                case "consent.reject":
-                    flow.decline()
-                default:
-                    break
+        VStack {
+            ConsentPanel(text: text, action: {})
+                .environment(\.primitiveActionObserver) { identifier in
+                    switch identifier {
+                    case "consent.accept":
+                        Task { @MainActor in await flow.accept() }
+                    case "consent.reject":
+                        flow.decline()
+                    default:
+                        break
+                    }
                 }
-            }
+                .disabled(flow.passwordBackup.busy)
+            Form { PasswordBackupSection(model: flow.passwordBackup, restoring: true, text: text) }
+        }
     }
 }
 

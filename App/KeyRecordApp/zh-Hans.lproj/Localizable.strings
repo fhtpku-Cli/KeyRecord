@@ -420,3 +420,16 @@
 "phase4.state.failed" = "失败";
 "phase4.state.externallyChanged" = "外部变更";
 "phase4.state.rolledBack" = "已回退";
+"backup.title" = "完整密码备份";
+"backup.disclosure" = "包含全部已保存统计、偏好、映射和恢复副本。导出前会暂停采集。请妥善保存密码，遗失后无法找回。请选择新的文件名。";
+"backup.restoreDisclosure" = "将全部数据恢复到当前空资料库。恢复即表示同意上方的数据处理说明。不会覆盖已有数据。恢复后采集保持暂停，不会应用外部映射或登录项。";
+"backup.password" = "备份密码";
+"backup.confirmPassword" = "再次输入密码";
+"backup.export" = "导出加密备份";
+"backup.restore" = "同意并恢复备份";
+"backup.passwordMismatch" = "请在两处输入相同的非空密码。";
+"backup.chooseNewFile" = "该文件已存在。请使用新文件名，保留之前的备份。";
+"backup.failed" = "备份未完成。请解锁会话后使用新文件名重试。";
+"backup.restoreFailed" = "恢复未完成。请检查密码、备份文件和会话访问权限。恢复需要空资料库。";
+"backup.exported" = "加密备份已保存，采集保持暂停。";
+"backup.restored" = "备份已恢复，采集保持暂停。";

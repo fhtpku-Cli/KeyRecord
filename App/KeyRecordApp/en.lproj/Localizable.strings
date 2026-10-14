@@ -420,3 +420,16 @@
 "phase4.state.failed" = "Failed";
 "phase4.state.externallyChanged" = "Externally changed";
 "phase4.state.rolledBack" = "Rolled back";
+"backup.title" = "Full password backup";
+"backup.disclosure" = "Includes all saved statistics, preferences, mappings and recovery copies. Capture pauses before export. Keep the password safe: it cannot be recovered. Choose a new file name.";
+"backup.restoreDisclosure" = "Restore all data into this empty installation. By restoring, you agree to the data handling described above. Existing data is never overwritten. Restored capture stays paused; external mappings and login items are not applied.";
+"backup.password" = "Backup password";
+"backup.confirmPassword" = "Confirm password";
+"backup.export" = "Export encrypted backup";
+"backup.restore" = "Agree and restore backup";
+"backup.passwordMismatch" = "Enter the same non-empty password in both fields.";
+"backup.chooseNewFile" = "That file already exists. Choose a new name to preserve your earlier backup.";
+"backup.failed" = "Backup did not finish. Unlock your session and try again with a new file name.";
+"backup.restoreFailed" = "Restore did not finish. Check the password, backup file and session access. Recovery requires an empty installation.";
+"backup.exported" = "Encrypted backup saved. Capture remains paused.";
+"backup.restored" = "Backup restored. Capture remains paused.";

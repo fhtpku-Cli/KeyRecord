@@ -141,6 +141,7 @@ actor ProductPersistence: LifecycleKeyProviding, PreferencesPersisting {
             _ = try await gate.run(generation) {
                 try await self.store.continueUnfinishedReset(day: ProductClock().day)
             }
+            if try await store.entries().isEmpty { return nil }
             let data = try await store.readProtected(CycleResetObjects.preferences, gate: gate)
             #if DEBUG
             Self.lastLoadFailure = nil

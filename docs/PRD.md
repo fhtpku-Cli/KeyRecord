@@ -281,7 +281,7 @@
 | FR-P6 | 备份加密 | 完整备份使用独立加盐版本化 KDF 信封，须密码解密方可恢复；常规导出文件不含统计表 |
 | FR-P7 | 密钥生命周期 | 删除或损坏 Keychain 密钥后启动：采集停止且无本地明文副本；完整删除后 Keychain 材料不存在 |
 
-> **Current-status note — status-backup (2026-10-01):** FR-P6 full password backup remains independently required and incomplete. Local encryption and Phase 1 completion do not implement password backup or qualify final release. See [roadmap](ROADMAP.md); no retained requirement is waived.
+> **Current-status note — status-backup (2026-10-15):** FR-P6 password backup and atomic restoration into an empty installation are implemented; see [implementation and limits](PASSWORD_BACKUP_20261015.md). Live Keychain restore, Intel timing and final release qualification remain deferred. Local encryption alone does not qualify password backup; no retained requirement is waived.
 
 ---
 

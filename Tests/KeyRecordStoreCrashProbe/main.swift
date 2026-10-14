@@ -160,6 +160,20 @@ let root = URL(fileURLWithPath: arguments[1], isDirectory: true)
 let operation = arguments[2]
 let boundarySpec = arguments.count >= 4 ? arguments[3] : "none"
 
+if operation == "restore" {
+    let source = DeterministicResetKeys(manifestPresent: FileManager.default.fileExists(
+        atPath: root.appendingPathComponent(ManifestDiscovery.fileName).path))
+    let destination = ObjectStore(root: root, keySource: source)
+    if try await destination.bootstrap() == .freshInstall { try await destination.initializeFreshInstallation() }
+    let protection = KeyAvailabilityGate(); protection.update(.unlocked)
+    let objects = try (0..<3).map { index in
+        BackupObject(identity: try CanonicalLogicalIdentity(objectType: "com.keyrecord.preferences",
+            schemaVersion: 1, logicalIDText: "restored-\(index)"), payload: Data([UInt8(index)]))
+    }
+    try await destination.restoreBackup(objects, gate: protection, injection: injection())
+    exit(0)
+}
+
 let namespace = try KeychainNamespace("com.keyrecord.tests.crashprobe")
 let backend = ProbeBackend()
 let keySource = BackedKeySource(backend: backend, namespace: namespace)

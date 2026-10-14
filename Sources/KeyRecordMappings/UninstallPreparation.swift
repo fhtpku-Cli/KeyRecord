@@ -83,25 +83,29 @@ public final class UninstallPreparationCoordinator {
             case .discardConfirmed: dispositions[original.id.uuidString] = .discarded
             }
         }
-        guard try await firmware.ledger().records == snapshot else { throw FirmwareError.externalChange }
+        try await verifyRecovery(snapshot: snapshot, choices: choices)
         var record = UninstallPreparationRecord(id: UUID(), choices: dispositions, deleteLocalData: deleteLocalData, stage: .recoverySecured)
         try await save(record)
         try checkAccess(); try await removeRules(); record.stage = .rulesRemoved; try await save(record)
         try checkAccess(); try await removeLogin(); record.stage = .loginRemoved; try await save(record)
         record.stage = .ready; try await save(record)
         if deleteLocalData {
-            guard try await firmware.ledger().records == snapshot else { throw FirmwareError.externalChange }
-            for original in snapshot {
-                if case .export(let destination) = choices[original.id] {
-                    let bytes = try await firmware.original(original.id)
-                    guard try destination.read() == bytes else { throw FirmwareError.externalChange }
-                }
-            }
+            try await verifyRecovery(snapshot: snapshot, choices: choices)
             record.stage = .erasing; try await save(record)
             try checkAccess(); try await eraseData()
             record.stage = .completed
             onProgress(.completed)
         }
         return record
+    }
+    private func verifyRecovery(snapshot: [FirmwareBatchRecord], choices: [UUID: FirmwareRecoveryChoice]) async throws {
+        guard try await firmware.ledger().records == snapshot else { throw FirmwareError.externalChange }
+        for original in snapshot {
+            if case .export(let destination) = choices[original.id] {
+                let bytes = try await firmware.original(original.id)
+                try checkAccess()
+                guard try destination.read() == bytes else { throw FirmwareError.externalChange }
+            }
+        }
     }
 }

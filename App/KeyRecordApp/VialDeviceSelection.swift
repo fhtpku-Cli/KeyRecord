@@ -29,7 +29,7 @@ struct VialDeviceSelection {
                                      vendorID: device.vendorID, productID: device.productID)
     }
 
-    func connect(record: FirmwareBatchRecord, support: FirmwareSupportDirectory,
+    func openSelectedDevice(record: FirmwareBatchRecord, support: FirmwareSupportDirectory,
                  text: NativeText, authorize: () throws -> Void) throws -> VialDeviceReadConnection {
         try authorize()
         guard record.backend == .vial,

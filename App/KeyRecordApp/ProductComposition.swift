@@ -281,7 +281,7 @@ final class ProductComposition: NSObject, NSMenuDelegate, NSWindowDelegate {
         flow.karabinerDeployment.configure(store: store, gate: gate, dependencies: host.karabinerDeployment)
         flow.firmwareCopies.configure(store: store, gate: gate, support: host.firmwareSupport,
             versionAxes: host.firmwareVersionAxes, vialConnection: { [weak flow] record, authorize in
-                return try host.vialDevices.connect(record: record, support: host.firmwareSupport,
+                return try host.vialDevices.openSelectedDevice(record: record, support: host.firmwareSupport,
                     text: NativeText(locale: flow?.language ?? "en"), authorize: authorize)
             })
         flow.passwordBackup.snapshot = { [weak flow] in

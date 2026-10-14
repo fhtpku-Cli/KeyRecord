@@ -126,7 +126,7 @@ final class KarabinerMappingFlowTests: XCTestCase {
         }, open: { _ in opens += 1; return NativeVialHIDFixture() })
         model.configure(store: store, gate: gate, support: support, versionAxes: { _ in record.axes },
             vialConnection: { record, authorize in
-                try selector.connect(record: record, support: support, text: NativeText(locale: "en"), authorize: authorize)
+                try selector.openSelectedDevice(record: record, support: support, text: NativeText(locale: "en"), authorize: authorize)
             })
         await model.refresh()
         await model.verifyVial(record, ticket: try XCTUnwrap(model.selectionTicket()))
@@ -154,7 +154,7 @@ final class KarabinerMappingFlowTests: XCTestCase {
                 if scenario == "locked-on-open" { gate.update(.locked) }
                 return endpoint
             })
-            XCTAssertThrowsError(try selector.connect(record: record,
+            XCTAssertThrowsError(try selector.openSelectedDevice(record: record,
                 support: scenario == "unknown" ? FirmwareSupportDirectory() : supported,
                 text: NativeText(locale: "en"), authorize: { try gate.check(generation) }))
             XCTAssertEqual(discoveries, scenario == "unknown" ? 0 : 1)
@@ -196,7 +196,7 @@ final class KarabinerMappingFlowTests: XCTestCase {
                     button.performClick(nil)
                 } catch { XCTFail("\(error)"); NSApp.abortModal() }
             }
-            let connection = try selector.connect(record: record, support: support,
+            let connection = try selector.openSelectedDevice(record: record, support: support,
                                                     text: NativeText(locale: locale), authorize: {})
             XCTAssertEqual(opened, [device]); XCTAssertTrue(endpoint.requests.isEmpty)
             connection.close(); XCTAssertEqual(endpoint.closeCount, 1)

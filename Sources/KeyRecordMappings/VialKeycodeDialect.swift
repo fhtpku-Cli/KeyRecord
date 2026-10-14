@@ -54,7 +54,13 @@ public enum VialKeycodeDialect {
         ("TO", 0x5210), ("MO", 0x5220), ("DF", 0x5240), ("TG", 0x5260), ("OSL", 0x5280), ("TT", 0x52c0)]
     private static let modifiers: [(String, UInt16)] = [
         ("LCTL", 0x0100), ("LSFT", 0x0200), ("LALT", 0x0400), ("LGUI", 0x0800),
-        ("RCTL", 0x1100), ("RSFT", 0x1200), ("RALT", 0x1400), ("RGUI", 0x1800)]
+        ("RCTL", 0x1100), ("RSFT", 0x1200), ("RALT", 0x1400), ("RGUI", 0x1800),
+        ("C_S", 0x0300), ("LCA", 0x0500), ("LSA", 0x0600), ("MEH", 0x0700),
+        ("LCG", 0x0900), ("SGUI", 0x0a00), ("LAG", 0x0c00), ("LCAG", 0x0d00),
+        ("HYPR", 0x0f00), ("RCG", 0x1900), ("LSG", 0x0a00), ("SCMD", 0x0a00), ("SWIN", 0x0a00),
+        ("C", 0x0100), ("S", 0x0200), ("A", 0x0400), ("G", 0x0800),
+        ("LOPT", 0x0400), ("LCMD", 0x0800), ("LWIN", 0x0800),
+        ("ALGR", 0x1400), ("ROPT", 0x1400), ("RCMD", 0x1800), ("RWIN", 0x1800)]
     private static let basic: [String: UInt16] = {
         var result: [String: UInt16] = ["KC_NO": 0, "KC_TRNS": 1,
             "KC_ENTER": 0x28, "KC_ENT": 0x28, "KC_ESC": 0x29, "KC_BSPC": 0x2a, "KC_BSPACE": 0x2a,

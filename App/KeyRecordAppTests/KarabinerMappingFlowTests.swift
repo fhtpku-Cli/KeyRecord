@@ -34,11 +34,13 @@ private final class NativeVialHIDFixture: VialHIDEndpoint, @unchecked Sendable {
     private let encoders: Bool
     private let encoderMismatch: Bool
     private let basicNames: Bool
+    private let modifierNames: Bool
     let paused = XCTestExpectation(description: "Selected HID report paused")
     init(pause: VialReadRequest? = nil, mismatch: Bool = false, encoders: Bool = false, encoderMismatch: Bool = false,
-         basicNames: Bool = false) {
+         basicNames: Bool = false, modifierNames: Bool = false) {
         self.pause = pause; self.mismatch = mismatch; self.encoders = encoders; self.encoderMismatch = encoderMismatch
         self.basicNames = basicNames
+        self.modifierNames = modifierNames
     }
     var requests: [VialReadRequest] { lock.withLock { reports } }
     var closeCount: Int { lock.withLock { closes } }
@@ -55,6 +57,7 @@ private final class NativeVialHIDFixture: VialHIDEndpoint, @unchecked Sendable {
         case 1: bytes[1] = 0; bytes[2] = 9
         case 0x11: bytes[1] = 1
         case 0x12: bytes.replaceSubrange(4..<10, with: [0, mismatch ? 7 : 6, 255, 255, 0, basicNames ? 0x58 : 0x28])
+            if modifierNames { bytes[8] = 3 }
         case 0xfe:
             switch bytes[1] {
             case 0:
@@ -70,6 +73,7 @@ private final class NativeVialHIDFixture: VialHIDEndpoint, @unchecked Sendable {
             case 3:
                 XCTAssertTrue(encoders); XCTAssertEqual(request.bytes[3], 2)
                 bytes.replaceSubrange(0..<4, with: [0, basicNames ? 0x34 : 0x28, 0x12, encoderMismatch ? 0x35 : 0x34])
+                if modifierNames { bytes[0] = 0x0a; bytes[2] = 0x19 }
             default: XCTFail("Unexpected Vial query")
             }
         default: XCTFail("Unexpected HID command")
@@ -628,18 +632,29 @@ final class KarabinerMappingFlowTests: XCTestCase {
         XCTAssertNil(model.issueKey)
     }
     func testVialDeviceConnectionFlowsThroughNativeButtonAndEncryptedTransaction() throws {
+        try verifyNativeVialButton(modifierNames: false)
+    }
+    func testVialCombinedModifierNamesFlowThroughNativeButtonAndEncryptedTransaction() throws {
+        try verifyNativeVialButton(modifierNames: true)
+    }
+    private func verifyNativeVialButton(modifierNames: Bool) throws {
         ScreenEvidence.prepare()
         var retainedFixture: FlowFixture?
         var patchURL: URL?
         var transportPort: NativeVialHIDFixture?
-        let bytes = Data(#"{"version":1,"uid":18446744073709551615,"via_protocol":9,"vial_protocol":6,"layout":[[["KC_NO",-1,"KC_KP_ENTER"]]],"macro":[],"encoder_layout":[[[-1,-1],[-1,-1],["KC_QUOTE","RSFT(KC_QUOTE)"]]],"settings":{}}"#.utf8)
+        var originalText = #"{"version":1,"uid":18446744073709551615,"via_protocol":9,"vial_protocol":6,"layout":[[["KC_NO",-1,"KC_KP_ENTER"]]],"macro":[],"encoder_layout":[[[-1,-1],[-1,-1],["KC_QUOTE","RSFT(KC_QUOTE)"]]],"settings":{}}"#
+        if modifierNames {
+            originalText = originalText.replacingOccurrences(of: "KC_KP_ENTER", with: "C_S(KC_KP_ENTER)")
+                .replacingOccurrences(of: #""KC_QUOTE","RSFT(KC_QUOTE)""#, with: #""SCMD(KC_QUOTE)","RCG(KC_QUOTE)""#)
+        }
+        let bytes = Data(originalText.utf8)
         ScreenEvidence.awaitMain {
             do {
                 let (fixture, file, store, gate) = try await self.deployment()
                 retainedFixture = fixture
                 let model = fixture.flow.firmwareCopies
                 let axes = try FirmwareVersionProvider.axes(bytes: bytes, backend: .vial, definitionSchema: VialDeviceDefinition.schema, importer: "offline-importer")
-                let transport = NativeVialHIDFixture(encoders: true, basicNames: true)
+                let transport = NativeVialHIDFixture(encoders: true, basicNames: true, modifierNames: modifierNames)
                 transportPort = transport
                 model.configure(store: store, gate: gate, support: .init(entries: [.init(backend: .vial,
                     device: "18446744073709551615", axes: axes, supportedOutputs: ["KC_C"])]),
@@ -682,7 +697,7 @@ final class KarabinerMappingFlowTests: XCTestCase {
         NativeEvidence.update(view)
         if let directory = NativeEvidence.outputRoot() {
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-            try ScreenEvidence.capturePNG(view).write(to: directory.appendingPathComponent("vial-basic-readback-en.png"))
+            try ScreenEvidence.capturePNG(view).write(to: directory.appendingPathComponent(modifierNames ? "vial-modifiers-readback-en.png" : "vial-basic-readback-en.png"))
         }
         var requests: [VialReadRequest] = []
         requests = transport.requests
@@ -744,10 +759,10 @@ final class KarabinerMappingFlowTests: XCTestCase {
         XCTAssertEqual(ledger.records.last?.state, .externallyChanged)
     }
     private var encoderOriginal: String {
-        #"{"version":1,"uid":18446744073709551615,"via_protocol":9,"vial_protocol":6,"layout":[[["KC_NO",-1,"KC_KP_ENTER"]]],"encoder_layout":[[[-1,-1],[-1,-1],["KC_QUOTE","RSFT(KC_QUOTE)"]]]}"#
+        #"{"version":1,"uid":18446744073709551615,"via_protocol":9,"vial_protocol":6,"layout":[[["KC_NO",-1,"C_S(KC_KP_ENTER)"]]],"encoder_layout":[[[-1,-1],[-1,-1],["SCMD(KC_QUOTE)","RCG(KC_QUOTE)"]]]}"#
     }
     func testVialHIDEncoderChangeWithMatchingMatrixRecordsExternalChangeAndReopens() async throws {
-        let endpoint = NativeVialHIDFixture(encoders: true, encoderMismatch: true, basicNames: true)
+        let endpoint = NativeVialHIDFixture(encoders: true, encoderMismatch: true, basicNames: true, modifierNames: true)
         let (fixture, store, gate, record) = try await claimedHID(endpoint, original: encoderOriginal)
         let model = fixture.flow.firmwareCopies
         await model.verifyVial(record, ticket: try XCTUnwrap(model.selectionTicket()))
@@ -772,7 +787,7 @@ final class KarabinerMappingFlowTests: XCTestCase {
     func testVialHIDEncoderCancellationAndPrivacyClosePendingReportsAndIgnoreLateReply() async throws {
         for privacy in [false, true] {
             let pausedRequest = VialReadRequest.encoder(layer: 0, index: 2)
-            let endpoint = NativeVialHIDFixture(pause: pausedRequest, encoders: true, basicNames: true)
+            let endpoint = NativeVialHIDFixture(pause: pausedRequest, encoders: true, basicNames: true, modifierNames: true)
             let (fixture, store, gate, record) = try await claimedHID(endpoint, original: encoderOriginal)
             let model = fixture.flow.firmwareCopies, ticket = try XCTUnwrap(model.selectionTicket())
             let task = Task { await model.verifyVial(record, ticket: ticket) }
@@ -789,9 +804,9 @@ final class KarabinerMappingFlowTests: XCTestCase {
         }
     }
     func testVialHIDUnknownNamedEncoderActionCannotBecomeVerificationEvidence() async throws {
-        let endpoint = NativeVialHIDFixture(encoders: true, basicNames: true)
+        let endpoint = NativeVialHIDFixture(encoders: true, basicNames: true, modifierNames: true)
         let (fixture, store, gate, record) = try await claimedHID(endpoint,
-            original: encoderOriginal.replacingOccurrences(of: "RSFT(KC_QUOTE)", with: "USER00"))
+            original: encoderOriginal.replacingOccurrences(of: "RCG(KC_QUOTE)", with: "USER00"))
         let model = fixture.flow.firmwareCopies
         await model.verifyVial(record, ticket: try XCTUnwrap(model.selectionTicket()))
         XCTAssertEqual(model.records.last?.state, .importClaimed)

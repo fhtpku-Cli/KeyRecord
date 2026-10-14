@@ -1,0 +1,266 @@
+{
+  "sourceRevision": "aef8222a2d0429a183b2ed692d5f9efcfd383f08",
+  "cases": [
+    {
+      "name": "alignment-0",
+      "definition": "{\"vendorId\":\"0x1234\",\"productId\":\"0x5678\",\"matrix\":{\"rows\":1,\"cols\":3},\"layouts\":{\"keymap\":[[{\"a\":0,\"d\":true}],[\"Legend\",\"0,2\"],[{\"a\":0},\"0,2\",\"2,1\\n\\n\\n\\n\\n\\n\\n\\n\\ne\"]]}}",
+      "compressed": "/Td6WFoAAATm1rRGAgAhARYAAAB0L+Wj4ACqAIVdAD2IisaUL8LEIpnpbzWhi9MuaJSxOkspsVw55Xn7bInuMyewnJZLH9loZQHt+8O/0aPdImbC/zOhSY0hKRF6Qo860nDK00pvvQj4zzfzFDhGIM4aedw1km1coBxtyB8MW32F9Tf9XT+5lf9RezFb5GkStY3yOKi8zmeMdgvhQ/u8+xxD2EsAAAAALalyonK3pWMAAaEBqwEAABXL3bexxGf7AgAAAAAEWVo=",
+      "positions": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          2
+        ]
+      ],
+      "encoders": [
+        [
+          2,
+          1
+        ]
+      ]
+    },
+    {
+      "name": "alignment-1",
+      "definition": "{\"vendorId\":\"0x1234\",\"productId\":\"0x5678\",\"matrix\":{\"rows\":1,\"cols\":3},\"layouts\":{\"keymap\":[[{\"a\":1,\"d\":true}],[\"Legend\",\"Caption\"],[{\"a\":0},\"0,2\",\"2,1\\n\\n\\n\\n\\n\\n\\n\\n\\ne\"]]}}",
+      "compressed": "/Td6WFoAAATm1rRGAgAhARYAAAB0L+Wj4ACuAIpdAD2IisaUL8LEIpnpbzWhi9MuaJSxOkspsVw55Xn7bInuMyewnJZLH9loZQHt+8O/0aPdImbC/zOhSY0hKRF6Qo860nDK00pvvQj4zzfzFDhGIM4aeaCaf0ixT8321oZoh3TdJwUh+A6CLhqQq8z/+MwJPG5ecGvJqmNB2D/MejfxCdZdhI6xaR4tOgAAAFfaKbgg5NeWAAGmAa8BAAD6bLolscRn+wIAAAAABFla",
+      "positions": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          2
+        ]
+      ],
+      "encoders": [
+        [
+          2,
+          1
+        ]
+      ]
+    },
+    {
+      "name": "alignment-2",
+      "definition": "{\"vendorId\":\"0x1234\",\"productId\":\"0x5678\",\"matrix\":{\"rows\":1,\"cols\":3},\"layouts\":{\"keymap\":[[{\"a\":2,\"d\":true}],[\"Legend\",\"Caption\"],[{\"a\":0},\"0,2\",\"2,1\\n\\n\\n\\n\\n\\n\\n\\n\\ne\"]]}}",
+      "compressed": "/Td6WFoAAATm1rRGAgAhARYAAAB0L+Wj4ACuAIxdAD2IisaUL8LEIpnpbzWhi9MuaJSxOkspsVw55Xn7bInuMyewnJZLH9loZQHt+8O/0aPdImbC/zOhSY0hKRF6Qo860nDK00pvvQj4zzfzFDhGIM4aedw2CbPvQHcL++gp82t093TdpLSL5zsNaXCEItJ2JYvYnkhgyzg/g2D+lCP5HAtd035qBq8NvJ+pAMWE3OGQ/KHeAAGoAa8BAACKDbAfscRn+wIAAAAABFla",
+      "positions": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          2
+        ]
+      ],
+      "encoders": [
+        [
+          2,
+          1
+        ]
+      ]
+    },
+    {
+      "name": "alignment-3",
+      "definition": "{\"vendorId\":\"0x1234\",\"productId\":\"0x5678\",\"matrix\":{\"rows\":1,\"cols\":3},\"layouts\":{\"keymap\":[[{\"a\":3,\"d\":true}],[\"Legend\",\"Caption\"],[{\"a\":0},\"0,2\",\"2,1\\n\\n\\n\\n\\n\\n\\n\\n\\ne\"]]}}",
+      "compressed": "/Td6WFoAAATm1rRGAgAhARYAAAB0L+Wj4ACuAItdAD2IisaUL8LEIpnpbzWhi9MuaJSxOkspsVw55Xn7bInuMyewnJZLH9loZQHt+8O/0aPdImbC/zOhSY0hKRF6Qo860nDK00pvvQj4zzfzFDhGIM4aedywaOZhdTNUd3I9cgsgeUWfkWAltU1+j5uCFxVOudfmdjYGFlCDozZeJ6KtmsRtYQY64MyKAZMAAMhEirMZbsRoAAGnAa8BAABfv+buscRn+wIAAAAABFla",
+      "positions": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          2
+        ]
+      ],
+      "encoders": [
+        [
+          2,
+          1
+        ]
+      ]
+    },
+    {
+      "name": "alignment-4",
+      "definition": "{\"vendorId\":\"0x1234\",\"productId\":\"0x5678\",\"matrix\":{\"rows\":1,\"cols\":3},\"layouts\":{\"keymap\":[[{\"a\":4,\"d\":true}],[\"Legend\",\"0,2\"],[{\"a\":0},\"0,2\",\"2,1\\n\\n\\n\\n\\n\\n\\n\\n\\ne\"]]}}",
+      "compressed": "/Td6WFoAAATm1rRGAgAhARYAAAB0L+Wj4ACqAIddAD2IisaUL8LEIpnpbzWhi9MuaJSxOkspsVw55Xn7bInuMyewnJZLH9loZQHt+8O/0aPdImbC/zOhSY0hKRF6Qo860nDK00pvvQj4zzfzFDhGIM4aedw2fxpFbBiR4Zgc5CzzFmIuMx3I4yF7hRpMhopmOaX5+PWSp2Gi/wJSWOjdeN7twISvAAAAm/dBvg9FuqwAAaMBqwEAAB5qFfqxxGf7AgAAAAAEWVo=",
+      "positions": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          2
+        ]
+      ],
+      "encoders": [
+        [
+          2,
+          1
+        ]
+      ]
+    },
+    {
+      "name": "alignment-5",
+      "definition": "{\"vendorId\":\"0x1234\",\"productId\":\"0x5678\",\"matrix\":{\"rows\":1,\"cols\":3},\"layouts\":{\"keymap\":[[{\"a\":5,\"d\":true}],[\"Legend\",\"Caption\"],[{\"a\":0},\"0,2\",\"2,1\\n\\n\\n\\n\\n\\n\\n\\n\\ne\"]]}}",
+      "compressed": "/Td6WFoAAATm1rRGAgAhARYAAAB0L+Wj4ACuAIxdAD2IisaUL8LEIpnpbzWhi9MuaJSxOkspsVw55Xn7bInuMyewnJZLH9loZQHt+8O/0aPdImbC/zOhSY0hKRF6Qo860nDK00pvvQj4zzfzFDhGIM4aedw2tVpCYjQ8BxO8Ixi/Sc2ZZOGSu93hHPKGl2Xxmdx2fhNjgYPf80INtVLYj6N2SI5Q8CB1iDTlAOz5YAB5Xyj4AAGoAa8BAACKDbAfscRn+wIAAAAABFla",
+      "positions": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          2
+        ]
+      ],
+      "encoders": [
+        [
+          2,
+          1
+        ]
+      ]
+    },
+    {
+      "name": "alignment-6",
+      "definition": "{\"vendorId\":\"0x1234\",\"productId\":\"0x5678\",\"matrix\":{\"rows\":1,\"cols\":3},\"layouts\":{\"keymap\":[[{\"a\":6,\"d\":true}],[\"Legend\",\"Caption\"],[{\"a\":0},\"0,2\",\"2,1\\n\\n\\n\\n\\n\\n\\n\\n\\ne\"]]}}",
+      "compressed": "/Td6WFoAAATm1rRGAgAhARYAAAB0L+Wj4ACuAIxdAD2IisaUL8LEIpnpbzWhi9MuaJSxOkspsVw55Xn7bInuMyewnJZLH9loZQHt+8O/0aPdImbC/zOhSY0hKRF6Qo860nDK00pvvQj4zzfzFDhGIM4aedw27IK6slifD0WH68KdNIAn0eRdDbO0ob0t9GRL66T6qL39w2f2p8fLpXWxvKxLO992QQSuZp4RAH6nlVnJR16wAAGoAa8BAACKDbAfscRn+wIAAAAABFla",
+      "positions": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          2
+        ]
+      ],
+      "encoders": [
+        [
+          2,
+          1
+        ]
+      ]
+    },
+    {
+      "name": "alignment-7",
+      "definition": "{\"vendorId\":\"0x1234\",\"productId\":\"0x5678\",\"matrix\":{\"rows\":1,\"cols\":3},\"layouts\":{\"keymap\":[[{\"a\":7,\"d\":true}],[\"Legend\",\"Caption\"],[{\"a\":0},\"0,2\",\"2,1\\n\\n\\n\\n\\n\\n\\n\\n\\ne\"]]}}",
+      "compressed": "/Td6WFoAAATm1rRGAgAhARYAAAB0L+Wj4ACuAIxdAD2IisaUL8LEIpnpbzWhi9MuaJSxOkspsVw55Xn7bInuMyewnJZLH9loZQHt+8O/0aPdImbC/zOhSY0hKRF6Qo860nDK00pvvQj4zzfzFDhGIM4aedw3JkZ7C/OilvyV/qxX4KwHnna8+D2NruTEUBaOel1B++lfFceu7D0WysR4Slo5UWy2Gug06oDiAHNnwwtA1TsGAAGoAa8BAACKDbAfscRn+wIAAAAABFla",
+      "positions": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          2
+        ]
+      ],
+      "encoders": [
+        [
+          2,
+          1
+        ]
+      ]
+    },
+    {
+      "name": "decal-coordinate-and-reset",
+      "definition": "{\"vendorId\":\"0x1234\",\"productId\":\"0x5678\",\"matrix\":{\"rows\":1,\"cols\":3},\"layouts\":{\"keymap\":[[{\"d\":true},\"0,2\",\"0,1\",\"0,0\"]]}}",
+      "compressed": "/Td6WFoAAATm1rRGAgAhARYAAAB0L+Wj4AB8AGtdAD2IisaUL8LEIpnpbzWhi9MuaJSxOkspsVw55Xn7bInuMyewnJZLH9loZQHt+8O/0aPdImbC/zOhSY0hKRF6Qo860nDK00pvvQj4zzfzFDhGIM4auHtSsrudv6Dou1tRJsrGGaPlyAxtyxhdAAApAA46R5LRPwABhwF9AAAATKHVZLHEZ/sCAAAAAARZWg==",
+      "positions": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          1
+        ],
+        [
+          0,
+          2
+        ]
+      ],
+      "encoders": []
+    },
+    {
+      "name": "decal-explicit-false",
+      "definition": "{\"vendorId\":\"0x1234\",\"productId\":\"0x5678\",\"matrix\":{\"rows\":1,\"cols\":3},\"layouts\":{\"keymap\":[[{\"d\":true},{\"d\":false},\"0,2\"]]}}",
+      "compressed": "/Td6WFoAAATm1rRGAgAhARYAAAB0L+Wj4AB8AG1dAD2IisaUL8LEIpnpbzWhi9MuaJSxOkspsVw55Xn7bInuMyewnJZLH9loZQHt+8O/0aPdImbC/zOhSY0hKRF6Qo860nDK00pvvQj4zzfzFDhGIM4auHtSsrudpoj4UwQ2njMMCYvZpkT3KIoO1UAAAAAAtITZiXw4cuQAAYkBfQAAADzA316xxGf7AgAAAAAEWVo=",
+      "positions": [
+        [
+          0,
+          2
+        ]
+      ],
+      "encoders": []
+    },
+    {
+      "name": "decal-reset-before-centered-caption",
+      "definition": "{\"vendorId\":\"0x1234\",\"productId\":\"0x5678\",\"matrix\":{\"rows\":1,\"cols\":3},\"layouts\":{\"keymap\":[[{\"d\":true},\"0,2\",{\"a\":7},\"Caption\",{\"a\":0},\"0,2\"]]}}",
+      "compressed": "/Td6WFoAAATm1rRGAgAhARYAAAB0L+Wj4ACQAHhdAD2IisaUL8LEIpnpbzWhi9MuaJSxOkspsVw55Xn7bInuMyewnJZLH9loZQHt+8O/0aPdImbC/zOhSY0hKRF6Qo860nDK00pvvQj4zzfzFDhGIM4auHtSsrudv6Dou1tI4jtzqxAHxHafrjBy/7WxVvc5KdUGZD8/AADXHqHRT4tl1QABlAGRAQAAzkX8fLHEZ/sCAAAAAARZWg==",
+      "positions": [
+        [
+          0,
+          2
+        ]
+      ],
+      "encoders": []
+    },
+    {
+      "name": "encoder-precedes-decal",
+      "definition": "{\"vendorId\":\"0x1234\",\"productId\":\"0x5678\",\"matrix\":{\"rows\":1,\"cols\":3},\"layouts\":{\"keymap\":[[\"0,0\",{\"a\":0,\"d\":true},\"2,1\\n\\n\\n\\n\\n\\n\\n\\n\\ne\"]]}}",
+      "compressed": "/Td6WFoAAATm1rRGAgAhARYAAAB0L+Wj4ACPAHVdAD2IisaUL8LEIpnpbzWhi9MuaJSxOkspsVw55Xn7bInuMyewnJZLH9loZQHt+8O/0aPdImbC/zOhSY0hKRF6Qo860nDK00pvvQj4zzfzFDhGIM4qAJCwnJznSFtB3f39QR2EAdk+KzR0GpJv6vS1hSLRAMepfQAAAACZRNxjoAehkQABkQGQAQAAGLONlLHEZ/sCAAAAAARZWg==",
+      "positions": [
+        [
+          0,
+          0
+        ]
+      ],
+      "encoders": [
+        [
+          2,
+          1
+        ]
+      ]
+    },
+    {
+      "name": "layout-options-and-duplicates",
+      "definition": "{\"vendorId\":\"0x1234\",\"productId\":\"0x5678\",\"matrix\":{\"rows\":1,\"cols\":3},\"layouts\":{\"keymap\":[[{\"a\":0},\"0,0\\n\\n\\n0,0\",\"0,0\\n\\n\\n0,1\",\"0,2\"]]}}",
+      "compressed": "/Td6WFoAAATm1rRGAgAhARYAAAB0L+Wj4ACLAG5dAD2IisaUL8LEIpnpbzWhi9MuaJSxOkspsVw55Xn7bInuMyewnJZLH9loZQHt+8O/0aPdImbC/zOhSY0hKRF6Qo860nDK00pvvQj4zzfzFDhGIM4aedw1pRTllVkeF0q63nXMEQ/udeG1tORp7zrHAAAAwJ3ca08mj58AAYoBjAEAAGepU+exxGf7AgAAAAAEWVo=",
+      "positions": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          2
+        ]
+      ],
+      "encoders": []
+    },
+    {
+      "name": "leading-metadata",
+      "definition": "{\"vendorId\":\"0x1234\",\"productId\":\"0x5678\",\"matrix\":{\"rows\":1,\"cols\":3},\"layouts\":{\"keymap\":[{\"name\":\"Synthetic\"},[\"0,0\",\"0,2\"]]}}",
+      "compressed": "/Td6WFoAAATm1rRGAgAhARYAAAB0L+Wj4ACAAHRdAD2IisaUL8LEIpnpbzWhi9MuaJSxOkspsVw55Xn7bInuMyewnJZLH9loZQHt+8O/0aPdImbC/zOhSY0hKRF6Qo860nDK00pvvQj4zzfzFDhGLuDkD5tt0Mjp1fqd/jqWdg6RTqSdE3MGHEHaCIDkfWSBo+kwAPZY0/G2Dt+7AAGQAYEBAABHUHS3scRn+wIAAAAABFla",
+      "positions": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          2
+        ]
+      ],
+      "encoders": []
+    }
+  ]
+}

@@ -40,9 +40,10 @@ private final class NativeVialHIDFixture: VialHIDEndpoint, @unchecked Sendable {
     private let oneShotNames: Bool
     private let persistentLayerNames: Bool
     private let staticLayerNames: Bool
+    private let definitionOverride: Data?
     let paused = XCTestExpectation(description: "Selected HID report paused")
     init(pause: VialReadRequest? = nil, mismatch: Bool = false, encoders: Bool = false, encoderMismatch: Bool = false,
-         basicNames: Bool = false, modifierNames: Bool = false, layerTapNames: Bool = false, modifierTapNames: Bool = false, oneShotNames: Bool = false, persistentLayerNames: Bool = false, staticLayerNames: Bool = false) {
+         basicNames: Bool = false, modifierNames: Bool = false, layerTapNames: Bool = false, modifierTapNames: Bool = false, oneShotNames: Bool = false, persistentLayerNames: Bool = false, staticLayerNames: Bool = false, definitionOverride: Data? = nil) {
         self.pause = pause; self.mismatch = mismatch; self.encoders = encoders; self.encoderMismatch = encoderMismatch
         self.basicNames = basicNames
         self.modifierNames = modifierNames
@@ -51,6 +52,7 @@ private final class NativeVialHIDFixture: VialHIDEndpoint, @unchecked Sendable {
         self.oneShotNames = oneShotNames
         self.persistentLayerNames = persistentLayerNames
         self.staticLayerNames = staticLayerNames
+        self.definitionOverride = definitionOverride
     }
     var requests: [VialReadRequest] { lock.withLock { reports } }
     var closeCount: Int { lock.withLock { closes } }
@@ -61,7 +63,7 @@ private final class NativeVialHIDFixture: VialHIDEndpoint, @unchecked Sendable {
         emit(request); completion(.success(()))
     }
     func emit(_ request: VialReadRequest) {
-        let definition = encoders ? Self.encoderDefinition : Self.definition
+        let definition = definitionOverride ?? (encoders ? Self.encoderDefinition : Self.definition)
         var bytes = request.bytes
         switch bytes[0] {
         case 1: bytes[1] = 0; bytes[2] = 9
@@ -892,6 +894,30 @@ final class KarabinerMappingFlowTests: XCTestCase {
             let ledger = try await FirmwareOperationCoordinator(store: store,
                 resolve: { try FirmwareFileDestination(reference: $0, gate: gate) }).ledger()
             XCTAssertNil(ledger.records.last?.verifiedAt)
+        }
+    }
+    func testDecoratedVialDefinitionReachesCompleteReadbackAndPersistsMismatch() async throws {
+        struct Fixtures: Decodable {
+            struct Item: Decodable { let name: String; let compressed: Data }
+            let cases: [Item]
+        }
+        let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        let fixtures = try JSONDecoder().decode(Fixtures.self, from: Data(contentsOf:
+            root.appendingPathComponent("evidence/phase4/fixtures/synthetic/vial6-definition-topology.json")))
+        let definition = try XCTUnwrap(fixtures.cases.first { $0.name == "alignment-7" }).compressed
+        for mismatch in [false, true] {
+            let endpoint = NativeVialHIDFixture(encoders: true, encoderMismatch: mismatch, definitionOverride: definition)
+            let original = #"{"version":1,"uid":18446744073709551615,"via_protocol":9,"vial_protocol":6,"layout":[[["KC_NO",-1,"KC_ENT"]]],"encoder_layout":[[[-1,-1],[-1,-1],["KC_ENT","0x1234"]]]}"#
+            let (fixture, store, gate, record) = try await claimedHID(endpoint, original: original)
+            let model = fixture.flow.firmwareCopies
+            await model.verifyVial(record, ticket: try XCTUnwrap(model.selectionTicket()))
+            XCTAssertEqual(model.records.last?.state, mismatch ? .externallyChanged : .verified)
+            XCTAssertNil(model.issueKey); XCTAssertEqual(endpoint.closeCount, 1)
+            XCTAssertTrue(endpoint.requests.contains(.encoder(layer: 0, index: 2)))
+            let ledger = try await FirmwareOperationCoordinator(store: store,
+                resolve: { try FirmwareFileDestination(reference: $0, gate: gate) }).ledger()
+            XCTAssertEqual(ledger.records.last?.state, mismatch ? .externallyChanged : .verified)
+            XCTAssertNotNil(ledger.records.last?.verifiedAt)
         }
     }
     func testVialHIDKeymapMismatchIsRecordedByExistingTransaction() async throws {

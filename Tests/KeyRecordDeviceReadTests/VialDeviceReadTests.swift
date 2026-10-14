@@ -77,6 +77,65 @@ private func response(_ request: VialReadRequest, compressed: Data = definitionX
 }
 @MainActor
 final class VialDeviceReadTests: XCTestCase {
+    private struct DefinitionFixtures: Decodable {
+        struct Case: Decodable {
+            let name: String
+            let definition: String
+            let compressed: Data
+            let positions: [[Int]]
+            let encoders: [[Int]]
+        }
+        let cases: [Case]
+    }
+    private func definitionFixtures() throws -> [DefinitionFixtures.Case] {
+        let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        return try JSONDecoder().decode(DefinitionFixtures.self, from: Data(contentsOf:
+            root.appendingPathComponent("evidence/phase4/fixtures/synthetic/vial6-definition-topology.json"))).cases
+    }
+    func testDefinitionMatchesOfficialAlignmentDecalAndVariantTopology() throws {
+        let fixtures = try definitionFixtures()
+        XCTAssertEqual(fixtures.count, 14)
+        for fixture in fixtures {
+            do {
+                let definition = try VialDeviceDefinition(bytes: Data(fixture.definition.utf8), uid: 42)
+                XCTAssertEqual(definition.positions, Set(fixture.positions.map { .init(layer: 0, row: $0[0], column: $0[1]) }), fixture.name)
+                XCTAssertEqual(definition.encoderPositions, Set(try fixture.encoders.map {
+                    .init(layer: 0, index: $0[0], direction: try XCTUnwrap(FirmwareEncoderDirection(rawValue: $0[1])))
+                }), fixture.name)
+            } catch { XCTFail("\(fixture.name): \(error)") }
+        }
+    }
+    func testSessionReadsOfficialDecoratedDefinitionAndRefusesMissingDecalPosition() async throws {
+        let fixture = try XCTUnwrap(definitionFixtures().first { $0.name == "alignment-7" })
+        let compressed = fixture.compressed
+        let endpoint = Endpoint(response: { response($0, compressed: compressed) })
+        let connection = VialDeviceReadConnection(endpoint: endpoint, vendorID: 0x1234, productID: 0x5678, deadline: Deadline())
+        let observed = try await connection.observe(record: batch(), original: encoderVial, authorize: {})
+        XCTAssertEqual(observed.values, [.init(layer: 0, column: 0): "0x0006", .init(layer: 0, column: 2): "0x0028"])
+        XCTAssertEqual(observed.encoderValues.count, 2)
+        XCTAssertEqual(endpoint.closeCount, 1)
+        let wrong = Data(String(decoding: encoderVial, as: UTF8.self).replacingOccurrences(of: #""KC_C",-1"#, with: "-1,-1").utf8)
+        let refused = Endpoint(response: { response($0, compressed: compressed) })
+        let rejected = VialDeviceReadConnection(endpoint: refused, vendorID: 0x1234, productID: 0x5678, deadline: Deadline())
+        do { _ = try await rejected.observe(record: batch(), original: wrong, authorize: {}); XCTFail("Expected topology refusal") }
+        catch { XCTAssertEqual(error as? VialReadbackError, .invalidMatrix) }
+        XCTAssertFalse(refused.requests.contains { $0.bytes[0] == 0x12 || ($0.bytes[0] == 0xfe && $0.bytes[1] == 3) })
+        XCTAssertEqual(refused.closeCount, 1)
+    }
+    func testDefinitionRejectsInvalidKLEStateAndAmbiguousEncoderCoordinates() throws {
+        let invalid = [
+            #"[[{"a":-1},"0,0"]]"#, #"[[{"a":8},"0,0"]]"#,
+            #"[[{"a":true},"0,0"]]"#, #"[[{"a":"4"},"0,0"]]"#,
+            #"[[{"d":1},"0,0"]]"#, #"[[{"d":"true"},"0,0"]]"#,
+            #"[[{"d":null},"0,0"]]"#, #"[[{"d":true},"0,3"]]"#,
+            #"[["0,0",{"a":7},"e"]]"#, #"[["0,0"],{"name":"misplaced"}]"#,
+            #"[["0,0\n\n\n\n\n\n\n\n\n\n\n\nextra"]]"#
+        ]
+        for keys in invalid {
+            let json = #"{"vendorId":"0x1234","productId":"0x5678","matrix":{"rows":1,"cols":3},"layouts":{"keymap":\#(keys)}}"#
+            XCTAssertThrowsError(try VialDeviceDefinition(bytes: Data(json.utf8), uid: 42), keys)
+        }
+    }
     private func batch() -> FirmwareBatchRecord {
         .init(id: UUID(), backend: .vial, device: "42", axes: .init(definitionSchema: VialDeviceDefinition.schema,
             deviceProtocol: "via-9/vial-6", layoutFormat: "vial-save-1", keycodeDialect: VialKeycodeDialect.name,
@@ -224,8 +283,8 @@ final class VialDeviceReadTests: XCTestCase {
         let bytes = Data(text.replacingOccurrences(of: #"[["0,0""#, with: #"[[{}, {"d":false,"a":4},"0,0""#).utf8)
         let definition = try VialDeviceDefinition(bytes: bytes, uid: 42)
         XCTAssertEqual(definition.positions, [.init(layer: 0, column: 0), .init(layer: 0, column: 2)])
-        for changed in [String(decoding: bytes, as: UTF8.self).replacingOccurrences(of: #""d":false"#, with: #""d":true"#),
-                        String(decoding: bytes, as: UTF8.self).replacingOccurrences(of: #""a":4"#, with: #""a":7"#)] {
+        for changed in [String(decoding: bytes, as: UTF8.self).replacingOccurrences(of: #""d":false"#, with: #""d":1"#),
+                        String(decoding: bytes, as: UTF8.self).replacingOccurrences(of: #""a":4"#, with: #""a":8"#)] {
             XCTAssertThrowsError(try VialDeviceDefinition(bytes: Data(changed.utf8), uid: 42))
         }
     }

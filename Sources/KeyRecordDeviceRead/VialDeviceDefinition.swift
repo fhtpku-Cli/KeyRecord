@@ -38,28 +38,52 @@ public struct VialDeviceDefinition: Sendable {
         let rows = try dimension("rows"), columns = try dimension("cols")
         var positions: Set<FirmwareSlot> = []
         var encoderPositions: Set<FirmwareEncoderSlot> = []
-        for row in keymap {
+        var alignment = 4
+        var decal = false
+        for (index, row) in keymap.enumerated() {
+            if index == 0, bytes[row.range.lowerBound] == 123 { continue }
             guard let keys = row.elements else { throw VialDefinitionError.invalidDefinition }
             for key in keys {
                 if bytes[key.range.lowerBound] == 123 {
                     if let a = key.members["a"] {
-                        guard ["0", "4"].contains(String(decoding: bytes[a.range], as: UTF8.self)) else {
+                        guard let value = Int(String(decoding: bytes[a.range], as: UTF8.self)), (0...7).contains(value) else {
                             throw VialDefinitionError.unsupportedLayout
                         }
+                        alignment = value
                     }
-                    if let decal = key.members["d"], String(decoding: bytes[decal.range], as: UTF8.self) != "false" {
-                        throw VialDefinitionError.unsupportedLayout
+                    if let d = key.members["d"] {
+                        switch String(decoding: bytes[d.range], as: UTF8.self) {
+                        case "true": decal = true
+                        case "false": decal = false
+                        default: throw VialDefinitionError.unsupportedLayout
+                        }
                     }
                     continue
                 }
                 let label = try text(key)
                 let fields = label.components(separatedBy: "\n")
-                let coordinate = fields[0].split(separator: ",", omittingEmptySubsequences: false)
+                guard fields.count <= 12 else { throw VialDefinitionError.unsupportedLayout }
+                // Alignment persists across rows; decal applies to only one key.
+                // Only alignments 0/4 expose label 0; the center label carries "e".
+                defer { decal = false }
+                let coordinateText = alignment == 0 || alignment == 4 ? fields[0] : ""
+                let center = [9, 6, 8, 0, 9, 6, 8, 0][alignment]
+                let encoder = fields.indices.contains(center) && fields[center] == "e"
+                if !encoder, !coordinateText.contains(",") {
+                    if decal {
+                        // Upstream includes an unpositioned decal at matrix (0,0)
+                        // in rowcol and save_layout, so readback must compare it.
+                        positions.insert(.init(layer: 0, row: 0, column: 0))
+                    } else if !coordinateText.isEmpty {
+                        throw VialDefinitionError.invalidDefinition
+                    }
+                    continue
+                }
+                let coordinate = coordinateText.split(separator: ",", omittingEmptySubsequences: false)
                 guard coordinate.count == 2, let r = Int(coordinate[0]), let c = Int(coordinate[1]) else {
                     throw VialDefinitionError.invalidDefinition
                 }
-                // For supported KLE alignments 0 and 4, raw label 9 normalizes to label 4.
-                if fields.count >= 10, fields[9] == "e" {
+                if encoder {
                     guard (0...255).contains(r), let direction = FirmwareEncoderDirection(rawValue: c) else {
                         throw VialDefinitionError.invalidDefinition
                     }

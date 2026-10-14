@@ -147,6 +147,29 @@ final class VialBasicKeycodeTests: XCTestCase {
             XCTAssertEqual(VialKeycodeDialect.layerEntry(key.token), key.token)
         }
     }
+    func testPersistentDefaultLayerCanonicalNamesNormalizeAndRemainProtected() throws {
+        let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        let keys = try JSONDecoder().decode([OfficialKey].self, from: Data(contentsOf:
+            root.appendingPathComponent("evidence/phase4/fixtures/synthetic/vial6-persistent-layer-keycodes.json")))
+        XCTAssertEqual(keys.count, 32)
+        for key in keys {
+            let token = key.token
+            XCTAssertEqual(try VialKeycodeDialect.rawValue(token), key.raw, token)
+            XCTAssertTrue(VialKeycodeDialect.protectedEntry(token), token)
+            XCTAssertEqual(VialKeycodeDialect.layerEntry(token), token)
+            XCTAssertTrue(VialKeycodeDialect.protectedEntry(VialKeycodeDialect.token(key.raw)))
+        }
+    }
+    func testPersistentDefaultLayerRejectsExpressionsAliasesAndNestedActions() throws {
+        for token in ["PDF(32)", "PDF(-1)", "PDF(01)", "PDF(+1)", "PDF(0x1)", "PDF(1.0)", "PDF(1+1)",
+                      "PDF(USER00)", "PDF(MO(1))", "PDF(QK_BOOT)", "PDF(PDF(1))", "PDF()", "PDF(1,2)",
+                      "PDF(1))", "PDF(1", "PDF (1)", "PDF( 1)", " PDF(1)", "\tPDF(1)", "\nPDF(1)",
+                      "LCTL(PDF(1))", "LSFT_T(PDF(1))", "LT1(PDF(1))", "OSM(PDF(1))"] {
+            XCTAssertThrowsError(try VialKeycodeDialect.rawValue(token), token) {
+                XCTAssertEqual($0 as? FirmwareError, .unsupportedOutput)
+            }
+        }
+    }
     func testOneShotModifiersRejectGenericExpressionsMixedSidesAndNestedActions() throws {
         for token in ["OSM(0)", "OSM(0x40)", "OSM(64)", "OSM(MOD_LCTL|MOD_RCTL)", "OSM(MOD_MEH|MOD_RGUI)",
                       "OSM(MOD_UNKNOWN)", "OSM(USER00)", "OSM(KC_C)", "OSM(MO(1))", "OSM(LT1(KC_C))",

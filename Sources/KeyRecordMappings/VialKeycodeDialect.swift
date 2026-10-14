@@ -11,6 +11,7 @@ public enum VialKeycodeDialect {
         guard depth <= 4 else { throw FirmwareError.unsupportedOutput }
         if let value = basic[token] { return value }
         if let value = oneShotModifiers[token] { return value }
+        for layer in 0..<32 where token == "PDF(\(layer))" { return 0x52e0 + UInt16(layer) }
         if token.hasPrefix("0x"), let value = UInt16(token.dropFirst(2), radix: 16) { return value }
         for (prefix, base) in layerCodes where token.hasPrefix(prefix + "(") && token.hasSuffix(")") {
             guard let layer = UInt16(token.dropFirst(prefix.count + 1).dropLast()), layer < (prefix == "TO" ? 16 : 32) else {
@@ -53,6 +54,7 @@ public enum VialKeycodeDialect {
     }
     static func protectedEntry(_ token: String) -> Bool {
         if token.hasPrefix("LT") { return true }
+        if token.trimmingCharacters(in: .whitespacesAndNewlines).hasPrefix("PDF") { return true }
         if token.trimmingCharacters(in: .whitespacesAndNewlines).hasPrefix("OSM"), oneShotModifiers[token] == nil { return true }
         guard let raw = try? rawValue(token) else { return false }
         return (0x4000...0x4fff).contains(raw) || (0x5200...0x529f).contains(raw)

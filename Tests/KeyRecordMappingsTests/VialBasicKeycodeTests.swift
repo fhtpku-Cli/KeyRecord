@@ -63,7 +63,7 @@ final class VialBasicKeycodeTests: XCTestCase {
             }
         }
         for token in ["C_S(RCTL(KC_C))", "RCG(LSFT(KC_C))", "LCTL(RCG(KC_C))", "RCTL(HYPR(KC_C))",
-                      "C(S(A(G(C(KC_C)))))", "LCS(KC_C)", "RSA(KC_C)", "RCS(KC_C)", "HYPR_T(MO(1))", "OSM(MOD_MEH)"] {
+                      "C(S(A(G(C(KC_C)))))", "LCS(KC_C)", "RSA(KC_C)", "RCS(KC_C)", "HYPR_T(MO(1))", "OSM(USER00)"] {
             XCTAssertThrowsError(try VialKeycodeDialect.rawValue(token), token) {
                 XCTAssertEqual($0 as? FirmwareError, .unsupportedOutput)
             }
@@ -135,5 +135,30 @@ final class VialBasicKeycodeTests: XCTestCase {
                 XCTAssertEqual($0 as? FirmwareError, .unsupportedOutput)
             }
         }
+    }
+    func testOfficialCanonicalOneShotModifiersNormalizeWithoutLayerReachability() throws {
+        let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        let keys = try JSONDecoder().decode([OfficialKey].self, from: Data(contentsOf:
+            root.appendingPathComponent("evidence/phase4/fixtures/synthetic/vial6-one-shot-keycodes.json")))
+        XCTAssertEqual(keys.count, 30)
+        for key in keys {
+            XCTAssertEqual(try VialKeycodeDialect.rawValue(key.token), key.raw, key.token)
+            XCTAssertFalse(VialKeycodeDialect.protectedEntry(key.token))
+            XCTAssertEqual(VialKeycodeDialect.layerEntry(key.token), key.token)
+        }
+    }
+    func testOneShotModifiersRejectGenericExpressionsMixedSidesAndNestedActions() throws {
+        for token in ["OSM(0)", "OSM(0x40)", "OSM(64)", "OSM(MOD_LCTL|MOD_RCTL)", "OSM(MOD_MEH|MOD_RGUI)",
+                      "OSM(MOD_UNKNOWN)", "OSM(USER00)", "OSM(KC_C)", "OSM(MO(1))", "OSM(LT1(KC_C))",
+                      "OSM(QK_BOOT)", "OSM(OSM(MOD_LCTL))", "OSM(MOD_LCTL+MOD_LSFT)", "OSM(MOD_LCTL^MOD_LSFT)",
+                      "OSM(MOD_LCTL,MOD_LSFT)", "OSM(MOD_LCTL))", "OSM()", "OSM(MOD_LCTL", "OSM (MOD_LCTL)",
+                      "OSM(MOD_LSFT|MOD_LCTL)", "OSM(MOD_LCTL | MOD_LSFT)", "OSM(MOD_LCTL|MOD_LSFT|MOD_LALT)",
+                      "LCTL(OSM(MOD_LSFT))", "LSFT_T(OSM(MOD_LCTL))", "LT1(OSM(MOD_LCTL))"] {
+            XCTAssertThrowsError(try VialKeycodeDialect.rawValue(token), token) {
+                XCTAssertEqual($0 as? FirmwareError, .unsupportedOutput)
+            }
+        }
+        XCTAssertTrue(VialKeycodeDialect.protectedEntry("0x52e0"))
+        XCTAssertTrue(VialKeycodeDialect.protectedEntry("LT1(OSM(MOD_LCTL))"))
     }
 }

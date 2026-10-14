@@ -17,13 +17,15 @@ private actor SimulatedVialTransport: VialReadTransport {
     let modifierNames: Bool
     let layerTapNames: Bool
     let modifierTapNames: Bool
+    let oneShotNames: Bool
     let onExchange: (@Sendable (Int) async -> Void)?
     var requests: [VialReadRequest] = []
-    init(keymap: [UInt8] = vial6Keymap, fault: ReadFault = .none, encoderMismatch: Bool = false, modifierNames: Bool = false, layerTapNames: Bool = false, modifierTapNames: Bool = false,
+    init(keymap: [UInt8] = vial6Keymap, fault: ReadFault = .none, encoderMismatch: Bool = false, modifierNames: Bool = false, layerTapNames: Bool = false, modifierTapNames: Bool = false, oneShotNames: Bool = false,
          onExchange: (@Sendable (Int) async -> Void)? = nil) {
         self.keymap = keymap; self.fault = fault; self.encoderMismatch = encoderMismatch; self.modifierNames = modifierNames; self.onExchange = onExchange
         self.layerTapNames = layerTapNames
         self.modifierTapNames = modifierTapNames
+        self.oneShotNames = oneShotNames
     }
     func exchange(_ request: VialReadRequest, timeoutMilliseconds: Int) async throws -> [UInt8] {
         requests.append(request)
@@ -42,6 +44,9 @@ private actor SimulatedVialTransport: VialReadTransport {
                 if layerTapNames { bytes[2] = 0x41 }
                 if modifierTapNames {
                     bytes.replaceSubrange(0..<4, with: request.bytes[2] == 0 ? [0x2a, 0x28, 0x2f, 0x34] : [0x39, 6, 0, 1])
+                }
+                if oneShotNames {
+                    bytes.replaceSubrange(0..<4, with: request.bytes[2] == 0 ? [0x52, 0xa3, 0x52, 0xaf] : [0x52, 0xa7, 0x52, 0xb2])
                 }
                 if encoderMismatch { bytes[3] ^= 1 }
                 return bytes
@@ -296,6 +301,45 @@ final class VialReadbackAdapterTests: XCTestCase {
     func testStaticModifierTapMatrixAndEncodersUseFullComparisonAndEncryptedRecovery() async throws {
         try await verifyEncryptedReadback(modifierNames: true, modifierTapNames: true)
     }
+    func testOneShotModifierMatrixAndEncodersUseFullComparisonAndEncryptedRecovery() async throws {
+        try await verifyEncryptedReadback(modifierNames: false, oneShotNames: true)
+    }
+    func testOneShotModifiersDoNotExpandOutputsOrGrantLayerAndSafetyPermissions() throws {
+        for token in ["OSM(MOD_LCTL)", "OSM(MOD_HYPR)", "OSM(MOD_RGUI)", "OSM(0x40)", "OSM(MO(1))", "OSM(LT1(KC_C))"] {
+            let bytes = Data(String(decoding: vial6Bytes, as: UTF8.self).replacingOccurrences(of: "MO(1)", with: token).utf8)
+            let document = try FirmwareDocument(bytes: bytes, backend: .vial), axes = try axes(bytes)
+            let support = FirmwareSupportDirectory(entries: [.init(backend: .vial, device: document.device,
+                axes: axes, supportedOutputs: ["KC_C", token])])
+            for automatic in [true, false] {
+                XCTAssertThrowsError(try document.patch([.init(slot: .init(layer: 1, column: 1), output: "KC_C", automatic: automatic)],
+                    expectedDevice: document.device, axes: axes, support: support)) { XCTAssertEqual($0 as? FirmwareError, .unreachableLayer) }
+                XCTAssertThrowsError(try document.patch([.init(slot: .init(layer: 0, column: 1), output: token, automatic: automatic)],
+                    expectedDevice: document.device, axes: axes, support: support)) { XCTAssertEqual($0 as? FirmwareError, .unsupportedOutput) }
+            }
+        }
+        for entry in ["MO(1)", "LT1(KC_C)", "LT1(OSM(MOD_LCTL))", "0x52e0", "QK_BOOT", "0x7c03"] {
+            let bytes = Data(String(decoding: vial6Bytes, as: UTF8.self).replacingOccurrences(of: "MO(1)", with: entry).utf8)
+            let document = try FirmwareDocument(bytes: bytes, backend: .vial), axes = try axes(bytes)
+            let support = FirmwareSupportDirectory(entries: [.init(backend: .vial, device: document.device, axes: axes, supportedOutputs: ["KC_C"])])
+            for automatic in [true, false] {
+                XCTAssertThrowsError(try document.patch([.init(slot: .init(layer: 0, column: 0), output: "KC_C", automatic: automatic)],
+                    expectedDevice: document.device, axes: axes, support: support)) { XCTAssertEqual($0 as? FirmwareError, .protectedEntry) }
+            }
+        }
+    }
+    func testUnqualifiedOneShotSpellingsCannotBypassManualSafetyEntryProtection() throws {
+        for token in ["OSM(0x40)", "OSM(64)", "OSM (0x40)", " OSM(0x40)", "\tOSM(64)", "\nOSM (0x40)"] {
+            let replacement = String(decoding: try JSONEncoder().encode(token), as: UTF8.self)
+            let bytes = Data(String(decoding: vial6Bytes, as: UTF8.self).replacingOccurrences(of: #""MO(1)""#, with: replacement).utf8)
+            let document = try FirmwareDocument(bytes: bytes, backend: .vial), axes = try axes(bytes)
+            let support = FirmwareSupportDirectory(entries: [.init(backend: .vial, device: document.device,
+                axes: axes, supportedOutputs: ["KC_C"])])
+            for automatic in [true, false] {
+                XCTAssertThrowsError(try document.patch([.init(slot: .init(layer: 0, column: 0), output: "KC_C", automatic: automatic)],
+                    expectedDevice: document.device, axes: axes, support: support)) { XCTAssertEqual($0 as? FirmwareError, .protectedEntry) }
+            }
+        }
+    }
     func testStaticModifierTapDoesNotExpandAutomaticOutputsOrGrantLayerReachability() throws {
         for token in ["LSFT_T(KC_C)", "ALL_T(KC_C)", "HYPR_T(KC_C)", "LSFT_T(MO(1))", "LSFT_T(LT1(KC_C))", "MT(1,KC_C)"] {
             let bytes = Data(String(decoding: vial6Bytes, as: UTF8.self).replacingOccurrences(of: "MO(1)", with: token).utf8)
@@ -339,7 +383,7 @@ final class VialReadbackAdapterTests: XCTestCase {
             }
         }
     }
-    private func verifyEncryptedReadback(modifierNames: Bool, layerTapNames: Bool = false, modifierTapNames: Bool = false) async throws {
+    private func verifyEncryptedReadback(modifierNames: Bool, layerTapNames: Bool = false, modifierTapNames: Bool = false, oneShotNames: Bool = false) async throws {
         var text = String(decoding: encoderBytes, as: UTF8.self)
             .replacingOccurrences(of: "0x1234", with: "RSFT(KC_QUOTE)")
             .replacingOccurrences(of: "KC_A", with: "KC_BSLASH")
@@ -363,6 +407,14 @@ final class VialReadbackAdapterTests: XCTestCase {
                 text = text.replacingOccurrences(of: prefix + "(", with: prefix + "_T(")
             }
         }
+        if oneShotNames {
+            text = text.replacingOccurrences(of: "KC_BSLASH", with: "OSM(MOD_LCTL)")
+                .replacingOccurrences(of: "KC_KP_COMMA", with: "OSM(MOD_RGUI)")
+                .replacingOccurrences(of: "RSFT(KC_QUOTE)", with: "OSM(MOD_HYPR)")
+                .replacingOccurrences(of: #""KC_ENT""#, with: #""OSM(MOD_LCTL|MOD_LSFT)""#)
+                .replacingOccurrences(of: #""KC_ENTER""#, with: #""OSM(MOD_LCTL|MOD_LSFT)""#)
+                .replacingOccurrences(of: #""KC_C","KC_TRNS""#, with: #""OSM(MOD_MEH)","OSM(MOD_RSFT)""#)
+        }
         let originalBytes = Data(text.utf8)
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("vial-adapter-" + UUID().uuidString)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
@@ -382,6 +434,11 @@ final class VialReadbackAdapterTests: XCTestCase {
         for offset in [10,26] { baseline[offset] = modifierNames ? 0x0d : 0; baseline[offset + 1] = 0x85 }
         if modifierNames { baseline[6] = 0x0a; baseline[22] = 0x0a }
         if modifierTapNames { for offset in [6,8,10,22,24,26] { baseline[offset] |= 0x20 } }
+        if oneShotNames {
+            for offset in [6,22] { baseline[offset] = 0x52; baseline[offset + 1] = 0xa3 }
+            for offset in [8,24] { baseline[offset] = 0x52; baseline[offset + 1] = 0xa1 }
+            for offset in [10,26] { baseline[offset] = 0x52; baseline[offset + 1] = 0xb8 }
+        }
         if layerTapNames {
             baseline[0] = 0x41; baseline[1] = 0x58
             for offset in [10,26] { baseline[offset] = 0x40 }
@@ -391,7 +448,7 @@ final class VialReadbackAdapterTests: XCTestCase {
         var external = expected; external[9] = 0x34
         for (raw, encoderMismatch, state) in [(expected, false, FirmwareMappingState.verified), (baseline, false, .failed),
                                               (external, false, .externallyChanged), (expected, true, .externallyChanged)] {
-            let adapter = try VialReadbackAdapter(transport: SimulatedVialTransport(keymap: raw, encoderMismatch: encoderMismatch, modifierNames: modifierNames, layerTapNames: layerTapNames, modifierTapNames: modifierTapNames),
+            let adapter = try VialReadbackAdapter(transport: SimulatedVialTransport(keymap: raw, encoderMismatch: encoderMismatch, modifierNames: modifierNames, layerTapNames: layerTapNames, modifierTapNames: modifierTapNames, oneShotNames: oneShotNames),
                 matrixRows: 2, matrixColumns: 4, encoderIndices: [2])
             let observation = try await adapter.observe(record: batch, original: originalBytes, at: { Date(timeIntervalSince1970: 3) })
             let result = try await operations.confirmVialReadback(batch.id, observation: observation)

@@ -44,6 +44,7 @@ def main():
     parser.add_argument("--static-layer-keycodes", action="store_true", help="exercise canonical static layer actions on a synthetic four-layer keyboard")
     parser.add_argument("--static-layer-fixture", type=Path, help="write actual static layer action names and raw values")
     parser.add_argument("--layer-tap-keycodes", action="store_true", help="exercise per-keyboard canonical layer taps on a synthetic 16-layer keyboard")
+    parser.add_argument("--layer-mod-keycodes", action="store_true", help="exercise protected layer modifiers with official hexadecimal serialization on 16 layers")
     parser.add_argument("--raw-keycodes", type=Path, help="write independent big-endian matrix then encoder values for the patched KC_C fixture")
     args = parser.parse_args()
     if bool(args.generate) == bool(args.check):
@@ -55,12 +56,20 @@ def main():
     from protocol.constants import (BUFFER_FETCH_CHUNK, CMD_VIA_KEYMAP_GET_BUFFER,
                                     CMD_VIA_VIAL_PREFIX, CMD_VIAL_GET_ENCODER)
     from types import SimpleNamespace
-    layers = 32 if args.persistent_layer_keycodes else (16 if args.layer_tap_keycodes else (4 if args.static_layer_keycodes else 2))
+    layers = 32 if args.persistent_layer_keycodes else (16 if args.layer_tap_keycodes or args.layer_mod_keycodes else (4 if args.static_layer_keycodes else 2))
     features = {"persistent_default_layer"} if args.persistent_layer_keycodes else set()
     if args.static_layer_keycodes:
         features.add("layer_lock")
     recreate_keyboard_keycodes(SimpleNamespace(vial_protocol=6, layers=layers, macro_count=0, tap_dance_count=0,
                                               custom_keycodes=None, midi="disabled", supported_features=features))
+    if args.layer_mod_keycodes:
+        for layer in range(16):
+            for mask in range(32):
+                raw = Keycode.deserialize(f"LM({layer},{mask})", reraise=True)
+                assert raw == 0x5000 | (layer << 5) | mask
+                assert Keycode.serialize(raw) == f"0x{raw:04x}"
+                assert Keycode.deserialize(Keycode.serialize(raw), reraise=True) == raw
+        print("PASS: official LM checked all 512 layer/mask encodings and canonical hexadecimal round trips")
     if args.static_layer_fixture:
         from keycodes.keycodes import KEYCODES_LAYERS
         from simpleeval import NameNotDefined
@@ -279,6 +288,13 @@ def main():
                     if args.encoders:
                         self.encoder_layout[(layer, 2, 0)] = Keycode.serialize(actions[layer % 3])
                         self.encoder_layout[(layer, 2, 1)] = Keycode.serialize(actions[(layer + 1) % 3])
+            if args.layer_mod_keycodes:
+                for layer in range(self.layers):
+                    for col, mask in enumerate((0, 1, 31)):
+                        self.layout[(layer, 1, col)] = Keycode.serialize(Keycode.deserialize(f"LM({layer},{mask})", reraise=True))
+                    if args.encoders:
+                        for direction, mask in enumerate((1, 31)):
+                            self.encoder_layout[(layer, 2, direction)] = Keycode.serialize(Keycode.deserialize(f"LM({layer},{mask})", reraise=True))
             self.rowcol = {(row, col): True for _, row, col in self.layout}
             self.layout_labels = []
             self.dev = 0

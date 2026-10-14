@@ -343,6 +343,41 @@ final class VialReadbackAdapterTests: XCTestCase {
             }
         }
     }
+    func testLayerModifiersCannotBeOverwrittenOrGrantLayerAndOutputPermissions() throws {
+        let names = ["LM(0,0)", "LM(1,MOD_LCTL)", "LM(15,31)", "LM(16,32)", "LM(-1,-1)",
+                     "LM(USER00,MOD_LCTL)", "LM(1,USER00)", "LM()", "LM (1,MOD_LCTL)", "LM",
+                     "LM1(MOD_LCTL)", " LM(1,MOD_LCTL)", "\tLM(1,MOD_LCTL)", "\nLM(1,MOD_LCTL)"]
+        for token in names { XCTAssertThrowsError(try VialKeycodeDialect.rawValue(token), token) }
+        for token in (0x5000...0x51ff).map({ VialKeycodeDialect.token(UInt16($0)) }) + names {
+            let replacement = String(decoding: try JSONEncoder().encode(token), as: UTF8.self)
+            let bytes = Data(String(decoding: vial6Bytes, as: UTF8.self).replacingOccurrences(of: #""MO(1)""#, with: replacement).utf8)
+            let document = try FirmwareDocument(bytes: bytes, backend: .vial), axes = try axes(bytes)
+            let support = FirmwareSupportDirectory(entries: [.init(backend: .vial, device: document.device,
+                axes: axes, supportedOutputs: ["KC_C", token])])
+            for automatic in [true, false] {
+                XCTAssertThrowsError(try document.patch([.init(slot: .init(layer: 0, column: 0), output: "KC_C", automatic: automatic)],
+                    expectedDevice: document.device, axes: axes, support: support), token) { XCTAssertEqual($0 as? FirmwareError, .protectedEntry, token) }
+                XCTAssertThrowsError(try document.patch([.init(slot: .init(layer: 1, column: 1), output: "KC_C", automatic: automatic)],
+                    expectedDevice: document.device, axes: axes, support: support), token) { XCTAssertEqual($0 as? FirmwareError, .unreachableLayer, token) }
+                XCTAssertThrowsError(try document.patch([.init(slot: .init(layer: 0, column: 1), output: token, automatic: automatic)],
+                    expectedDevice: document.device, axes: axes, support: support), token) { XCTAssertEqual($0 as? FirmwareError, .unsupportedOutput, token) }
+            }
+        }
+    }
+    func testLayerModifierProtectionPreservesAdjacentActionsAndOrdinaryManualReplacement() throws {
+        for token in ["0x3fff", "0x52a0", "0x52a1", "0x5300", "0x5fff", "KC_A"] {
+            let bytes = Data(String(decoding: vial6Bytes, as: UTF8.self).replacingOccurrences(of: "MO(1)", with: token).utf8)
+            let document = try FirmwareDocument(bytes: bytes, backend: .vial), axes = try axes(bytes)
+            let support = FirmwareSupportDirectory(entries: [.init(backend: .vial, device: document.device,
+                axes: axes, supportedOutputs: ["KC_C"])])
+            let patched = try document.patch([.init(slot: .init(layer: 0, column: 0), output: "KC_C", automatic: false)],
+                expectedDevice: document.device, axes: axes, support: support)
+            XCTAssertEqual(try FirmwareDocument(bytes: patched, backend: .vial).value(at: .init(layer: 0, column: 0)), "KC_C", token)
+        }
+        for token in ["0x4fff", "0x5200", "0x529f", "0x52c0", "0x52ff", "0x7c00", "0x7c7b"] {
+            XCTAssertTrue(VialKeycodeDialect.protectedEntry(token), token)
+        }
+    }
     func testStaticLayerActionsCannotBeOverwrittenOrGrantLayerAndOutputPermissions() throws {
         for token in ["FN_MO13", "FN_MO23", "QK_LAYER_LOCK", "0x7c77", "0x7c78", "0x7c7b",
                       "QK_LLCK", "FN_MO12", "FN_MO13()", "FN_MO23(1)", "FN_MO13(USER00)",

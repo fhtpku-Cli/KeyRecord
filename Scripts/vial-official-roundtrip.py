@@ -35,17 +35,27 @@ def main():
     parser.add_argument("--keycode-fixture", type=Path, help="write official basic/special/ISO raw values and declared aliases")
     parser.add_argument("--modifier-keycodes", action="store_true", help="exercise ordinary canonical modifier combinations")
     parser.add_argument("--modifier-fixture", type=Path, help="write actual ordinary modifier names and working aliases")
+    parser.add_argument("--layer-tap-keycodes", action="store_true", help="exercise per-keyboard canonical layer taps on a synthetic 16-layer keyboard")
     parser.add_argument("--raw-keycodes", type=Path, help="write independent big-endian matrix then encoder values for the patched KC_C fixture")
     args = parser.parse_args()
     if bool(args.generate) == bool(args.check):
         parser.error("choose exactly one of --generate and --check")
     source = args.source / "src/main/python"
     sys.path.insert(0, str(source))
-    from keycodes.keycodes import Keycode, KEYCODES_BASIC, KEYCODES_SPECIAL, KEYCODES_ISO
+    from keycodes.keycodes import Keycode, KEYCODES_BASIC, KEYCODES_SPECIAL, KEYCODES_ISO, recreate_keyboard_keycodes
     from kle_serial import Serial
     from protocol.constants import (BUFFER_FETCH_CHUNK, CMD_VIA_KEYMAP_GET_BUFFER,
                                     CMD_VIA_VIAL_PREFIX, CMD_VIAL_GET_ENCODER)
-    Keycode.protocol = 6
+    from types import SimpleNamespace
+    layers = 16 if args.layer_tap_keycodes else 2
+    recreate_keyboard_keycodes(SimpleNamespace(vial_protocol=6, layers=layers, macro_count=0, tap_dance_count=0,
+                                              custom_keycodes=None, midi="disabled", supported_features=set()))
+    if args.layer_tap_keycodes:
+        for layer in range(layers):
+            raw = 0x4000 | layer << 8 | 6
+            assert Keycode.serialize(raw) == f"LT{layer}(KC_C)"
+            assert Keycode.deserialize(Keycode.serialize(raw), reraise=True) == raw
+        print(f"PASS: official per-keyboard initialization generated {layers} canonical layer-tap names")
     if args.modifier_fixture:
         from any_keycode import functions
         from simpleeval import FunctionNotDefined
@@ -103,8 +113,9 @@ def main():
         encoder_layout = {}
 
         def __init__(self):
+            self.layers = layers
             self.layout = {(layer, row, col): Keycode.serialize(0)
-                           for layer in range(2) for row in range(2) for col in range(4) if (row, col) != (0, 2)}
+                           for layer in range(self.layers) for row in range(2) for col in range(4) if (row, col) != (0, 2)}
             self.layout[(0, 0, 0)] = "MO(1)"
             self.layout[(0, 0, 3)] = "KC_ENT"
             self.encoder_count = 3 if args.encoders else 0
@@ -127,6 +138,13 @@ def main():
                 if args.encoders:
                     self.encoder_layout = {(0, 2, 0): Keycode.serialize(0x0f34), (0, 2, 1): Keycode.serialize(0x1958),
                                            (1, 2, 0): Keycode.serialize(0x0a85), (1, 2, 1): Keycode.serialize(0x0d62)}
+            if args.layer_tap_keycodes:
+                self.layout[(0, 0, 0)] = Keycode.serialize(0x4158)
+                for layer in range(self.layers):
+                    self.layout[(layer, 0, 3)] = Keycode.serialize(0x4000 | layer << 8 | 0x34)
+                    if args.encoders:
+                        self.encoder_layout[(layer, 2, 0)] = Keycode.serialize(0x4000 | layer << 8 | 0x58)
+                        self.encoder_layout[(layer, 2, 1)] = Keycode.serialize(0x1906)
             self.rowcol = {(row, col): True for _, row, col in self.layout}
             self.layout_labels = []
             self.dev = 0
@@ -188,7 +206,7 @@ def main():
         port.restore_layout(patched)
         restored = json.loads(port.save_layout())
         expected = json.loads(patched)
-        for layer in range(2):
+        for layer in range(port.layers):
             for row in range(2):
                 for col in range(4):
                     before, after = expected["layout"][layer][row][col], restored["layout"][layer][row][col]
@@ -218,7 +236,7 @@ def main():
     assert {slot: Keycode.deserialize(code, reraise=True) for slot, code in port.layout.items()} == before_matrix
     assert {slot: Keycode.deserialize(code, reraise=True) for slot, code in port.encoder_layout.items()} == before_encoders
     encoder_queries = [query for query in port.queries if query[:2] == bytes([CMD_VIA_VIAL_PREFIX, CMD_VIAL_GET_ENCODER])]
-    assert encoder_queries == ([bytes([0xfe, 3, 0, 2]), bytes([0xfe, 3, 1, 2])] if args.encoders else [])
+    assert encoder_queries == ([bytes([0xfe, 3, layer, 2]) for layer in range(port.layers)] if args.encoders else [])
     print(f"PASS: official reload_keymap issued {len(encoder_queries)} encoder queries and preserved both directions")
 
 

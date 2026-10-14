@@ -25,6 +25,13 @@ public enum VialKeycodeDialect {
             }
             return 0x4000 | layer << 8 | key
         }
+        for layer in 0..<16 where token.hasPrefix("LT\(layer)(") && token.hasSuffix(")") {
+            let prefix = "LT\(layer)("
+            guard let key = basic[String(token.dropFirst(prefix.count).dropLast())], key <= 255 else {
+                throw FirmwareError.unsupportedOutput
+            }
+            return 0x4000 | UInt16(layer) << 8 | key
+        }
         for (prefix, modifier) in modifiers where token.hasPrefix(prefix + "(") && token.hasSuffix(")") {
             let key = try rawValue(String(token.dropFirst(prefix.count + 1).dropLast()), depth: depth + 1)
             guard key < 0x2000, key & 0xFF > 1,

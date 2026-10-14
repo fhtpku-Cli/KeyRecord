@@ -35,12 +35,14 @@ private final class NativeVialHIDFixture: VialHIDEndpoint, @unchecked Sendable {
     private let encoderMismatch: Bool
     private let basicNames: Bool
     private let modifierNames: Bool
+    private let layerTapNames: Bool
     let paused = XCTestExpectation(description: "Selected HID report paused")
     init(pause: VialReadRequest? = nil, mismatch: Bool = false, encoders: Bool = false, encoderMismatch: Bool = false,
-         basicNames: Bool = false, modifierNames: Bool = false) {
+         basicNames: Bool = false, modifierNames: Bool = false, layerTapNames: Bool = false) {
         self.pause = pause; self.mismatch = mismatch; self.encoders = encoders; self.encoderMismatch = encoderMismatch
         self.basicNames = basicNames
         self.modifierNames = modifierNames
+        self.layerTapNames = layerTapNames
     }
     var requests: [VialReadRequest] { lock.withLock { reports } }
     var closeCount: Int { lock.withLock { closes } }
@@ -58,6 +60,7 @@ private final class NativeVialHIDFixture: VialHIDEndpoint, @unchecked Sendable {
         case 0x11: bytes[1] = 1
         case 0x12: bytes.replaceSubrange(4..<10, with: [0, mismatch ? 7 : 6, 255, 255, 0, basicNames ? 0x58 : 0x28])
             if modifierNames { bytes[8] = 3 }
+            if layerTapNames { bytes[8] = 0x40 }
         case 0xfe:
             switch bytes[1] {
             case 0:
@@ -74,6 +77,7 @@ private final class NativeVialHIDFixture: VialHIDEndpoint, @unchecked Sendable {
                 XCTAssertTrue(encoders); XCTAssertEqual(request.bytes[3], 2)
                 bytes.replaceSubrange(0..<4, with: [0, basicNames ? 0x34 : 0x28, 0x12, encoderMismatch ? 0x35 : 0x34])
                 if modifierNames { bytes[0] = 0x0a; bytes[2] = 0x19 }
+                if layerTapNames { bytes[0] = 0x40; bytes[2] = 0x40 }
             default: XCTFail("Unexpected Vial query")
             }
         default: XCTFail("Unexpected HID command")
@@ -637,7 +641,10 @@ final class KarabinerMappingFlowTests: XCTestCase {
     func testVialCombinedModifierNamesFlowThroughNativeButtonAndEncryptedTransaction() throws {
         try verifyNativeVialButton(modifierNames: true)
     }
-    private func verifyNativeVialButton(modifierNames: Bool) throws {
+    func testVialCanonicalLayerTapNamesFlowThroughNativeButtonAndEncryptedTransaction() throws {
+        try verifyNativeVialButton(modifierNames: false, layerTapNames: true)
+    }
+    private func verifyNativeVialButton(modifierNames: Bool, layerTapNames: Bool = false) throws {
         ScreenEvidence.prepare()
         var retainedFixture: FlowFixture?
         var patchURL: URL?
@@ -647,6 +654,10 @@ final class KarabinerMappingFlowTests: XCTestCase {
             originalText = originalText.replacingOccurrences(of: "KC_KP_ENTER", with: "C_S(KC_KP_ENTER)")
                 .replacingOccurrences(of: #""KC_QUOTE","RSFT(KC_QUOTE)""#, with: #""SCMD(KC_QUOTE)","RCG(KC_QUOTE)""#)
         }
+        if layerTapNames {
+            originalText = originalText.replacingOccurrences(of: "KC_KP_ENTER", with: "LT0(KC_KP_ENTER)")
+                .replacingOccurrences(of: #""KC_QUOTE","RSFT(KC_QUOTE)""#, with: #""LT0(KC_QUOTE)","LT0(KC_QUOTE)""#)
+        }
         let bytes = Data(originalText.utf8)
         ScreenEvidence.awaitMain {
             do {
@@ -654,7 +665,7 @@ final class KarabinerMappingFlowTests: XCTestCase {
                 retainedFixture = fixture
                 let model = fixture.flow.firmwareCopies
                 let axes = try FirmwareVersionProvider.axes(bytes: bytes, backend: .vial, definitionSchema: VialDeviceDefinition.schema, importer: "offline-importer")
-                let transport = NativeVialHIDFixture(encoders: true, basicNames: true, modifierNames: modifierNames)
+                let transport = NativeVialHIDFixture(encoders: true, basicNames: true, modifierNames: modifierNames, layerTapNames: layerTapNames)
                 transportPort = transport
                 model.configure(store: store, gate: gate, support: .init(entries: [.init(backend: .vial,
                     device: "18446744073709551615", axes: axes, supportedOutputs: ["KC_C"])]),
@@ -697,7 +708,8 @@ final class KarabinerMappingFlowTests: XCTestCase {
         NativeEvidence.update(view)
         if let directory = NativeEvidence.outputRoot() {
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-            try ScreenEvidence.capturePNG(view).write(to: directory.appendingPathComponent(modifierNames ? "vial-modifiers-readback-en.png" : "vial-basic-readback-en.png"))
+            let filename = layerTapNames ? "vial-layer-tap-readback-en.png" : (modifierNames ? "vial-modifiers-readback-en.png" : "vial-basic-readback-en.png")
+            try ScreenEvidence.capturePNG(view).write(to: directory.appendingPathComponent(filename))
         }
         var requests: [VialReadRequest] = []
         requests = transport.requests

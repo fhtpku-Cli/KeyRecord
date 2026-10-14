@@ -4,14 +4,18 @@ import KeyRecordCore
 import KeyRecordTestSupport
 
 final class ProductBoundaryTests: XCTestCase {
-    func testManifestDeclaresOnlyLocalLibrariesWithDirectedDependencies() throws {
+    func testManifestDeclaresDirectedLibrariesAndReviewedPasswordDependency() throws {
         // Given: the actual manifest; When: ask SwiftPM to evaluate it; Then: exact graph.
         let scratch = try SourceInspection.scratchDirectory()
         defer { try? FileManager.default.removeItem(at: scratch) }
         let result = try SourceInspection.run(["swift", "package", "--package-path", ".", "--scratch-path", scratch.appendingPathComponent("manifest").path, "dump-package"], in: scratch)
         XCTAssertEqual(result.status, 0, result.output)
         let manifest = try JSONDecoder().decode(Manifest.self, from: Data(result.output.utf8))
-        XCTAssertTrue(manifest.dependencies.isEmpty)
+        XCTAssertEqual(manifest.dependencies.count, 1)
+        let external = try XCTUnwrap(manifest.dependencies.first?.sourceControl.first)
+        XCTAssertEqual(external.identity, "phc-winner-argon2")
+        XCTAssertEqual(external.location.remote.map(\.urlString), ["https://github.com/P-H-C/phc-winner-argon2.git"])
+        XCTAssertEqual(external.requirement.revision, ["f57e61e19229e23c4445b85494dbf7c07de721cb"])
         XCTAssertEqual(manifest.toolsVersion.version, "6.0.0")
         XCTAssertEqual(manifest.swiftLanguageVersions, ["6"])
         XCTAssertEqual(manifest.platforms.map(\.version), ["14.0"])
@@ -19,6 +23,11 @@ final class ProductBoundaryTests: XCTestCase {
         XCTAssertEqual(Set(manifest.products.map(\.name)), ["KeyRecordCore", "KeyRecordCapture", "KeyRecordStore", "KeyRecordAnalysis", "KeyRecordConfigurationRead", "KeyRecordMappings", "KeyRecordDeviceRead"])
         XCTAssertTrue(manifest.products.allSatisfy { Set($0.type.keys) == ["library"] })
         let graph = Dictionary(uniqueKeysWithValues: manifest.targets.map { ($0.name, $0) })
+        XCTAssertEqual(graph["KeyRecordStore"]?.dependencies.count, 2)
+        for target in manifest.targets {
+            let externalProducts = target.dependencies.filter { !$0.product.isEmpty }.map { $0.product.compactMap { $0 } }
+            XCTAssertEqual(externalProducts, target.name == "KeyRecordStore" ? [["argon2", "phc-winner-argon2"]] : [])
+        }
         XCTAssertEqual(Set(graph.keys), ["KeyRecordCore", "KeyRecordCapture", "KeyRecordStore", "KeyRecordAnalysis", "KeyRecordConfigurationRead", "KeyRecordAnalysisTests", "KeyRecordTestSupport", "KeyRecordStoreCrashProbe", "KeyRecordCaptureHarness", "KeyRecordCoreTests", "KeyRecordCaptureTests", "KeyRecordStoreTests", "KeyRecordIntegrationTests", "KeyRecordMeasurement", "KeyRecordResourceSampler", "KeyRecordPerformanceTrial", "KeyRecordMeasurementTests", "KeyRecordMappings", "KeyRecordMappingsTests", "KeyRecordMappingCrashProbe", "KeyRecordFirmwareIntegrationProbe", "KeyRecordDeviceRead", "KeyRecordDeviceReadTests", "KeyRecordLimitedXZ"])
         // Resource measurement is test-only tooling: never a product, independent of every
         // product library, and the sampler links nothing but the measurement arithmetic.
@@ -92,7 +101,10 @@ final class ProductBoundaryTests: XCTestCase {
             for file in files {
                 let imports = try SourceInspection.imports(in: String(contentsOf: file, encoding: .utf8))
                 // When / Then: any new external or reverse import fails this check.
-                XCTAssertTrue(imports.isSubset(of: allowed), "\(file.path): \(imports.subtracting(allowed))")
+                var fileAllowed = allowed
+                if module == "KeyRecordStore", file.lastPathComponent == "PasswordBackup.swift" { fileAllowed.insert("argon2") }
+                if module == "KeyRecordStore", file.lastPathComponent == "PasswordBackupFile.swift" { fileAllowed.insert("Darwin") }
+                XCTAssertTrue(imports.isSubset(of: fileAllowed), "\(file.path): \(imports.subtracting(fileAllowed))")
             }
         }
         for file in try SourceInspection.swiftFiles(in: SourceInspection.root.appendingPathComponent("Tests")) {
@@ -198,7 +210,7 @@ final class ProductBoundaryTests: XCTestCase {
     }
 
     private struct Manifest: Decodable {
-        let dependencies: [String]
+        let dependencies: [PackageDependency]
         let toolsVersion: ToolsVersion
         let swiftLanguageVersions: [String]
         let platforms: [Platform]
@@ -211,6 +223,26 @@ final class ProductBoundaryTests: XCTestCase {
         struct Platform: Decodable { let platformName: String; let version: String }
         struct Product: Decodable { let name: String; let type: [String: [String?]] }
         struct Target: Decodable { let name: String; let type: String; let dependencies: [Dependency] }
-        struct Dependency: Decodable { let byName: [String?] }
+        struct Dependency: Decodable {
+            let byName: [String?]
+            let product: [String?]
+            enum CodingKeys: String, CodingKey { case byName, product }
+            init(from decoder: any Decoder) throws {
+                let values = try decoder.container(keyedBy: CodingKeys.self)
+                byName = try values.decodeIfPresent([String?].self, forKey: .byName) ?? []
+                product = try values.decodeIfPresent([String?].self, forKey: .product) ?? []
+            }
+        }
+        struct PackageDependency: Decodable {
+            let sourceControl: [SourceControl]
+            struct SourceControl: Decodable {
+                let identity: String
+                let location: Location
+                let requirement: Requirement
+            }
+            struct Location: Decodable { let remote: [Remote] }
+            struct Remote: Decodable { let urlString: String }
+            struct Requirement: Decodable { let revision: [String] }
+        }
     }
 }

@@ -283,10 +283,10 @@ final class VialReadbackAdapterTests: XCTestCase {
     }
     func testVial6CodecNormalizesAliasesModifiersLayerEntrancesAndRejectsUnknownNames() throws {
         for (token, raw): (String, UInt16) in [("KC_ENT", 0x28), ("KC_C", 6), ("LCTL(LSFT(KC_C))", 0x0306),
-            ("RCTL(KC_C)", 0x1106), ("MO(1)", 0x5221), ("TO(1)", 0x5211), ("LT(1,KC_C)", 0x4106), ("0xffff", 65535)] {
+            ("RCTL(KC_C)", 0x1106), ("MO(1)", 0x5221), ("TO(1)", 0x5201), ("LT(1,KC_C)", 0x4106), ("0xffff", 65535)] {
             XCTAssertEqual(try VialKeycodeDialect.rawValue(token), raw)
         }
-        for token in ["CUSTOM", "MO(32)", "TO(16)", "LT(16,KC_C)", "0x10000", "LCTL(RCTL(KC_C))",
+        for token in ["CUSTOM", "MO(32)", "TO(32)", "LT(16,KC_C)", "0x10000", "LCTL(RCTL(KC_C))",
                       "LCTL(LCTL(LCTL(LCTL(LCTL(KC_C)))))"] { XCTAssertThrowsError(try VialKeycodeDialect.rawValue(token)) }
         for token in ["0x5221", "0x4106", "0x7c00", "QK_CLEAR_EEPROM"] { XCTAssertTrue(VialKeycodeDialect.protectedEntry(token)) }
     }

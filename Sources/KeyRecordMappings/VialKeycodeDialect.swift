@@ -64,7 +64,7 @@ public enum VialKeycodeDialect {
             || (0x52c0...0x52ff).contains(raw) || [0x7c00, 0x7c01, 0x7c03, 0x7c77, 0x7c78, 0x7c7b].contains(raw)
     }
     static func layerEntry(_ token: String) -> String {
-        guard let raw = try? rawValue(token) else { return token.hasPrefix("TO(") ? "" : token }
+        guard let raw = try? rawValue(token) else { return "" }
         for (prefix, base) in layerCodes where (base...(base + 31)).contains(raw) {
             return "\(prefix)(\(raw - base))"
         }

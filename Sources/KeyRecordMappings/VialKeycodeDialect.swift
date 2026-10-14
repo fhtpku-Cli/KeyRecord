@@ -54,7 +54,7 @@ public enum VialKeycodeDialect {
         try values.mapValues { token(try rawValue($0)) }
     }
     static func protectedEntry(_ token: String) -> Bool {
-        if token.hasPrefix("LT") { return true }
+        if token.trimmingCharacters(in: .whitespacesAndNewlines).hasPrefix("LT") { return true }
         if ["LM", "FN_MO", "QK_LAYER_LOCK", "QK_LLCK"].contains(where: { token.trimmingCharacters(in: .whitespacesAndNewlines).hasPrefix($0) }) { return true }
         if token.trimmingCharacters(in: .whitespacesAndNewlines).hasPrefix("PDF") { return true }
         if token.trimmingCharacters(in: .whitespacesAndNewlines).hasPrefix("OSM"), oneShotModifiers[token] == nil { return true }

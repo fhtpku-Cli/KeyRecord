@@ -185,7 +185,8 @@ public struct FirmwareDocument: Sendable {
             guard outputs.contains(change.output), VIAReferenceParser.isStandardFirmwareOutput(change.output), !Self.protected(change.output) else { throw FirmwareError.unsupportedOutput }
             guard let node = slots[change.slot] else { throw FirmwareError.invalidSlot }
             let old = try value(at: change.slot)
-            guard !Self.protected(old), !(vial6 && VialKeycodeDialect.protectedEntry(old)) else { throw FirmwareError.protectedEntry }
+            let protectedToken = vial6 ? old.trimmingCharacters(in: .whitespacesAndNewlines) : old
+            guard !Self.protected(protectedToken), !(vial6 && VialKeycodeDialect.protectedEntry(old)) else { throw FirmwareError.protectedEntry }
             if change.automatic, old != "KC_NO", !(vial6 && (try? VialKeycodeDialect.rawValue(old)) == 0) {
                 throw FirmwareError.occupiedAutomaticSlot
             }

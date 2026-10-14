@@ -72,4 +72,30 @@ final class VialBasicKeycodeTests: XCTestCase {
         XCTAssertTrue(VialKeycodeDialect.protectedEntry("MO(1)"))
         XCTAssertTrue(VialKeycodeDialect.protectedEntry("QK_BOOT"))
     }
+    func testOfficialCanonicalLayerTapNamesKeepRawValuesAndEntryProtection() throws {
+        let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        let basics = try JSONDecoder().decode([OfficialKey].self, from: Data(contentsOf:
+            root.appendingPathComponent("evidence/phase4/fixtures/synthetic/vial6-basic-keycodes.json")))
+        for layer in 0..<16 {
+            for key in basics {
+                let token = "LT\(layer)(\(key.token))"
+                XCTAssertEqual(try VialKeycodeDialect.rawValue(token), 0x4000 | UInt16(layer) << 8 | key.raw, token)
+            }
+            XCTAssertTrue(VialKeycodeDialect.protectedEntry("LT\(layer)(KC_C)"))
+            XCTAssertEqual(VialKeycodeDialect.layerEntry("LT\(layer)(KC_C)"), "LT(\(layer),KC_NO)")
+            XCTAssertEqual(try VialKeycodeDialect.rawValue("LT\(layer)(KC_KP_ENTER)"),
+                           try VialKeycodeDialect.rawValue("LT(\(layer),KC_KP_ENTER)"))
+        }
+    }
+    func testCanonicalLayerTapRejectsMalformedLayersAndNonBasicChildren() throws {
+        for token in ["LT16(KC_C)", "LT-1(KC_C)", "LT01(KC_C)", "LT(KC_C)", "LT1()", "LT1(KC_C,KC_A)",
+                      "LT1(LCTL(KC_C))", "LT1(LT0(KC_C))", "LT1(MO(0))", "LT1(QK_BOOT)", "LT1(USER00)",
+                      "LT1(MACRO(0))", "LT1(0x0006)", "LCTL(LT1(KC_C))", "LT1(KC_C))"] {
+            XCTAssertThrowsError(try VialKeycodeDialect.rawValue(token), token) {
+                XCTAssertEqual($0 as? FirmwareError, .unsupportedOutput)
+            }
+        }
+        XCTAssertEqual(try VialKeycodeDialect.rawValue("LT0(KC_NO)"), 0x4000)
+        XCTAssertEqual(try VialKeycodeDialect.rawValue("LT1(KC_TRNS)"), 0x4101)
+    }
 }

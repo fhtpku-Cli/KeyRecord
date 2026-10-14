@@ -25,6 +25,13 @@ public enum VialKeycodeDialect {
             }
             return 0x4000 | layer << 8 | key
         }
+        for layer in 0..<16 where token.hasPrefix("LT\(layer)(") && token.hasSuffix(")") {
+            let prefix = "LT\(layer)("
+            guard let key = basic[String(token.dropFirst(prefix.count).dropLast())], key <= 255 else {
+                throw FirmwareError.unsupportedOutput
+            }
+            return 0x4000 | UInt16(layer) << 8 | key
+        }
         for (prefix, modifier) in modifiers where token.hasPrefix(prefix + "(") && token.hasSuffix(")") {
             let key = try rawValue(String(token.dropFirst(prefix.count + 1).dropLast()), depth: depth + 1)
             guard key < 0x2000, key & 0xFF > 1,
@@ -38,6 +45,7 @@ public enum VialKeycodeDialect {
         try values.mapValues { token(try rawValue($0)) }
     }
     static func protectedEntry(_ token: String) -> Bool {
+        if token.hasPrefix("LT") { return true }
         guard let raw = try? rawValue(token) else { return false }
         return (0x4000...0x4fff).contains(raw) || (0x5200...0x529f).contains(raw)
             || (0x52c0...0x52ff).contains(raw) || [0x7c00, 0x7c01, 0x7c03].contains(raw)

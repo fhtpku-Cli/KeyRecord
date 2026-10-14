@@ -1,5 +1,9 @@
 # 当前项目状态
 
+## Vial 6 官方层点击名称兼容 — 2026-10-14
+
+从 [PR #35](https://github.com/fhtpku-Cli/KeyRecord/pull/35) 合并主干 `1f9ce71e` 继续，其主干 CI 已成功。补齐官方设备初始化后的 LT0…LT15 基础子键名称；层入口保护、现有目的层可达性、未知动作及自动输出限制保持原有规则。89 项相关离线包/App 场景、16 层官方独立 320 字节及完整公开 API/加密重开、原生 AXPress 和未签名构建通过。正式工厂 nil、生产目录为空，真实设备与发布资格继续后置。见[本批记录](phase4/LAYER_TAP_KEYCODES_20261014.md)。下面保留历史证据。
+
 ## Vial 6 普通组合修饰键兼容 — 2026-10-14
 
 从 [PR #34](https://github.com/fhtpku-Cli/KeyRecord/pull/34) 合并主干 `ad7c9c9c` 继续，其主干 CI 已成功。补齐 C_S、MEH、HYPR、RCG 等 10 个普通组合名称及 14 个有效别名，修复官方名称引发的 unsupportedOutput。84 项相关离线包/App 场景、官方独立字节及完整公开 API/加密重开、原生 AXPress 和未签名构建通过。LCS 无效别名、左右混用、未知动作和既有保护继续拒绝；正式工厂 nil、生产目录为空。见[本批记录](phase4/MODIFIER_KEYCODES_20261014.md)，真实设备与发布资格继续后置。下面保留历史证据。

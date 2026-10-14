@@ -5,6 +5,7 @@ import KeyRecordAnalysis
 import KeyRecordCapture
 import KeyRecordStore
 import KeyRecordMappings
+import KeyRecordDeviceRead
 
 @MainActor
 final class ProductMaintenanceHooks {
@@ -60,6 +61,10 @@ struct ProductHostBoundaries {
             await ListenOnlyEventSource.system(queue: queue, qualification: qualification, sessionLock: sessionLock)
         }
     var lockNotifications: any LockNotificationCentering = DistributedLockNotifications()
+    var karabinerDeployment = KarabinerDeploymentDependencies()
+    var firmwareSupport = FirmwareSupportDirectory()
+    var firmwareVersionAxes: @MainActor (FirmwareBackend) -> FirmwareVersionAxes? = { _ in nil }
+    var vialDevices = VialDeviceSelection()
 }
 
 @MainActor
@@ -273,8 +278,12 @@ final class ProductComposition: NSObject, NSMenuDelegate, NSWindowDelegate {
             afterErase: { hooks.erased() }, clear: { reduction.clear() })
         let flow = AppFlowObservable(flow: Phase1FlowModel(lifecycle: lifecycle,
             cycleReset: destruction, localDataEraser: destruction), protectedGate: gate)
-        flow.karabinerDeployment.configure(store: store, gate: gate)
-        flow.firmwareCopies.configure(store: store, gate: gate)
+        flow.karabinerDeployment.configure(store: store, gate: gate, dependencies: host.karabinerDeployment)
+        flow.firmwareCopies.configure(store: store, gate: gate, support: host.firmwareSupport,
+            versionAxes: host.firmwareVersionAxes, vialConnection: { [weak flow] record, authorize in
+                return try host.vialDevices.openSelectedDevice(record: record, support: host.firmwareSupport,
+                    text: NativeText(locale: flow?.language ?? "en"), authorize: authorize)
+            })
         flow.passwordBackup.snapshot = { [weak flow] in
             await lifecycle.pause()
             flow?.sync(from: lifecycle.state)

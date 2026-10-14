@@ -32,6 +32,12 @@ public enum VialKeycodeDialect {
             }
             return 0x4000 | UInt16(layer) << 8 | key
         }
+        for (prefix, modifier) in modifierTaps where token.hasPrefix(prefix + "(") && token.hasSuffix(")") {
+            guard let key = basic[String(token.dropFirst(prefix.count + 1).dropLast())], key <= 255 else {
+                throw FirmwareError.unsupportedOutput
+            }
+            return modifier | key
+        }
         for (prefix, modifier) in modifiers where token.hasPrefix(prefix + "(") && token.hasSuffix(")") {
             let key = try rawValue(String(token.dropFirst(prefix.count + 1).dropLast()), depth: depth + 1)
             guard key < 0x2000, key & 0xFF > 1,
@@ -60,6 +66,16 @@ public enum VialKeycodeDialect {
     }
     private static let layerCodes: [(String, UInt16)] = [
         ("TO", 0x5210), ("MO", 0x5220), ("DF", 0x5240), ("TG", 0x5260), ("OSL", 0x5280), ("TT", 0x52c0)]
+    private static let modifierTaps: [(String, UInt16)] = [
+        ("LCTL_T", 0x2100), ("LSFT_T", 0x2200), ("LALT_T", 0x2400), ("LGUI_T", 0x2800),
+        ("RCTL_T", 0x3100), ("RSFT_T", 0x3200), ("RALT_T", 0x3400), ("RGUI_T", 0x3800),
+        ("C_S_T", 0x2300), ("LCA_T", 0x2500), ("LSA_T", 0x2600), ("MEH_T", 0x2700),
+        ("LCG_T", 0x2900), ("SGUI_T", 0x2a00), ("LAG_T", 0x2c00), ("LCAG_T", 0x2d00),
+        ("ALL_T", 0x2f00), ("RCG_T", 0x3900), ("RCAG_T", 0x3d00),
+        ("CTL_T", 0x2100), ("SFT_T", 0x2200), ("LOPT_T", 0x2400), ("ALT_T", 0x2400), ("OPT_T", 0x2400),
+        ("LCMD_T", 0x2800), ("LWIN_T", 0x2800), ("GUI_T", 0x2800), ("CMD_T", 0x2800), ("WIN_T", 0x2800),
+        ("ROPT_T", 0x3400), ("ALGR_T", 0x3400), ("RCMD_T", 0x3800), ("RWIN_T", 0x3800),
+        ("SCMD_T", 0x2a00), ("SWIN_T", 0x2a00), ("LSG_T", 0x2a00), ("HYPR_T", 0x2f00)]
     private static let modifiers: [(String, UInt16)] = [
         ("LCTL", 0x0100), ("LSFT", 0x0200), ("LALT", 0x0400), ("LGUI", 0x0800),
         ("RCTL", 0x1100), ("RSFT", 0x1200), ("RALT", 0x1400), ("RGUI", 0x1800),

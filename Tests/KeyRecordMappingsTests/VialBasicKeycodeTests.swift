@@ -63,7 +63,7 @@ final class VialBasicKeycodeTests: XCTestCase {
             }
         }
         for token in ["C_S(RCTL(KC_C))", "RCG(LSFT(KC_C))", "LCTL(RCG(KC_C))", "RCTL(HYPR(KC_C))",
-                      "C(S(A(G(C(KC_C)))))", "LCS(KC_C)", "RSA(KC_C)", "RCS(KC_C)", "HYPR_T(KC_C)", "OSM(MOD_MEH)"] {
+                      "C(S(A(G(C(KC_C)))))", "LCS(KC_C)", "RSA(KC_C)", "RCS(KC_C)", "HYPR_T(MO(1))", "OSM(MOD_MEH)"] {
             XCTAssertThrowsError(try VialKeycodeDialect.rawValue(token), token) {
                 XCTAssertEqual($0 as? FirmwareError, .unsupportedOutput)
             }
@@ -97,5 +97,43 @@ final class VialBasicKeycodeTests: XCTestCase {
         }
         XCTAssertEqual(try VialKeycodeDialect.rawValue("LT0(KC_NO)"), 0x4000)
         XCTAssertEqual(try VialKeycodeDialect.rawValue("LT1(KC_TRNS)"), 0x4101)
+    }
+    func testOfficialStaticModifierTapNamesAndWorkingAliasesNormalizeBasicChildren() throws {
+        let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        let fixtures = root.appendingPathComponent("evidence/phase4/fixtures/synthetic")
+        let taps = try JSONDecoder().decode([OfficialKey].self,
+            from: Data(contentsOf: fixtures.appendingPathComponent("vial6-modifier-tap-keycodes.json")))
+        let basics = try JSONDecoder().decode([OfficialKey].self,
+            from: Data(contentsOf: fixtures.appendingPathComponent("vial6-basic-keycodes.json")))
+        XCTAssertEqual(taps.count, 19)
+        for tap in taps {
+            for name in [tap.token] + tap.aliases {
+                for key in basics {
+                    for child in [key.token] + key.aliases {
+                        let token = name.replacingOccurrences(of: "KC_C", with: child)
+                        XCTAssertEqual(try VialKeycodeDialect.rawValue(token), (tap.raw & 0xff00) | key.raw, token)
+                        XCTAssertFalse(VialKeycodeDialect.protectedEntry(token), token)
+                        XCTAssertEqual(VialKeycodeDialect.layerEntry(token), token)
+                    }
+                }
+            }
+        }
+    }
+    func testStaticModifierTapRejectsNonBasicNestedUnknownAndMalformedActions() throws {
+        for prefix in ["LSFT_T", "RCTL_T", "ALL_T", "HYPR_T", "RCAG_T", "LSG_T"] {
+            for child in ["LCTL(KC_C)", "RCTL(KC_C)", "LT1(KC_C)", "MO(1)", "QK_BOOT", "USER00",
+                          "MACRO(0)", "TD(0)", "KC_SFTENT", "0x0006", "LSFT_T(KC_C)", ""] {
+                XCTAssertThrowsError(try VialKeycodeDialect.rawValue("\(prefix)(\(child))")) {
+                    XCTAssertEqual($0 as? FirmwareError, .unsupportedOutput)
+                }
+            }
+        }
+        for token in ["LCS_T(KC_C)", "RSA_T(KC_C)", "RCS_T(KC_C)", "MT(1,KC_C)", "KC_SFTENT",
+                      "LSFT_T(KC_C,KC_A)", "LSFT_T(KC_C))", "LSFT_T(KC_C", "LSFT_T (KC_C)",
+                      "LCTL(LSFT_T(KC_C))", "LT1(LSFT_T(KC_C))", "C(S(A(G(LSFT_T(KC_C)))))"] {
+            XCTAssertThrowsError(try VialKeycodeDialect.rawValue(token), token) {
+                XCTAssertEqual($0 as? FirmwareError, .unsupportedOutput)
+            }
+        }
     }
 }

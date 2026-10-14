@@ -35,6 +35,8 @@ def main():
     parser.add_argument("--keycode-fixture", type=Path, help="write official basic/special/ISO raw values and declared aliases")
     parser.add_argument("--modifier-keycodes", action="store_true", help="exercise ordinary canonical modifier combinations")
     parser.add_argument("--modifier-fixture", type=Path, help="write actual ordinary modifier names and working aliases")
+    parser.add_argument("--modifier-tap-keycodes", action="store_true", help="exercise static canonical modifier taps with basic children")
+    parser.add_argument("--modifier-tap-fixture", type=Path, help="write actual static modifier-tap names and working aliases")
     parser.add_argument("--layer-tap-keycodes", action="store_true", help="exercise per-keyboard canonical layer taps on a synthetic 16-layer keyboard")
     parser.add_argument("--raw-keycodes", type=Path, help="write independent big-endian matrix then encoder values for the patched KC_C fixture")
     args = parser.parse_args()
@@ -95,6 +97,37 @@ def main():
         args.keycode_fixture.write_text("[\n" + ",\n".join("  " + json.dumps(entry) for entry in entries) + "\n]\n")
         print(f"PASS: official serialize/deserialize checked {len(entries)} basic/special/ISO keycodes and their declared aliases")
 
+    if args.modifier_tap_fixture:
+        from any_keycode import functions
+        from simpleeval import FunctionNotDefined
+        entries = []
+        for mask in (0x2200, 0x2100, 0x2400, 0x2800, 0x3200, 0x3100, 0x3400, 0x3800,
+                     0x2300, 0x2500, 0x2900, 0x2600, 0x2c00, 0x2a00, 0x2d00, 0x3900, 0x3d00, 0x2700, 0x2f00):
+            canonical = Keycode.serialize(mask | 6)
+            prefix = canonical.split("(")[0]
+            aliases = [name + "(KC_C)" for name, function in functions.items()
+                       if name != prefix and function is functions[prefix]]
+            for key in KEYCODES_SPECIAL + KEYCODES_BASIC + KEYCODES_ISO:
+                raw = Keycode.deserialize(key.qmk_id, reraise=True)
+                assert Keycode.serialize(mask | raw) == canonical.replace("KC_C", key.qmk_id)
+                for token in [canonical] + aliases:
+                    for child in key.alias:
+                        assert Keycode.deserialize(token.replace("KC_C", child), reraise=True) == mask | raw
+            entries.append({"token": canonical, "raw": mask | 6, "aliases": aliases})
+        try:
+            Keycode.deserialize("LCS_T(KC_C)", reraise=True)
+        except FunctionNotDefined:
+            pass
+        else:
+            raise AssertionError("LCS_T unexpectedly became a working upstream alias")
+        for token, raw in (("RSA_T(KC_C)", 0x3606), ("RCS_T(KC_C)", 0x3306)):
+            assert Keycode.deserialize(token, reraise=True) == raw
+            assert Keycode.serialize(raw) == f"0x{raw:04x}"
+        assert Keycode.deserialize("KC_SFTENT", reraise=True) == 0x7c1e
+        assert Keycode.serialize(0x7c1e) == "KC_SFTENT"
+        args.modifier_tap_fixture.write_text("[\n" + ",\n".join("  " + json.dumps(entry) for entry in entries) + "\n]\n")
+        print(f"PASS: official static modifier taps checked {len(entries)} canonical names and {sum(len(entry['aliases']) for entry in entries)} working aliases; LCS_T rejected; RSA_T/RCS_T serialize as hex; KC_SFTENT is a separate action")
+
     tree = ast.parse((source / "protocol/keyboard_comm.py").read_text())
     keyboard = next(node for node in tree.body if isinstance(node, ast.ClassDef) and node.name == "Keyboard")
     methods = [node for node in keyboard.body if isinstance(node, ast.FunctionDef) and node.name in ("save_layout", "restore_layout", "reload_keymap")]
@@ -145,6 +178,14 @@ def main():
                     if args.encoders:
                         self.encoder_layout[(layer, 2, 0)] = Keycode.serialize(0x4000 | layer << 8 | 0x58)
                         self.encoder_layout[(layer, 2, 1)] = Keycode.serialize(0x1906)
+            if args.modifier_tap_keycodes:
+                slots = [slot for slot in self.layout if slot not in ((0, 0, 0), (0, 0, 1))]
+                raw = [0x2206, 0x2106, 0x2406, 0x2806, 0x3206, 0x3106, 0x3406, 0x3806, 0x2306, 0x2506, 0x2906, 0x2606]
+                assert len(slots) == len(raw)
+                self.layout.update({slot: Keycode.serialize(code) for slot, code in zip(slots, raw)})
+                if args.encoders:
+                    self.encoder_layout = {(0, 2, 0): Keycode.serialize(0x2f34), (0, 2, 1): Keycode.serialize(0x3958),
+                                           (1, 2, 0): Keycode.serialize(0x2a85), (1, 2, 1): Keycode.serialize(0x2d62)}
             self.rowcol = {(row, col): True for _, row, col in self.layout}
             self.layout_labels = []
             self.dev = 0

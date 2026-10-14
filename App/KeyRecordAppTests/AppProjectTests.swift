@@ -11,7 +11,7 @@ final class AppProjectTests: XCTestCase {
         let app = try XCTUnwrap(objects.values.first { $0["productType"] as? String == "com.apple.product-type.application" })
         let products = try XCTUnwrap(app["packageProductDependencies"] as? [String])
         XCTAssertEqual(Set(products.compactMap { objects[$0]?["productName"] as? String }),
-                       ["KeyRecordCore", "KeyRecordCapture", "KeyRecordStore", "KeyRecordAnalysis", "KeyRecordMappings"])
+                       ["KeyRecordCore", "KeyRecordCapture", "KeyRecordStore", "KeyRecordAnalysis", "KeyRecordMappings", "KeyRecordDeviceRead"])
         let localPackages = objects.values.filter { $0["isa"] as? String == "XCLocalSwiftPackageReference" }
         XCTAssertEqual(localPackages.count, 2)
         XCTAssertEqual(Set(localPackages.compactMap { $0["relativePath"] as? String }),

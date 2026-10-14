@@ -40,6 +40,7 @@ struct SettingsFlowView: View {
                     KarabinerMappingSection(model: flow.karabinerMappings, text: text)
                 } else { VIAImportSection(model: flow.viaImport, text: text) }
                 FirmwareCopiesSection(model: flow.firmwareCopies, viaBytes: flow.viaImport.selectedOriginalBytes, text: text)
+                PasswordBackupSection(model: flow.passwordBackup, restoring: false, text: text)
             }
             Section {
                 Text(text("consent.disclosure")).fixedSize(horizontal: false, vertical: true)

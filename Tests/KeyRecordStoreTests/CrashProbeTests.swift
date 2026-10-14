@@ -10,6 +10,26 @@ import KeyRecordTestSupport
 /// asserts recovery. No in-memory flag can replace a killed process.
 @MainActor
 final class CrashProbeTests: XCTestCase {
+    func testRealProcessKillDuringBackupRestoreExposesOnlyEmptyOrCompleteStore() async throws {
+        for phase in ["data", "manifest"] {
+            for boundary in DurabilityBoundary.allCases {
+                let harness = try StoreHarness(); defer { harness.cleanup() }
+                let result = try runProbe(root: harness.root, operation: "restore", boundary: "\(phase)-\(boundary.rawValue)")
+                XCTAssertTrue([Int32(SIGKILL), 137].contains(result.terminationSignal))
+                await harness.keySource.seed(version: 1)
+                let reopened = harness.makeStore()
+                _ = try await reopened.bootstrap()
+                let gate = KeyAvailabilityGate(); gate.update(.unlocked)
+                let snapshot = try await reopened.backupSnapshot(gate: gate)
+                let committed = phase == "manifest" && [.afterRename, .afterDirectoryFsync].contains(boundary)
+                XCTAssertEqual(snapshot.count, committed ? 3 : 0)
+                for (index, object) in snapshot.enumerated() {
+                    XCTAssertEqual(object.identity.logicalIDText, "restored-\(index)")
+                    XCTAssertEqual(object.payload, Data([UInt8(index)]))
+                }
+            }
+        }
+    }
     private let objectPayload = Data("crash-object-payload".utf8)
     private let rotatePayload = Data("rotate-object-payload".utf8)
 

@@ -1,6 +1,8 @@
 import Foundation
 import XCTest
 import AppKit
+import SwiftUI
+import Combine
 import Security
 import KeyRecordCore
 import LifecycleHosted
@@ -502,6 +504,114 @@ private func waitUntil(_ label: String, timeout: Duration = .seconds(8),
 @MainActor
 final class ProductRecoveryQuitTests: XCTestCase {
     private var products: [SyntheticProduct] = []
+
+    func testNativePasswordBackupButtonInBothLanguages() throws {
+        ScreenEvidence.prepare()
+        for locale in ["en", "zh-Hans"] {
+            var product: SyntheticProduct?
+            ScreenEvidence.awaitMain {
+                do { product = try await self.collecting(journal: false) } catch { XCTFail("\(error)") }
+            }
+            let source = try XCTUnwrap(product)
+            let model = source.composition.flow.passwordBackup
+            let target = source.root.appendingPathComponent("native.krbackup")
+            model.selectExport = { target }; model.password = "native-test"; model.confirmation = "native-test"
+            let view = NSHostingView(rootView: Form {
+                PasswordBackupSection(model: model, restoring: false, text: NativeText(locale: locale))
+            }.formStyle(.grouped).frame(width: 680, height: 450))
+            view.sizingOptions = []
+            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 680, height: 450),
+                                  styleMask: [.titled], backing: .buffered, defer: false)
+            window.isReleasedWhenClosed = false; window.contentView = view; window.makeKeyAndOrderFront(nil)
+            defer { window.contentView = nil; window.close() }
+            NativeEvidence.primeAccessibility(); NativeEvidence.update(view)
+            let completed = XCTestExpectation(description: "Native backup exported")
+            let observation = model.$message.sink { if $0 == "backup.exported" { completed.fulfill() } }
+            defer { observation.cancel() }
+            XCTAssertTrue(KRAXPress(try NativeEvidence.node("backup.export", in: view)))
+            ScreenEvidence.awaitMain {
+                let result = await XCTWaiter.fulfillment(of: [completed], timeout: 30)
+                XCTAssertEqual(result, .completed)
+            }
+            XCTAssertTrue(FileManager.default.fileExists(atPath: target.path))
+            NativeEvidence.update(view)
+            if let directory = NativeEvidence.outputRoot() {
+                try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+                try ScreenEvidence.capturePNG(view).write(to: directory.appendingPathComponent("password-backup-\(locale).png"))
+            }
+            ScreenEvidence.awaitMain { await source.composition.stopBackgroundMaintenanceForFixture() }
+        }
+    }
+
+    func testPasswordBackupRestoresAllObjectsIntoIndependentInstallationWithoutStartingCapture() async throws {
+        let source = try await collecting(journal: false)
+        try await source.press(3)
+        let target = source.root.appendingPathComponent("portable.krbackup")
+        let model = source.composition.flow.passwordBackup
+        model.selectExport = { target }
+        model.password = "portable-test-password"; model.confirmation = model.password
+        await model.export()
+        XCTAssertEqual(model.message, "backup.exported")
+        XCTAssertEqual(model.password, ""); XCTAssertEqual(model.confirmation, "")
+        XCTAssertEqual(source.phase, .paused)
+        let original = try await source.composition.store.backupSnapshot(gate: source.composition.gate)
+        let destination = try SyntheticProduct.fresh(); products.append(destination)
+        try await destination.boot(journal: false)
+        let restore = destination.composition.flow.passwordBackup
+        restore.selectImport = { target }; restore.password = "wrong"
+        await restore.importBackup()
+        XCTAssertEqual(restore.message, "backup.restoreFailed")
+        XCTAssertTrue(destination.composition.flow.showsConsent)
+        restore.password = "portable-test-password"
+        await restore.importBackup()
+        XCTAssertEqual(restore.message, "backup.restored", destination.dump())
+        XCTAssertEqual(destination.phase, .paused)
+        let live = await destination.live; XCTAssertFalse(live)
+        XCTAssertFalse(destination.composition.lifecycle.state.preferences?.expectedCollecting ?? true)
+        XCTAssertFalse(destination.composition.lifecycle.state.preferences?.loginItemEnabled ?? true)
+        let gate = KeyAvailabilityGate(); gate.update(.unlocked)
+        let restoredStore = ObjectStore(root: destination.storeRoot,
+            keySource: ProductKeySource(backend: destination.keychain,
+                namespace: try KeychainNamespace("com.keyrecord.synthetic"), gate: gate))
+        _ = try await restoredStore.bootstrap()
+        let restored = try await restoredStore.backupSnapshot(gate: gate)
+        XCTAssertEqual(Set(restored.map(\.identity)), Set(original.map(\.identity)))
+        for object in original where object.identity != CycleResetObjects.preferences {
+            XCTAssertEqual(restored.first { $0.identity == object.identity }?.payload, object.payload)
+        }
+        restore.password = "portable-test-password"
+        await restore.importBackup()
+        let unchanged = try await restoredStore.backupSnapshot(gate: gate)
+        XCTAssertEqual(unchanged, restored)
+        await source.composition.stopBackgroundMaintenanceForFixture()
+        await destination.composition.stopBackgroundMaintenanceForFixture()
+    }
+
+    func testBackupDoesNotExportAfterPrivacyRevocationOrReplaceExistingFile() async throws {
+        let source = try await collecting(journal: false)
+        let model = source.composition.flow.passwordBackup
+        let target = source.root.appendingPathComponent("existing.krbackup")
+        let old = Data("previous-encrypted-backup-fixture".utf8)
+        try old.write(to: target)
+        model.selectExport = { target }; model.password = "test"; model.confirmation = "test"
+        await model.export()
+        XCTAssertEqual(model.message, "backup.chooseNewFile")
+        XCTAssertEqual(try Data(contentsOf: target), old)
+        let absent = source.root.appendingPathComponent("revoked.krbackup")
+        model.selectExport = { absent }; model.password = "test"; model.confirmation = "test"
+        let snapshot = try XCTUnwrap(model.snapshot)
+        model.snapshot = {
+            let objects = try await snapshot()
+            source.composition.gate.update(.locked)
+            model.clear()
+            return objects
+        }
+        await model.export()
+        XCTAssertFalse(FileManager.default.fileExists(atPath: absent.path))
+        XCTAssertNil(model.message)
+        XCTAssertEqual(model.password, "")
+        await source.composition.stopBackgroundMaintenanceForFixture()
+    }
 
     override func tearDown() async throws {
         for product in products { product.cleanUp() }

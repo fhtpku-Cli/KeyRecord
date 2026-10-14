@@ -1,6 +1,6 @@
 # 路线图与当前交付状态
 
-状态日期：2026-10-14，Asia/Shanghai。增量 A 的主体已由 [PR #19](https://github.com/fhtpku-Cli/KeyRecord/pull/19) 合并为
+状态日期：2026-10-15，Asia/Shanghai。增量 A 的主体已由 [PR #19](https://github.com/fhtpku-Cli/KeyRecord/pull/19) 合并为
 `adae0c4e429ff2c955b978f67a0afd069ce7708c`，[主干 CI 通过](https://github.com/fhtpku-Cli/KeyRecord/actions/runs/38246915859)。
 B 的工程基础及只读 VIA 参考已由 [PR #21](https://github.com/fhtpku-Cli/KeyRecord/pull/21) 合并为 `2c29f18e6`。开发签名 arm64 隔离试用包和短流程已准备，实际试用未执行；见 [准备记录](phase2/TRIAL_PREPARATION_20261013.md)。不增加新门禁或实机验收轮次。
 
@@ -13,7 +13,8 @@ B 的工程基础及只读 VIA 参考已由 [PR #21](https://github.com/fhtpku-C
 | Phase 2：确定性分析 | **A/B 工程开发与离线自审完成；真实 G2 证据后置** | 能力过滤、范围明确的冲突检查、特殊键池、手动候选、物理链消费/回退与只读副本已接通。实际后端、完整真实部署/变换链、系统选择器授权和真实保存重开集中留后；产品不冒充已连接或真实物理收益。 |
 | Phase 3: Karabiner stable path | **部署会话和原生卸载工程增量完成；完整 G3 未完成** | 目标绑定、加密引用、隐私重开和外部监测已接通；暂停捕获→逐份恢复副本→规则→登录项→数据选择的默认卸载准备及阶段显示已离线执行。历史阶段仅供检查，维护期间后台对账延后并恢复。空生产支持目录只读，真实版本、重载、效果和停用 p95 后置。[本批记录](phase3/RECOVERY_CHOICES_20261013.md)。 |
 | Phase 4: VIA/Vial Beta | **矩阵、编码器及官方基础/组合/层点击名称已离线兼容；未合格** | 原生按钮经分页 XZ 独立定义，匹配矩阵位置及编码器索引/方向，完整比较后进入加密事务。已覆盖官方基础名、普通组合名及按设备初始化后的 LT0…LT15；层入口不可覆盖，只有现有可达目的层可修补。89 项本批相关包/App 场景与 16 层官方独立字节往返通过。正式 App 不打开 HID，空生产支持目录仍不合格；真实版本/键码矩阵、复杂定义/动态子协议及 VIA GUI/设备证据继续后置。[本批记录](phase4/LAYER_TAP_KEYCODES_20261014.md)。 |
-| Full v1 / public distribution | **Not qualified** | PRD §15 requirements, FR-P6 full password backup, Intel/full support matrix, public name/license decision, signing/notarization and backend requirements remain. |
+| FR-P6 full password backup | **密码备份及空资料库恢复工程已实现** | 全部已保存对象独立密码加密，原子恢复到独立本地密钥；已有资料库不可覆盖，原删除前复核保留。真实 Keychain 恢复和 Intel 计时后置。[实现与边界](PASSWORD_BACKUP_20261015.md)。 |
+| Full v1 / public distribution | **Not qualified** | PRD §15 requirements, real backup/restore qualification, Intel/full support matrix, public name/license decision, signing/notarization and backend requirements remain. |
 
 Requirements remain in [PRD](PRD.md) and [architecture §15](TECHNICAL_ARCHITECTURE.md#15-分阶段交付与发布门禁).
 

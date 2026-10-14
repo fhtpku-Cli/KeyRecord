@@ -275,6 +275,12 @@ final class ProductComposition: NSObject, NSMenuDelegate, NSWindowDelegate {
             cycleReset: destruction, localDataEraser: destruction), protectedGate: gate)
         flow.karabinerDeployment.configure(store: store, gate: gate)
         flow.firmwareCopies.configure(store: store, gate: gate)
+        flow.passwordBackup.snapshot = { [weak flow] in
+            await lifecycle.pause()
+            flow?.sync(from: lifecycle.state)
+            guard lifecycle.phase == .paused else { throw LifecycleFlushError.failed }
+            return try await store.backupSnapshot(gate: gate)
+        }
         flow.firmwareCopies.configureUninstall(.init(
             stopCapture: { [weak flow] in
                 await lifecycle.pause()
@@ -310,6 +316,22 @@ final class ProductComposition: NSObject, NSMenuDelegate, NSWindowDelegate {
         #endif
         composition.resumeSuspendedWriter = { try await destruction.resumeWriterIfIdle() }
         composition.completeRecoveredReset = { try await destruction.completeRecoveredReset() }
+        flow.passwordBackup.restore = { [weak composition] objects in
+            guard let composition, composition.flow.showsConsent else { throw PasswordBackupError.destinationNotEmpty }
+            var failure: (any Error)?
+            var restored = false
+            await composition.performManualCaptureEntry(trace: ManualEntryTrace()) {
+                do {
+                    try await persistence.provisionAfterConsent()
+                    try await store.restoreBackup(objects, gate: gate)
+                    await lifecycle.reload()
+                    restored = lifecycle.phase == .paused
+                } catch { failure = error }
+            }
+            if let failure { throw failure }
+            guard restored else { throw PasswordBackupError.invalidArchive }
+            composition.flow.sync(from: lifecycle.state)
+        }
         #if DEBUG
         composition.diagnostics.configureProtectedGateEntries { gate.diagnosticProtectedEntryCount }
         composition.diagnostics.configureProtectedReadActivity { ProtectedReadActivity.process.snapshot }
@@ -1362,6 +1384,7 @@ final class ProductComposition: NSObject, NSMenuDelegate, NSWindowDelegate {
     }
 
     private func handlePrivacyInvalidation(reason: BlockedReason = .privacyCheckRequired) async {
+        flow.passwordBackup.clear()
         lifecycle.requireRecovery(reason: reason)
         await closeProtectedState()
     }

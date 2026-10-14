@@ -261,6 +261,7 @@ final class AppFlowObservable: ObservableObject {
     let karabinerMappings = KarabinerMappingModel()
     lazy var karabinerDeployment = KarabinerDeploymentModel(mappings: karabinerMappings)
     let firmwareCopies = FirmwareCopiesModel()
+    let passwordBackup = PasswordBackupModel()
 
     var candidateConflictEvidence: CandidateConflictEvidence {
         let observations = snapshot.map { snapshot in
@@ -328,6 +329,9 @@ final class AppFlowObservable: ObservableObject {
         firmwareCopies.canRead = { [weak self] in self?.sensitiveContentVisible == true }
         firmwareCopies.selectedOriginal = { [weak self] in self?.viaImport.selectedOriginalBytes }
         firmwareCopies.onChange = { [weak self] in self?.objectWillChange.send() }
+        passwordBackup.gate = protectedGate
+        passwordBackup.canExport = { [weak self] in self?.sensitiveContentVisible == true }
+        passwordBackup.canRestore = { [weak self] in self?.showsConsent == true }
         karabinerMappings.defaultName = { [weak self] chord, scope in
             let text = NativeText(locale: self?.language ?? "en")
             let target = if case .application(let app) = scope { app } else { text("phase2.global") }
@@ -622,8 +626,8 @@ final class AppFlowObservable: ObservableObject {
         mirror()
     }
 
-    func accept() async { await actions.accept(); await refresh() }
-    func decline() { actions.decline(); mirror() }
+    func accept() async { guard !passwordBackup.busy else { return }; await actions.accept(); await refresh() }
+    func decline() { guard !passwordBackup.busy else { return }; passwordBackup.clear(); actions.decline(); mirror() }
     func start() async { await actions.start(); await refresh() }
     func pause() async { await actions.pause(); await refresh() }
     func resume() async { await actions.resume(); await refresh() }
@@ -672,7 +676,7 @@ final class AppFlowObservable: ObservableObject {
     private func mirror() {
         karabinerDeployment.visibilityChanged(sensitiveContentVisible)
         if sensitiveContentVisible { karabinerDeployment.updateObservations() }
-        if !sensitiveContentVisible { firmwareCopies.clear() }
+        if !sensitiveContentVisible { firmwareCopies.clear(); if !showsConsent { passwordBackup.clear() } }
         if !sensitiveContentVisible { rawAnalysis = nil; viaImport.clear(); karabinerImport.clear(); karabinerMappings.clear() }
         dialog = flow.dialog
         objectWillChange.send()

@@ -160,6 +160,27 @@ final class VialBasicKeycodeTests: XCTestCase {
             XCTAssertTrue(VialKeycodeDialect.protectedEntry(VialKeycodeDialect.token(key.raw)))
         }
     }
+    func testStaticLayerActionCanonicalNamesNormalizeAndRemainProtected() throws {
+        let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        let keys = try JSONDecoder().decode([OfficialKey].self, from: Data(contentsOf:
+            root.appendingPathComponent("evidence/phase4/fixtures/synthetic/vial6-static-layer-keycodes.json")))
+        XCTAssertEqual(keys.count, 3)
+        for key in keys {
+            XCTAssertEqual(try VialKeycodeDialect.rawValue(key.token), key.raw, key.token)
+            XCTAssertTrue(VialKeycodeDialect.protectedEntry(key.token), key.token)
+            XCTAssertTrue(VialKeycodeDialect.protectedEntry(VialKeycodeDialect.token(key.raw)))
+            XCTAssertEqual(VialKeycodeDialect.layerEntry(key.token), key.token)
+        }
+    }
+    func testStaticLayerActionsRejectUnqualifiedAliasesParametersAndNestedActions() throws {
+        for token in ["QK_LLCK", "FN_MO12", "FN_MO13()", "FN_MO23(1)", "QK_LAYER_LOCK(1)",
+                      "FN_MO13(USER00)", "QK_LAYER_LOCK_UNKNOWN", " FN_MO13", "\tFN_MO23", "\nQK_LAYER_LOCK",
+                      "FN_MO13 ", "LCTL(FN_MO13)", "LSFT_T(FN_MO23)", "LT1(QK_LAYER_LOCK)", "OSM(QK_LAYER_LOCK)"] {
+            XCTAssertThrowsError(try VialKeycodeDialect.rawValue(token), token) {
+                XCTAssertEqual($0 as? FirmwareError, .unsupportedOutput)
+            }
+        }
+    }
     func testPersistentDefaultLayerRejectsExpressionsAliasesAndNestedActions() throws {
         for token in ["PDF(32)", "PDF(-1)", "PDF(01)", "PDF(+1)", "PDF(0x1)", "PDF(1.0)", "PDF(1+1)",
                       "PDF(USER00)", "PDF(MO(1))", "PDF(QK_BOOT)", "PDF(PDF(1))", "PDF()", "PDF(1,2)",

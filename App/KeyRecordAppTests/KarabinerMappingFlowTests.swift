@@ -39,9 +39,10 @@ private final class NativeVialHIDFixture: VialHIDEndpoint, @unchecked Sendable {
     private let modifierTapNames: Bool
     private let oneShotNames: Bool
     private let persistentLayerNames: Bool
+    private let staticLayerNames: Bool
     let paused = XCTestExpectation(description: "Selected HID report paused")
     init(pause: VialReadRequest? = nil, mismatch: Bool = false, encoders: Bool = false, encoderMismatch: Bool = false,
-         basicNames: Bool = false, modifierNames: Bool = false, layerTapNames: Bool = false, modifierTapNames: Bool = false, oneShotNames: Bool = false, persistentLayerNames: Bool = false) {
+         basicNames: Bool = false, modifierNames: Bool = false, layerTapNames: Bool = false, modifierTapNames: Bool = false, oneShotNames: Bool = false, persistentLayerNames: Bool = false, staticLayerNames: Bool = false) {
         self.pause = pause; self.mismatch = mismatch; self.encoders = encoders; self.encoderMismatch = encoderMismatch
         self.basicNames = basicNames
         self.modifierNames = modifierNames
@@ -49,6 +50,7 @@ private final class NativeVialHIDFixture: VialHIDEndpoint, @unchecked Sendable {
         self.modifierTapNames = modifierTapNames
         self.oneShotNames = oneShotNames
         self.persistentLayerNames = persistentLayerNames
+        self.staticLayerNames = staticLayerNames
     }
     var requests: [VialReadRequest] { lock.withLock { reports } }
     var closeCount: Int { lock.withLock { closes } }
@@ -70,6 +72,7 @@ private final class NativeVialHIDFixture: VialHIDEndpoint, @unchecked Sendable {
             if modifierTapNames { bytes[8] = 0x23 }
             if oneShotNames { bytes[8] = 0x52; bytes[9] = 0xa3 }
             if persistentLayerNames { bytes[8] = 0x52; bytes[9] = 0xe0 }
+            if staticLayerNames { bytes[8] = 0x7c; bytes[9] = 0x77 }
         case 0xfe:
             switch bytes[1] {
             case 0:
@@ -90,6 +93,7 @@ private final class NativeVialHIDFixture: VialHIDEndpoint, @unchecked Sendable {
                 if modifierTapNames { bytes[0] = 0x2a; bytes[2] = 0x39 }
                 if oneShotNames { bytes.replaceSubrange(0..<4, with: [0x52, 0xa7, 0x52, encoderMismatch ? 0xb9 : 0xb8]) }
                 if persistentLayerNames { bytes.replaceSubrange(0..<4, with: [0x52, 0xe0, 0x52, encoderMismatch ? 0xfe : 0xff]) }
+                if staticLayerNames { bytes.replaceSubrange(0..<4, with: [0x7c, 0x78, 0x7c, encoderMismatch ? 0x77 : 0x7b]) }
             default: XCTFail("Unexpected Vial query")
             }
         default: XCTFail("Unexpected HID command")
@@ -665,7 +669,10 @@ final class KarabinerMappingFlowTests: XCTestCase {
     func testVialPersistentDefaultLayerNamesFlowThroughNativeButtonAndEncryptedTransaction() throws {
         try verifyNativeVialButton(modifierNames: false, persistentLayerNames: true)
     }
-    private func verifyNativeVialButton(modifierNames: Bool, layerTapNames: Bool = false, modifierTapNames: Bool = false, oneShotNames: Bool = false, persistentLayerNames: Bool = false) throws {
+    func testVialStaticLayerActionsFlowThroughNativeButtonAndEncryptedTransaction() throws {
+        try verifyNativeVialButton(modifierNames: false, staticLayerNames: true)
+    }
+    private func verifyNativeVialButton(modifierNames: Bool, layerTapNames: Bool = false, modifierTapNames: Bool = false, oneShotNames: Bool = false, persistentLayerNames: Bool = false, staticLayerNames: Bool = false) throws {
         ScreenEvidence.prepare()
         var retainedFixture: FlowFixture?
         var patchURL: URL?
@@ -692,6 +699,10 @@ final class KarabinerMappingFlowTests: XCTestCase {
             originalText = originalText.replacingOccurrences(of: "KC_KP_ENTER", with: "PDF(0)")
                 .replacingOccurrences(of: #""KC_QUOTE","RSFT(KC_QUOTE)""#, with: #""PDF(0)","PDF(31)""#)
         }
+        if staticLayerNames {
+            originalText = originalText.replacingOccurrences(of: "KC_KP_ENTER", with: "FN_MO13")
+                .replacingOccurrences(of: #""KC_QUOTE","RSFT(KC_QUOTE)""#, with: #""FN_MO23","QK_LAYER_LOCK""#)
+        }
         let bytes = Data(originalText.utf8)
         ScreenEvidence.awaitMain {
             do {
@@ -699,7 +710,7 @@ final class KarabinerMappingFlowTests: XCTestCase {
                 retainedFixture = fixture
                 let model = fixture.flow.firmwareCopies
                 let axes = try FirmwareVersionProvider.axes(bytes: bytes, backend: .vial, definitionSchema: VialDeviceDefinition.schema, importer: "offline-importer")
-                let transport = NativeVialHIDFixture(encoders: true, basicNames: true, modifierNames: modifierNames, layerTapNames: layerTapNames, modifierTapNames: modifierTapNames, oneShotNames: oneShotNames, persistentLayerNames: persistentLayerNames)
+                let transport = NativeVialHIDFixture(encoders: true, basicNames: true, modifierNames: modifierNames, layerTapNames: layerTapNames, modifierTapNames: modifierTapNames, oneShotNames: oneShotNames, persistentLayerNames: persistentLayerNames, staticLayerNames: staticLayerNames)
                 transportPort = transport
                 model.configure(store: store, gate: gate, support: .init(entries: [.init(backend: .vial,
                     device: "18446744073709551615", axes: axes, supportedOutputs: ["KC_C"])]),
@@ -743,7 +754,7 @@ final class KarabinerMappingFlowTests: XCTestCase {
         if let directory = NativeEvidence.outputRoot() {
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
             let filename = persistentLayerNames ? "vial-persistent-layer-readback-en.png" : (oneShotNames ? "vial-one-shot-readback-en.png" : (modifierTapNames ? "vial-modifier-tap-readback-en.png" : (layerTapNames ? "vial-layer-tap-readback-en.png" : (modifierNames ? "vial-modifiers-readback-en.png" : "vial-basic-readback-en.png"))))
-            try ScreenEvidence.capturePNG(view).write(to: directory.appendingPathComponent(filename))
+            try ScreenEvidence.capturePNG(view).write(to: directory.appendingPathComponent(staticLayerNames ? "vial-static-layer-readback-en.png" : filename))
         }
         var requests: [VialReadRequest] = []
         requests = transport.requests
@@ -817,6 +828,11 @@ final class KarabinerMappingFlowTests: XCTestCase {
             .replacingOccurrences(of: "SCMD(KC_QUOTE)", with: "PDF(0)")
             .replacingOccurrences(of: "RCG(KC_QUOTE)", with: "PDF(31)")
     }
+    private var staticLayerEncoderOriginal: String {
+        encoderOriginal.replacingOccurrences(of: "C_S(KC_KP_ENTER)", with: "FN_MO13")
+            .replacingOccurrences(of: "SCMD(KC_QUOTE)", with: "FN_MO23")
+            .replacingOccurrences(of: "RCG(KC_QUOTE)", with: "QK_LAYER_LOCK")
+    }
     func testVialHIDEncoderChangeWithMatchingMatrixRecordsExternalChangeAndReopens() async throws {
         try await verifyEncoderExternalChange(modifierTapNames: false)
     }
@@ -829,11 +845,14 @@ final class KarabinerMappingFlowTests: XCTestCase {
     func testVialHIDPersistentDefaultLayerEncoderOnlyChangeRecordsExternalChangeAndReopens() async throws {
         try await verifyEncoderExternalChange(modifierTapNames: false, persistentLayerNames: true)
     }
-    private func verifyEncoderExternalChange(modifierTapNames: Bool, oneShotNames: Bool = false, persistentLayerNames: Bool = false) async throws {
-        let endpoint = NativeVialHIDFixture(encoders: true, encoderMismatch: true, basicNames: true, modifierNames: true, modifierTapNames: modifierTapNames, oneShotNames: oneShotNames, persistentLayerNames: persistentLayerNames)
+    func testVialHIDStaticLayerActionEncoderOnlyChangeRecordsExternalChangeAndReopens() async throws {
+        try await verifyEncoderExternalChange(modifierTapNames: false, staticLayerNames: true)
+    }
+    private func verifyEncoderExternalChange(modifierTapNames: Bool, oneShotNames: Bool = false, persistentLayerNames: Bool = false, staticLayerNames: Bool = false) async throws {
+        let endpoint = NativeVialHIDFixture(encoders: true, encoderMismatch: true, basicNames: true, modifierNames: true, modifierTapNames: modifierTapNames, oneShotNames: oneShotNames, persistentLayerNames: persistentLayerNames, staticLayerNames: staticLayerNames)
         let original = modifierTapNames ? encoderOriginal.replacingOccurrences(of: "C_S(", with: "C_S_T(")
             .replacingOccurrences(of: "SCMD(", with: "SCMD_T(").replacingOccurrences(of: "RCG(", with: "RCG_T(") : encoderOriginal
-        let (fixture, store, gate, record) = try await claimedHID(endpoint, original: persistentLayerNames ? persistentLayerEncoderOriginal : (oneShotNames ? oneShotEncoderOriginal : original))
+        let (fixture, store, gate, record) = try await claimedHID(endpoint, original: staticLayerNames ? staticLayerEncoderOriginal : (persistentLayerNames ? persistentLayerEncoderOriginal : (oneShotNames ? oneShotEncoderOriginal : original)))
         let model = fixture.flow.firmwareCopies
         await model.verifyVial(record, ticket: try XCTUnwrap(model.selectionTicket()))
         XCTAssertEqual(model.records.last?.state, .externallyChanged)
@@ -866,13 +885,16 @@ final class KarabinerMappingFlowTests: XCTestCase {
     func testVialHIDPersistentDefaultLayerEncoderCancellationAndPrivacyIgnoreLateReply() async throws {
         try await verifyEncoderCancellationAndPrivacy(modifierTapNames: false, persistentLayerNames: true)
     }
-    private func verifyEncoderCancellationAndPrivacy(modifierTapNames: Bool, oneShotNames: Bool = false, persistentLayerNames: Bool = false) async throws {
+    func testVialHIDStaticLayerActionEncoderCancellationAndPrivacyIgnoreLateReply() async throws {
+        try await verifyEncoderCancellationAndPrivacy(modifierTapNames: false, staticLayerNames: true)
+    }
+    private func verifyEncoderCancellationAndPrivacy(modifierTapNames: Bool, oneShotNames: Bool = false, persistentLayerNames: Bool = false, staticLayerNames: Bool = false) async throws {
         for privacy in [false, true] {
             let pausedRequest = VialReadRequest.encoder(layer: 0, index: 2)
-            let endpoint = NativeVialHIDFixture(pause: pausedRequest, encoders: true, basicNames: true, modifierNames: true, modifierTapNames: modifierTapNames, oneShotNames: oneShotNames, persistentLayerNames: persistentLayerNames)
+            let endpoint = NativeVialHIDFixture(pause: pausedRequest, encoders: true, basicNames: true, modifierNames: true, modifierTapNames: modifierTapNames, oneShotNames: oneShotNames, persistentLayerNames: persistentLayerNames, staticLayerNames: staticLayerNames)
             let original = modifierTapNames ? encoderOriginal.replacingOccurrences(of: "C_S(", with: "C_S_T(")
                 .replacingOccurrences(of: "SCMD(", with: "SCMD_T(").replacingOccurrences(of: "RCG(", with: "RCG_T(") : encoderOriginal
-            let (fixture, store, gate, record) = try await claimedHID(endpoint, original: persistentLayerNames ? persistentLayerEncoderOriginal : (oneShotNames ? oneShotEncoderOriginal : original))
+            let (fixture, store, gate, record) = try await claimedHID(endpoint, original: staticLayerNames ? staticLayerEncoderOriginal : (persistentLayerNames ? persistentLayerEncoderOriginal : (oneShotNames ? oneShotEncoderOriginal : original)))
             let model = fixture.flow.firmwareCopies, ticket = try XCTUnwrap(model.selectionTicket())
             let task = Task { await model.verifyVial(record, ticket: ticket) }
             await fulfillment(of: [endpoint.paused], timeout: 5)
@@ -899,13 +921,16 @@ final class KarabinerMappingFlowTests: XCTestCase {
     func testVialHIDUnknownPersistentDefaultLayerCannotBecomeVerificationEvidence() async throws {
         try await verifyUnknownEncoderAction(modifierTapNames: false, persistentLayerNames: true)
     }
-    private func verifyUnknownEncoderAction(modifierTapNames: Bool, oneShotNames: Bool = false, persistentLayerNames: Bool = false) async throws {
-        let endpoint = NativeVialHIDFixture(encoders: true, basicNames: true, modifierNames: true, modifierTapNames: modifierTapNames, oneShotNames: oneShotNames, persistentLayerNames: persistentLayerNames)
+    func testVialHIDUnqualifiedStaticLayerAliasCannotBecomeVerificationEvidence() async throws {
+        try await verifyUnknownEncoderAction(modifierTapNames: false, staticLayerNames: true)
+    }
+    private func verifyUnknownEncoderAction(modifierTapNames: Bool, oneShotNames: Bool = false, persistentLayerNames: Bool = false, staticLayerNames: Bool = false) async throws {
+        let endpoint = NativeVialHIDFixture(encoders: true, basicNames: true, modifierNames: true, modifierTapNames: modifierTapNames, oneShotNames: oneShotNames, persistentLayerNames: persistentLayerNames, staticLayerNames: staticLayerNames)
         let original = modifierTapNames ? encoderOriginal.replacingOccurrences(of: "C_S(", with: "C_S_T(")
             .replacingOccurrences(of: "SCMD(", with: "SCMD_T(").replacingOccurrences(of: "RCG(KC_QUOTE)", with: "RCG_T(USER00)")
             : encoderOriginal.replacingOccurrences(of: "RCG(KC_QUOTE)", with: "USER00")
         let (fixture, store, gate, record) = try await claimedHID(endpoint,
-            original: persistentLayerNames ? persistentLayerEncoderOriginal.replacingOccurrences(of: "PDF(31)", with: "PDF(USER00)") : (oneShotNames ? oneShotEncoderOriginal.replacingOccurrences(of: "OSM(MOD_RGUI)", with: "OSM(USER00)") : original))
+            original: staticLayerNames ? staticLayerEncoderOriginal.replacingOccurrences(of: "QK_LAYER_LOCK", with: "QK_LLCK") : (persistentLayerNames ? persistentLayerEncoderOriginal.replacingOccurrences(of: "PDF(31)", with: "PDF(USER00)") : (oneShotNames ? oneShotEncoderOriginal.replacingOccurrences(of: "OSM(MOD_RGUI)", with: "OSM(USER00)") : original)))
         let model = fixture.flow.firmwareCopies
         await model.verifyVial(record, ticket: try XCTUnwrap(model.selectionTicket()))
         XCTAssertEqual(model.records.last?.state, .importClaimed)

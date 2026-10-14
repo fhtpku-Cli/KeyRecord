@@ -305,6 +305,63 @@ final class FirmwareOperationTests: XCTestCase {
         XCTAssertEqual(phases, [.captureStopped, .recoverySecured, .rulesRemoved, .loginRemoved, .ready, .erasing, .completed])
         XCTAssertEqual(receipt.choices[record.id.uuidString], .exported)
     }
+    func testUninstallSharedRecoveryDestinationStopsBeforeRulesAndCanRetryWithSeparateFiles() async throws {
+        for deleteLocalData in [false, true] {
+            for aliased in [false, true] {
+                let (root, store, _, gate) = try await fixture()
+                let firmware = try coordinator(store, gate), first = try await retain(firmware)
+                let secondBytes = Data(#"{"vendorProductId":43,"layers":[["KC_B"]]}"#.utf8)
+                let second = try await firmware.retainOriginal(secondBytes, backend: .via, axes: firmwareAxes, confirmedAt: Date())
+                let directory = root.appendingPathComponent("exports")
+                try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+                let alias = root.appendingPathComponent("alias")
+                try FileManager.default.createDirectory(at: alias, withIntermediateDirectories: true)
+                let firstURL = directory.appendingPathComponent("restore.json")
+                let secondURL = aliased ? alias.appendingPathComponent("../exports/restore.json") : firstURL
+                var events: [String] = [], phases: [UninstallPreparationStage] = []
+                let preparation = try UninstallPreparationCoordinator(store: store, firmware: firmware, gate: gate,
+                    stopCapture: { events.append("capture") }, removeRules: { events.append("rules") },
+                    removeLogin: { events.append("login") }, eraseData: { events.append("data") },
+                    onProgress: { phases.append($0) })
+                do {
+                    _ = try await preparation.prepare(choices: [
+                        first.id: .export(FirmwareFileDestination(target: firstURL, gate: gate)),
+                        second.id: .export(FirmwareFileDestination(target: secondURL, gate: gate))], deleteLocalData: deleteLocalData)
+                    XCTFail("Expected overwritten recovery copy refusal")
+                } catch FirmwareError.externalChange {}
+                XCTAssertEqual(events, ["capture"]); XCTAssertEqual(phases, [.captureStopped])
+                let previous = try await UninstallPreparationCoordinator.previousPreparation(store: store)
+                XCTAssertNil(previous)
+                let originalFirst = try await firmware.original(first.id), originalSecond = try await firmware.original(second.id)
+                XCTAssertEqual(originalFirst, firmwareBytes); XCTAssertEqual(originalSecond, secondBytes)
+                XCTAssertEqual(try Data(contentsOf: firstURL), secondBytes)
+                events = []; phases = []
+                let retryURL = directory.appendingPathComponent("second.json")
+                let result = try await preparation.prepare(choices: [
+                    first.id: .export(FirmwareFileDestination(target: firstURL, gate: gate)),
+                    second.id: .export(FirmwareFileDestination(target: retryURL, gate: gate))], deleteLocalData: deleteLocalData)
+                XCTAssertEqual(events, deleteLocalData ? ["capture", "rules", "login", "data"] : ["capture", "rules", "login"])
+                XCTAssertEqual(result.stage, deleteLocalData ? .completed : .ready)
+                XCTAssertEqual(result.choices, [first.id.uuidString: .exported, second.id.uuidString: .exported])
+                XCTAssertEqual(try Data(contentsOf: firstURL), firmwareBytes)
+                XCTAssertEqual(try Data(contentsOf: retryURL), secondBytes)
+            }
+        }
+    }
+    func testUninstallSharedDestinationCanRetainIdenticalOriginals() async throws {
+        let (root, store, _, gate) = try await fixture()
+        let firmware = try coordinator(store, gate)
+        let first = try await retain(firmware), second = try await retain(firmware)
+        let destination = try FirmwareFileDestination(target: root.appendingPathComponent("identical.json"), gate: gate)
+        var events: [String] = []
+        let preparation = try UninstallPreparationCoordinator(store: store, firmware: firmware, gate: gate,
+            stopCapture: { events.append("capture") }, removeRules: { events.append("rules") },
+            removeLogin: { events.append("login") }, eraseData: { events.append("data") })
+        let result = try await preparation.prepare(choices: [first.id: .export(destination), second.id: .export(destination)], deleteLocalData: true)
+        XCTAssertEqual(result.stage, .completed)
+        XCTAssertEqual(events, ["capture", "rules", "login", "data"])
+        XCTAssertEqual(try destination.read(), firmwareBytes)
+    }
     func testUninstallFailureAndPrivacyClosureStopSubsequentSideEffects() async throws {
         let (_, store, _, gate) = try await fixture()
         let firmware = try coordinator(store, gate)

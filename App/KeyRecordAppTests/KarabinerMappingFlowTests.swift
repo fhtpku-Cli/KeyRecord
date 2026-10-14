@@ -1177,6 +1177,44 @@ final class KarabinerMappingFlowTests: XCTestCase {
         XCTAssertEqual(model.records.map(\.id), [original.id])
         XCTAssertFalse(flow.karabinerMappings.maintenance)
     }
+    func testUninstallRecoveryCollisionDoesNotReportReadyOrRemoveRulesAndCanRetry() async throws {
+        for deleteData in [false, true] {
+            let (fixture, file, store, gate) = try await deployment()
+            let model = fixture.flow.firmwareCopies
+            let first = try await retainOriginal(model)
+            let secondBytes = Data(#"{"vendorProductId":43,"layers":[["KC_B"]]}"#.utf8)
+            model.selectedOriginal = { secondBytes }
+            await model.retainVIA(secondBytes, ticket: try XCTUnwrap(model.selectionTicket()))
+            let second = try XCTUnwrap(model.records.last)
+            XCTAssertNotEqual(first.id, second.id); XCTAssertEqual(model.records.count, 2)
+            let copy = file.deletingLastPathComponent().appendingPathComponent("shared-recovery.json")
+            model.selectExport = { _ in copy }
+            var calls: [String] = []
+            model.configureUninstall(.init(stopCapture: { calls.append("capture") }, removeRules: { calls.append("rules") },
+                removeLogin: { calls.append("login") }, eraseData: { calls.append("data") },
+                editing: { fixture.flow.karabinerMappings.maintenance = $0 }))
+            await model.prepareUninstall(ticket: try XCTUnwrap(model.selectionTicket()),
+                request: try model.fixtureUninstallRequest(choice: 0, deleteData: deleteData, discard: false))
+            XCTAssertEqual(calls, ["capture"]); XCTAssertFalse(model.uninstallReady)
+            XCTAssertEqual(model.issueKey, "phase4.operationFailed"); XCTAssertEqual(model.uninstallStage, .captureStopped)
+            XCTAssertFalse(model.working); XCTAssertFalse(fixture.flow.karabinerMappings.maintenance)
+            let fresh = try FirmwareOperationCoordinator(store: store, resolve: { try FirmwareFileDestination(reference: $0, gate: gate) })
+            let originalFirst = try await fresh.original(first.id), originalSecond = try await fresh.original(second.id)
+            XCTAssertEqual(originalSecond, secondBytes)
+            let previous = try await UninstallPreparationCoordinator.previousPreparation(store: store)
+            XCTAssertNil(previous)
+            calls = []
+            let separate = file.deletingLastPathComponent().appendingPathComponent("separate-recovery.json")
+            model.selectExport = { $0.id == first.id ? copy : separate }
+            await model.prepareUninstall(ticket: try XCTUnwrap(model.selectionTicket()),
+                request: try model.fixtureUninstallRequest(choice: 0, deleteData: deleteData, discard: false))
+            XCTAssertEqual(calls, deleteData ? ["capture", "rules", "login", "data"] : ["capture", "rules", "login"])
+            XCTAssertTrue(model.uninstallReady); XCTAssertNil(model.issueKey)
+            XCTAssertEqual(try Data(contentsOf: copy), originalFirst)
+            XCTAssertEqual(try Data(contentsOf: separate), secondBytes)
+            XCTAssertFalse(fixture.flow.karabinerMappings.maintenance)
+        }
+    }
     func testUninstallCancellationRejectionAndPrivacyStopDestructivePorts() async throws {
         let (fixture, _, _, _) = try await deployment()
         let model = fixture.flow.firmwareCopies

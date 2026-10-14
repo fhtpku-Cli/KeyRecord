@@ -37,6 +37,8 @@ def main():
     parser.add_argument("--modifier-fixture", type=Path, help="write actual ordinary modifier names and working aliases")
     parser.add_argument("--modifier-tap-keycodes", action="store_true", help="exercise static canonical modifier taps with basic children")
     parser.add_argument("--modifier-tap-fixture", type=Path, help="write actual static modifier-tap names and working aliases")
+    parser.add_argument("--one-shot-keycodes", action="store_true", help="exercise static canonical one-shot modifier names")
+    parser.add_argument("--one-shot-fixture", type=Path, help="write actual canonical one-shot modifier names and raw values")
     parser.add_argument("--layer-tap-keycodes", action="store_true", help="exercise per-keyboard canonical layer taps on a synthetic 16-layer keyboard")
     parser.add_argument("--raw-keycodes", type=Path, help="write independent big-endian matrix then encoder values for the patched KC_C fixture")
     args = parser.parse_args()
@@ -128,6 +130,22 @@ def main():
         args.modifier_tap_fixture.write_text("[\n" + ",\n".join("  " + json.dumps(entry) for entry in entries) + "\n]\n")
         print(f"PASS: official static modifier taps checked {len(entries)} canonical names and {sum(len(entry['aliases']) for entry in entries)} working aliases; LCS_T rejected; RSA_T/RCS_T serialize as hex; KC_SFTENT is a separate action")
 
+    if args.one_shot_fixture:
+        from keycodes.keycodes import KEYCODES_MODIFIERS
+        entries = []
+        for key in KEYCODES_MODIFIERS:
+            if not key.qmk_id.startswith("OSM("):
+                continue
+            raw = Keycode.deserialize(key.qmk_id, reraise=True)
+            assert Keycode.serialize(raw) == key.qmk_id
+            assert Keycode.deserialize(Keycode.serialize(raw), reraise=True) == raw
+            entries.append({"token": key.qmk_id, "raw": raw, "aliases": []})
+        assert {entry["raw"] for entry in entries} == set(range(0x52a1, 0x52b0)) | set(range(0x52b1, 0x52c0))
+        assert Keycode.serialize(Keycode.deserialize("OSM(0x40)", reraise=True)) == "PDF(0)"
+        assert Keycode.serialize(Keycode.deserialize("OSM(MOD_LCTL|MOD_RCTL)", reraise=True)) == "OSM(MOD_RCTL)"
+        args.one_shot_fixture.write_text("[\n" + ",\n".join("  " + json.dumps(entry) for entry in entries) + "\n]\n")
+        print(f"PASS: official one-shot modifiers checked {len(entries)} canonical names; numeric OSM can serialize as PDF and mixed sides collapse to right")
+
     tree = ast.parse((source / "protocol/keyboard_comm.py").read_text())
     keyboard = next(node for node in tree.body if isinstance(node, ast.ClassDef) and node.name == "Keyboard")
     methods = [node for node in keyboard.body if isinstance(node, ast.FunctionDef) and node.name in ("save_layout", "restore_layout", "reload_keymap")]
@@ -186,6 +204,14 @@ def main():
                 if args.encoders:
                     self.encoder_layout = {(0, 2, 0): Keycode.serialize(0x2f34), (0, 2, 1): Keycode.serialize(0x3958),
                                            (1, 2, 0): Keycode.serialize(0x2a85), (1, 2, 1): Keycode.serialize(0x2d62)}
+            if args.one_shot_keycodes:
+                slots = [slot for slot in self.layout if slot not in ((0, 0, 0), (0, 0, 1))]
+                raw = list(range(0x52a1, 0x52ad))
+                assert len(slots) == len(raw)
+                self.layout.update({slot: Keycode.serialize(code) for slot, code in zip(slots, raw)})
+                if args.encoders:
+                    self.encoder_layout = {(0, 2, 0): Keycode.serialize(0x52ad), (0, 2, 1): Keycode.serialize(0x52ae),
+                                           (1, 2, 0): Keycode.serialize(0x52af), (1, 2, 1): Keycode.serialize(0x52bf)}
             self.rowcol = {(row, col): True for _, row, col in self.layout}
             self.layout_labels = []
             self.dev = 0

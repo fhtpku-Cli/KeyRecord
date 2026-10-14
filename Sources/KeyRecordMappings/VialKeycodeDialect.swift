@@ -10,6 +10,7 @@ public enum VialKeycodeDialect {
     private static func rawValue(_ token: String, depth: Int) throws -> UInt16 {
         guard depth <= 4 else { throw FirmwareError.unsupportedOutput }
         if let value = basic[token] { return value }
+        if let value = oneShotModifiers[token] { return value }
         if token.hasPrefix("0x"), let value = UInt16(token.dropFirst(2), radix: 16) { return value }
         for (prefix, base) in layerCodes where token.hasPrefix(prefix + "(") && token.hasSuffix(")") {
             guard let layer = UInt16(token.dropFirst(prefix.count + 1).dropLast()), layer < (prefix == "TO" ? 16 : 32) else {
@@ -52,6 +53,7 @@ public enum VialKeycodeDialect {
     }
     static func protectedEntry(_ token: String) -> Bool {
         if token.hasPrefix("LT") { return true }
+        if token.trimmingCharacters(in: .whitespacesAndNewlines).hasPrefix("OSM"), oneShotModifiers[token] == nil { return true }
         guard let raw = try? rawValue(token) else { return false }
         return (0x4000...0x4fff).contains(raw) || (0x5200...0x529f).contains(raw)
             || (0x52c0...0x52ff).contains(raw) || [0x7c00, 0x7c01, 0x7c03].contains(raw)
@@ -66,6 +68,23 @@ public enum VialKeycodeDialect {
     }
     private static let layerCodes: [(String, UInt16)] = [
         ("TO", 0x5210), ("MO", 0x5220), ("DF", 0x5240), ("TG", 0x5260), ("OSL", 0x5280), ("TT", 0x52c0)]
+    private static let oneShotModifiers: [String: UInt16] = [
+        "OSM(MOD_LCTL)": 0x52a1, "OSM(MOD_LSFT)": 0x52a2,
+        "OSM(MOD_LCTL|MOD_LSFT)": 0x52a3, "OSM(MOD_LALT)": 0x52a4,
+        "OSM(MOD_LCTL|MOD_LALT)": 0x52a5, "OSM(MOD_LSFT|MOD_LALT)": 0x52a6,
+        "OSM(MOD_MEH)": 0x52a7, "OSM(MOD_LGUI)": 0x52a8,
+        "OSM(MOD_LCTL|MOD_LGUI)": 0x52a9, "OSM(MOD_LSFT|MOD_LGUI)": 0x52aa,
+        "OSM(MOD_LCTL|MOD_LSFT|MOD_LGUI)": 0x52ab, "OSM(MOD_LALT|MOD_LGUI)": 0x52ac,
+        "OSM(MOD_LCTL|MOD_LALT|MOD_LGUI)": 0x52ad, "OSM(MOD_LSFT|MOD_LALT|MOD_LGUI)": 0x52ae,
+        "OSM(MOD_HYPR)": 0x52af, "OSM(MOD_RCTL)": 0x52b1,
+        "OSM(MOD_RSFT)": 0x52b2, "OSM(MOD_RCTL|MOD_RSFT)": 0x52b3,
+        "OSM(MOD_RALT)": 0x52b4, "OSM(MOD_RCTL|MOD_RALT)": 0x52b5,
+        "OSM(MOD_RSFT|MOD_RALT)": 0x52b6, "OSM(MOD_RCTL|MOD_RSFT|MOD_RALT)": 0x52b7,
+        "OSM(MOD_RGUI)": 0x52b8, "OSM(MOD_RCTL|MOD_RGUI)": 0x52b9,
+        "OSM(MOD_RSFT|MOD_RGUI)": 0x52ba, "OSM(MOD_RCTL|MOD_RSFT|MOD_RGUI)": 0x52bb,
+        "OSM(MOD_RALT|MOD_RGUI)": 0x52bc, "OSM(MOD_RCTL|MOD_RALT|MOD_RGUI)": 0x52bd,
+        "OSM(MOD_RSFT|MOD_RALT|MOD_RGUI)": 0x52be,
+        "OSM(MOD_RCTL|MOD_RSFT|MOD_RALT|MOD_RGUI)": 0x52bf]
     private static let modifierTaps: [(String, UInt16)] = [
         ("LCTL_T", 0x2100), ("LSFT_T", 0x2200), ("LALT_T", 0x2400), ("LGUI_T", 0x2800),
         ("RCTL_T", 0x3100), ("RSFT_T", 0x3200), ("RALT_T", 0x3400), ("RGUI_T", 0x3800),

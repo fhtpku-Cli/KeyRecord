@@ -43,6 +43,8 @@ def main():
     parser.add_argument("--persistent-layer-fixture", type=Path, help="write actual canonical persistent default layer names and raw values")
     parser.add_argument("--static-layer-keycodes", action="store_true", help="exercise canonical static layer actions on a synthetic four-layer keyboard")
     parser.add_argument("--static-layer-fixture", type=Path, help="write actual static layer action names and raw values")
+    parser.add_argument("--to-keycodes", action="store_true", help="exercise canonical TO names on a synthetic 32-layer keyboard")
+    parser.add_argument("--to-fixture", type=Path, help="write official canonical TO names and raw values")
     parser.add_argument("--layer-tap-keycodes", action="store_true", help="exercise per-keyboard canonical layer taps on a synthetic 16-layer keyboard")
     parser.add_argument("--layer-mod-keycodes", action="store_true", help="exercise protected layer modifiers with official hexadecimal serialization on 16 layers")
     parser.add_argument("--raw-keycodes", type=Path, help="write independent big-endian matrix then encoder values for the patched KC_C fixture")
@@ -56,12 +58,25 @@ def main():
     from protocol.constants import (BUFFER_FETCH_CHUNK, CMD_VIA_KEYMAP_GET_BUFFER,
                                     CMD_VIA_VIAL_PREFIX, CMD_VIAL_GET_ENCODER)
     from types import SimpleNamespace
-    layers = 32 if args.persistent_layer_keycodes else (16 if args.layer_tap_keycodes or args.layer_mod_keycodes else (4 if args.static_layer_keycodes else 2))
+    layers = 32 if args.persistent_layer_keycodes or args.to_keycodes else (16 if args.layer_tap_keycodes or args.layer_mod_keycodes else (4 if args.static_layer_keycodes else 2))
     features = {"persistent_default_layer"} if args.persistent_layer_keycodes else set()
     if args.static_layer_keycodes:
         features.add("layer_lock")
     recreate_keyboard_keycodes(SimpleNamespace(vial_protocol=6, layers=layers, macro_count=0, tap_dance_count=0,
                                               custom_keycodes=None, midi="disabled", supported_features=features))
+    if args.to_fixture:
+        from keycodes.keycodes import KEYCODES_LAYERS
+        entries = []
+        for key in KEYCODES_LAYERS:
+            if key.qmk_id.startswith("TO("):
+                raw = Keycode.deserialize(key.qmk_id, reraise=True)
+                assert Keycode.serialize(raw) == key.qmk_id
+                entries.append({"token": key.qmk_id, "raw": raw})
+        assert {entry["raw"] for entry in entries} == set(range(0x5200, 0x5200 + layers))
+        assert Keycode.deserialize("TO(1)", reraise=True) == 0x5201
+        assert Keycode.deserialize(" TO(1)", reraise=True) == 0x5211
+        args.to_fixture.write_text("[\n" + ",\n".join("  " + json.dumps(entry) for entry in entries) + "\n]\n")
+        print(f"PASS: official TO checked {len(entries)} canonical names; expression whitespace has different encoding")
     if args.layer_mod_keycodes:
         for layer in range(16):
             for mask in range(32):
@@ -280,6 +295,13 @@ def main():
                     if args.encoders:
                         self.encoder_layout[(layer, 2, 0)] = Keycode.serialize(0x52e0 + layer)
                         self.encoder_layout[(layer, 2, 1)] = Keycode.serialize(0x52ff - layer)
+            if args.to_keycodes:
+                self.layout[(0, 0, 0)] = Keycode.serialize(0x5201)
+                for layer in range(self.layers):
+                    self.layout[(layer, 0, 3)] = Keycode.serialize(0x5200 + layer)
+                    if args.encoders:
+                        self.encoder_layout[(layer, 2, 0)] = Keycode.serialize(0x5200 + layer)
+                        self.encoder_layout[(layer, 2, 1)] = Keycode.serialize(0x521f - layer)
             if args.static_layer_keycodes:
                 actions = (0x7c77, 0x7c78, 0x7c7b)
                 for layer in range(self.layers):

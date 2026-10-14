@@ -15,7 +15,8 @@ public enum VialKeycodeDialect {
         for layer in 0..<32 where token == "PDF(\(layer))" { return 0x52e0 + UInt16(layer) }
         if token.hasPrefix("0x"), let value = UInt16(token.dropFirst(2), radix: 16) { return value }
         for (prefix, base) in layerCodes where token.hasPrefix(prefix + "(") && token.hasSuffix(")") {
-            guard let layer = UInt16(token.dropFirst(prefix.count + 1).dropLast()), layer < (prefix == "TO" ? 16 : 32) else {
+            guard let layer = UInt16(token.dropFirst(prefix.count + 1).dropLast()), layer < 32,
+                  prefix != "TO" || token == "TO(\(layer))" else {
                 throw FirmwareError.unsupportedOutput
             }
             return base + layer
@@ -63,15 +64,15 @@ public enum VialKeycodeDialect {
             || (0x52c0...0x52ff).contains(raw) || [0x7c00, 0x7c01, 0x7c03, 0x7c77, 0x7c78, 0x7c7b].contains(raw)
     }
     static func layerEntry(_ token: String) -> String {
-        guard let raw = try? rawValue(token) else { return token }
-        for (prefix, base) in layerCodes where (base...(base + (prefix == "TO" ? 15 : 31))).contains(raw) {
+        guard let raw = try? rawValue(token) else { return token.hasPrefix("TO(") ? "" : token }
+        for (prefix, base) in layerCodes where (base...(base + 31)).contains(raw) {
             return "\(prefix)(\(raw - base))"
         }
         if (0x4000...0x4fff).contains(raw) { return "LT(\((raw >> 8) & 15),KC_NO)" }
         return token
     }
     private static let layerCodes: [(String, UInt16)] = [
-        ("TO", 0x5210), ("MO", 0x5220), ("DF", 0x5240), ("TG", 0x5260), ("OSL", 0x5280), ("TT", 0x52c0)]
+        ("TO", 0x5200), ("MO", 0x5220), ("DF", 0x5240), ("TG", 0x5260), ("OSL", 0x5280), ("TT", 0x52c0)]
     private static let staticLayerActions: [String: UInt16] = [
         "FN_MO13": 0x7c77, "FN_MO23": 0x7c78, "QK_LAYER_LOCK": 0x7c7b]
     private static let oneShotModifiers: [String: UInt16] = [

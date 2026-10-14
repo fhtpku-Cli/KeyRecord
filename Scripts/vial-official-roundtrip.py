@@ -39,6 +39,8 @@ def main():
     parser.add_argument("--modifier-tap-fixture", type=Path, help="write actual static modifier-tap names and working aliases")
     parser.add_argument("--one-shot-keycodes", action="store_true", help="exercise static canonical one-shot modifier names")
     parser.add_argument("--one-shot-fixture", type=Path, help="write actual canonical one-shot modifier names and raw values")
+    parser.add_argument("--persistent-layer-keycodes", action="store_true", help="exercise canonical persistent default layers on a synthetic 32-layer keyboard")
+    parser.add_argument("--persistent-layer-fixture", type=Path, help="write actual canonical persistent default layer names and raw values")
     parser.add_argument("--layer-tap-keycodes", action="store_true", help="exercise per-keyboard canonical layer taps on a synthetic 16-layer keyboard")
     parser.add_argument("--raw-keycodes", type=Path, help="write independent big-endian matrix then encoder values for the patched KC_C fixture")
     args = parser.parse_args()
@@ -51,9 +53,33 @@ def main():
     from protocol.constants import (BUFFER_FETCH_CHUNK, CMD_VIA_KEYMAP_GET_BUFFER,
                                     CMD_VIA_VIAL_PREFIX, CMD_VIAL_GET_ENCODER)
     from types import SimpleNamespace
-    layers = 16 if args.layer_tap_keycodes else 2
+    layers = 32 if args.persistent_layer_keycodes else (16 if args.layer_tap_keycodes else 2)
     recreate_keyboard_keycodes(SimpleNamespace(vial_protocol=6, layers=layers, macro_count=0, tap_dance_count=0,
-                                              custom_keycodes=None, midi="disabled", supported_features=set()))
+                                              custom_keycodes=None, midi="disabled", supported_features={"persistent_default_layer"} if args.persistent_layer_keycodes else set()))
+    if args.persistent_layer_fixture:
+        from keycodes.keycodes import KEYCODES_LAYERS
+        from any_keycode import functions
+        from simpleeval import FunctionNotDefined
+        entries = []
+        for key in KEYCODES_LAYERS:
+            if not key.qmk_id.startswith("PDF("):
+                continue
+            raw = Keycode.deserialize(key.qmk_id, reraise=True)
+            assert Keycode.serialize(raw) == key.qmk_id
+            assert Keycode.deserialize(Keycode.serialize(raw), reraise=True) == raw
+            assert key.requires_feature == "persistent_default_layer"
+            entries.append({"token": key.qmk_id, "raw": raw, "aliases": []})
+        assert {entry["raw"] for entry in entries} == set(range(0x52e0, 0x52e0 + layers))
+        assert "PDF" not in functions
+        for token in ("PDF(32)", "PDF(0x1)", "PDF (1)", " PDF(1)", "PDF(USER00)"):
+            try:
+                Keycode.deserialize(token, reraise=True)
+            except FunctionNotDefined:
+                pass
+            else:
+                raise AssertionError(f"{token} unexpectedly became an upstream function")
+        args.persistent_layer_fixture.write_text("[\n" + ",\n".join("  " + json.dumps(entry) for entry in entries) + "\n]\n")
+        print(f"PASS: official persistent default layers checked {len(entries)} canonical names; PDF is not an expression function")
     if args.layer_tap_keycodes:
         for layer in range(layers):
             raw = 0x4000 | layer << 8 | 6
@@ -212,6 +238,12 @@ def main():
                 if args.encoders:
                     self.encoder_layout = {(0, 2, 0): Keycode.serialize(0x52ad), (0, 2, 1): Keycode.serialize(0x52ae),
                                            (1, 2, 0): Keycode.serialize(0x52af), (1, 2, 1): Keycode.serialize(0x52bf)}
+            if args.persistent_layer_keycodes:
+                for layer in range(self.layers):
+                    self.layout[(layer, 0, 3)] = Keycode.serialize(0x52e0 + layer)
+                    if args.encoders:
+                        self.encoder_layout[(layer, 2, 0)] = Keycode.serialize(0x52e0 + layer)
+                        self.encoder_layout[(layer, 2, 1)] = Keycode.serialize(0x52ff - layer)
             self.rowcol = {(row, col): True for _, row, col in self.layout}
             self.layout_labels = []
             self.dev = 0

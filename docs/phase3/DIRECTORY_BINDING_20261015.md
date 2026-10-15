@@ -33,6 +33,10 @@ error instead of silently refreshing an empty ledger.
 - The focused package run passes 56 tests covering mappings, privacy, product
   boundaries and related reference parsing:
   `/private/tmp/keyrecord-directory-binding-core-final.log`.
+- The initial full CI run exposed the existing Store single-file length limit.
+  Descriptor commits and shared POSIX helpers now live in a separate extension;
+  the original limit and test remain. All 32 selected Store/transaction/crash
+  regression tests pass in `/private/tmp/keyrecord-directory-binding-store-final.log`.
 - The unsigned arm64 native test build and all 71 mapping workflow tests pass, including a
   prepared operation after directory replacement; both original and replacement
   configurations must remain unchanged. Logs are

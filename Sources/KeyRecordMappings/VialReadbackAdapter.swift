@@ -7,9 +7,14 @@ public struct VialReadRequest: Equatable, Sendable {
     public let bytes: [UInt8]
     private init(_ prefix: [UInt8]) { bytes = prefix + Array(repeating: 0, count: 32 - prefix.count) }
     public static let viaProtocol = VialReadRequest([0x01])
+    public static let viaKeycodesVersion = VialReadRequest([0x02, 0x06])
     public static let identity = VialReadRequest([0xfe, 0x00])
     public static let layerCount = VialReadRequest([0x11])
     public static let definitionSize = VialReadRequest([0xfe, 0x01])
+    public static let dynamicCounts = VialReadRequest([0xfe, 0x0d, 0])
+    public static func dynamicEntry(_ section: VialDynamicSection, index: UInt8) -> VialReadRequest {
+        VialReadRequest([0xfe, 0x0d, section.command, index])
+    }
     public static func encoder(layer: UInt8, index: UInt8) -> VialReadRequest {
         VialReadRequest([0xfe, 0x03, layer, index])
     }
@@ -106,6 +111,26 @@ public actor VialReadbackAdapter {
                     VialKeycodeDialect.token(UInt16(bytes[2]) << 8 | UInt16(bytes[3]))
             }
         }
+        var dynamic: [VialDynamicSection: [[UInt8]]] = [:]
+        let sections = try Set(document.unverifiedVialSections())
+        let requested = try VialDynamicSection.allCases.filter {
+            guard sections.contains($0.rawValue) else { return false }
+            return try document.dynamicEntries($0) != nil
+        }
+        if !requested.isEmpty {
+            let counts = try await response(.dynamicCounts)
+            for section in requested {
+                var entries: [[UInt8]] = []
+                for index in 0..<Int(counts[section.countIndex]) {
+                    let entry = try await response(.dynamicEntry(section, index: UInt8(index)))
+                    guard entry[0] == 0 else { throw VialReadbackError.malformedResponse }
+                    entries.append(Array(entry[1..<(1 + section.byteCount)]))
+                }
+                dynamic[section] = entries
+            }
+            let finalCounts = try await response(.dynamicCounts)
+            guard finalCounts == counts else { throw VialReadbackError.changedDevice }
+        }
         // Reject a disconnect/rebind or layer-count change across the multi-report read.
         let finalIdentity = try await response(.identity), finalLayers = try await response(.layerCount)
         guard finalIdentity.prefix(12).elementsEqual(identity.prefix(12)), finalLayers.prefix(2).elementsEqual(layers.prefix(2)) else {
@@ -117,7 +142,8 @@ public actor VialReadbackAdapter {
             values[slot] = VialKeycodeDialect.token(UInt16(keymap[offset]) << 8 | UInt16(keymap[offset + 1]))
         }
         try Task.checkCancellation()
-        return VialKeymapObservation(device: String(uid), axes: record.axes, values: values, encoderValues: encoderValues, observedAt: date())
+        return VialKeymapObservation(device: String(uid), axes: record.axes, values: values, encoderValues: encoderValues,
+                                    dynamicEntries: dynamic, observedAt: date())
     }
     private func response(_ request: VialReadRequest) async throws -> [UInt8] {
         try Task.checkCancellation()

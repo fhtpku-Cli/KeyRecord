@@ -284,7 +284,9 @@ final class ProductComposition: NSObject, NSMenuDelegate, NSWindowDelegate {
             versionAxes: host.firmwareVersionAxes, vialConnection: { [weak flow] record, authorize in
                 return try host.vialDevices.openSelectedDevice(record: record, support: host.firmwareSupport,
                     text: NativeText(locale: flow?.language ?? "en"), authorize: authorize)
-            }, importerVersion: host.firmwareImporterVersion)
+            }, importerVersion: host.firmwareImporterVersion, viaVersionConnection: { [weak flow] device, authorize in
+                try host.vialDevices.openVIAVersionSource(device: device, text: NativeText(locale: flow?.language ?? "en"), authorize: authorize)
+            })
         flow.passwordBackup.snapshot = { [weak flow] in
             await lifecycle.pause()
             flow?.sync(from: lifecycle.state)

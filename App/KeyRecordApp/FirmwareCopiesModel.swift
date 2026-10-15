@@ -60,6 +60,8 @@ final class FirmwareCopiesModel: ObservableObject {
     private var vialAdapter: VialReadbackAdapter?
     private var vialConnection: (@MainActor (FirmwareBatchRecord, @MainActor () throws -> Void) throws -> VialDeviceReadConnection)?
     private var activeVialConnection: VialDeviceReadConnection?
+    private var viaVersionConnection: (@MainActor (String, @MainActor () throws -> Void) throws -> VIAVersionReadConnection)?
+    private var activeVIAVersionConnection: VIAVersionReadConnection?
     private var vialVerification: UUID?
     private var uninstall: UninstallActions?
     struct UninstallActions {
@@ -75,13 +77,15 @@ final class FirmwareCopiesModel: ObservableObject {
                    vialReadback: (@Sendable (FirmwareBatchRecord) async throws -> VialKeymapObservation)? = nil,
                    vialAdapter: VialReadbackAdapter? = nil,
                    vialConnection: (@MainActor (FirmwareBatchRecord, @MainActor () throws -> Void) throws -> VialDeviceReadConnection)? = nil,
-                   importerVersion: (@MainActor (FirmwareBackend) -> String?)? = nil) {
+                   importerVersion: (@MainActor (FirmwareBackend) -> String?)? = nil,
+                   viaVersionConnection: (@MainActor (String, @MainActor () throws -> Void) throws -> VIAVersionReadConnection)? = nil) {
         clear()
         self.store = store; self.gate = gate; self.support = support; self.versionAxes = versionAxes; firmware = nil
         self.vialReadback = vialReadback
         self.vialAdapter = vialAdapter
         self.vialConnection = vialConnection
         self.importerVersion = importerVersion
+        self.viaVersionConnection = viaVersionConnection
         patchPreviews = [:]; patchIssueKeys = [:]
     }
     func configureUninstall(_ actions: UninstallActions) { uninstall = actions }
@@ -97,6 +101,7 @@ final class FirmwareCopiesModel: ObservableObject {
     }
     func clear() {
         activeVialConnection?.close(); activeVialConnection = nil
+        activeVIAVersionConnection?.close(); activeVIAVersionConnection = nil
         vialVerification = nil
         session = UUID(); records = []; firmware = nil; issueKey = nil; working = false
         recoverySelections = [:]; deleteLocalData = false
@@ -144,11 +149,35 @@ final class FirmwareCopiesModel: ObservableObject {
             await retain(selected.reference, backend: .vial)
         } catch { if canRead(), ticket == session { issueKey = "phase4.operationFailed"; onChange() } }
     }
-    private func retain(_ bytes: Data?, backend: FirmwareBackend) async {
+    var canReadVIAVersions: Bool { viaVersionConnection != nil }
+    func retainVIAWithVersions(_ bytes: Data?, ticket: UUID) async {
+        guard canRead(), ticket == session, !working, let bytes, let gate, let viaVersionConnection else { return }
+        working = true
+        defer { if ticket == session { working = false; activeVIAVersionConnection = nil; onChange() } }
+        do {
+            let device = try FirmwareDocument(bytes: bytes, backend: .via).device
+            let generation = try gate.begin()
+            let connection = try viaVersionConnection(device) { [weak self] in
+                try gate.check(generation)
+                guard let self, self.canRead(), self.session == ticket else { throw FirmwareError.unavailable }
+            }
+            activeVIAVersionConnection = connection
+            defer { connection.close() }
+            let axes = try await connection.observe(expectedDevice: device) { [weak self] in
+                try gate.check(generation)
+                guard let self, self.canRead(), self.session == ticket else { throw FirmwareError.unavailable }
+            }
+            try gate.check(generation)
+            guard canRead(), ticket == session else { return }
+            working = false
+            await retain(bytes, backend: .via, observedAxes: axes)
+        } catch { if canRead(), ticket == session { issueKey = "phase4.operationFailed" } }
+    }
+    private func retain(_ bytes: Data?, backend: FirmwareBackend, observedAxes: FirmwareVersionAxes? = nil) async {
         guard canRead(), !working, let bytes else { return }
         let ticket = session; readRequest = UUID(); working = true
         do {
-            let axes = try versionAxes(backend) ?? FirmwareVersionProvider.axes(bytes: bytes, backend: backend,
+            let axes = try observedAxes ?? versionAxes(backend) ?? FirmwareVersionProvider.axes(bytes: bytes, backend: backend,
                 definitionSchema: backend == .vial && importerVersion != nil ? VialDeviceDefinition.schema : nil,
                 importer: importerVersion?(backend))
             _ = try await coordinator().retainOriginal(bytes, backend: backend, axes: axes, confirmedAt: Date())
@@ -382,9 +411,18 @@ struct FirmwareCopiesSection: View {
             Button(text("phase4.retainVial")) {
                 if let ticket = model.selectionTicket() { Task { await model.retainVial(ticket: ticket) } }
             }.disabled(model.working).accessibilityIdentifier("phase4.retainVial")
+            if model.canReadVIAVersions {
+                Button(text("phase4.retainVIAVersions")) {
+                    if let ticket = model.selectionTicket() { Task { await model.retainVIAWithVersions(viaBytes, ticket: ticket) } }
+                }.disabled(model.working || viaBytes == nil).accessibilityIdentifier("phase4.retainVIAVersions")
+            }
             ForEach(model.records) { record in
                 Text(record.device + ": " + text("phase4.state.\(record.state.rawValue)"))
                 if record.backend == .vial { Text(text("phase4.readbackScope")) }
+                if record.backend == .via, let protocolVersion = record.axes.deviceProtocol {
+                    Text(text("phase4.deviceProtocol") + ": " + protocolVersion)
+                    Text(text("phase4.keycodeVersion") + ": " + (record.axes.keycodeDialect ?? text("phase4.versionUnknown")))
+                }
                 if !model.isCompatible(record) { Text(text("phase4.compatibilityUnknown")) }
                 if let date = record.exportedAt { HStack { Text(text("phase4.exportedAt")); Text(date, style: .date) } }
                 if let date = record.importClaimedAt { HStack { Text(text("phase4.importClaimedAt")); Text(date, style: .date) } }

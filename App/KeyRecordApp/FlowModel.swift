@@ -313,7 +313,11 @@ final class AppFlowObservable: ObservableObject {
         self.protectedGate = protectedGate
         viaImport.protectedGate = protectedGate
         viaImport.canRead = { [weak self] in self?.sensitiveContentVisible == true }
-        viaImport.onChange = { [weak self] in self?.objectWillChange.send() }
+        viaImport.onChange = { [weak self] in
+            guard let self else { return }
+            if self.viaImport.selectedOriginalBytes == nil { self.firmwareCopies.cancelVIAVersionRead() }
+            self.objectWillChange.send()
+        }
         karabinerImport.protectedGate = protectedGate
         karabinerImport.canRead = { [weak self] in self?.sensitiveContentVisible == true }
         karabinerImport.onChange = { [weak self] in self?.karabinerMappings.invalidate(); self?.objectWillChange.send() }

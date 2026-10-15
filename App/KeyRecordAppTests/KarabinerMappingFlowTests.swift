@@ -31,6 +31,7 @@ private final class NativeVialHIDFixture: VialHIDEndpoint, @unchecked Sendable {
     private var reports: [VialReadRequest] = []
     private var closes = 0
     private let pause: VialReadRequest?
+    private let pauseOnce: Bool
     private let mismatch: Bool
     private let encoders: Bool
     private let encoderMismatch: Bool
@@ -44,8 +45,9 @@ private final class NativeVialHIDFixture: VialHIDEndpoint, @unchecked Sendable {
     private let definitionOverride: Data?
     let paused = XCTestExpectation(description: "Selected HID report paused")
     init(pause: VialReadRequest? = nil, mismatch: Bool = false, encoders: Bool = false, encoderMismatch: Bool = false,
-         basicNames: Bool = false, modifierNames: Bool = false, layerTapNames: Bool = false, modifierTapNames: Bool = false, oneShotNames: Bool = false, persistentLayerNames: Bool = false, staticLayerNames: Bool = false, definitionOverride: Data? = nil) {
+         basicNames: Bool = false, modifierNames: Bool = false, layerTapNames: Bool = false, modifierTapNames: Bool = false, oneShotNames: Bool = false, persistentLayerNames: Bool = false, staticLayerNames: Bool = false, definitionOverride: Data? = nil, pauseOnce: Bool = false) {
         self.pause = pause; self.mismatch = mismatch; self.encoders = encoders; self.encoderMismatch = encoderMismatch
+        self.pauseOnce = pauseOnce
         self.basicNames = basicNames
         self.modifierNames = modifierNames
         self.layerTapNames = layerTapNames
@@ -59,8 +61,10 @@ private final class NativeVialHIDFixture: VialHIDEndpoint, @unchecked Sendable {
     var closeCount: Int { lock.withLock { closes } }
     func start(receive: @escaping @Sendable (Result<VialHIDFrame, VialHIDError>) -> Void) { lock.withLock { self.receive = receive } }
     func send(_ request: VialReadRequest, timeoutMilliseconds: Int, completion: @escaping @Sendable (Result<Void, VialHIDError>) -> Void) {
-        lock.withLock { reports.append(request) }
-        if request == pause { lock.withLock { pausedCompletion = completion }; paused.fulfill(); return }
+        let occurrence = lock.withLock { reports.append(request); return reports.filter { $0 == request }.count }
+        if request == pause && (!pauseOnce || occurrence == 1) {
+            lock.withLock { pausedCompletion = completion }; paused.fulfill(); return
+        }
         emit(request); completion(.success(()))
     }
     func resume(_ request: VialReadRequest) {
@@ -207,6 +211,106 @@ final class KarabinerMappingFlowTests: XCTestCase {
             XCTAssertTrue(saved.records.isEmpty)
         }
     }
+    func testVIAWithdrawalCannotRevivePendingVersionReadByReselectingSameBytes() async throws {
+        for clearFirst in [false, true] {
+            let (fixture, file, store, gate) = try await deployment()
+            let imported = fixture.flow.viaImport
+            let model = fixture.flow.firmwareCopies
+            let bytes = Data(#"{"name":"Synthetic VIA","vendorProductId":42,"layers":[["KC_NO"]]}"#.utf8)
+            let url = file.deletingLastPathComponent().appendingPathComponent("via-copy.json")
+            try bytes.write(to: url)
+            await imported.load(kind: .layout, url: url)
+            defer { imported.clear() }
+            let endpoint = NativeVialHIDFixture(pause: .viaProtocol, pauseOnce: true)
+            model.configure(store: store, gate: gate, viaVersionConnection: { _, _ in
+                VIAVersionReadConnection(endpoint: endpoint, vendorID: 0, productID: 42)
+            })
+            let ticket = try XCTUnwrap(model.selectionTicket())
+            let pending = Task { await model.retainVIAWithVersions(bytes, ticket: ticket) }
+            await fulfillment(of: [endpoint.paused], timeout: 5)
+            if clearFirst { imported.clear() }
+            await imported.load(kind: .layout, url: url)
+            XCTAssertEqual(imported.selectedOriginalBytes, bytes)
+            XCTAssertEqual(endpoint.closeCount, 1, "Withdrawal must close the old source before any reply")
+            endpoint.resume(.viaProtocol)
+            await pending.value
+            XCTAssertEqual(endpoint.requests, [.viaProtocol])
+            XCTAssertFalse(model.working)
+            XCTAssertTrue(model.records.isEmpty)
+            let ledger = try await FirmwareOperationCoordinator(store: store,
+                resolve: { try FirmwareFileDestination(reference: $0, gate: gate) }).ledger()
+            XCTAssertTrue(ledger.records.isEmpty)
+
+            let fresh = NativeVialHIDFixture()
+            model.configure(store: store, gate: gate, viaVersionConnection: { _, _ in
+                VIAVersionReadConnection(endpoint: fresh, vendorID: 0, productID: 42)
+            })
+            await model.retainVIAWithVersions(bytes, ticket: try XCTUnwrap(model.selectionTicket()))
+            XCTAssertEqual(model.records.count, 1)
+            XCTAssertEqual(fresh.requests, [.viaProtocol, .viaProtocol])
+        }
+    }
+
+    func testVIAWithdrawalDuringPickerInvalidatesOriginalEvenIfBytesAreStillAvailable() async throws {
+        let (fixture, file, store, gate) = try await deployment()
+        let imported = fixture.flow.viaImport
+        let model = fixture.flow.firmwareCopies
+        let bytes = Data(#"{"name":"Synthetic VIA","vendorProductId":42,"layers":[["KC_NO"]]}"#.utf8)
+        let url = file.deletingLastPathComponent().appendingPathComponent("via-copy.json")
+        try bytes.write(to: url)
+        await imported.load(kind: .layout, url: url)
+        defer { imported.clear() }
+        model.selectedOriginal = { bytes }
+        let endpoint = NativeVialHIDFixture()
+        let device = VialHIDDevice(registryEntryID: 9, vendorID: 0, productID: 42, name: "Synthetic VIA")
+        var opens = 0
+        let selection = VialDeviceSelection(devices: { [device] }, choose: { _, _ in
+            imported.clear()
+            return device
+        }, open: { _ in opens += 1; return endpoint })
+        model.configure(store: store, gate: gate, viaVersionConnection: { id, authorize in
+            try selection.openVIAVersionSource(device: id, text: NativeText(locale: "en"), authorize: authorize)
+        })
+        await model.retainVIAWithVersions(bytes, ticket: try XCTUnwrap(model.selectionTicket()))
+        XCTAssertNil(imported.selectedOriginalBytes)
+        XCTAssertEqual(opens, 0)
+        XCTAssertTrue(endpoint.requests.isEmpty)
+        XCTAssertFalse(model.working)
+        XCTAssertTrue(model.records.isEmpty)
+        let ledger = try await FirmwareOperationCoordinator(store: store,
+            resolve: { try FirmwareFileDestination(reference: $0, gate: gate) }).ledger()
+        XCTAssertTrue(ledger.records.isEmpty)
+    }
+
+    func testVIADefinitionReferenceChangePreservesPendingLayoutVersionRead() async throws {
+        let (fixture, file, store, gate) = try await deployment()
+        let imported = fixture.flow.viaImport
+        let model = fixture.flow.firmwareCopies
+        let bytes = Data(#"{"name":"Synthetic VIA","vendorProductId":42,"layers":[["KC_NO"]]}"#.utf8)
+        let layout = file.deletingLastPathComponent().appendingPathComponent("via-copy.json")
+        let definition = file.deletingLastPathComponent().appendingPathComponent("via-definition.json")
+        try bytes.write(to: layout)
+        try Data(#"{"name":"Synthetic VIA","vendorProductId":42,"matrix":{"rows":1,"cols":1},"layouts":{"keymap":[["0,0"]]}}"#.utf8).write(to: definition)
+        await imported.load(kind: .layout, url: layout)
+        defer { imported.clear() }
+        let endpoint = NativeVialHIDFixture(pause: .viaProtocol, pauseOnce: true)
+        model.configure(store: store, gate: gate, viaVersionConnection: { _, _ in
+            VIAVersionReadConnection(endpoint: endpoint, vendorID: 0, productID: 42)
+        })
+        let ticket = try XCTUnwrap(model.selectionTicket())
+        let pending = Task { await model.retainVIAWithVersions(bytes, ticket: ticket) }
+        await fulfillment(of: [endpoint.paused], timeout: 5)
+        await imported.load(kind: .definition, url: definition)
+        XCTAssertNotNil(imported.configuration)
+        XCTAssertEqual(endpoint.closeCount, 0)
+        XCTAssertTrue(model.working)
+        endpoint.resume(.viaProtocol)
+        await pending.value
+        XCTAssertEqual(model.records.count, 1)
+        XCTAssertEqual(endpoint.requests, [.viaProtocol, .viaProtocol])
+        XCTAssertEqual(endpoint.closeCount, 1)
+    }
+
     func testNativeDynamicReadbackVerifiesEmptyTablesOnlyAfterDeviceCounts() async throws {
         let endpoint = NativeVialHIDFixture()
         let original = #"{"version":1,"uid":18446744073709551615,"via_protocol":9,"vial_protocol":6,"layout":[[["KC_NO",-1,"KC_ENT"]]],"tap_dance":[],"combo":[],"key_override":[],"alt_repeat_key":[]}"#

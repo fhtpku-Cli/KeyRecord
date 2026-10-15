@@ -310,6 +310,109 @@ final class FirmwareOperationTests: XCTestCase {
         XCTAssertNil(recovered.records.first?.importClaimedAt)
         XCTAssertEqual(try Data(contentsOf: exported), external)
     }
+    func testFirmwareExportDirectoryReplacementCannotRedirectExistingDestination() async throws {
+        for existing in [false, true] {
+            let (root, _, _, gate) = try await fixture()
+            let selected = root.appendingPathComponent("selected")
+            let moved = root.appendingPathComponent("moved")
+            try FileManager.default.createDirectory(at: selected, withIntermediateDirectories: false)
+            let target = selected.appendingPathComponent("export.json")
+            if existing { try firmwareBytes.write(to: target) }
+            let destination = try FirmwareFileDestination(target: target, gate: gate)
+            try FileManager.default.moveItem(at: selected, to: moved)
+            try FileManager.default.createDirectory(at: selected, withIntermediateDirectories: false)
+            if existing { try firmwareBytes.write(to: target) }
+            XCTAssertThrowsError(try destination.read()) {
+                XCTAssertEqual($0 as? FirmwareError, .externalChange)
+            }
+            XCTAssertThrowsError(try destination.write(firmwareBytes + Data(" ".utf8))) {
+                XCTAssertEqual($0 as? FirmwareError, .externalChange)
+            }
+            if existing {
+                XCTAssertEqual(try Data(contentsOf: target), firmwareBytes)
+                XCTAssertEqual(try Data(contentsOf: moved.appendingPathComponent("export.json")), firmwareBytes)
+            } else {
+                XCTAssertFalse(FileManager.default.fileExists(atPath: target.path))
+                XCTAssertFalse(FileManager.default.fileExists(atPath: moved.appendingPathComponent("export.json").path))
+            }
+        }
+    }
+    func testFirmwareExportRejectsParentReplacedBySymlink() async throws {
+        let (root, _, _, gate) = try await fixture()
+        let selected = root.appendingPathComponent("selected"), moved = root.appendingPathComponent("moved")
+        let replacement = root.appendingPathComponent("replacement")
+        for directory in [selected, replacement] {
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: false)
+            try firmwareBytes.write(to: directory.appendingPathComponent("export.json"))
+        }
+        let destination = try FirmwareFileDestination(target: selected.appendingPathComponent("export.json"), gate: gate)
+        try FileManager.default.moveItem(at: selected, to: moved)
+        try FileManager.default.createSymbolicLink(at: selected, withDestinationURL: replacement)
+        XCTAssertThrowsError(try destination.read())
+        XCTAssertThrowsError(try destination.write(firmwareBytes + Data(" ".utf8)))
+        for directory in [moved, replacement] {
+            XCTAssertEqual(try Data(contentsOf: directory.appendingPathComponent("export.json")), firmwareBytes)
+            XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: directory.path), ["export.json"])
+        }
+    }
+    func testFirmwareExportKeepsSelectedDirectoryThroughAliasRetargetingAndAtomicFileEdits() async throws {
+        let (root, _, _, gate) = try await fixture()
+        let selected = root.appendingPathComponent("selected"), other = root.appendingPathComponent("other")
+        let alias = root.appendingPathComponent("alias")
+        for directory in [selected, other] {
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: false)
+            try firmwareBytes.write(to: directory.appendingPathComponent("export.json"))
+        }
+        try FileManager.default.createSymbolicLink(at: alias, withDestinationURL: selected)
+        let destination = try FirmwareFileDestination(target: alias.appendingPathComponent("export.json"), gate: gate)
+        let target = selected.appendingPathComponent("export.json")
+        XCTAssertEqual(destination.reference.location, target.resolvingSymlinksInPath().path)
+        let edited = firmwareBytes + Data(" ".utf8)
+        try edited.write(to: target, options: .atomic)
+        XCTAssertEqual(try destination.read(), edited)
+        try FileManager.default.removeItem(at: alias)
+        try FileManager.default.createSymbolicLink(at: alias, withDestinationURL: other)
+        try destination.write(firmwareBytes)
+        XCTAssertEqual(try Data(contentsOf: target), firmwareBytes)
+        XCTAssertEqual(try Data(contentsOf: other.appendingPathComponent("export.json")), firmwareBytes)
+        let reopened = try FirmwareFileDestination(reference: destination.reference, gate: gate)
+        try reopened.write(edited)
+        XCTAssertEqual(try Data(contentsOf: target), edited)
+        XCTAssertEqual(try Data(contentsOf: other.appendingPathComponent("export.json")), firmwareBytes)
+        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: selected.path), ["export.json"])
+    }
+    func testDirectoryReplacementDuringJournaledExportPreservesBothFilesAndRecoveryCopy() async throws {
+        let (root, store, _, gate) = try await fixture()
+        let selected = root.appendingPathComponent("selected"), moved = root.appendingPathComponent("moved")
+        try FileManager.default.createDirectory(at: selected, withIntermediateDirectories: false)
+        let target = selected.appendingPathComponent("export.json")
+        try firmwareBytes.write(to: target)
+        let operations = try FirmwareOperationCoordinator(store: store, support: firmwareSupport(),
+            resolve: { try FirmwareFileDestination(reference: $0, gate: gate) }, injection: { phase in
+                if phase == .exportRequested {
+                    try FileManager.default.moveItem(at: selected, to: moved)
+                    try FileManager.default.createDirectory(at: selected, withIntermediateDirectories: false)
+                    try firmwareBytes.write(to: target)
+                }
+            })
+        let record = try await retain(operations)
+        let destination = try FirmwareFileDestination(target: target, gate: gate)
+        do {
+            _ = try await operations.export(record.id, changes: firmwareChanges, destination: destination)
+            XCTFail("Replaced export directory must be rejected")
+        } catch FirmwareError.externalChange {}
+        let recovered = try await coordinator(store, gate).reconcile()
+        XCTAssertNil(recovered.pending)
+        XCTAssertEqual(recovered.records.first?.state, .draft)
+        XCTAssertNil(recovered.records.first?.exportedAt)
+        XCTAssertNil(recovered.records.first?.importClaimedAt)
+        let original = try await operations.original(record.id)
+        XCTAssertEqual(original, firmwareBytes)
+        for directory in [selected, moved] {
+            XCTAssertEqual(try Data(contentsOf: directory.appendingPathComponent("export.json")), firmwareBytes)
+            XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: directory.path), ["export.json"])
+        }
+    }
     func testOldOriginalIsNotLatestAndTwelveOriginalsAreNotPruned() async throws {
         let (_, store, _, gate) = try await fixture()
         let coordinator = try coordinator(store, gate)

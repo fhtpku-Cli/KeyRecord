@@ -10,6 +10,8 @@ B 的工程基础及只读 VIA 参考已由 [PR #21](https://github.com/fhtpku-C
 
 2026-10-15 后续：Vial 定义读回补齐 KLE 对齐状态、装饰键和首项元数据，14 组官方源码生成的拓扑用例匹配；完整读回仍核对装饰键涉及的矩阵位置及编码器，见[本轮记录](phase4/DECORATED_DEFINITION_20261015.md)。真实设备资格与动态子协议继续后置。
 
+2026-10-15 安全增量：Phase 3 配置会话绑定已打开的父目录，目录替换不能把读写、临时文件清理或同步重定向到替代目录；原生操作资格与刷新同步识别失效目标。正常的同目录文件原子替换仍可用，见[复现与修复](phase3/DIRECTORY_BINDING_20261015.md)。真实设备、Keychain 恢复和卸载验证继续后置，删除前复核保留。
+
 | Phase | Current state | Remaining scope / evidence boundary |
 |---|---|---|
 | Phase 0: feasibility | Capture prerequisites progressed beyond the old G0 OPEN writeback; historical artifacts remain unchanged | Karabiner version/reload/disable latency, VIA protocol/dialect/importer, Vial importer/live capture and backup KDF/Intel evidence retain their own limits. Phase 0 is not globally all-green. |

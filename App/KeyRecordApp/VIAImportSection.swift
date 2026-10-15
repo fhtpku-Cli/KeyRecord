@@ -26,6 +26,8 @@ struct VIAImportSection: View {
             if let issue = model.issue { Text(text(VIAImportLabels.issueKey(issue))).accessibilityIdentifier("phase2.via.issue") }
             if let configuration = model.configuration {
                 VIAReferenceSummary(configuration: configuration, text: text)
+            } else if let layout = model.layoutReference {
+                VIALayoutSummary(layout: layout, text: text)
             } else if model.issue == nil && model.loading.isEmpty {
                 Text(text("phase2.via.needPair"))
             }
@@ -47,6 +49,27 @@ struct VIAImportSection: View {
         ticket = current
         kind = selection
         choosingFile = true
+    }
+}
+
+private struct VIALayoutSummary: View {
+    let layout: VIALayoutReference
+    let text: NativeText
+    var body: some View {
+        let bindings = layout.layers.first ?? []
+        let standard = bindings.filter { if case .standard = $0 { return true }; return false }.count
+        let unsupported = bindings.filter { $0 == .unsupported }.count
+        VStack(alignment: .leading, spacing: NativeLayout.compact) {
+            Text(String(format: text("phase2.via.layoutSummary"), layout.name, layout.layers.count, standard, unsupported))
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityIdentifier("phase2.via.layoutSummary")
+            Text(text("phase2.via.definitionOptional")).font(.caption)
+                .fixedSize(horizontal: false, vertical: true)
+            Text(text("phase2.via.deploymentUnknown")).font(.caption)
+            if layout.layers.count > 1 { Text(text("phase2.via.additionalLayers")).font(.caption) }
+            if unsupported > 0 { Text(text("phase2.via.unsupportedKeycodes")).font(.caption) }
+            if layout.hasDynamicFeatures { Text(text("phase2.via.dynamicFeatures")).font(.caption) }
+        }
     }
 }
 

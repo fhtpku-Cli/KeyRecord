@@ -180,6 +180,66 @@ final class VIAImportFlowTests: XCTestCase {
             model.clear()
         }
     }
+    func testLatestLayoutAloneShowsFileSummaryWithoutClaimingGeometry() async throws {
+        let (root, layout, definition) = try files()
+        let fixture = try await ready(root)
+        let model = fixture.flow.viaImport
+        defer { model.clear() }
+        await model.load(kind: .layout, url: layout)
+        XCTAssertEqual(model.selectedOriginalBytes, layoutBytes)
+        XCTAssertNil(model.configuration)
+        for locale in ["en", "zh-Hans"] {
+            let text = NativeText(locale: locale)
+            let view = NSHostingView(rootView: VIAImportSection(model: model, text: text))
+            let nodes = NativeEvidence.elements(in: view)
+            XCTAssertTrue(nodes.contains { KRAXIdentifier($0) == "phase2.via.layoutSummary" })
+            XCTAssertTrue(nodes.contains { KRAXLabel($0) == String(format: text("phase2.via.layoutSummary"),
+                "synthetic-reference", 1, 3, 0) })
+            XCTAssertFalse(nodes.contains { KRAXIdentifier($0) == "phase2.via.summary" })
+            XCTAssertFalse(nodes.contains { KRAXLabel($0) == text("phase2.via.needPair") })
+        }
+        await model.load(kind: .definition, url: definition)
+        XCTAssertEqual(model.configuration?.geometry?.positions.count, 4)
+    }
+    func testLayoutOnlySummaryKeepsOpaqueActionsAndWithdrawsOnReplacementAndPrivacyClosure() async throws {
+        let (root, layout, _) = try files()
+        let bytes = Data(#"{"name":"file-only","vendorProductId":65538,"layers":[["KC_A","LT(1,KC_B)","KC_NO"],["KC_C","KC_D","KC_E"]],"macros":["private macro content"]}"#.utf8)
+        try bytes.write(to: layout)
+        let fixture = try await ready(root)
+        let model = fixture.flow.viaImport
+        defer { model.clear() }
+        await model.load(kind: .layout, url: layout)
+        XCTAssertEqual(model.layoutReference?.layers.count, 2)
+        XCTAssertNil(model.configuration)
+        for locale in ["en", "zh-Hans"] {
+            let text = NativeText(locale: locale)
+            let view = NSHostingView(rootView: VIAImportSection(model: model, text: text))
+            let labels = NativeEvidence.elements(in: view).compactMap { KRAXLabel($0) }
+            XCTAssertTrue(labels.contains(String(format: text("phase2.via.layoutSummary"), "file-only", 2, 1, 1)))
+            for key in ["definitionOptional", "deploymentUnknown", "additionalLayers", "unsupportedKeycodes", "dynamicFeatures"] {
+                XCTAssertTrue(labels.contains(text("phase2.via." + key)))
+            }
+            XCTAssertFalse(labels.contains { $0.contains("private macro content") })
+        }
+        let changed = XCTestExpectation(description: "layout-only file replaced")
+        let onChange = model.onChange
+        model.onChange = { onChange(); if model.issue == .changed { changed.fulfill() } }
+        try layoutBytes.write(to: layout, options: .atomic)
+        let result = await XCTWaiter.fulfillment(of: [changed], timeout: 3)
+        XCTAssertEqual(result, .completed)
+        XCTAssertNil(model.layoutReference)
+        XCTAssertNil(model.selectedOriginalBytes)
+        model.onChange = onChange
+        await model.load(kind: .layout, url: layout)
+        XCTAssertNotNil(model.layoutReference)
+        fixture.observeLocked()
+        fixture.flow.sync(from: fixture.orchestrator.state)
+        XCTAssertNil(model.layoutReference)
+        XCTAssertNil(model.configuration)
+        fixture.observe()
+        fixture.flow.sync(from: fixture.orchestrator.state)
+        XCTAssertNil(model.layoutReference)
+    }
     func testOfficialCompiledDefinitionFlowsThroughFileReaderAndNativeReferenceSummary() async throws {
         let (root, layout, definition) = try files()
         let fixture = try await ready(root)
@@ -241,6 +301,8 @@ final class VIAImportFlowTests: XCTestCase {
         await model.load(kind: .definition, url: bad)
         XCTAssertNil(model.configuration)
         XCTAssertEqual(model.issue, .parser(.keyboardMismatch))
+        XCTAssertNotNil(model.layoutReference)
+        XCTAssertEqual(model.selectedOriginalBytes, layoutBytes)
         let broken = root.appendingPathComponent("broken.json")
         try Data("{broken".utf8).write(to: broken)
         await model.load(kind: .definition, url: broken)

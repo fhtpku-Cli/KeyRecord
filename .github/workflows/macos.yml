@@ -16,16 +16,55 @@ jobs:
       DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
     steps:
       - uses: actions/checkout@v4
+      - name: Check out official Vial methods
+        uses: actions/checkout@v4
+        with:
+          repository: vial-kb/vial-gui
+          ref: aef8222a2d0429a183b2ed692d5f9efcfd383f08
+          path: .build/oracle-sources/vial
+          persist-credentials: false
+      - name: Check out Vial's expression dependency
+        uses: actions/checkout@v4
+        with:
+          repository: danthedeckie/simpleeval
+          ref: 41c99b8e224a7a0ae0ac59c773598fe79a4470db
+          path: .build/oracle-sources/simpleeval
+          persist-credentials: false
+      - name: Check out official VIA definition selection
+        uses: actions/checkout@v4
+        with:
+          repository: the-via/app
+          ref: 935106a990af39bdd1ade881c02366eac486240d
+          path: .build/oracle-sources/via
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install official VIA definition reader for offline tests
+        run: npm install --prefix .build/oracle-dependencies/reader --ignore-scripts --no-audit --no-fund @the-via/reader@1.14.4
       - name: Show selected toolchain
         run: |
           xcodebuild -version
           swift --version
-      - name: Test package and build unsigned App
-        run: Scripts/verify-local.sh --build-only
+      - name: Execute official firmware methods and encrypted round trips
+        run: |
+          python3 Scripts/verify-firmware-oracles.py \
+            --vial-source .build/oracle-sources/vial \
+            --simpleeval-source .build/oracle-sources/simpleeval \
+            --via-source .build/oracle-sources/via \
+            --reader .build/oracle-dependencies/reader/node_modules/@the-via/reader \
+            --output .build/verification/firmware-oracles
+      - name: Test package, build unsigned App and execute firmware native tests
+        run: Scripts/verify-local.sh --firmware-app-tests
       - name: Upload verification logs
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: macos-verification-logs
-          path: .build/verification/**/*.log
+          path: |
+            .build/verification/**/*.log
+            .build/verification/**/qa/**
           if-no-files-found: ignore

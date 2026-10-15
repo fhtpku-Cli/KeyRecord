@@ -328,6 +328,103 @@ final class VIAImportFlowTests: XCTestCase {
         model.clear()
     }
 
+    func testParentDirectoryReplacementImmediatelyWithdrawsImportedReference() async throws {
+        let (root, _, _) = try files()
+        let fixture = try await ready(root)
+        let model = fixture.flow.viaImport
+        defer { model.clear() }
+        for identical in [false, true] {
+            let selected = root.appendingPathComponent("selected-\(identical)")
+            let moved = root.appendingPathComponent("moved-\(identical)")
+            try FileManager.default.createDirectory(at: selected, withIntermediateDirectories: false)
+            let layout = selected.appendingPathComponent("layout.json")
+            let definition = selected.appendingPathComponent("definition.json")
+            try layoutBytes.write(to: layout)
+            try definitionBytes.write(to: definition)
+            await model.load(kind: .layout, url: layout)
+            await model.load(kind: .definition, url: definition)
+            XCTAssertNotNil(model.configuration)
+            try FileManager.default.moveItem(at: selected, to: moved)
+            try FileManager.default.createDirectory(at: selected, withIntermediateDirectories: false)
+            let replacement = identical ? layoutBytes : Data(String(decoding: layoutBytes, as: UTF8.self)
+                .replacingOccurrences(of: "KC_C", with: "KC_A").utf8)
+            try replacement.write(to: layout)
+            try definitionBytes.write(to: definition)
+            XCTAssertNil(model.selectedOriginalBytes)
+            XCTAssertNil(model.layoutReference)
+            XCTAssertNil(model.configuration)
+            try FileManager.default.removeItem(at: selected)
+            try FileManager.default.moveItem(at: moved, to: selected)
+            XCTAssertNil(model.selectedOriginalBytes)
+            XCTAssertNil(model.configuration)
+            model.clear()
+        }
+    }
+
+    func testDefinitionDirectoryReplacementWithdrawsOnlyGeometryReference() async throws {
+        let (root, layout, _) = try files()
+        let selected = root.appendingPathComponent("definition-source")
+        let moved = root.appendingPathComponent("moved-definition")
+        try FileManager.default.createDirectory(at: selected, withIntermediateDirectories: false)
+        let definition = selected.appendingPathComponent("definition.json")
+        try definitionBytes.write(to: definition)
+        let fixture = try await ready(root)
+        let model = fixture.flow.viaImport
+        defer { model.clear() }
+        await model.load(kind: .layout, url: layout)
+        await model.load(kind: .definition, url: definition)
+        XCTAssertNotNil(model.configuration?.geometry)
+        try FileManager.default.moveItem(at: selected, to: moved)
+        try FileManager.default.createDirectory(at: selected, withIntermediateDirectories: false)
+        try definitionBytes.write(to: definition)
+        XCTAssertNil(model.configuration)
+        XCTAssertEqual(model.selectedOriginalBytes, layoutBytes)
+        XCTAssertNotNil(model.layoutReference)
+        await model.load(kind: .definition, url: definition)
+        XCTAssertNotNil(model.configuration?.geometry)
+    }
+
+    func testKarabinerDirectoryReplacementWithdrawsSelectedCopyAndConflictEvidence() async throws {
+        let (root, _, _) = try files()
+        let selected = root.appendingPathComponent("karabiner-source")
+        let moved = root.appendingPathComponent("moved-karabiner")
+        try FileManager.default.createDirectory(at: selected, withIntermediateDirectories: false)
+        let url = selected.appendingPathComponent("configuration.json")
+        try karabinerBytes.write(to: url)
+        let fixture = try await ready(root)
+        let model = fixture.flow.karabinerImport
+        defer { model.clear() }
+        await model.load(url: url, ticket: try XCTUnwrap(model.selectionTicket()))
+        XCTAssertNotNil(model.selectedConfiguration)
+        XCTAssertNotNil(model.evidence)
+        try FileManager.default.moveItem(at: selected, to: moved)
+        try FileManager.default.createDirectory(at: selected, withIntermediateDirectories: false)
+        try karabinerBytes.write(to: url)
+        XCTAssertNil(model.reference)
+        XCTAssertNil(model.evidence)
+        XCTAssertNil(model.selectedConfiguration)
+    }
+
+    func testReaderRejectsDirectoryReplacementDuringParsing() throws {
+        let (root, _, _) = try files()
+        let selected = root.appendingPathComponent("pending-source")
+        let moved = root.appendingPathComponent("moved-pending")
+        try FileManager.default.createDirectory(at: selected, withIntermediateDirectories: false)
+        let url = selected.appendingPathComponent("configuration.json")
+        try layoutBytes.write(to: url)
+        do {
+            let file = try VIAFileReader.readConfiguration(url: url,
+                access: VIAFileReadAccess(gate: nil, generation: nil), notify: {}) { bytes in
+                try FileManager.default.moveItem(at: selected, to: moved)
+                try FileManager.default.createDirectory(at: selected, withIntermediateDirectories: false)
+                try bytes.write(to: url)
+                return bytes
+            }
+            file.monitor.cancel()
+            XCTFail("A replaced source must not finish importing")
+        } catch VIAFileReadError.changed {}
+    }
+
     func testPrivacyClosureRejectsPendingReadAndOldPickerTicketAfterReopening() async throws {
         let (root, layout, _) = try files()
         let fixture = try await ready(root)

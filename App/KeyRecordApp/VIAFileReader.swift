@@ -38,9 +38,31 @@ struct VIAFileReadAccess: Sendable {
 final class VIAFileMonitor: @unchecked Sendable {
     private let source: DispatchSourceFileSystemObject
     private let changed = OSAllocatedUnfairLock(initialState: false)
-    var hasChanged: Bool { changed.withLock { $0 } }
+    private let path: String
+    private let original: stat
+    private let notify: @Sendable () -> Void
+    var hasChanged: Bool {
+        let (result, shouldNotify) = changed.withLock { changed -> (Bool, Bool) in
+            guard !changed else { return (true, false) }
+            var current = stat()
+            guard lstat(path, &current) == 0, current.st_mode & S_IFMT == S_IFREG,
+                  current.st_dev == original.st_dev, current.st_ino == original.st_ino,
+                  current.st_size == original.st_size,
+                  current.st_mtimespec.tv_sec == original.st_mtimespec.tv_sec,
+                  current.st_mtimespec.tv_nsec == original.st_mtimespec.tv_nsec,
+                  current.st_ctimespec.tv_sec == original.st_ctimespec.tv_sec,
+                  current.st_ctimespec.tv_nsec == original.st_ctimespec.tv_nsec else {
+                changed = true
+                return (true, true)
+            }
+            return (false, false)
+        }
+        if shouldNotify { notify() }
+        return result
+    }
 
-    init(handle: FileHandle, url: URL, scoped: Bool, notify: @escaping @Sendable () -> Void) {
+    init(handle: FileHandle, url: URL, status: stat, scoped: Bool, notify: @escaping @Sendable () -> Void) {
+        path = url.path; original = status; self.notify = notify
         let changed = self.changed
         source = DispatchSource.makeFileSystemObjectSource(fileDescriptor: handle.fileDescriptor,
             eventMask: [.write, .extend, .delete, .rename, .revoke, .attrib], queue: DispatchQueue.global(qos: .utility))
@@ -55,7 +77,7 @@ final class VIAFileMonitor: @unchecked Sendable {
         source.resume()
     }
 
-    func cancel() { source.cancel() }
+    func cancel() { changed.withLock { $0 = true }; source.cancel() }
     deinit { source.cancel() }
 }
 
@@ -94,7 +116,7 @@ enum VIAFileReader {
             if scoped { url.stopAccessingSecurityScopedResource() }
             throw VIAFileReadError.notRegularFile
         }
-        let monitor = VIAFileMonitor(handle: handle, url: url, scoped: scoped, notify: notify)
+        let monitor = VIAFileMonitor(handle: handle, url: url, status: info, scoped: scoped, notify: notify)
         do {
             var bytes = Data()
             let maximum = VIAReferenceParser.maximumInputBytes

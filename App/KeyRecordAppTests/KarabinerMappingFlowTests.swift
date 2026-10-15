@@ -1899,7 +1899,23 @@ final class KarabinerMappingFlowTests: XCTestCase {
         await fixture.flow.karabinerDeployment.bind(url: other, profile: "Synthetic")
         XCTAssertEqual(fixture.flow.karabinerDeployment.issueKey, "phase3.rebindBlocked")
         XCTAssertTrue(fixture.flow.karabinerDeployment.connected)
-        XCTAssertTrue(fixture.flow.karabinerMappings.canManage)
+        let mappings = fixture.flow.karabinerMappings
+        // Directory monitoring may still be reconciling the preceding writes.
+        let deadline = Date().addingTimeInterval(5)
+        while mappings.working {
+            let remaining = deadline.timeIntervalSinceNow
+            guard remaining > 0 else { XCTFail("Mapping reconciliation did not finish"); break }
+            let idle = XCTestExpectation(description: "Existing mapping reconciliation finished")
+            let onChange = mappings.onChange
+            var delivered = false
+            mappings.onChange = {
+                onChange()
+                if !mappings.working, !delivered { delivered = true; idle.fulfill() }
+            }
+            await fulfillment(of: [idle], timeout: remaining)
+            mappings.onChange = onChange
+        }
+        XCTAssertTrue(mappings.canManage)
         XCTAssertEqual(try Data(contentsOf: other), bytes)
         let loaded = try await EncryptedKarabinerTargetStore(store: store).load()
         let reference = try XCTUnwrap(loaded)

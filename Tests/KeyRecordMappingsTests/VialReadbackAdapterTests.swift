@@ -38,7 +38,9 @@ private actor SimulatedVialTransport: VialReadTransport {
         var bytes = [UInt8](repeating: 0, count: 32)
         switch request.bytes[0] {
         case 0x01: bytes[0] = 1; bytes[2] = fault == .protocolVersion ? 10 : 9
+        case 2: bytes[0] = 2; bytes[1] = 2
         case 0xfe:
+            if request.bytes[1] == 9 { return Array(repeating: 255, count: 32) }
             if request.bytes[1] == 3 {
                 XCTAssertEqual(request.bytes[3], 2)
                 bytes.replaceSubrange(0..<4, with: request.bytes[2] == 0 ? [0, 0x28, 0x12, 0x34] : [0, 6, 0, 1])
@@ -126,7 +128,8 @@ final class VialReadbackAdapterTests: XCTestCase {
             .init(layer: 1, index: 2, direction: .clockwise): "0x0006",
             .init(layer: 1, index: 2, direction: .counterclockwise): "0x0001"])
         let requests = await transport.requests
-        XCTAssertEqual(Array(requests.suffix(4)), [.encoder(layer: 0, index: 2), .encoder(layer: 1, index: 2), .identity, .layerCount])
+        XCTAssertEqual(Array(requests.suffix(7)), [.encoder(layer: 0, index: 2), .encoder(layer: 1, index: 2),
+            .layoutOptions, .settingsQuery(after: 0), .settingsQuery(after: 0), .identity, .layerCount])
         XCTAssertEqual(requests.filter { $0.bytes[0] == 0xfe && $0.bytes[1] == 3 }.count, 2)
         XCTAssertEqual(VialReadRequest.encoder(layer: 254, index: 255).bytes.prefix(4), [0xfe, 3, 254, 255])
     }
@@ -193,7 +196,7 @@ final class VialReadbackAdapterTests: XCTestCase {
         XCTAssertEqual(observed.values[.init(layer: 1, row: 1, column: 1)], "0x5fff")
         let requests = await transport.requests
         XCTAssertEqual(requests, [.viaProtocol, .identity, .layerCount, try .keymap(offset: 0, length: 28),
-            try .keymap(offset: 28, length: 4), .identity, .layerCount])
+            try .keymap(offset: 28, length: 4), .layoutOptions, .settingsQuery(after: 0), .settingsQuery(after: 0), .identity, .layerCount])
     }
     func testReadbackCrossesOffsetHighByteAndKeepsFinalPartialChunk() async throws {
         struct Export: Encodable {

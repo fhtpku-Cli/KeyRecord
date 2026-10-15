@@ -27,6 +27,7 @@ public struct FirmwareBatchRecord: Codable, Equatable, Sendable, Identifiable {
     public var verificationSource: String?
     public var unverifiedSections: [String]?
     public var verifiedDynamicSections: [String]?
+    public var verifiedConfigurationSections: [String]?
     public var changes: [FirmwareSlotChange] = []
 }
 public struct FirmwarePendingOperation: Codable, Equatable, Sendable {
@@ -40,6 +41,7 @@ public struct FirmwarePendingOperation: Codable, Equatable, Sendable {
     public var verificationSource: String?
     public var unverifiedSections: [String]?
     public var verifiedDynamicSections: [String]?
+    public var verifiedConfigurationSections: [String]?
 }
 public struct FirmwareLedger: Codable, Equatable, Sendable {
     public var records: [FirmwareBatchRecord] = []
@@ -84,7 +86,9 @@ public actor FirmwareOperationCoordinator {
             }
             let verified = Set(ledger.records[index].verifiedDynamicSections ?? [])
                 .intersection(VialDynamicSection.allCases.map(\.rawValue))
-            let sections = try FirmwareDocument(bytes: bytes, backend: .vial).unverifiedVialSections().filter { !verified.contains($0) }
+            let configuration = Set(ledger.records[index].verifiedConfigurationSections ?? [])
+                .intersection(VialConfigurationSection.allCases.map(\.rawValue))
+            let sections = try FirmwareDocument(bytes: bytes, backend: .vial).unverifiedVialSections().filter { !verified.union(configuration).contains($0) }
             ledger.records[index].unverifiedSections = sections
             if !sections.isEmpty { ledger.records[index].state = .partiallyVerified }
         }
@@ -235,14 +239,19 @@ public actor FirmwareOperationCoordinator {
             guard actual.count <= 255, actual.allSatisfy({ $0.count == section.byteCount }) else { throw FirmwareError.invalidDocument }
             if actual == expected { verified.append(section.rawValue) } else { dynamicMatches = false }
         }
-        let sections = try expectedDocument.unverifiedVialSections().filter { !verified.contains($0) }
+        var verifiedConfiguration: [String] = []
+        for section in VialConfigurationSection.allCases {
+            guard let actual = observation.configurationValues[section], let expected = try expectedDocument.configurationValue(section) else { continue }
+            if actual == expected { verifiedConfiguration.append(section.rawValue) } else { dynamicMatches = false }
+        }
+        let sections = try expectedDocument.unverifiedVialSections().filter { !verified.contains($0) && !verifiedConfiguration.contains($0) }
         let matching: FirmwareMappingState = sections.isEmpty ? .verified : .partiallyVerified
         let result: FirmwareMappingState = !dynamicMatches ? .externallyChanged
             : observed == expected && observedEncoders == expectedEncoders ? matching
             : observed == baseline && observedEncoders == baselineEncoders ? .failed : .externallyChanged
         let pending = FirmwarePendingOperation(batch: batch, phase: .evidenceRecorded, recordedAt: observation.observedAt,
             verificationState: result, verificationSource: "vialKeymapReadback", unverifiedSections: sections,
-            verifiedDynamicSections: verified.sorted())
+            verifiedDynamicSections: verified.sorted(), verifiedConfigurationSections: verifiedConfiguration.sorted())
         ledger.pending = pending
         try await checkpoint(.evidenceRecorded, ledger: &ledger)
         try applyEvidence(pending, to: &ledger.records[index])
@@ -256,6 +265,7 @@ public actor FirmwareOperationCoordinator {
             record.state = state; record.verificationSource = pending.verificationSource
             record.unverifiedSections = pending.unverifiedSections
             record.verifiedDynamicSections = pending.verifiedDynamicSections
+            record.verifiedConfigurationSections = pending.verifiedConfigurationSections
         } else {
             guard record.backend == .via, let passed = pending.verificationPassed else { throw FirmwareError.unavailable }
             record.state = passed ? .verified : .failed; record.verificationSource = "userBehaviorTestConfirmation"
@@ -271,6 +281,7 @@ public actor FirmwareOperationCoordinator {
         ledger.records[index].verifiedAt = nil; ledger.records[index].verificationSource = nil
         ledger.records[index].unverifiedSections = nil
         ledger.records[index].verifiedDynamicSections = nil
+        ledger.records[index].verifiedConfigurationSections = nil
         try await save(ledger); return ledger
     }
     public func reconcile() async throws -> FirmwareLedger {

@@ -155,6 +155,16 @@ final class VialDeviceReadTests: XCTestCase {
             XCTAssertThrowsError(try VialDeviceDefinition(bytes: Data(text.replacingOccurrences(of: "2,1", with: coordinate).utf8), uid: 42))
         }
     }
+    func testIndependentDefinitionDeterminesLayoutOptionAvailability() throws {
+        let base = #"{"vendorId":"0x1234","productId":"0x5678","matrix":{"rows":1,"cols":1},"layouts":{"keymap":[["0,0"]]}}"#
+        XCTAssertFalse(try VialDeviceDefinition(bytes: Data(base.utf8), uid: 42).hasLayoutOptions)
+        for (labels, expected) in [("[]", false), (#"["Layout"]"#, true)] {
+            let bytes = Data(base.replacingOccurrences(of: #""keymap":"#, with: #""labels":"# + labels + #", "keymap":"#).utf8)
+            XCTAssertEqual(try VialDeviceDefinition(bytes: bytes, uid: 42).hasLayoutOptions, expected)
+        }
+        let malformed = Data(base.replacingOccurrences(of: #""keymap":"#, with: #""labels":true,"keymap":"#).utf8)
+        XCTAssertThrowsError(try VialDeviceDefinition(bytes: malformed, uid: 42))
+    }
     func testSessionMatchesIndependentEncoderIndicesAndReadsBothDirections() async throws {
         let endpoint = Endpoint(response: { response($0, compressed: encoderDefinitionXZ) })
         let transport = VialHIDTransport(endpoint: endpoint, deadline: Deadline())

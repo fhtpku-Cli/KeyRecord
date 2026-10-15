@@ -43,8 +43,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
-      - name: Install official VIA definition reader for offline tests
-        run: npm install --prefix .build/oracle-dependencies/reader --ignore-scripts --no-audit --no-fund @the-via/reader@1.14.4
+      - name: Install VIA reader and official store dependencies for offline tests
+        run: npm install --prefix .build/oracle-dependencies/reader --ignore-scripts --no-audit --no-fund @the-via/reader@1.14.4 @reduxjs/toolkit@2.3.0 typescript@5.6.2
       - name: Show selected toolchain
         run: |
           xcodebuild -version

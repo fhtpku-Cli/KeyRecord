@@ -3,12 +3,15 @@
 set -euo pipefail
 
 build_only=false
+firmware_app_tests=false
 case "${1:-}" in
   --build-only) build_only=true ;;
+  --firmware-app-tests) firmware_app_tests=true ;;
   --help|-h)
-    echo 'Usage: Scripts/verify-local.sh [--build-only]'
+    echo 'Usage: Scripts/verify-local.sh [--build-only|--firmware-app-tests]'
     echo 'Runs SwiftPM tests and Release build, then unsigned universal Release App and native Debug test builds.'
     echo 'Default also runs hostless App XCTest. --build-only skips only App XCTest (for headless CI).'
+    echo '--firmware-app-tests runs the offline firmware native suites instead of the full App suite.'
     exit 0 ;;
   '') ;;
   *) echo "Unknown argument: $1" >&2; exit 2 ;;
@@ -47,6 +50,9 @@ release_app="$attempt/release/Build/Products/Release/KeyRecordApp.app"
 test_bundle="$attempt/debug/Build/Products/Debug/KeyRecordAppTests.xctest"
 if [[ "$build_only" == true ]]; then
   echo 'Build-only verification completed. App XCTest and live-host qualification were not run.'
+elif [[ "$firmware_app_tests" == true ]]; then
+  bash Scripts/test-firmware-native.sh "$test_bundle" "$attempt/qa" 2>&1 | tee "$attempt/app-tests.log"
+  echo 'Firmware development verification completed. Live-host qualification was not run.'
 else
   # Match the existing hostless runner and exclude inherited capture/debug opt-ins.
   env -i HOME="$HOME" PATH=/usr/bin:/bin:/usr/sbin:/sbin \

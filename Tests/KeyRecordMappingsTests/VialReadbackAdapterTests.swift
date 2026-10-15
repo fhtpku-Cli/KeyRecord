@@ -585,7 +585,7 @@ final class VialReadbackAdapterTests: XCTestCase {
         }
         var expected = baseline; expected[3] = 6
         var external = expected; external[9] = 0x34
-        for (raw, encoderMismatch, state) in [(expected, false, FirmwareMappingState.verified), (baseline, false, .failed),
+        for (raw, encoderMismatch, state) in [(expected, false, FirmwareMappingState.partiallyVerified), (baseline, false, .failed),
                                               (external, false, .externallyChanged), (expected, true, .externallyChanged)] {
             let adapter = try VialReadbackAdapter(transport: SimulatedVialTransport(keymap: raw, encoderMismatch: encoderMismatch, modifierNames: modifierNames, layerTapNames: layerTapNames, modifierTapNames: modifierTapNames, oneShotNames: oneShotNames, persistentLayerNames: persistentLayerNames, staticLayerNames: staticLayerNames),
                 matrixRows: 2, matrixColumns: 4, encoderIndices: [2])

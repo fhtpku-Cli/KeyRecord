@@ -22,6 +22,37 @@ private final class FirmwareFault: @unchecked Sendable {
 @MainActor
 final class FirmwareOperationTests: XCTestCase {
     private let vialBytes = Data(#"{"version":1,"uid":"fixture-vial","layout":[[["KC_NO","CUSTOM"]]],"macros":["opaque macro"]}"#.utf8)
+    func testKeymapMatchCannotClaimCompleteVerificationOfOpaqueConfiguration() async throws {
+        let (root, store, _, gate) = try await fixture()
+        let (operations, batch) = try await exportedVial(store, gate, root: root)
+        let result = try await operations.confirmVialReadback(batch.id, observation: observation("KC_C"))
+        XCTAssertEqual(result.records.last?.state.rawValue, "partiallyVerified")
+        XCTAssertEqual(result.records.last?.unverifiedSections, ["macros"])
+        let original = try await operations.original(batch.id)
+        XCTAssertEqual(original, vialBytes)
+        do { try await operations.deleteOriginal(batch.id); XCTFail("Readback must not authorize deletion") }
+        catch FirmwareError.invalidState {}
+    }
+    func testLegacySuccessfulReadbackAndPendingReplayRecoverHonestScope() async throws {
+        let (root, store, _, gate) = try await fixture()
+        let (operations, batch) = try await exportedVial(store, gate, root: root)
+        var legacy = try await operations.confirmVialReadback(batch.id, observation: observation("KC_C"))
+        legacy.records[0].state = .verified
+        legacy.records[0].unverifiedSections = nil
+        let identity = try CanonicalLogicalIdentity(objectType: "com.keyrecord.firmware-journal", schemaVersion: 1, logicalIDText: "firmware")
+        _ = try await store.put(identity: identity, payload: JSONEncoder().encode(legacy))
+        let loaded = try await operations.ledger()
+        XCTAssertEqual(loaded.records[0].state, .partiallyVerified)
+        XCTAssertEqual(loaded.records[0].unverifiedSections, ["macros"])
+        legacy.records[0].state = .importClaimed
+        legacy.pending = FirmwarePendingOperation(batch: batch.id, phase: .evidenceRecorded,
+            recordedAt: Date(timeIntervalSince1970: 4), verificationState: .verified, verificationSource: "vialKeymapReadback")
+        _ = try await store.put(identity: identity, payload: JSONEncoder().encode(legacy))
+        let replayed = try await operations.reconcile()
+        XCTAssertNil(replayed.pending)
+        XCTAssertEqual(replayed.records[0].state, .partiallyVerified)
+        XCTAssertEqual(replayed.records[0].unverifiedSections, ["macros"])
+    }
     private func exportedVial(_ store: ObjectStore, _ gate: KeyAvailabilityGate, root: URL,
                               fault: FirmwareFault? = nil) async throws -> (FirmwareOperationCoordinator, FirmwareBatchRecord) {
         let operations = try FirmwareOperationCoordinator(store: store, support: firmwareSupport(.vial, device: "fixture-vial"),
@@ -85,7 +116,7 @@ final class FirmwareOperationTests: XCTestCase {
     func testVialReadbackComparesAllSlotsAndClassifiesExpectedBaselineAndExternal() async throws {
         let (root, store, _, gate) = try await fixture()
         let (operations, batch) = try await exportedVial(store, gate, root: root)
-        for (snapshot, state) in [(observation("KC_C"), FirmwareMappingState.verified),
+        for (snapshot, state) in [(observation("KC_C"), FirmwareMappingState.partiallyVerified),
                                   (observation("KC_NO"), .failed), (observation("KC_C", second: "KC_A"), .externallyChanged)] {
             let result = try await operations.confirmVialReadback(batch.id, observation: snapshot)
             XCTAssertEqual(result.records.last?.state, state)
@@ -114,11 +145,12 @@ final class FirmwareOperationTests: XCTestCase {
         do { _ = try await operations.confirmVialReadback(batch.id, observation: observation("KC_NO")); XCTFail("Expected older evidence refusal") }
         catch FirmwareError.unavailable {}
         let latest = try await operations.ledger()
-        XCTAssertEqual(latest.records.last?.state, .verified)
+        XCTAssertEqual(latest.records.last?.state, .partiallyVerified)
+        XCTAssertEqual(latest.records.last?.unverifiedSections, ["macros"])
         XCTAssertEqual(latest.records.last?.verifiedAt, Date(timeIntervalSince1970: 4))
     }
     func testVialReadbackEvidenceReopensAfterEveryRecordedResult() async throws {
-        for (snapshot, state) in [(observation("KC_C"), FirmwareMappingState.verified),
+        for (snapshot, state) in [(observation("KC_C"), FirmwareMappingState.partiallyVerified),
                                   (observation("KC_NO"), .failed), (observation("KC_C", second: "KC_A"), .externallyChanged)] {
             let (root, store, _, gate) = try await fixture()
             let fault = FirmwareFault()

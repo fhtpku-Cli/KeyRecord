@@ -30,6 +30,7 @@ def main():
     parser.add_argument("--generate", type=Path, help="write an official synthetic export")
     parser.add_argument("--check", type=Path, help="restore a KeyRecord-patched synthetic export")
     parser.add_argument("--encoders", action="store_true", help="include sparse, bidirectional encoder mappings")
+    parser.add_argument("--scope-probe", action="store_true", help="prove official restore changes opaque sections without changing the keymap")
     parser.add_argument("--definition", type=Path, help="write the corresponding independent synthetic XZ definition")
     parser.add_argument("--basic-keycodes", action="store_true", help="exercise official basic, navigation, numpad and ISO names")
     parser.add_argument("--keycode-fixture", type=Path, help="write official basic/special/ISO raw values and declared aliases")
@@ -359,6 +360,18 @@ def main():
         setattr(Port, "save_" + ("macro" if field == "macro" else method), save)
         setattr(Port, "restore_" + method, restore)
     port = Port()
+    if args.scope_probe:
+        saved = port.save_layout()
+        expected = json.loads(saved)
+        before = {slot: Keycode.deserialize(code, reraise=True) for slot, code in port.layout.items()}
+        port.opaque = {field: ["different synthetic content"] for field in port.opaque}
+        port.layout_options = 1
+        port.restore_layout(saved)
+        after = json.loads(port.save_layout())
+        for field in ("macro", "tap_dance", "combo", "key_override", "alt_repeat_key", "layout_options"):
+            assert after[field] == expected[field], field
+        assert {slot: Keycode.deserialize(code, reraise=True) for slot, code in port.layout.items()} == before
+        print("PASS: official restore changed six opaque/layout sections while every keymap value stayed identical")
     if args.definition:
         keys = [f"{row},{col}" for row in range(2) for col in range(4) if (row, col) != (0, 2)]
         if args.encoders:

@@ -417,6 +417,8 @@
 "phase4.state.awaitingUserImport" = "Awaiting user import";
 "phase4.state.importClaimed" = "User declared import";
 "phase4.state.verified" = "Verified";
+"phase4.state.partiallyVerified" = "Partially verified";
+"phase4.readbackScope" = "Readback compares the key matrix and encoders only. Macros, tap dance, combos, overrides, repeat keys, layout options, settings and other saved sections are not verified. Retain the original recovery copy.";
 "phase4.state.failed" = "Failed";
 "phase4.state.externallyChanged" = "Externally changed";
 "phase4.state.rolledBack" = "Rolled back";

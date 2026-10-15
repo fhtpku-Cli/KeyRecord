@@ -155,9 +155,9 @@ struct FirmwareIntegrationProbe {
             observation = try await adapter.observe(record: record, original: bytes, at: { Date(timeIntervalSince1970: 3) })
         }
         let result = try await operations.confirmVialReadback(record.id, observation: observation)
-        guard result.records.last?.state == .verified, try await operations.original(record.id) == bytes else { throw FirmwareError.invalidState }
+        guard result.records.last?.state == .partiallyVerified, try await operations.original(record.id) == bytes else { throw FirmwareError.invalidState }
         let reopened = try FirmwareOperationCoordinator(store: store, support: support, resolve: { try FirmwareFileDestination(reference: $0, gate: gate) })
-        guard try await reopened.reconcile().records.last?.state == .verified else { throw FirmwareError.invalidState }
-        print("PASS: public API retained official export, previewed one change, exported, claimed import, read \(observation.values.count) matrix and \(observation.encoderValues.count) encoder slots, verified and reopened encrypted result")
+        guard try await reopened.reconcile().records.last?.state == .partiallyVerified else { throw FirmwareError.invalidState }
+        print("PASS: public API retained official export, previewed one change, exported, claimed import, read \(observation.values.count) matrix and \(observation.encoderValues.count) encoder slots, recorded partial verification and reopened encrypted result")
     }
 }

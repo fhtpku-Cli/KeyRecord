@@ -114,6 +114,67 @@ private final class DeploymentVersionProbe: @unchecked Sendable {
 
 @MainActor
 final class KarabinerMappingFlowTests: XCTestCase {
+    func testInstalledImporterMetadataRejectsMissingMalformedAndForeignBundles() async throws {
+        let (_, file, _, _) = try await deployment()
+        let bundle = file.deletingLastPathComponent().appendingPathComponent("Vial.app")
+        let contents = bundle.appendingPathComponent("Contents")
+        try FileManager.default.createDirectory(at: contents, withIntermediateDirectories: true)
+        let plist = contents.appendingPathComponent("Info.plist")
+        let source = FirmwareImporterVersionSource(locate: { id in XCTAssertEqual(id, "today.vial"); return bundle })
+        XCTAssertNil(source.version(for: .vial)); XCTAssertNil(source.version(for: .via))
+        let good = ["CFBundleIdentifier": "today.vial", "CFBundleShortVersionString": "0.7.5", "CFBundleVersion": "12"]
+        for invalid in [good.merging(["CFBundleIdentifier": "other.app"]) { _, new in new },
+                        good.merging(["CFBundleVersion": ""]) { _, new in new },
+                        good.merging(["CFBundleShortVersionString": "0.7.5/forged"]) { _, new in new },
+                        ["CFBundleIdentifier": "today.vial", "CFBundleVersion": "12"]] {
+            try PropertyListSerialization.data(fromPropertyList: invalid, format: .xml, options: 0).write(to: plist)
+            XCTAssertNil(source.version(for: .vial))
+        }
+        try PropertyListSerialization.data(fromPropertyList: good, format: .binary, options: 0).write(to: plist)
+        XCTAssertEqual(source.version(for: .vial), "today.vial/0.7.5/12")
+        let saved = contents.appendingPathComponent("saved.plist")
+        try FileManager.default.moveItem(at: plist, to: saved)
+        try FileManager.default.createSymbolicLink(at: plist, withDestinationURL: saved)
+        XCTAssertNil(source.version(for: .vial))
+        try FileManager.default.removeItem(at: plist)
+        try Data(repeating: 65, count: 65_537).write(to: plist)
+        XCTAssertNil(source.version(for: .vial))
+    }
+    func testIndependentImporterMetadataBindsRetentionAndRejectsUpdateInsideExportPicker() async throws {
+        let (fixture, file, store, gate) = try await deployment()
+        let root = file.deletingLastPathComponent(), model = fixture.flow.firmwareCopies
+        let bundle = root.appendingPathComponent("Vial.app")
+        try FileManager.default.createDirectory(at: bundle.appendingPathComponent("Contents"), withIntermediateDirectories: true)
+        let plist = bundle.appendingPathComponent("Contents/Info.plist")
+        func metadata(_ build: String) throws -> Data {
+            try PropertyListSerialization.data(fromPropertyList: ["CFBundleIdentifier": "today.vial",
+                "CFBundleShortVersionString": "0.7.5", "CFBundleVersion": build], format: .xml, options: 0)
+        }
+        try metadata("12").write(to: plist)
+        let source = FirmwareImporterVersionSource(locate: { _ in bundle })
+        let bytes = Data(#"{"version":1,"uid":42,"via_protocol":9,"vial_protocol":6,"layout":[[["KC_NO"]]],"importer":"forged"}"#.utf8)
+        let axes = try FirmwareVersionProvider.axes(bytes: bytes, backend: .vial,
+            definitionSchema: VialDeviceDefinition.schema, importer: "today.vial/0.7.5/12")
+        let support = FirmwareSupportDirectory(entries: [.init(backend: .vial, device: "42", axes: axes, supportedOutputs: ["KC_C"])])
+        model.configure(store: store, gate: gate, support: support, importerVersion: { source.version(for: $0) })
+        let original = root.appendingPathComponent("original.vil"), output = root.appendingPathComponent("patched.vil")
+        try bytes.write(to: original); model.selectVial = { original }
+        await model.retainVial(ticket: try XCTUnwrap(model.selectionTicket()))
+        let record = try XCTUnwrap(model.records.last)
+        XCTAssertEqual(record.axes, axes); XCTAssertTrue(model.isCompatible(record))
+        XCTAssertFalse(FirmwareSupportDirectory().supports(backend: .vial, device: "42", axes: record.axes))
+        let newer = try metadata("13")
+        model.selectExport = { _ in
+            do { try newer.write(to: plist, options: .atomic) } catch { XCTFail("\(error)") }
+            return output
+        }
+        await model.exportChanges(record, changes: [.init(slot: .init(layer: 0, column: 0), output: "KC_C", automatic: false)],
+            ticket: try XCTUnwrap(model.selectionTicket()))
+        XCTAssertFalse(model.isCompatible(record)); XCTAssertFalse(FileManager.default.fileExists(atPath: output.path))
+        XCTAssertEqual(model.records.last?.state, .draft)
+        try FileManager.default.removeItem(at: plist)
+        XCTAssertFalse(model.isCompatible(record))
+    }
     func testReadbackCancellationInsideDevicePickerCannotOpenDevice() async throws {
         let (fixture, file, store, gate) = try await deployment()
         let record = try await claimedVial(fixture, file: file, store: store, gate: gate, readback: nil)
@@ -696,7 +757,7 @@ final class KarabinerMappingFlowTests: XCTestCase {
         let verified = XCTestExpectation(description: "Synthetic Vial comparison recorded")
         var delivered = false
         model.onChange = {
-            if !delivered, model.records.last?.state == .verified { delivered = true; verified.fulfill() }
+            if !delivered, model.records.last?.state == .partiallyVerified { delivered = true; verified.fulfill() }
         }
         XCTAssertTrue(KRAXPress(try NativeEvidence.node("readback-" + batch.id.uuidString, in: view)))
         ScreenEvidence.awaitMain {
@@ -705,6 +766,9 @@ final class KarabinerMappingFlowTests: XCTestCase {
         }
         XCTAssertEqual(model.records.last?.verificationSource, "vialKeymapReadback")
         NativeEvidence.update(view)
+        XCTAssertEqual(model.records.last?.state, .partiallyVerified)
+        XCTAssertEqual(model.records.last?.unverifiedSections, ["macros", "unknown"])
+        XCTAssertTrue(NativeEvidence.elements(in: view).contains { KRAXLabel($0) == NativeText(locale: "en")("phase4.readbackScope") })
         if let directory = NativeEvidence.outputRoot() {
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
             try ScreenEvidence.capturePNG(view).write(to: directory.appendingPathComponent("synthetic-vial-readback-en.png"))
@@ -834,14 +898,14 @@ final class KarabinerMappingFlowTests: XCTestCase {
         let verified = XCTestExpectation(description: "Protocol adapter completed product readback")
         var delivered = false
         model.onChange = {
-            if !delivered, model.records.last?.state == .verified { delivered = true; verified.fulfill() }
+            if !delivered, model.records.last?.state == .partiallyVerified { delivered = true; verified.fulfill() }
         }
         XCTAssertTrue(KRAXPress(try NativeEvidence.node("readback-" + claimed.id.uuidString, in: view)))
         ScreenEvidence.awaitMain {
             let waitResult = await XCTWaiter.fulfillment(of: [verified], timeout: 5)
             XCTAssertEqual(waitResult, .completed)
         }
-        XCTAssertEqual(model.records.last?.state, .verified); XCTAssertNil(model.issueKey)
+        XCTAssertEqual(model.records.last?.state, .partiallyVerified); XCTAssertNil(model.issueKey)
         NativeEvidence.update(view)
         if let directory = NativeEvidence.outputRoot() {
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
@@ -910,6 +974,7 @@ final class KarabinerMappingFlowTests: XCTestCase {
             let model = fixture.flow.firmwareCopies
             await model.verifyVial(record, ticket: try XCTUnwrap(model.selectionTicket()))
             XCTAssertEqual(model.records.last?.state, mismatch ? .externallyChanged : .verified)
+            XCTAssertEqual(model.records.last?.unverifiedSections, [])
             XCTAssertNil(model.issueKey); XCTAssertEqual(endpoint.closeCount, 1)
             XCTAssertTrue(endpoint.requests.contains(.encoder(layer: 0, index: 2)))
             let ledger = try await FirmwareOperationCoordinator(store: store,
@@ -1131,6 +1196,7 @@ final class KarabinerMappingFlowTests: XCTestCase {
         await model.verifyVial(record, ticket: try XCTUnwrap(model.selectionTicket()))
         await old.value; pending.emit(.identity)
         XCTAssertEqual(model.records.last?.state, .verified); XCTAssertNil(model.issueKey)
+        XCTAssertEqual(model.records.last?.unverifiedSections, [])
         XCTAssertFalse(model.working); XCTAssertEqual(opens, 2)
         XCTAssertEqual(pending.requests.count, 2); XCTAssertEqual(pending.closeCount, 1)
         XCTAssertEqual(fresh.requests.count, 16); XCTAssertEqual(fresh.closeCount, 1)

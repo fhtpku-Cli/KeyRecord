@@ -517,6 +517,7 @@ final class ProductRecoveryQuitTests: XCTestCase {
         product.configureBackends = { host in
             host.karabinerDeployment = KarabinerDeploymentDependencies(version: { "synthetic-version" }, authority: { _, _ in .temporaryConfiguration })
             host.firmwareVersionAxes = { _ in axes }
+            host.firmwareImporterVersion = { _ in axes.importer }
             host.firmwareSupport = FirmwareSupportDirectory(entries: [FirmwareCompatibility(backend: .vial,
                 device: "42", axes: axes, supportedOutputs: ["KC_C"])])
             host.vialDevices = VialDeviceSelection(devices: { discoveries += 1; return [] },
@@ -529,9 +530,11 @@ final class ProductRecoveryQuitTests: XCTestCase {
         let target = product.root.appendingPathComponent("karabiner-copy.json")
         try Data(#"{"profiles":[{"name":"Synthetic","selected":true,"complex_modifications":{"rules":[]}}]}"#.utf8).write(to: target)
         let deployment = product.composition.flow.karabinerDeployment
+        try await waitUntil("backend session ready") { !deployment.working }
         deployment.selectTarget = { target }
         await deployment.requestApplication(profile: "Synthetic")
-        XCTAssertTrue(deployment.connected); XCTAssertEqual(deployment.version, "synthetic-version")
+        XCTAssertTrue(deployment.connected, "issue=\(deployment.issueKey ?? "none"), working=\(deployment.working)")
+        XCTAssertEqual(deployment.version, "synthetic-version")
         let firmware = product.composition.flow.firmwareCopies
         let original = product.root.appendingPathComponent("original.vil")
         try Data(#"{"version":1,"uid":42,"via_protocol":9,"vial_protocol":6,"layout":[[["KC_NO"]]]}"#.utf8).write(to: original)

@@ -180,6 +180,28 @@ final class VIAImportFlowTests: XCTestCase {
             model.clear()
         }
     }
+    func testOfficialCompiledDefinitionFlowsThroughFileReaderAndNativeReferenceSummary() async throws {
+        let (root, layout, definition) = try files()
+        let fixture = try await ready(root)
+        let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        let document = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: repository.appendingPathComponent(
+            "evidence/phase4/fixtures/synthetic/via-compiled-definitions.json"))) as? [String: Any])
+        for item in try XCTUnwrap(document["fixtures"] as? [[String: Any]]) {
+            try JSONSerialization.data(withJSONObject: XCTUnwrap(item["compiled"])).write(to: definition)
+            let model = fixture.flow.viaImport
+            await model.load(kind: .layout, url: layout)
+            await model.load(kind: .definition, url: definition)
+            let imported = try XCTUnwrap(model.configuration)
+            XCTAssertEqual(imported.geometry?.positions.count, 4)
+            XCTAssertEqual(imported.geometry?.positions["0,1"]?.x, 2)
+            XCTAssertEqual(imported.physicalEvidence.device, .unknown)
+            XCTAssertEqual(model.selectedOriginalBytes, layoutBytes)
+            let view = NSHostingView(rootView: VIAImportSection(model: model, text: NativeText(locale: "en")))
+            XCTAssertTrue(NativeEvidence.elements(in: view).contains { KRAXIdentifier($0) == "phase2.via.summary" })
+            model.clear()
+            XCTAssertNil(model.configuration); XCTAssertNil(model.selectedOriginalBytes)
+        }
+    }
 
     func testReplacingWithMismatchedOrInvalidFileWithdrawsOldReference() async throws {
         let (root, layout, definition) = try files()

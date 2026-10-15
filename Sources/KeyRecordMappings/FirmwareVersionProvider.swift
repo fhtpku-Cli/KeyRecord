@@ -2,6 +2,12 @@ import Foundation
 import KeyRecordConfigurationRead
 
 public enum FirmwareVersionProvider {
+    public static func requiredVIADefinition(deviceProtocol: String?) -> String? {
+        guard let deviceProtocol, deviceProtocol.hasPrefix("via-"),
+              let version = UInt16(deviceProtocol.dropFirst(4)), (7...13).contains(version),
+              deviceProtocol == "via-\(version)" else { return nil }
+        return version >= 11 ? "v3" : "v2"
+    }
     // Files establish format/protocol facts, never the importer build or device qualification.
     public static func axes(bytes: Data, backend: FirmwareBackend,
                             definitionSchema: String? = nil, importer: String? = nil,

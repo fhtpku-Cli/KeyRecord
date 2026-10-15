@@ -262,7 +262,7 @@
 "phase2.physicalWider" = "候选的跨度更大；少按几次不保证动作更轻松。";
 "phase2.physicalCurrentEstimate" = "按提供的当前配置估算，不是历史物理计数；排名仍采用逻辑键数简化。";
 "phase2.via.title" = "只读 VIA 参考文件";
-"phase2.via.notice" = "选择 VIA 配置副本和对应键盘定义。仅在本次会话读取，不写文件、不应用映射、不查询设备；文件变化后需重新导入。隐私关闭时移除参考。";
+"phase2.via.notice" = "选择 VIA 配置副本和对应的原始或编译后键盘定义。仅在本次会话读取，不写文件、不应用映射、不查询设备；文件变化后需重新导入。隐私关闭时移除参考。";
 "phase2.via.chooseLayout" = "选择配置副本";
 "phase2.via.chooseDefinition" = "选择布局定义";
 "phase2.via.layoutSelected" = "配置副本：%@";
@@ -422,6 +422,8 @@
 "phase4.onlineImporterUnknown" = "尚无法获取 VIA 在线导入器版本。设备版本不能证明导入器兼容性，请保留原始恢复副本。";
 "phase4.retainVIAVersions" = "保留 VIA 副本并读取设备版本…";
 "phase4.deviceProtocol" = "设备协议";
+"phase4.requiredDefinition" = "设备协议要求的定义版本";
+"phase4.definitionVersionUnknown" = "定义版本尚未验证。选中的定义副本不能证明在线导入器当前使用的是哪份定义。";
 "phase4.keycodeVersion" = "键码版本";
 "phase4.versionUnknown" = "未知";
 "phase4.state.failed" = "失败";

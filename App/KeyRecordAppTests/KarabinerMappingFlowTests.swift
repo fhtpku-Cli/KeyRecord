@@ -27,6 +27,7 @@ private final class NativeVialHIDFixture: VialHIDEndpoint, @unchecked Sendable {
     static let encoderDefinition = Data(base64Encoded: "/Td6WFoAAATm1rRGAgAhARYAAAB0L+Wj4ACMAHNdAD2IisaUL8LEIpnpbzWhi9MuaJSxOkspsVw55Xn7bInuMyewnJZLH9loZQHt+8O/0aPdImbC/zOhSY0hKRF6Qo860nDK00pvvQj4zzfzFDhGIM4qAJCwnLNQi6XluttcNvwdRtrS0/ZXMW7fRhPfGKahBwAAAGoknprQ9flsAAGPAY0BAACxXyIPscRn+wIAAAAABFla")!
     private let lock = NSLock()
     private var receive: (@Sendable (Result<VialHIDFrame, VialHIDError>) -> Void)?
+    private var pausedCompletion: (@Sendable (Result<Void, VialHIDError>) -> Void)?
     private var reports: [VialReadRequest] = []
     private var closes = 0
     private let pause: VialReadRequest?
@@ -59,8 +60,12 @@ private final class NativeVialHIDFixture: VialHIDEndpoint, @unchecked Sendable {
     func start(receive: @escaping @Sendable (Result<VialHIDFrame, VialHIDError>) -> Void) { lock.withLock { self.receive = receive } }
     func send(_ request: VialReadRequest, timeoutMilliseconds: Int, completion: @escaping @Sendable (Result<Void, VialHIDError>) -> Void) {
         lock.withLock { reports.append(request) }
-        if request == pause { paused.fulfill(); return }
+        if request == pause { lock.withLock { pausedCompletion = completion }; paused.fulfill(); return }
         emit(request); completion(.success(()))
+    }
+    func resume(_ request: VialReadRequest) {
+        let completion = lock.withLock { let value = pausedCompletion; pausedCompletion = nil; return value }
+        emit(request); completion?(.success(()))
     }
     func emit(_ request: VialReadRequest) {
         let definition = definitionOverride ?? (encoders ? Self.encoderDefinition : Self.definition)
@@ -123,6 +128,7 @@ final class KarabinerMappingFlowTests: XCTestCase {
         let (fixture, _, store, gate) = try await deployment()
         let model = fixture.flow.firmwareCopies
         let bytes = Data(#"{"vendorProductId":42,"layers":[["KC_NO"]],"protocol":13,"keycodesVersion":9,"importer":"forged"}"#.utf8)
+        model.selectedOriginal = { bytes }
         let endpoint = NativeVialHIDFixture()
         let device = VialHIDDevice(registryEntryID: 9, vendorID: 0, productID: 42, name: "Synthetic VIA")
         var selection = VialDeviceSelection(devices: { [device] }, choose: { candidates, _ in
@@ -141,6 +147,8 @@ final class KarabinerMappingFlowTests: XCTestCase {
         XCTAssertTrue(NativeEvidence.elements(in: view).contains { KRAXIdentifier($0) == "phase4.retainVIAVersions" })
         XCTAssertTrue(NativeEvidence.elements(in: view).contains { KRAXLabel($0) == "Device protocol: via-9" })
         XCTAssertTrue(NativeEvidence.elements(in: view).contains { KRAXLabel($0) == "Keycode version: Unknown" })
+        XCTAssertTrue(NativeEvidence.elements(in: view).contains { KRAXLabel($0) == "Definition required by device protocol: v2" })
+        XCTAssertTrue(NativeEvidence.elements(in: view).contains { KRAXLabel($0) == NativeText(locale: "en")("phase4.definitionVersionUnknown") })
         XCTAssertTrue(NativeEvidence.elements(in: view).contains { KRAXLabel($0) == NativeText(locale: "en")("phase4.onlineImporterUnknown") })
         selection.choose = { _, _ in model.clear(); return device }
         await model.retainVIAWithVersions(bytes, ticket: try XCTUnwrap(model.selectionTicket()))
@@ -148,6 +156,56 @@ final class KarabinerMappingFlowTests: XCTestCase {
         XCTAssertTrue(model.records.isEmpty)
         let saved = try await FirmwareOperationCoordinator(store: store, resolve: { try FirmwareFileDestination(reference: $0, gate: gate) }).ledger()
         XCTAssertEqual(saved.records.count, 1)
+    }
+    func testVIAVersionReadRejectsStaleOriginalBeforeAndDuringPicker() async throws {
+        for duringPicker in [false, true] {
+            let (fixture, _, store, gate) = try await deployment()
+            let model = fixture.flow.firmwareCopies
+            let bytes = Data(#"{"vendorProductId":42,"layers":[["KC_NO"]]}"#.utf8)
+            var current: Data? = duringPicker ? bytes : nil
+            model.selectedOriginal = { current }
+            let endpoint = NativeVialHIDFixture()
+            let device = VialHIDDevice(registryEntryID: 9, vendorID: 0, productID: 42, name: "Synthetic VIA")
+            var opens = 0
+            let selection = VialDeviceSelection(devices: { [device] }, choose: { _, _ in
+                current = nil; return device
+            }, open: { _ in opens += 1; return endpoint })
+            model.configure(store: store, gate: gate, viaVersionConnection: { id, authorize in
+                try selection.openVIAVersionSource(device: id, text: NativeText(locale: "en"), authorize: authorize)
+            })
+            await model.retainVIAWithVersions(bytes, ticket: try XCTUnwrap(model.selectionTicket()))
+            XCTAssertEqual(opens, 0)
+            XCTAssertTrue(endpoint.requests.isEmpty)
+            XCTAssertTrue(model.records.isEmpty)
+            let saved = try await FirmwareOperationCoordinator(store: store,
+                resolve: { try FirmwareFileDestination(reference: $0, gate: gate) }).ledger()
+            XCTAssertTrue(saved.records.isEmpty)
+        }
+    }
+    func testVIAVersionReadDiscardsResponseAfterOriginalWithdrawalOrReplacement() async throws {
+        for replacement in [nil, Data(#"{"vendorProductId":42,"layers":[["KC_A"]]}"#.utf8)] as [Data?] {
+            let (fixture, _, store, gate) = try await deployment()
+            let model = fixture.flow.firmwareCopies
+            let bytes = Data(#"{"vendorProductId":42,"layers":[["KC_NO"]]}"#.utf8)
+            var current: Data? = bytes
+            model.selectedOriginal = { current }
+            let endpoint = NativeVialHIDFixture(pause: .viaProtocol)
+            model.configure(store: store, gate: gate, viaVersionConnection: { _, _ in
+                VIAVersionReadConnection(endpoint: endpoint, vendorID: 0, productID: 42)
+            })
+            let ticket = try XCTUnwrap(model.selectionTicket())
+            let task = Task { await model.retainVIAWithVersions(bytes, ticket: ticket) }
+            await fulfillment(of: [endpoint.paused], timeout: 5)
+            current = replacement
+            endpoint.resume(.viaProtocol)
+            await task.value
+            XCTAssertEqual(endpoint.requests, [.viaProtocol])
+            XCTAssertEqual(endpoint.closeCount, 1)
+            XCTAssertFalse(model.working); XCTAssertTrue(model.records.isEmpty)
+            let saved = try await FirmwareOperationCoordinator(store: store,
+                resolve: { try FirmwareFileDestination(reference: $0, gate: gate) }).ledger()
+            XCTAssertTrue(saved.records.isEmpty)
+        }
     }
     func testNativeDynamicReadbackVerifiesEmptyTablesOnlyAfterDeviceCounts() async throws {
         let endpoint = NativeVialHIDFixture()

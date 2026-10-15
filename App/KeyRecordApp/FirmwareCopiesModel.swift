@@ -151,7 +151,7 @@ final class FirmwareCopiesModel: ObservableObject {
     }
     var canReadVIAVersions: Bool { viaVersionConnection != nil }
     func retainVIAWithVersions(_ bytes: Data?, ticket: UUID) async {
-        guard canRead(), ticket == session, !working, let bytes, let gate, let viaVersionConnection else { return }
+        guard canRead(), ticket == session, !working, let bytes, bytes == selectedOriginal(), let gate, let viaVersionConnection else { return }
         working = true
         defer { if ticket == session { working = false; activeVIAVersionConnection = nil; onChange() } }
         do {
@@ -159,16 +159,16 @@ final class FirmwareCopiesModel: ObservableObject {
             let generation = try gate.begin()
             let connection = try viaVersionConnection(device) { [weak self] in
                 try gate.check(generation)
-                guard let self, self.canRead(), self.session == ticket else { throw FirmwareError.unavailable }
+                guard let self, self.canRead(), self.session == ticket, self.selectedOriginal() == bytes else { throw FirmwareError.unavailable }
             }
             activeVIAVersionConnection = connection
             defer { connection.close() }
             let axes = try await connection.observe(expectedDevice: device) { [weak self] in
                 try gate.check(generation)
-                guard let self, self.canRead(), self.session == ticket else { throw FirmwareError.unavailable }
+                guard let self, self.canRead(), self.session == ticket, self.selectedOriginal() == bytes else { throw FirmwareError.unavailable }
             }
             try gate.check(generation)
-            guard canRead(), ticket == session else { return }
+            guard canRead(), ticket == session, selectedOriginal() == bytes else { return }
             working = false
             await retain(bytes, backend: .via, observedAxes: axes)
         } catch { if canRead(), ticket == session { issueKey = "phase4.operationFailed" } }
@@ -422,7 +422,11 @@ struct FirmwareCopiesSection: View {
                 if record.backend == .via, let protocolVersion = record.axes.deviceProtocol {
                     Text(text("phase4.deviceProtocol") + ": " + protocolVersion)
                     Text(text("phase4.keycodeVersion") + ": " + (record.axes.keycodeDialect ?? text("phase4.versionUnknown")))
+                    if let required = FirmwareVersionProvider.requiredVIADefinition(deviceProtocol: protocolVersion) {
+                        Text(text("phase4.requiredDefinition") + ": " + required)
+                    }
                 }
+                if record.backend == .via, record.axes.definitionSchema == nil { Text(text("phase4.definitionVersionUnknown")) }
                 if record.backend == .via, record.axes.importer == nil { Text(text("phase4.onlineImporterUnknown")) }
                 if !model.isCompatible(record) { Text(text("phase4.compatibilityUnknown")) }
                 if let date = record.exportedAt { HStack { Text(text("phase4.exportedAt")); Text(date, style: .date) } }

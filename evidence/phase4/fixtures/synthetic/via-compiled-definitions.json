@@ -1,0 +1,214 @@
+{
+  "reader": "1.14.4",
+  "protocolDefinitions": {
+    "7": "v2",
+    "8": "v2",
+    "9": "v2",
+    "10": "v2",
+    "11": "v3",
+    "12": "v3",
+    "13": "v3"
+  },
+  "fixtures": [
+    {
+      "version": "v2",
+      "raw": {
+        "name": "synthetic-definition",
+        "vendorId": "0x0001",
+        "productId": "0x0002",
+        "matrix": {
+          "rows": 2,
+          "cols": 2
+        },
+        "layouts": {
+          "keymap": [
+            [
+              "1,0",
+              {
+                "w": 2
+              },
+              "0,1"
+            ],
+            [
+              {
+                "x": 0.5
+              },
+              "0,0",
+              "1,1"
+            ]
+          ]
+        },
+        "lighting": "none"
+      },
+      "compiled": {
+        "name": "synthetic-definition",
+        "lighting": "none",
+        "layouts": {
+          "width": 3,
+          "height": 2,
+          "optionKeys": {},
+          "keys": [
+            {
+              "row": 1,
+              "col": 0,
+              "x": 0,
+              "y": 0,
+              "r": 0,
+              "rx": 0,
+              "ry": 0,
+              "d": false,
+              "h": 1,
+              "w": 1,
+              "color": "alpha"
+            },
+            {
+              "row": 0,
+              "col": 1,
+              "x": 1,
+              "y": 0,
+              "r": 0,
+              "rx": 0,
+              "ry": 0,
+              "d": false,
+              "h": 1,
+              "w": 2,
+              "color": "alpha"
+            },
+            {
+              "row": 0,
+              "col": 0,
+              "x": 0.5,
+              "y": 1,
+              "r": 0,
+              "rx": 0,
+              "ry": 0,
+              "d": false,
+              "h": 1,
+              "w": 1,
+              "color": "alpha"
+            },
+            {
+              "row": 1,
+              "col": 1,
+              "x": 1.5,
+              "y": 1,
+              "r": 0,
+              "rx": 0,
+              "ry": 0,
+              "d": false,
+              "h": 1,
+              "w": 1,
+              "color": "alpha"
+            }
+          ]
+        },
+        "matrix": {
+          "rows": 2,
+          "cols": 2
+        },
+        "vendorProductId": 65538
+      }
+    },
+    {
+      "version": "v3",
+      "raw": {
+        "name": "synthetic-definition",
+        "vendorId": "0x0001",
+        "productId": "0x0002",
+        "matrix": {
+          "rows": 2,
+          "cols": 2
+        },
+        "layouts": {
+          "keymap": [
+            [
+              "1,0",
+              {
+                "w": 2
+              },
+              "0,1"
+            ],
+            [
+              {
+                "x": 0.5
+              },
+              "0,0",
+              "1,1"
+            ]
+          ]
+        },
+        "menus": []
+      },
+      "compiled": {
+        "name": "synthetic-definition",
+        "vendorProductId": 65538,
+        "firmwareVersion": 0,
+        "menus": [],
+        "keycodes": [],
+        "matrix": {
+          "rows": 2,
+          "cols": 2
+        },
+        "layouts": {
+          "width": 3,
+          "height": 2,
+          "optionKeys": {},
+          "keys": [
+            {
+              "row": 1,
+              "col": 0,
+              "x": 0,
+              "y": 0,
+              "r": 0,
+              "rx": 0,
+              "ry": 0,
+              "d": false,
+              "h": 1,
+              "w": 1,
+              "color": "alpha"
+            },
+            {
+              "row": 0,
+              "col": 1,
+              "x": 1,
+              "y": 0,
+              "r": 0,
+              "rx": 0,
+              "ry": 0,
+              "d": false,
+              "h": 1,
+              "w": 2,
+              "color": "alpha"
+            },
+            {
+              "row": 0,
+              "col": 0,
+              "x": 0.5,
+              "y": 1,
+              "r": 0,
+              "rx": 0,
+              "ry": 0,
+              "d": false,
+              "h": 1,
+              "w": 1,
+              "color": "alpha"
+            },
+            {
+              "row": 1,
+              "col": 1,
+              "x": 1.5,
+              "y": 1,
+              "r": 0,
+              "rx": 0,
+              "ry": 0,
+              "d": false,
+              "h": 1,
+              "w": 1,
+              "color": "alpha"
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

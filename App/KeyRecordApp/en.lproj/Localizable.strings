@@ -262,7 +262,7 @@
 "phase2.physicalWider" = "The candidate has a wider span. Fewer presses do not guarantee an easier action.";
 "phase2.physicalCurrentEstimate" = "Estimate under the supplied current configuration, not historical physical counts. Ranking still uses logical key reduction.";
 "phase2.via.title" = "Read-only VIA reference files";
-"phase2.via.notice" = "Choose a VIA configuration copy and its matching keyboard definition. Files are read for this session only; nothing is written, applied or sent to a device. Reimport after changes. Privacy closure removes the reference.";
+"phase2.via.notice" = "Choose a VIA configuration copy and its matching raw or compiled keyboard definition. Files are read for this session only; nothing is written, applied or sent to a device. Reimport after changes. Privacy closure removes the reference.";
 "phase2.via.chooseLayout" = "Choose configuration copy";
 "phase2.via.chooseDefinition" = "Choose layout definition";
 "phase2.via.layoutSelected" = "Configuration copy: %@";
@@ -422,6 +422,8 @@
 "phase4.onlineImporterUnknown" = "The online VIA importer version is unavailable. Device versions do not establish importer compatibility; keep the original recovery copy.";
 "phase4.retainVIAVersions" = "Retain VIA copy and read device versions…";
 "phase4.deviceProtocol" = "Device protocol";
+"phase4.requiredDefinition" = "Definition required by device protocol";
+"phase4.definitionVersionUnknown" = "Definition version is unverified. A selected definition copy does not prove which definition the online importer is using.";
 "phase4.keycodeVersion" = "Keycode version";
 "phase4.versionUnknown" = "Unknown";
 "phase4.state.failed" = "Failed";

@@ -20,6 +20,59 @@ final class VIAReferenceParserTests: XCTestCase {
         let legacy = Data(#"{"name":"legacy","vendorProductId":65538,"matrix":{"rows":2,"cols":2},"layouts":{"keymap":[["0,0","0,1"],["1,0","1,1"]]}}"#.utf8)
         XCTAssertEqual(try VIAReferenceParser.definition(legacy).vendorProductID, parsed.vendorProductID)
     }
+    func testOfficialCompiledDefinitionsMatchRawGeometryAndKeepUnverifiedProvenance() throws {
+        let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        let fixture = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: root.appendingPathComponent(
+            "evidence/phase4/fixtures/synthetic/via-compiled-definitions.json"))) as? [String: Any])
+        for item in try XCTUnwrap(fixture["fixtures"] as? [[String: Any]]) {
+            let raw = try VIAReferenceParser.definition(JSONSerialization.data(withJSONObject: XCTUnwrap(item["raw"])))
+            let compiled = try VIAReferenceParser.definition(JSONSerialization.data(withJSONObject: XCTUnwrap(item["compiled"])))
+            XCTAssertEqual(raw, compiled)
+            let matched = try VIAReferenceParser.match(layout: VIAReferenceParser.layout(layout), definition: compiled)
+            XCTAssertEqual(matched.geometry?.positions["0,1"]?.x, 2)
+            XCTAssertEqual(matched.geometry?.positions["0,0"]?.x, 1)
+            XCTAssertEqual(matched.physicalEvidence.device, .unknown)
+            XCTAssertTrue(matched.limitations.contains(.deploymentUnknown))
+        }
+    }
+    private func compiled(_ change: (inout [String: Any], inout [[String: Any]]) -> Void) throws -> Data {
+        let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        let fixture = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: root.appendingPathComponent(
+            "evidence/phase4/fixtures/synthetic/via-compiled-definitions.json"))) as? [String: Any])
+        let item = try XCTUnwrap((fixture["fixtures"] as? [[String: Any]])?.first)
+        var object = try XCTUnwrap(item["compiled"] as? [String: Any])
+        var layouts = try XCTUnwrap(object["layouts"] as? [String: Any])
+        var keys = try XCTUnwrap(layouts["keys"] as? [[String: Any]])
+        change(&layouts, &keys)
+        layouts["keys"] = keys; object["layouts"] = layouts
+        return try JSONSerialization.data(withJSONObject: object)
+    }
+    func testCompiledDefinitionRejectsMalformedCoordinatesShapesAndMixedRepresentations() throws {
+        let mutations: [(inout [String: Any], inout [[String: Any]]) -> Void] = [
+            { _, keys in keys[0]["row"] = 2 }, { _, keys in keys[0]["col"] = -1 },
+            { _, keys in keys[0]["x"] = "0" }, { _, keys in keys[0]["w"] = 0 },
+            { _, keys in keys[0]["d"] = 0 }, { _, keys in keys[0].removeValue(forKey: "r") },
+            { _, keys in keys.append(keys[0]) }, { _, keys in keys = [] },
+            { layouts, _ in layouts["keymap"] = [["0,0"]] },
+            { layouts, _ in layouts["height"] = -1 }, { layouts, _ in layouts["optionKeys"] = [] },
+            { layouts, _ in layouts["optionKeys"] = ["0": ["0": true]] }
+        ]
+        for change in mutations { XCTAssertThrowsError(try VIAReferenceParser.definition(compiled(change))) }
+    }
+    func testCompiledOptionsRotationEncoderAndFutureGeometryRemainUnmeasured() throws {
+        let mutations: [(inout [String: Any], inout [[String: Any]]) -> Void] = [
+            { _, keys in keys[0]["r"] = 15 }, { _, keys in keys[0]["d"] = true },
+            { _, keys in keys[0]["ei"] = 0 }, { _, keys in keys[0]["w2"] = 2 },
+            { _, keys in keys[0]["future_geometry"] = 1 },
+            { layouts, _ in layouts["future_geometry"] = 1 },
+            { layouts, keys in layouts["optionKeys"] = ["0": ["0": [keys[0]]]] }
+        ]
+        for change in mutations {
+            let parsed = try VIAReferenceParser.definition(compiled(change))
+            XCTAssertNil(parsed.geometry)
+            XCTAssertFalse(parsed.limitations.isDisjoint(with: [.complexGeometry, .layoutOptions]))
+        }
+    }
 
     func testKeyboardIdentityAndEveryLayerShapeMustMatch() throws {
         let parsedLayout = try VIAReferenceParser.layout(layout)

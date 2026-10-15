@@ -55,6 +55,7 @@ final class FirmwareCopiesModel: ObservableObject {
     private var readRequest = UUID()
     private var support = FirmwareSupportDirectory()
     private var versionAxes: @MainActor (FirmwareBackend) -> FirmwareVersionAxes? = { _ in nil }
+    private var importerVersion: (@MainActor (FirmwareBackend) -> String?)?
     private var vialReadback: (@Sendable (FirmwareBatchRecord) async throws -> VialKeymapObservation)?
     private var vialAdapter: VialReadbackAdapter?
     private var vialConnection: (@MainActor (FirmwareBatchRecord, @MainActor () throws -> Void) throws -> VialDeviceReadConnection)?
@@ -73,12 +74,14 @@ final class FirmwareCopiesModel: ObservableObject {
                    versionAxes: @escaping @MainActor (FirmwareBackend) -> FirmwareVersionAxes? = { _ in nil },
                    vialReadback: (@Sendable (FirmwareBatchRecord) async throws -> VialKeymapObservation)? = nil,
                    vialAdapter: VialReadbackAdapter? = nil,
-                   vialConnection: (@MainActor (FirmwareBatchRecord, @MainActor () throws -> Void) throws -> VialDeviceReadConnection)? = nil) {
+                   vialConnection: (@MainActor (FirmwareBatchRecord, @MainActor () throws -> Void) throws -> VialDeviceReadConnection)? = nil,
+                   importerVersion: (@MainActor (FirmwareBackend) -> String?)? = nil) {
         clear()
         self.store = store; self.gate = gate; self.support = support; self.versionAxes = versionAxes; firmware = nil
         self.vialReadback = vialReadback
         self.vialAdapter = vialAdapter
         self.vialConnection = vialConnection
+        self.importerVersion = importerVersion
         patchPreviews = [:]; patchIssueKeys = [:]
     }
     func configureUninstall(_ actions: UninstallActions) { uninstall = actions }
@@ -145,7 +148,9 @@ final class FirmwareCopiesModel: ObservableObject {
         guard canRead(), !working, let bytes else { return }
         let ticket = session; readRequest = UUID(); working = true
         do {
-            let axes = try versionAxes(backend) ?? FirmwareVersionProvider.axes(bytes: bytes, backend: backend)
+            let axes = try versionAxes(backend) ?? FirmwareVersionProvider.axes(bytes: bytes, backend: backend,
+                definitionSchema: backend == .vial && importerVersion != nil ? VialDeviceDefinition.schema : nil,
+                importer: importerVersion?(backend))
             _ = try await coordinator().retainOriginal(bytes, backend: backend, axes: axes, confirmedAt: Date())
             guard canRead(), ticket == session else { return }
             working = false; await refresh()
@@ -176,7 +181,10 @@ final class FirmwareCopiesModel: ObservableObject {
             records.last(where: { $0.backend == record.backend && $0.device == record.device })?.id == record.id &&
             isCompatible(record)
     }
-    func isCompatible(_ record: FirmwareBatchRecord) -> Bool { support.supports(backend: record.backend, device: record.device, axes: record.axes) }
+    func isCompatible(_ record: FirmwareBatchRecord) -> Bool {
+        if let importerVersion, record.axes.importer == nil || importerVersion(record.backend) != record.axes.importer { return false }
+        return support.supports(backend: record.backend, device: record.device, axes: record.axes)
+    }
     func stagePatchChange(_ change: FirmwareSlotChange, record: FirmwareBatchRecord, ticket: UUID) {
         guard ticket == session, records.contains(record), canGenerate(record) else { return }
         var changes = patchDrafts[record.id] ?? []
@@ -230,7 +238,7 @@ final class FirmwareCopiesModel: ObservableObject {
     }
     func hasVialReadback(_ record: FirmwareBatchRecord) -> Bool {
         record.backend == .vial && (vialConnection != nil || vialReadback != nil || vialAdapter != nil) && isCompatible(record) &&
-            [.importClaimed, .verified, .failed, .externallyChanged].contains(record.state)
+            [.importClaimed, .verified, .partiallyVerified, .failed, .externallyChanged].contains(record.state)
     }
     func verifyVial(_ record: FirmwareBatchRecord, ticket: UUID) async {
         guard ticket == session, records.contains(record), canVerifyVial(record), let gate else { return }
@@ -253,7 +261,8 @@ final class FirmwareCopiesModel: ObservableObject {
                 guard canRead(), ticket == session, request == readRequest else { return }
                 let connection = try vialConnection(record) {
                     try gate.check(generation)
-                    guard self.canRead(), ticket == self.session, request == self.readRequest else { throw CancellationError() }
+                    guard self.canRead(), ticket == self.session, request == self.readRequest,
+                          self.isCompatible(record) else { throw CancellationError() }
                 }
                 activeVialConnection = connection
                 observation = try await connection.observe(record: record, original: original,
@@ -268,7 +277,7 @@ final class FirmwareCopiesModel: ObservableObject {
                     authorize: { try gate.check(generation) })
             } else { throw FirmwareError.unavailable }
             try gate.check(generation); try Task.checkCancellation()
-            guard canRead(), ticket == session, request == readRequest else { return }
+            guard canRead(), ticket == session, request == readRequest, isCompatible(record) else { return }
             let ledger = try await coordinator().confirmVialReadback(record.id, observation: observation)
             if canRead(), ticket == session, request == readRequest { records = ledger.records }
         } catch { if canRead(), ticket == session, request == readRequest { issueKey = "phase4.operationFailed" } }
@@ -287,7 +296,8 @@ final class FirmwareCopiesModel: ObservableObject {
         do {
             let operations = try coordinator()
             _ = try await operations.prepare(record.id, changes: changes)
-            guard canRead(), ticket == session, let url = selectExport(record), canRead(), ticket == session else { return }
+            guard canRead(), ticket == session, let url = selectExport(record), canRead(), ticket == session,
+                  isCompatible(record) else { return }
             let ledger = try await operations.export(record.id, changes: changes, destination: FirmwareFileDestination(target: url, gate: gate))
             if canRead(), ticket == session {
                 records = ledger.records; patchPreviews[record.id] = nil; patchDrafts[record.id] = nil
@@ -374,6 +384,7 @@ struct FirmwareCopiesSection: View {
             }.disabled(model.working).accessibilityIdentifier("phase4.retainVial")
             ForEach(model.records) { record in
                 Text(record.device + ": " + text("phase4.state.\(record.state.rawValue)"))
+                if record.backend == .vial { Text(text("phase4.readbackScope")) }
                 if !model.isCompatible(record) { Text(text("phase4.compatibilityUnknown")) }
                 if let date = record.exportedAt { HStack { Text(text("phase4.exportedAt")); Text(date, style: .date) } }
                 if let date = record.importClaimedAt { HStack { Text(text("phase4.importClaimedAt")); Text(date, style: .date) } }
@@ -429,7 +440,7 @@ private struct FirmwareOperationRow: View {
             Button(text("phase4.abandonExport")) { request(.abandon, key: "phase4.abandonConfirm") }
                 .disabled(model.working || pending != nil)
         }
-        if [.importClaimed, .verified, .failed, .externallyChanged].contains(record.state) {
+        if [.importClaimed, .verified, .partiallyVerified, .failed, .externallyChanged].contains(record.state) {
             if record.backend == .via && record.state != .externallyChanged {
                 Button(text("phase4.behaviorPassed")) { request(.viaPassed, key: "phase4.behaviorConfirm") }
                     .disabled(model.working || pending != nil).accessibilityIdentifier("passed-" + record.id.uuidString)
@@ -441,7 +452,7 @@ private struct FirmwareOperationRow: View {
                 }.disabled(!model.canVerifyVial(record)).accessibilityIdentifier("readback-" + record.id.uuidString)
             } else if record.backend == .vial { Text(text("phase4.vialReadbackUnavailable")) }
         }
-        if [.importClaimed, .verified, .failed, .externallyChanged].contains(record.state) {
+        if [.importClaimed, .verified, .partiallyVerified, .failed, .externallyChanged].contains(record.state) {
             Button(text("phase4.guidedRollback")) { request(.rollback, key: "phase4.rollbackConfirm") }
                 .disabled(model.working || pending != nil)
         }

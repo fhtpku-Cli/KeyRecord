@@ -12,6 +12,8 @@ B 的工程基础及只读 VIA 参考已由 [PR #21](https://github.com/fhtpku-C
 
 2026-10-15 安全增量：Phase 3 配置会话绑定已打开的父目录，目录替换不能把读写、临时文件清理或同步重定向到替代目录；原生操作资格与刷新同步识别失效目标。正常的同目录文件原子替换仍可用，见[复现与修复](phase3/DIRECTORY_BINDING_20261015.md)。真实设备、Keychain 恢复和卸载验证继续后置，删除前复核保留。
 
+2026-10-15 Phase 4 验证范围：包含动态配置、设置或未知字段的 Vial 副本，键位与编码器匹配只记作“部分验证”；旧记录和中断恢复同步修正，原始内容逐字节保留。生产组合新增本机 Vial 应用版本／构建信息来源及变更失效处理，支持目录仍为空。动态子协议实际读回、VIA 独立版本来源及真实验证仍待后续，见[范围与来源](phase4/VERIFICATION_SCOPE_20261015.md)。
+
 | Phase | Current state | Remaining scope / evidence boundary |
 |---|---|---|
 | Phase 0: feasibility | Capture prerequisites progressed beyond the old G0 OPEN writeback; historical artifacts remain unchanged | Karabiner version/reload/disable latency, VIA protocol/dialect/importer, Vial importer/live capture and backup KDF/Intel evidence retain their own limits. Phase 0 is not globally all-green. |

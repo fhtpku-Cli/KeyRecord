@@ -2,7 +2,7 @@ import Foundation
 import KeyRecordStore
 
 public enum FirmwareMappingState: String, Codable, Sendable {
-    case draft, awaitingUserImport, importClaimed, verified, failed, externallyChanged, rolledBack
+    case draft, awaitingUserImport, importClaimed, verified, partiallyVerified, failed, externallyChanged, rolledBack
 }
 public enum FirmwareJournalPhase: String, Codable, Sendable {
     case artifactReady, exportRequested, externalExported, claimRecorded, evidenceRecorded, abandonRequested
@@ -25,6 +25,7 @@ public struct FirmwareBatchRecord: Codable, Equatable, Sendable, Identifiable {
     public var importClaimedAt: Date?
     public var verifiedAt: Date?
     public var verificationSource: String?
+    public var unverifiedSections: [String]?
     public var changes: [FirmwareSlotChange] = []
 }
 public struct FirmwarePendingOperation: Codable, Equatable, Sendable {
@@ -36,6 +37,7 @@ public struct FirmwarePendingOperation: Codable, Equatable, Sendable {
     public var previousState: FirmwareMappingState = .draft
     public var verificationState: FirmwareMappingState?
     public var verificationSource: String?
+    public var unverifiedSections: [String]?
 }
 public struct FirmwareLedger: Codable, Equatable, Sendable {
     public var records: [FirmwareBatchRecord] = []
@@ -71,7 +73,18 @@ public actor FirmwareOperationCoordinator {
     }
     public func ledger() async throws -> FirmwareLedger {
         guard try await store.entries().contains(where: { $0.identity == ledgerIdentity }) else { return FirmwareLedger() }
-        return try JSONDecoder().decode(FirmwareLedger.self, from: await store.read(ledgerIdentity))
+        var ledger = try JSONDecoder().decode(FirmwareLedger.self, from: await store.read(ledgerIdentity))
+        for index in ledger.records.indices where ledger.records[index].backend == .vial &&
+            [.verified, .partiallyVerified].contains(ledger.records[index].state) {
+            let bytes = try await store.read(identity(ledger.records[index].id, original: true))
+            guard KarabinerTransactionCoordinator.fileDigest(bytes) == ledger.records[index].baselineSHA256 else {
+                throw FirmwareError.unavailable
+            }
+            let sections = try FirmwareDocument(bytes: bytes, backend: .vial).unverifiedVialSections()
+            ledger.records[index].unverifiedSections = sections
+            if !sections.isEmpty { ledger.records[index].state = .partiallyVerified }
+        }
+        return ledger
     }
     private func save(_ ledger: FirmwareLedger) async throws {
         _ = try await store.put(identity: ledgerIdentity, payload: JSONEncoder().encode(ledger))
@@ -182,7 +195,7 @@ public actor FirmwareOperationCoordinator {
         var ledger = try await ledger()
         guard ledger.pending == nil, let index = ledger.records.firstIndex(where: { $0.id == batch }),
               ledger.records[index].backend == .vial,
-              [.importClaimed, .verified, .failed, .externallyChanged].contains(ledger.records[index].state) else {
+              [.importClaimed, .verified, .partiallyVerified, .failed, .externallyChanged].contains(ledger.records[index].state) else {
             throw FirmwareError.invalidState
         }
         let record = ledger.records[index]
@@ -211,10 +224,12 @@ public actor FirmwareOperationCoordinator {
             baselineEncoders = try VialKeycodeDialect.normalized(baselineEncoders)
             observedEncoders = try VialKeycodeDialect.normalized(observedEncoders)
         }
-        let result: FirmwareMappingState = observed == expected && observedEncoders == expectedEncoders ? .verified
+        let sections = try expectedDocument.unverifiedVialSections()
+        let matching: FirmwareMappingState = sections.isEmpty ? .verified : .partiallyVerified
+        let result: FirmwareMappingState = observed == expected && observedEncoders == expectedEncoders ? matching
             : observed == baseline && observedEncoders == baselineEncoders ? .failed : .externallyChanged
         let pending = FirmwarePendingOperation(batch: batch, phase: .evidenceRecorded, recordedAt: observation.observedAt,
-            verificationState: result, verificationSource: "vialKeymapReadback")
+            verificationState: result, verificationSource: "vialKeymapReadback", unverifiedSections: sections)
         ledger.pending = pending
         try await checkpoint(.evidenceRecorded, ledger: &ledger)
         try applyEvidence(pending, to: &ledger.records[index])
@@ -223,9 +238,10 @@ public actor FirmwareOperationCoordinator {
     private func applyEvidence(_ pending: FirmwarePendingOperation, to record: inout FirmwareBatchRecord) throws {
         guard let date = pending.recordedAt else { throw FirmwareError.unavailable }
         if let state = pending.verificationState {
-            guard record.backend == .vial, [.verified, .failed, .externallyChanged].contains(state),
+            guard record.backend == .vial, [.verified, .partiallyVerified, .failed, .externallyChanged].contains(state),
                   pending.verificationSource == "vialKeymapReadback" else { throw FirmwareError.unavailable }
             record.state = state; record.verificationSource = pending.verificationSource
+            record.unverifiedSections = pending.unverifiedSections
         } else {
             guard record.backend == .via, let passed = pending.verificationPassed else { throw FirmwareError.unavailable }
             record.state = passed ? .verified : .failed; record.verificationSource = "userBehaviorTestConfirmation"
@@ -236,9 +252,10 @@ public actor FirmwareOperationCoordinator {
         try begin(); defer { busy = false }
         var ledger = try await ledger()
         guard ledger.pending == nil, let index = ledger.records.firstIndex(where: { $0.id == batch }),
-              [.importClaimed, .verified, .failed, .externallyChanged].contains(ledger.records[index].state) else { throw FirmwareError.invalidState }
+              [.importClaimed, .verified, .partiallyVerified, .failed, .externallyChanged].contains(ledger.records[index].state) else { throw FirmwareError.invalidState }
         ledger.records[index].state = .rolledBack
         ledger.records[index].verifiedAt = nil; ledger.records[index].verificationSource = nil
+        ledger.records[index].unverifiedSections = nil
         try await save(ledger); return ledger
     }
     public func reconcile() async throws -> FirmwareLedger {
@@ -270,7 +287,7 @@ public actor FirmwareOperationCoordinator {
             let retained = Set(ledger.records.filter { entry.identity.objectType == "com.keyrecord.firmware-baseline" || $0.artifactSHA256 != nil }.map { $0.id.uuidString })
             if let id = entry.identity.logicalIDText, !retained.contains(id) { try await store.delete(entry.identity) }
         }
-        return ledger
+        return try await self.ledger()
     }
     public func exportOriginal(_ batch: UUID, destination: any FirmwareExportDestination) async throws {
         let bytes = try await original(batch)

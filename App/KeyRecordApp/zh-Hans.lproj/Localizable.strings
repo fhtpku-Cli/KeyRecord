@@ -417,6 +417,8 @@
 "phase4.state.awaitingUserImport" = "等待用户导入";
 "phase4.state.importClaimed" = "用户声明已导入";
 "phase4.state.verified" = "已验证";
+"phase4.state.partiallyVerified" = "部分验证";
+"phase4.readbackScope" = "读回仅比对键位矩阵和编码器。宏、Tap Dance、Combo、键覆盖、重复键、布局选项、设置及其他保存内容未验证。请保留原始恢复副本。";
 "phase4.state.failed" = "失败";
 "phase4.state.externallyChanged" = "外部变更";
 "phase4.state.rolledBack" = "已回退";

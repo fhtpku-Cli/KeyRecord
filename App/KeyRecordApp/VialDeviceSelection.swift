@@ -1,7 +1,38 @@
 import AppKit
+import Darwin
 import KeyRecordStore
 import KeyRecordMappings
 import KeyRecordDeviceRead
+
+@MainActor
+struct FirmwareImporterVersionSource {
+    var locate: (String) -> URL? = { NSWorkspace.shared.urlForApplication(withBundleIdentifier: $0) }
+    func version(for backend: FirmwareBackend) -> String? {
+        guard backend == .vial, let bundle = locate("today.vial") else { return nil }
+        let file = bundle.appendingPathComponent("Contents/Info.plist")
+        let descriptor = open(file.path, O_RDONLY | O_NOFOLLOW | O_NONBLOCK | O_CLOEXEC)
+        guard descriptor >= 0 else { return nil }
+        defer { close(descriptor) }
+        var status = stat()
+        guard fstat(descriptor, &status) == 0, status.st_mode & S_IFMT == S_IFREG,
+              status.st_size > 0, status.st_size <= 65_536 else { return nil }
+        var bytes = [UInt8](repeating: 0, count: 65_537), count = 0
+        while count < bytes.count {
+            let readCount = bytes.withUnsafeMutableBytes { read(descriptor, $0.baseAddress!.advanced(by: count), $0.count - count) }
+            if readCount < 0 { if errno == EINTR { continue }; return nil }
+            if readCount == 0 { break }
+            count += readCount
+        }
+        guard count <= 65_536,
+              let info = try? PropertyListSerialization.propertyList(from: Data(bytes.prefix(count)), format: nil) as? [String: Any],
+              info["CFBundleIdentifier"] as? String == "today.vial",
+              let version = info["CFBundleShortVersionString"] as? String,
+              let build = info["CFBundleVersion"] as? String else { return nil }
+        let allowed = CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._+-")
+        guard [version, build].allSatisfy({ !$0.isEmpty && $0.utf8.count <= 64 && $0.unicodeScalars.allSatisfy(allowed.contains) }) else { return nil }
+        return "today.vial/\(version)/\(build)"
+    }
+}
 
 @MainActor
 struct VialDeviceSelection {

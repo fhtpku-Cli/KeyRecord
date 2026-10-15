@@ -64,6 +64,7 @@ struct ProductHostBoundaries {
     var karabinerDeployment = KarabinerDeploymentDependencies()
     var firmwareSupport = FirmwareSupportDirectory()
     var firmwareVersionAxes: @MainActor (FirmwareBackend) -> FirmwareVersionAxes? = { _ in nil }
+    var firmwareImporterVersion: (@MainActor (FirmwareBackend) -> String?)? = { FirmwareImporterVersionSource().version(for: $0) }
     var vialDevices = VialDeviceSelection()
 }
 
@@ -283,7 +284,7 @@ final class ProductComposition: NSObject, NSMenuDelegate, NSWindowDelegate {
             versionAxes: host.firmwareVersionAxes, vialConnection: { [weak flow] record, authorize in
                 return try host.vialDevices.openSelectedDevice(record: record, support: host.firmwareSupport,
                     text: NativeText(locale: flow?.language ?? "en"), authorize: authorize)
-            })
+            }, importerVersion: host.firmwareImporterVersion)
         flow.passwordBackup.snapshot = { [weak flow] in
             await lifecycle.pause()
             flow?.sync(from: lifecycle.state)

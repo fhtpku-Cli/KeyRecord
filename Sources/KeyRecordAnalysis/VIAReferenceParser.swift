@@ -148,12 +148,15 @@ public enum VIAReferenceParser {
         } else {
             guard let keymap = layouts["keymap"]?.array, !keymap.isEmpty,
                   keymap.allSatisfy({ $0.array != nil }), layouts["optionKeys"] == nil else { throw VIAImportError.invalidGeometry }
+            if !Set(layouts.keys).isSubset(of: ["keymap", "labels"]) {
+                limitations.insert(.complexGeometry)
+            }
             if !options.isEmpty {
                 limitations.insert(.layoutOptions)
                 geometry = nil
             } else {
                 let result = try geometryFromKLE(keymap, rows: rows, cols: cols)
-                geometry = result.geometry
+                geometry = limitations.contains(.complexGeometry) ? nil : result.geometry
                 limitations.formUnion(result.limitations)
             }
         }

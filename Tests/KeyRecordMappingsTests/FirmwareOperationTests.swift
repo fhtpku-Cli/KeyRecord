@@ -534,6 +534,52 @@ final class FirmwareOperationTests: XCTestCase {
         } catch FirmwareError.externalChange {}
         XCTAssertFalse(erased)
     }
+    func testUninstallRechecksRecoveryAfterPersistingErasureIntentAndAllowsRetry() async throws {
+        for replacement in ["modified", "missing", "directory"] {
+            let (root, store, _, gate) = try await fixture()
+            let firmware = try coordinator(store, gate)
+            let original = try await retain(firmware)
+            let directory = root.appendingPathComponent("recovery")
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: false)
+            let output = directory.appendingPathComponent("restore.json")
+            var erased = false, changed = false
+            var mutationError: Error?
+            var phases: [UninstallPreparationStage] = []
+            let preparation = try UninstallPreparationCoordinator(store: store, firmware: firmware, gate: gate,
+                stopCapture: {}, removeRules: {}, removeLogin: {}, eraseData: { erased = true },
+                onProgress: { phase in
+                    phases.append(phase)
+                    guard phase == .erasing, !changed else { return }
+                    changed = true
+                    do {
+                        switch replacement {
+                        case "modified": try (firmwareBytes + Data(" ".utf8)).write(to: output, options: .atomic)
+                        case "missing": try FileManager.default.removeItem(at: output)
+                        default:
+                            try FileManager.default.moveItem(at: directory, to: root.appendingPathComponent("moved"))
+                            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: false)
+                            try firmwareBytes.write(to: output)
+                        }
+                    } catch { mutationError = error }
+                })
+            do {
+                _ = try await preparation.prepare(choices: [original.id: .export(FirmwareFileDestination(target: output, gate: gate))], deleteLocalData: true)
+                XCTFail("A recovery change after recording erasure intent must stop deletion: \(replacement)")
+            } catch FirmwareError.externalChange {}
+            XCTAssertNil(mutationError)
+            XCTAssertTrue(changed)
+            XCTAssertFalse(erased)
+            XCTAssertEqual(phases.last, .erasing)
+            let retained = try await firmware.original(original.id)
+            XCTAssertEqual(retained, firmwareBytes)
+            let previous = try await UninstallPreparationCoordinator.previousPreparation(store: store)
+            XCTAssertEqual(previous?.stage, .erasing)
+            let result = try await preparation.prepare(choices: [original.id: .export(FirmwareFileDestination(target: output, gate: gate))], deleteLocalData: true)
+            XCTAssertTrue(erased)
+            XCTAssertEqual(result.stage, .completed)
+            XCTAssertEqual(try Data(contentsOf: output), firmwareBytes)
+        }
+    }
     func testUninstallSerializesNewOriginalsUntilThePreparationEnds() async throws {
         let (_, store, _, gate) = try await fixture()
         let firmware = try coordinator(store, gate)

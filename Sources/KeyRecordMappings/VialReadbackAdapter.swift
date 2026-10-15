@@ -8,6 +8,19 @@ public struct VialReadRequest: Equatable, Sendable {
     private init(_ prefix: [UInt8]) { bytes = prefix + Array(repeating: 0, count: 32 - prefix.count) }
     public static let viaProtocol = VialReadRequest([0x01])
     public static let viaKeycodesVersion = VialReadRequest([0x02, 0x06])
+    public static let layoutOptions = VialReadRequest([0x02, 0x02])
+    public static let macroCount = VialReadRequest([0x0c])
+    public static let macroSize = VialReadRequest([0x0d])
+    public static func macroBuffer(offset: UInt16, length: UInt8) throws -> VialReadRequest {
+        guard length > 0, length <= 28, Int(offset) + Int(length) <= 65_535 else { throw VialReadbackError.invalidRequest }
+        return VialReadRequest([0x0e, UInt8(offset >> 8), UInt8(offset & 255), length])
+    }
+    public static func settingsQuery(after id: UInt16) -> VialReadRequest {
+        VialReadRequest([0xfe, 9, UInt8(id & 255), UInt8(id >> 8)])
+    }
+    public static func setting(_ id: UInt16) -> VialReadRequest {
+        VialReadRequest([0xfe, 10, UInt8(id & 255), UInt8(id >> 8)])
+    }
     public static let identity = VialReadRequest([0xfe, 0x00])
     public static let layerCount = VialReadRequest([0x11])
     public static let definitionSize = VialReadRequest([0xfe, 0x01])
@@ -38,16 +51,18 @@ public actor VialReadbackAdapter {
     private let matrixRows: Int
     private let matrixColumns: Int
     private let encoderIndices: Set<Int>
+    private let hasLayoutOptions: Bool?
     private var busy = false
     private var authorization: (@Sendable () throws -> Void)?
     public init(transport: any VialReadTransport, matrixRows: Int, matrixColumns: Int,
-                encoderIndices: Set<Int> = [], timeoutMilliseconds: Int = 1000) throws {
+                encoderIndices: Set<Int> = [], timeoutMilliseconds: Int = 1000, hasLayoutOptions: Bool? = nil) throws {
         guard timeoutMilliseconds > 0 else { throw VialReadbackError.invalidRequest }
         guard (1...255).contains(matrixRows), (1...255).contains(matrixColumns) else { throw VialReadbackError.invalidMatrix }
         guard encoderIndices.allSatisfy({ (0...255).contains($0) }) else { throw VialReadbackError.invalidEncoders }
         self.transport = transport; self.timeoutMilliseconds = timeoutMilliseconds
         self.matrixRows = matrixRows; self.matrixColumns = matrixColumns
         self.encoderIndices = encoderIndices
+        self.hasLayoutOptions = hasLayoutOptions
     }
     public func observe(record: FirmwareBatchRecord, original: Data,
                         authorize: @escaping @Sendable () throws -> Void = {},
@@ -131,6 +146,8 @@ public actor VialReadbackAdapter {
             let finalCounts = try await response(.dynamicCounts)
             guard finalCounts == counts else { throw VialReadbackError.changedDevice }
         }
+        let configuration = try await VialConfigurationReader(response: { try await self.response($0) },
+            hasLayoutOptions: hasLayoutOptions).read(document)
         // Reject a disconnect/rebind or layer-count change across the multi-report read.
         let finalIdentity = try await response(.identity), finalLayers = try await response(.layerCount)
         guard finalIdentity.prefix(12).elementsEqual(identity.prefix(12)), finalLayers.prefix(2).elementsEqual(layers.prefix(2)) else {
@@ -143,7 +160,7 @@ public actor VialReadbackAdapter {
         }
         try Task.checkCancellation()
         return VialKeymapObservation(device: String(uid), axes: record.axes, values: values, encoderValues: encoderValues,
-                                    dynamicEntries: dynamic, observedAt: date())
+                                    dynamicEntries: dynamic, configurationValues: configuration, observedAt: date())
     }
     private func response(_ request: VialReadRequest) async throws -> [UInt8] {
         try Task.checkCancellation()

@@ -15,9 +15,14 @@ public struct VialDeviceDefinition: Sendable {
     public let positions: Set<FirmwareSlot>
     public let encoderPositions: Set<FirmwareEncoderSlot>
     public let bytes: Data
+    public let hasLayoutOptions: Bool
     public static let schema = "vial-embedded-json"
     public init(bytes: Data, uid: UInt64) throws {
         let root = try JSONDocumentRanges(bytes).root
+        if let labels = root.members["layouts"]?.members["labels"] {
+            guard let entries = labels.elements else { throw VialDefinitionError.invalidDefinition }
+            hasLayoutOptions = !entries.isEmpty
+        } else { hasLayoutOptions = false }
         func text(_ node: JSONDocumentRanges.Node?) throws -> String {
             guard let node else { throw VialDefinitionError.invalidDefinition }
             return try JSONDecoder().decode(String.self, from: Data(bytes[node.range]))
@@ -206,7 +211,7 @@ public actor VialDeviceReadSession {
         // Upstream reads both directions for every declared index, even when KLE
         // shows only one direction. These are not matrix positions.
         let adapter = try VialReadbackAdapter(transport: transport, matrixRows: definition.rows, matrixColumns: definition.columns,
-            encoderIndices: Set(definition.encoderPositions.map(\.index)))
+            encoderIndices: Set(definition.encoderPositions.map(\.index)), hasLayoutOptions: definition.hasLayoutOptions)
         return try await adapter.observe(record: record, original: original, authorize: authorize, at: date)
     }
 }

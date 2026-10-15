@@ -418,7 +418,8 @@
 "phase4.state.importClaimed" = "User declared import";
 "phase4.state.verified" = "Verified";
 "phase4.state.partiallyVerified" = "Partially verified";
-"phase4.readbackScope" = "Readback compares the key matrix, encoders and supported tap dance, combo, override and alternate repeat entries. Macros, layout options, settings and unrecognized saved content remain unverified. Retain the original recovery copy.";
+"phase4.readbackScope" = "Readback compares the key matrix, encoders, supported dynamic entries, macros, layout options and QMK settings. Content that cannot be read or understood remains unverified. Retain the original recovery copy.";
+"phase4.onlineImporterUnknown" = "The online VIA importer version is unavailable. Device versions do not establish importer compatibility; keep the original recovery copy.";
 "phase4.retainVIAVersions" = "Retain VIA copy and read device versions…";
 "phase4.deviceProtocol" = "Device protocol";
 "phase4.keycodeVersion" = "Keycode version";

@@ -418,7 +418,8 @@
 "phase4.state.importClaimed" = "用户声明已导入";
 "phase4.state.verified" = "已验证";
 "phase4.state.partiallyVerified" = "部分验证";
-"phase4.readbackScope" = "读回比对键位矩阵、编码器及已支持的 Tap Dance、Combo、键覆盖和替代重复键条目。宏、布局选项、设置及无法识别的保存内容仍未验证。请保留原始恢复副本。";
+"phase4.readbackScope" = "读回比对键位矩阵、编码器、已支持的动态条目、宏、布局选项和 QMK 设置。无法读取或识别的内容仍未验证。请保留原始恢复副本。";
+"phase4.onlineImporterUnknown" = "尚无法获取 VIA 在线导入器版本。设备版本不能证明导入器兼容性，请保留原始恢复副本。";
 "phase4.retainVIAVersions" = "保留 VIA 副本并读取设备版本…";
 "phase4.deviceProtocol" = "设备协议";
 "phase4.keycodeVersion" = "键码版本";

@@ -78,12 +78,15 @@ public struct VialKeymapObservation: Sendable {
     public let values: [FirmwareSlot: String]
     public let encoderValues: [FirmwareEncoderSlot: String]
     public let dynamicEntries: [VialDynamicSection: [[UInt8]]]
+    public let configurationValues: [VialConfigurationSection: Data]
     public let observedAt: Date
     public init(device: String, axes: FirmwareVersionAxes, values: [FirmwareSlot: String],
                 encoderValues: [FirmwareEncoderSlot: String] = [:],
-                dynamicEntries: [VialDynamicSection: [[UInt8]]] = [:], observedAt: Date) {
+                dynamicEntries: [VialDynamicSection: [[UInt8]]] = [:],
+                configurationValues: [VialConfigurationSection: Data] = [:], observedAt: Date) {
         self.device = device; self.axes = axes; self.values = values; self.encoderValues = encoderValues; self.observedAt = observedAt
         self.dynamicEntries = dynamicEntries
+        self.configurationValues = configurationValues
     }
 }
 public struct FirmwareDocument: Sendable {

@@ -423,6 +423,7 @@ struct FirmwareCopiesSection: View {
                     Text(text("phase4.deviceProtocol") + ": " + protocolVersion)
                     Text(text("phase4.keycodeVersion") + ": " + (record.axes.keycodeDialect ?? text("phase4.versionUnknown")))
                 }
+                if record.backend == .via, record.axes.importer == nil { Text(text("phase4.onlineImporterUnknown")) }
                 if !model.isCompatible(record) { Text(text("phase4.compatibilityUnknown")) }
                 if let date = record.exportedAt { HStack { Text(text("phase4.exportedAt")); Text(date, style: .date) } }
                 if let date = record.importClaimedAt { HStack { Text(text("phase4.importClaimedAt")); Text(date, style: .date) } }

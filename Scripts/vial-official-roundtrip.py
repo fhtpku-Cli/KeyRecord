@@ -237,7 +237,7 @@ def main():
     class Port:
         layers, rows, cols = 2, 2, 4
         keyboard_id = 18446744073709551615
-        encoder_count, layout_options, vial_protocol, via_protocol = 0, 0, 6, 9
+        encoder_count, layout_options, vial_protocol, via_protocol = 0, -1, 6, 9
         settings = {}
         encoder_layout = {}
 

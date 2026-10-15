@@ -17,6 +17,10 @@ private struct OfflineTransport: VialReadTransport {
     let keymap: [UInt8]
     var encoders: [FirmwareEncoderSlot: String] = [:]
     var definition: Data?
+    var layoutOptions: UInt32?
+    var emptyMacros = false
+    var emptySettings = false
+    var dynamicCounts: [UInt8]?
     func exchange(_ request: VialReadRequest, timeoutMilliseconds: Int) async throws -> [UInt8] {
         try respond(request)
     }
@@ -24,6 +28,11 @@ private struct OfflineTransport: VialReadTransport {
         var bytes = request.bytes
         switch bytes[0] {
         case 1: bytes[1] = 0; bytes[2] = 9
+        case 2:
+            guard request == .layoutOptions, let layoutOptions else { throw VialReadbackError.invalidRequest }
+            bytes.replaceSubrange(2..<6, with: (0..<4).reversed().map { UInt8(truncatingIfNeeded: layoutOptions >> ($0 * 8)) })
+        case 0x0c, 0x0d:
+            guard emptyMacros else { throw VialReadbackError.invalidRequest }
         case 0xfe:
             switch bytes[1] {
             case 0:
@@ -47,6 +56,12 @@ private struct OfflineTransport: VialReadTransport {
                     let raw = try VialKeycodeDialect.rawValue(token), offset = direction.rawValue * 2
                     bytes[offset] = UInt8(raw >> 8); bytes[offset + 1] = UInt8(raw & 255)
                 }
+            case 9:
+                guard emptySettings else { throw VialReadbackError.invalidRequest }
+                bytes = Array(repeating: 255, count: 32)
+            case 0x0d:
+                guard request == .dynamicCounts, let dynamicCounts else { throw VialReadbackError.invalidRequest }
+                bytes = dynamicCounts + Array(repeating: 0, count: 32 - dynamicCounts.count)
             default: throw VialReadbackError.invalidRequest
             }
         case 0x11: bytes[1] = layers
@@ -126,6 +141,14 @@ struct FirmwareIntegrationProbe {
             }
         }
         let observation: VialKeymapObservation
+        let configuration = try JSONSerialization.jsonObject(with: bytes) as? [String: Any]
+        let options = (configuration?["layout_options"] as? NSNumber).flatMap { UInt32(exactly: $0.int64Value) }
+        let emptyMacros = (configuration?["macro"] as? [Any])?.isEmpty == true
+        let emptySettings = (configuration?["settings"] as? [String: Any])?.isEmpty == true
+        let dynamicCounts = VialDynamicSection.allCases.map { section in
+            (configuration?[section.rawValue] as? [Any]).flatMap { UInt8(exactly: $0.count) }
+        }
+        let counts = dynamicCounts.allSatisfy { $0 != nil } ? dynamicCounts.compactMap { $0 } : nil
         var encoders = try patched.encoderValues()
         if args.count == 4 {
             let independent = Array(try Data(contentsOf: URL(fileURLWithPath: args[3])))
@@ -143,14 +166,16 @@ struct FirmwareIntegrationProbe {
         }
         if args.count >= 3 {
             let definition = try Data(contentsOf: URL(fileURLWithPath: args[2]))
-            let endpoint = OfflineEndpoint(source: OfflineTransport(uid: uid, layers: layers, keymap: keymap, encoders: encoders, definition: definition))
+            let endpoint = OfflineEndpoint(source: OfflineTransport(uid: uid, layers: layers, keymap: keymap, encoders: encoders,
+                definition: definition, layoutOptions: options, emptyMacros: emptyMacros, emptySettings: emptySettings, dynamicCounts: counts))
             let transport = VialHIDTransport(endpoint: endpoint)
             defer { transport.close() }
             let session = VialDeviceReadSession(transport: transport, vendorID: 0x1234, productID: 0x5678)
             observation = try await session.observe(record: record, original: bytes, at: { Date(timeIntervalSince1970: 3) })
             print("PASS: simulated HID exchanged \(endpoint.reportCount) reports; fetched and decoded \(definition.count) XZ bytes before keymap readback")
         } else {
-            let adapter = try VialReadbackAdapter(transport: OfflineTransport(uid: uid, layers: layers, keymap: keymap, encoders: encoders),
+            let adapter = try VialReadbackAdapter(transport: OfflineTransport(uid: uid, layers: layers, keymap: keymap, encoders: encoders,
+                layoutOptions: options, emptyMacros: emptyMacros, emptySettings: emptySettings, dynamicCounts: counts),
                 matrixRows: shape.rows, matrixColumns: shape.columns, encoderIndices: Set(encoders.keys.map(\.index)))
             observation = try await adapter.observe(record: record, original: bytes, at: { Date(timeIntervalSince1970: 3) })
         }

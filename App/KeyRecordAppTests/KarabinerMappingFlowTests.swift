@@ -67,6 +67,7 @@ private final class NativeVialHIDFixture: VialHIDEndpoint, @unchecked Sendable {
         var bytes = request.bytes
         switch bytes[0] {
         case 1: bytes[1] = 0; bytes[2] = 9
+        case 0x0c, 0x0d: break
         case 0x11: bytes[1] = 1
         case 0x12: bytes.replaceSubrange(4..<10, with: [0, mismatch ? 7 : 6, 255, 255, 0, basicNames ? 0x58 : 0x28])
             if modifierNames { bytes[8] = 3 }
@@ -99,6 +100,7 @@ private final class NativeVialHIDFixture: VialHIDEndpoint, @unchecked Sendable {
             case 0x0d:
                 XCTAssertEqual(bytes[2], 0)
                 bytes = Array(repeating: 0, count: 32)
+            case 9: bytes = Array(repeating: 255, count: 32)
             default: XCTFail("Unexpected Vial query")
             }
         default: XCTFail("Unexpected HID command")
@@ -139,6 +141,7 @@ final class KarabinerMappingFlowTests: XCTestCase {
         XCTAssertTrue(NativeEvidence.elements(in: view).contains { KRAXIdentifier($0) == "phase4.retainVIAVersions" })
         XCTAssertTrue(NativeEvidence.elements(in: view).contains { KRAXLabel($0) == "Device protocol: via-9" })
         XCTAssertTrue(NativeEvidence.elements(in: view).contains { KRAXLabel($0) == "Keycode version: Unknown" })
+        XCTAssertTrue(NativeEvidence.elements(in: view).contains { KRAXLabel($0) == NativeText(locale: "en")("phase4.onlineImporterUnknown") })
         selection.choose = { _, _ in model.clear(); return device }
         await model.retainVIAWithVersions(bytes, ticket: try XCTUnwrap(model.selectionTicket()))
         XCTAssertEqual(endpoint.requests.count, 2)
@@ -943,14 +946,15 @@ final class KarabinerMappingFlowTests: XCTestCase {
         let verified = XCTestExpectation(description: "Protocol adapter completed product readback")
         var delivered = false
         model.onChange = {
-            if !delivered, model.records.last?.state == .partiallyVerified { delivered = true; verified.fulfill() }
+            if !delivered, model.records.last?.state == .verified { delivered = true; verified.fulfill() }
         }
         XCTAssertTrue(KRAXPress(try NativeEvidence.node("readback-" + claimed.id.uuidString, in: view)))
         ScreenEvidence.awaitMain {
             let waitResult = await XCTWaiter.fulfillment(of: [verified], timeout: 5)
             XCTAssertEqual(waitResult, .completed)
         }
-        XCTAssertEqual(model.records.last?.state, .partiallyVerified); XCTAssertNil(model.issueKey)
+        XCTAssertEqual(model.records.last?.state, .verified); XCTAssertNil(model.issueKey)
+        XCTAssertEqual(model.records.last?.verifiedConfigurationSections, ["macro", "settings"])
         NativeEvidence.update(view)
         if let directory = NativeEvidence.outputRoot() {
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
@@ -959,10 +963,11 @@ final class KarabinerMappingFlowTests: XCTestCase {
         }
         var requests: [VialReadRequest] = []
         requests = transport.requests
-        XCTAssertEqual(requests.count, 17)
+        XCTAssertEqual(requests.count, 23)
         XCTAssertEqual(Array(requests.prefix(3)), [.viaProtocol, .identity, .definitionSize])
-        XCTAssertEqual(Array(requests.suffix(7)), [.viaProtocol, .identity, .layerCount, try .keymap(offset: 0, length: 6),
-            .encoder(layer: 0, index: 2), .identity, .layerCount])
+        XCTAssertEqual(Array(requests.suffix(13)), [.viaProtocol, .identity, .layerCount, try .keymap(offset: 0, length: 6),
+            .encoder(layer: 0, index: 2), .macroCount, .macroSize, .macroCount, .macroSize,
+            .settingsQuery(after: 0), .settingsQuery(after: 0), .identity, .layerCount])
         XCTAssertEqual(transport.closeCount, 1)
         XCTAssertEqual(try Data(contentsOf: patch), Data(String(decoding: bytes, as: UTF8.self).replacingOccurrences(of: "KC_NO", with: "KC_C").utf8))
     }
@@ -1038,6 +1043,25 @@ final class KarabinerMappingFlowTests: XCTestCase {
         let ledger = try await FirmwareOperationCoordinator(store: store,
             resolve: { try FirmwareFileDestination(reference: $0, gate: gate) }).ledger()
         XCTAssertEqual(ledger.records.last?.state, .externallyChanged)
+    }
+    func testNativeConfigurationReadbackVerifiesEmptyBuffersAndIndependentNoLayoutOptions() async throws {
+        for layoutOptions in [-1, 0] {
+            let endpoint = NativeVialHIDFixture()
+            let original = #"{"version":1,"uid":18446744073709551615,"via_protocol":9,"vial_protocol":6,"layout":[[["KC_NO",-1,"KC_ENT"]]],"macro":[],"settings":{},"layout_options":OPTIONS}"#
+                .replacingOccurrences(of: "OPTIONS", with: String(layoutOptions))
+            let (fixture, store, gate, record) = try await claimedHID(endpoint, original: original)
+            let model = fixture.flow.firmwareCopies
+            await model.verifyVial(record, ticket: try XCTUnwrap(model.selectionTicket()))
+            XCTAssertNil(model.issueKey)
+            XCTAssertEqual(model.records.last?.state, layoutOptions == -1 ? .verified : .externallyChanged)
+            XCTAssertEqual(endpoint.requests.filter { $0 == .macroCount }.count, 2)
+            XCTAssertEqual(endpoint.requests.filter { $0 == .settingsQuery(after: 0) }.count, 2)
+            XCTAssertFalse(endpoint.requests.contains(.layoutOptions))
+            XCTAssertEqual(endpoint.closeCount, 1)
+            let ledger = try await FirmwareOperationCoordinator(store: store,
+                resolve: { try FirmwareFileDestination(reference: $0, gate: gate) }).reconcile()
+            XCTAssertEqual(ledger.records.last?.state, model.records.last?.state)
+        }
     }
     private var encoderOriginal: String {
         #"{"version":1,"uid":18446744073709551615,"via_protocol":9,"vial_protocol":6,"layout":[[["KC_NO",-1,"C_S(KC_KP_ENTER)"]]],"encoder_layout":[[[-1,-1],[-1,-1],["SCMD(KC_QUOTE)","RCG(KC_QUOTE)"]]]}"#

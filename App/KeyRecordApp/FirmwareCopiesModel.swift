@@ -62,6 +62,7 @@ final class FirmwareCopiesModel: ObservableObject {
     private var activeVialConnection: VialDeviceReadConnection?
     private var viaVersionConnection: (@MainActor (String, @MainActor () throws -> Void) throws -> VIAVersionReadConnection)?
     private var activeVIAVersionConnection: VIAVersionReadConnection?
+    private var viaVersionRead: UUID?
     private var vialVerification: UUID?
     private var uninstall: UninstallActions?
     struct UninstallActions {
@@ -102,6 +103,7 @@ final class FirmwareCopiesModel: ObservableObject {
     func clear() {
         activeVialConnection?.close(); activeVialConnection = nil
         activeVIAVersionConnection?.close(); activeVIAVersionConnection = nil
+        viaVersionRead = nil
         vialVerification = nil
         session = UUID(); records = []; firmware = nil; issueKey = nil; working = false
         recoverySelections = [:]; deleteLocalData = false
@@ -152,26 +154,41 @@ final class FirmwareCopiesModel: ObservableObject {
     var canReadVIAVersions: Bool { viaVersionConnection != nil }
     func retainVIAWithVersions(_ bytes: Data?, ticket: UUID) async {
         guard canRead(), ticket == session, !working, let bytes, bytes == selectedOriginal(), let gate, let viaVersionConnection else { return }
-        working = true
-        defer { if ticket == session { working = false; activeVIAVersionConnection = nil; onChange() } }
+        let request = UUID(); readRequest = request; viaVersionRead = request
+        working = true; issueKey = nil
+        defer {
+            if ticket == session, viaVersionRead == request {
+                working = false; activeVIAVersionConnection = nil; viaVersionRead = nil; onChange()
+            }
+        }
         do {
             let device = try FirmwareDocument(bytes: bytes, backend: .via).device
             let generation = try gate.begin()
             let connection = try viaVersionConnection(device) { [weak self] in
                 try gate.check(generation)
-                guard let self, self.canRead(), self.session == ticket, self.selectedOriginal() == bytes else { throw FirmwareError.unavailable }
+                guard let self, self.canRead(), self.session == ticket, self.viaVersionRead == request,
+                      self.selectedOriginal() == bytes else { throw FirmwareError.unavailable }
             }
-            activeVIAVersionConnection = connection
             defer { connection.close() }
+            guard ticket == session, viaVersionRead == request else { return }
+            activeVIAVersionConnection = connection
             let axes = try await connection.observe(expectedDevice: device) { [weak self] in
                 try gate.check(generation)
-                guard let self, self.canRead(), self.session == ticket, self.selectedOriginal() == bytes else { throw FirmwareError.unavailable }
+                guard let self, self.canRead(), self.session == ticket, self.viaVersionRead == request,
+                      self.selectedOriginal() == bytes else { throw FirmwareError.unavailable }
             }
             try gate.check(generation)
-            guard canRead(), ticket == session, selectedOriginal() == bytes else { return }
+            guard canRead(), ticket == session, viaVersionRead == request, selectedOriginal() == bytes else { return }
+            activeVIAVersionConnection = nil; viaVersionRead = nil
             working = false
             await retain(bytes, backend: .via, observedAxes: axes)
-        } catch { if canRead(), ticket == session { issueKey = "phase4.operationFailed" } }
+        } catch { if canRead(), ticket == session, viaVersionRead == request { issueKey = "phase4.operationFailed" } }
+    }
+    func cancelVIAVersionRead() {
+        guard viaVersionRead != nil else { return }
+        readRequest = UUID(); viaVersionRead = nil
+        activeVIAVersionConnection?.close(); activeVIAVersionConnection = nil
+        working = false; onChange()
     }
     private func retain(_ bytes: Data?, backend: FirmwareBackend, observedAxes: FirmwareVersionAxes? = nil) async {
         guard canRead(), !working, let bytes else { return }

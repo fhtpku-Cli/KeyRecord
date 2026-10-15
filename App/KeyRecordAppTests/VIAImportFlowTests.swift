@@ -203,6 +203,32 @@ final class VIAImportFlowTests: XCTestCase {
         }
     }
 
+    func testUnknownRawLayoutGeometryIsExplainedByNativeSummary() async throws {
+        let (root, layout, definition) = try files()
+        let fixture = try await ready(root)
+        var document = try XCTUnwrap(JSONSerialization.jsonObject(with: definitionBytes) as? [String: Any])
+        var layouts = try XCTUnwrap(document["layouts"] as? [String: Any])
+        layouts["future_geometry"] = ["offset": 4]
+        document["layouts"] = layouts
+        try JSONSerialization.data(withJSONObject: document).write(to: definition)
+        let model = fixture.flow.viaImport
+        defer { model.clear() }
+        await model.load(kind: .layout, url: layout)
+        await model.load(kind: .definition, url: definition)
+        let imported = try XCTUnwrap(model.configuration)
+        XCTAssertNil(imported.geometry)
+        XCTAssertEqual(imported.standardKeyCount, 3)
+        XCTAssertEqual(imported.positionCount(for: try KeyCode(8)), 0)
+        XCTAssertEqual(model.selectedOriginalBytes, layoutBytes)
+        for locale in ["en", "zh-Hans"] {
+            let text = NativeText(locale: locale)
+            let view = NSHostingView(rootView: VIAImportSection(model: model, text: text))
+            XCTAssertTrue(NativeEvidence.elements(in: view).contains {
+                KRAXLabel($0) == text("phase2.via.complexGeometry")
+            })
+        }
+    }
+
     func testReplacingWithMismatchedOrInvalidFileWithdrawsOldReference() async throws {
         let (root, layout, definition) = try files()
         let fixture = try await ready(root)

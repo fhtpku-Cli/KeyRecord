@@ -86,6 +86,40 @@ final class VIAReferenceParserTests: XCTestCase {
         }
     }
 
+    func testUnknownRawLayoutFieldsPreserveBindingsWithoutMeasuredGeometry() throws {
+        for legacy in [false, true] {
+            for options in [false, true] {
+                var object = try XCTUnwrap(JSONSerialization.jsonObject(with: definition) as? [String: Any])
+                if legacy {
+                    object.removeValue(forKey: "vendorId")
+                    object.removeValue(forKey: "productId")
+                    object["vendorProductId"] = 65538
+                }
+                var layouts = try XCTUnwrap(object["layouts"] as? [String: Any])
+                layouts["future_geometry"] = ["offset": 4]
+                if options { layouts["labels"] = [["Layout", "A", "B"]] }
+                object["layouts"] = layouts
+                let parsed = try VIAReferenceParser.definition(JSONSerialization.data(withJSONObject: object))
+                XCTAssertNil(parsed.geometry)
+                XCTAssertTrue(parsed.limitations.contains(.complexGeometry))
+                XCTAssertEqual(parsed.limitations.contains(.layoutOptions), options)
+                let matched = try VIAReferenceParser.match(layout: VIAReferenceParser.layout(layout), definition: parsed)
+                XCTAssertEqual(matched.standardKeyCount, 3)
+                XCTAssertEqual(matched.bindings["0,0"], .standard(keyCode: try KeyCode(0), hidUsage: 0x04))
+                XCTAssertNil(matched.physicalEvidence.geometry)
+                XCTAssertEqual(matched.positionCount(for: try KeyCode(0)), 0)
+                XCTAssertEqual(matched.physicalEvidence.device, .unknown)
+            }
+        }
+    }
+
+    func testUnknownRawLayoutFieldDoesNotHideInvalidCoordinates() throws {
+        let bytes = Data(#"{"name":"bad","vendorProductId":65538,"matrix":{"rows":1,"cols":1},"layouts":{"future_geometry":1,"keymap":[["1,0"]]}}"#.utf8)
+        XCTAssertThrowsError(try VIAReferenceParser.definition(bytes)) {
+            XCTAssertEqual($0 as? VIAImportError, .invalidGeometry)
+        }
+    }
+
     func testUnknownLayerAndMacroActionsRemainOpaqueAndUnverified() throws {
         let data = Data(#"{"name":"synthetic","vendorProductId":65538,"layers":[["KC_A","LT(1,KC_A)","KC_TRNS","KC_NO"],["KC_F1","KC_F2","KC_F3","KC_F4"]],"macros":["private typed secret"],"encoders":[[]]}"#.utf8)
         let parsed = try VIAReferenceParser.match(layout: VIAReferenceParser.layout(data), definition: VIAReferenceParser.definition(definition))

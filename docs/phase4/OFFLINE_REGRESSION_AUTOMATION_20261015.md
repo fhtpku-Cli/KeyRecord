@@ -17,7 +17,9 @@ remove native regression coverage even after adding an XCTest command.
 
 - CI checks out the same official Vial, VIA and Vial-selected simpleeval Git
   revisions used by the existing offline evidence, and installs reader 1.14.4
-  without package lifecycle scripts. Dependency download is separate from offline
+  without package lifecycle scripts. Python 3.13 runs the unchanged old simpleeval
+  dependency; CI's default Python 3.14 reproduced its removed `ast.Num` failure.
+  Dependency download is separate from offline
   protocol execution; no network capability is added to the product.
 - `verify-firmware-oracles.py` executes the existing official-method scripts and
   compares all 11 generated fixtures with the existing Swift test inputs. JSON
@@ -55,7 +57,10 @@ bash Scripts/verify-local.sh --firmware-app-tests
 The workflow records the dependency revisions. The simpleeval checkout is used
 directly, avoiding its old packaging script and any system Python installation.
 Local oracle execution passed all 11 fixture comparisons and nine transaction
-round trips. Injected fixture disagreement and a missing native selector both
+round trips. The full revised local entry point passed all 785 package tests,
+the capture harness, Release package/universal App builds, native Debug test build
+and 90 native tests (78 mapping, 11 import, one production composition).
+Injected fixture disagreement and a missing native selector both
 returned failure; the latter reproduced XCTest's misleading zero-test success
 before exercising the wrapper. Native and full-build results are checked before
 the PR is merged, followed by the exact merge's main CI.

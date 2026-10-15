@@ -40,6 +40,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
       - name: Install official VIA definition reader for offline tests
         run: npm install --prefix .build/oracle-dependencies/reader --ignore-scripts --no-audit --no-fund @the-via/reader@1.14.4
       - name: Show selected toolchain

@@ -50,12 +50,15 @@ python3 Scripts/verify-firmware-oracles.py \
   --simpleeval-source /path/to/simpleeval \
   --via-source /path/to/via-app \
   --reader /path/to/node_modules/@the-via/reader \
+  --via-store-dependencies /path/to/node_modules \
   --output /tmp/keyrecord-firmware-oracles
 bash Scripts/verify-local.sh --firmware-app-tests
 ```
 
 The workflow records the dependency revisions. The simpleeval checkout is used
 directly, avoiding its old packaging script and any system Python installation.
+The subsequent [active-source increment](VIA_ACTIVE_SOURCE_SELECTION_20261015.md)
+adds the official VIA store selector scenarios and their Redux/TypeScript dependencies.
 Local oracle execution passed all 11 fixture comparisons and nine transaction
 round trips. The full revised local entry point passed all 785 package tests,
 the capture harness, Release package/universal App builds, native Debug test build

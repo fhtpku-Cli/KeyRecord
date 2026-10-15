@@ -27,6 +27,8 @@ def main():
     parser.add_argument("--vial-source", type=Path, required=True)
     parser.add_argument("--via-source", type=Path, required=True)
     parser.add_argument("--reader", type=Path, required=True)
+    parser.add_argument("--via-store-dependencies", type=Path,
+                        help="node_modules containing the official store's Redux and TypeScript dependencies; defaults beside reader")
     parser.add_argument("--simpleeval-source", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
@@ -59,6 +61,9 @@ def main():
     run("via-definition-oracle", ["node", root / "Scripts/via-definition-oracle.cjs",
         args.reader.resolve(), args.via_source.resolve(), output / "via-compiled-definitions.json"])
     compare_fixture(output / "via-compiled-definitions.json", fixtures / "via-compiled-definitions.json")
+    store_dependencies = args.via_store_dependencies or args.reader.resolve().parent.parent
+    run("via-session-oracle", ["node", root / "Scripts/via-session-oracle.cjs",
+                              args.via_source.resolve(), store_dependencies.resolve()])
 
     modes = ["basic", "modifier", "modifier-tap", "one-shot", "persistent-layer", "static-layer", "to",
              "layer-tap", "layer-mod"]
@@ -77,7 +82,7 @@ def main():
         run(f"{mode}-transaction", ["swift", "run", "KeyRecordFirmwareIntegrationProbe",
                                    original, patched, definition, raw])
         run(f"{mode}-restore", common + ["--check", patched])
-    print("PASS: 11 official fixtures and 9 official/Swift encrypted transaction round trips", flush=True)
+    print("PASS: 11 official fixtures, 10 active-source scenarios and 9 official/Swift encrypted transaction round trips", flush=True)
 
 
 if __name__ == "__main__":

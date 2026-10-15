@@ -127,7 +127,10 @@ final class KarabinerMappingModel: ObservableObject {
     func refresh() async {
         guard let coordinator, canRead() else { return }
         if working || maintenance { refreshPending = true; return }
-        await run { try await coordinator.reconcile() }
+        await run {
+            _ = try coordinator.currentContext()
+            return try await coordinator.reconcile()
+        }
     }
     func verify() async { guard let coordinator, canInspect else { return }; await run { try await coordinator.verifyConfiguration() } }
     func disable() async {

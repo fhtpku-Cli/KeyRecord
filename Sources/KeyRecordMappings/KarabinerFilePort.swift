@@ -6,6 +6,10 @@ import KeyRecordStore
 
 public final class KarabinerFilePort: KarabinerConfigurationPort, @unchecked Sendable {
     private let target: URL
+    private let directory: URL
+    private let directoryDescriptor: Int32
+    private let directoryDevice: dev_t
+    private let directoryInode: ino_t
     private let runtime: @Sendable () throws -> KarabinerRuntimeContext
     private let gate: KeyAvailabilityGate
     private let generation: CaptureGeneration
@@ -14,10 +18,22 @@ public final class KarabinerFilePort: KarabinerConfigurationPort, @unchecked Sen
     public init(target: URL, gate: KeyAvailabilityGate,
                 runtime: @escaping @Sendable () throws -> KarabinerRuntimeContext,
                 injection: DurabilityInjection = .none) throws {
-        self.target = target; self.gate = gate; self.generation = try gate.begin()
+        let directory = target.deletingLastPathComponent().resolvingSymlinksInPath().standardizedFileURL
+        self.directory = directory; self.target = directory.appendingPathComponent(target.lastPathComponent)
+        self.gate = gate; self.generation = try gate.begin()
         self.runtime = runtime; self.injection = injection
+        let descriptor = Darwin.open(directory.path, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC)
+        guard descriptor >= 0 else { throw KarabinerMappingError.unavailable }
+        var status = stat()
+        guard fstat(descriptor, &status) == 0, status.st_mode & S_IFMT == S_IFDIR else {
+            Darwin.close(descriptor); throw KarabinerMappingError.unavailable
+        }
+        directoryDescriptor = descriptor; directoryDevice = status.st_dev; directoryInode = status.st_ino
     }
-    public func context() throws -> KarabinerRuntimeContext { try gate.use(generation) { try runtime() } }
+    deinit { Darwin.close(directoryDescriptor) }
+    public func context() throws -> KarabinerRuntimeContext {
+        try gate.use(generation) { try validateDirectory(); return try runtime() }
+    }
     public func read() throws -> Data { try gate.use(generation) { try lock.withLock { try readFile() } } }
     public func replace(expected: Data, with bytes: Data, context: KarabinerRuntimeContext) throws {
         try gate.use(generation) {
@@ -34,15 +50,21 @@ public final class KarabinerFilePort: KarabinerConfigurationPort, @unchecked Sen
                 guard try runtime() == context else { throw KarabinerMappingError.externalChange }
                 guard try readFile() == expected else { throw KarabinerMappingError.externalChange }
                 _ = try JSONDocumentRanges(bytes)
-                try AtomicFileSystem().commitFile(name: target.lastPathComponent, in: target.deletingLastPathComponent(),
+                try AtomicFileSystem().commitFile(name: target.lastPathComponent, inDirectory: directoryDescriptor,
                     bytes: bytes, phase: .data, injection: injection) {
                         guard try self.runtime() == context, try self.readFile() == expected else { throw KarabinerMappingError.externalChange }
                     }
             }
         }
     }
+    private func validateDirectory() throws {
+        var status = stat()
+        guard lstat(directory.path, &status) == 0, status.st_mode & S_IFMT == S_IFDIR,
+              status.st_dev == directoryDevice, status.st_ino == directoryInode else { throw KarabinerMappingError.externalChange }
+    }
     private func readFile() throws -> Data {
-        let descriptor = Darwin.open(target.path, O_RDONLY | O_NOFOLLOW | O_NONBLOCK)
+        try validateDirectory()
+        let descriptor = openat(directoryDescriptor, target.lastPathComponent, O_RDONLY | O_NOFOLLOW | O_NONBLOCK | O_CLOEXEC)
         guard descriptor >= 0 else { throw KarabinerMappingError.unavailable }
         defer { Darwin.close(descriptor) }
         var before = stat()
@@ -59,11 +81,12 @@ public final class KarabinerFilePort: KarabinerConfigurationPort, @unchecked Sen
             result.append(contentsOf: buffer.prefix(count))
         }
         var after = stat(), pathStatus = stat()
-        guard fstat(descriptor, &after) == 0, lstat(target.path, &pathStatus) == 0,
+        guard fstat(descriptor, &after) == 0, fstatat(directoryDescriptor, target.lastPathComponent, &pathStatus, AT_SYMLINK_NOFOLLOW) == 0,
               before.st_dev == after.st_dev, before.st_ino == after.st_ino, before.st_size == after.st_size,
               before.st_mtimespec.tv_sec == after.st_mtimespec.tv_sec, before.st_mtimespec.tv_nsec == after.st_mtimespec.tv_nsec,
               before.st_ctimespec.tv_sec == after.st_ctimespec.tv_sec, before.st_ctimespec.tv_nsec == after.st_ctimespec.tv_nsec,
               pathStatus.st_dev == after.st_dev, pathStatus.st_ino == after.st_ino else { throw KarabinerMappingError.externalChange }
+        try validateDirectory()
         _ = try JSONDocumentRanges(result)
         return result
     }

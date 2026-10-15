@@ -177,44 +177,6 @@ public struct AtomicFileSystem: Sendable {
         return (fd, path)
     }
 
-    private func fchmodDescriptor(_ fd: Int32) throws {
-        guard fchmod(fd, Self.privateFileMode) == 0 else {
-            throw FileSystemError.posix(operation: "fchmod", code: errno)
-        }
-    }
-
-    private func writeAll(_ bytes: Data, fd: Int32) throws {
-        try bytes.withUnsafeBytes { raw in
-            var offset = 0
-            while offset < raw.count {
-                let written = write(fd, raw.baseAddress!.advanced(by: offset), raw.count - offset)
-                if written < 0 {
-                    if errno == EINTR { continue }
-                    throw FileSystemError.posix(operation: "write", code: errno)
-                }
-                guard written > 0 else { throw FileSystemError.posix(operation: "write-zero", code: EIO) }
-                offset += written
-            }
-        }
-    }
-
-    private func hit(_ boundary: DurabilityBoundary, phase: DurabilityPhase,
-                     injection: DurabilityInjection) throws {
-        if injection.failPhase == phase, injection.failAt == boundary {
-            throw FileSystemError.posix(operation: "injected-\(phase.rawValue)-\(boundary.rawValue)", code: ECANCELED)
-        }
-        guard injection.killPhase == phase, injection.killAt == boundary else { return }
-        kill(getpid(), SIGKILL)
-        Thread.sleep(forTimeInterval: 30)
-    }
-
-    private func sync(_ fd: Int32, operation: String) throws {
-        while fsync(fd) != 0 {
-            if errno == EINTR { continue }
-            throw FileSystemError.posix(operation: operation, code: errno)
-        }
-    }
-
     private func syncDirectory(_ root: URL) throws {
         let fd = open(root.path, O_RDONLY | O_DIRECTORY)
         guard fd >= 0 else { throw FileSystemError.posix(operation: "open(dir)", code: errno) }

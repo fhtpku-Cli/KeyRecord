@@ -1625,6 +1625,29 @@ final class KarabinerMappingFlowTests: XCTestCase {
         XCTAssertNil(model.prepared); XCTAssertFalse(model.riskConfirmed)
         XCTAssertEqual(try Data(contentsOf: file), external)
     }
+    func testDeploymentCannotApplyPreparedMappingAfterSelectedDirectoryIsReplaced() async throws {
+        let (fixture, file, _, _) = try await deployment()
+        let root = file.deletingLastPathComponent()
+        let selected = root.appendingPathComponent("selected"), moved = root.appendingPathComponent("moved")
+        try FileManager.default.createDirectory(at: selected, withIntermediateDirectories: false)
+        let target = selected.appendingPathComponent("configuration.json")
+        try bytes.write(to: target)
+        let deployment = fixture.flow.karabinerDeployment, model = fixture.flow.karabinerMappings
+        await deployment.bind(url: target, profile: "Synthetic")
+        XCTAssertTrue(deployment.connected)
+        try stage(model); await model.check()
+        XCTAssertTrue(model.canApply)
+        try FileManager.default.moveItem(at: selected, to: moved)
+        try FileManager.default.createDirectory(at: selected, withIntermediateDirectories: false)
+        try bytes.write(to: target)
+        XCTAssertNil(deployment.selectedConfiguration)
+        await model.apply(); await model.refresh()
+        XCTAssertFalse(model.canApply)
+        XCTAssertNotNil(model.issueKey)
+        XCTAssertEqual(try Data(contentsOf: target), bytes)
+        XCTAssertEqual(try Data(contentsOf: moved.appendingPathComponent("configuration.json")), bytes)
+        deployment.close()
+    }
     func testDeploymentCancellationAndInvalidTargetDoNotSaveAuthorization() async throws {
         let (fixture, file, store, _) = try await deployment()
         fixture.flow.karabinerDeployment.selectTarget = { nil }

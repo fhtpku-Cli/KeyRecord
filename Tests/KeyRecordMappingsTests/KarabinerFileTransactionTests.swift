@@ -17,6 +17,96 @@ actor MappingFixtureKeys: ObjectStoreKeySource {
 }
 
 final class KarabinerFileTransactionTests: XCTestCase, @unchecked Sendable {
+    func testDescriptorCommitAfterFinalValidationStaysWithOpenedDirectory() throws {
+        let root = try directory(); defer { try? FileManager.default.removeItem(at: root) }
+        let selected = root.appendingPathComponent("selected"), moved = root.appendingPathComponent("moved")
+        try FileManager.default.createDirectory(at: selected, withIntermediateDirectories: false)
+        let file = selected.appendingPathComponent("configuration.json")
+        try mappingBase.write(to: file)
+        let descriptor = open(selected.path, O_RDONLY | O_DIRECTORY | O_CLOEXEC)
+        XCTAssertGreaterThanOrEqual(descriptor, 0); defer { close(descriptor) }
+        let patched = mappingBase + Data(" ".utf8)
+        try AtomicFileSystem().commitFile(name: "configuration.json", inDirectory: descriptor, bytes: patched, phase: .data) {
+            let temporary = try XCTUnwrap(FileManager.default.contentsOfDirectory(atPath: selected.path).first {
+                $0.hasPrefix(AtomicFileSystem.tempPrefix)
+            })
+            try FileManager.default.moveItem(at: selected, to: moved)
+            try FileManager.default.createDirectory(at: selected, withIntermediateDirectories: false)
+            try mappingBase.write(to: file)
+            try Data("untouched replacement temporary".utf8).write(to: selected.appendingPathComponent(temporary))
+        }
+        XCTAssertEqual(try Data(contentsOf: file), mappingBase)
+        XCTAssertEqual(try Data(contentsOf: moved.appendingPathComponent("configuration.json")), patched)
+        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: moved.path), ["configuration.json"])
+        let untouched = try XCTUnwrap(FileManager.default.contentsOfDirectory(atPath: selected.path).first {
+            $0.hasPrefix(AtomicFileSystem.tempPrefix)
+        })
+        XCTAssertEqual(try Data(contentsOf: selected.appendingPathComponent(untouched)), Data("untouched replacement temporary".utf8))
+        for invalid in ["", ".", "..", "../escape.json", "nested/file", "bad\0name"] {
+            XCTAssertThrowsError(try AtomicFileSystem().commitFile(name: invalid, inDirectory: descriptor, bytes: patched, phase: .data))
+        }
+    }
+    func testAtomicEditorReplacementWithinSelectedDirectoryRemainsReadableAndWritable() throws {
+        let root = try directory(); defer { try? FileManager.default.removeItem(at: root) }
+        let file = root.appendingPathComponent("configuration.json"); try mappingBase.write(to: file)
+        let gate = KeyAvailabilityGate(); gate.update(.unlocked)
+        let context = context()
+        let port = try KarabinerFilePort(target: file, gate: gate, runtime: { context })
+        let edited = mappingBase + Data(" ".utf8)
+        try edited.write(to: file, options: .atomic)
+        XCTAssertEqual(try port.read(), edited)
+        try port.replace(expected: edited, with: mappingBase, context: context)
+        XCTAssertEqual(try port.read(), mappingBase)
+        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: root.path), ["configuration.json"])
+    }
+    func testDirectoryReplacementCannotRedirectReadOrWriteEvenWithIdenticalConfiguration() throws {
+        let root = try directory(); defer { try? FileManager.default.removeItem(at: root) }
+        let selected = root.appendingPathComponent("selected"), moved = root.appendingPathComponent("moved")
+        try FileManager.default.createDirectory(at: selected, withIntermediateDirectories: false)
+        let file = selected.appendingPathComponent("configuration.json")
+        try mappingBase.write(to: file)
+        let gate = KeyAvailabilityGate(); gate.update(.unlocked)
+        let context = context()
+        let port = try KarabinerFilePort(target: file, gate: gate, runtime: { context })
+        try FileManager.default.moveItem(at: selected, to: moved)
+        try FileManager.default.createDirectory(at: selected, withIntermediateDirectories: false)
+        try mappingBase.write(to: file)
+        XCTAssertThrowsError(try port.context())
+        XCTAssertThrowsError(try port.read())
+        XCTAssertThrowsError(try port.replace(expected: mappingBase, with: mappingBase + Data(" ".utf8), context: context))
+        XCTAssertEqual(try Data(contentsOf: file), mappingBase)
+        XCTAssertEqual(try Data(contentsOf: moved.appendingPathComponent("configuration.json")), mappingBase)
+    }
+    func testDirectoryReplacementBeforeRenameCannotPublishOrCleanUpInReplacementDirectory() throws {
+        let root = try directory(); defer { try? FileManager.default.removeItem(at: root) }
+        let selected = root.appendingPathComponent("selected"), moved = root.appendingPathComponent("moved")
+        try FileManager.default.createDirectory(at: selected, withIntermediateDirectories: false)
+        let file = selected.appendingPathComponent("configuration.json")
+        try mappingBase.write(to: file)
+        let gate = KeyAvailabilityGate(); gate.update(.unlocked)
+        let context = context(), calls = MappingRuntimeCallCounter()
+        let port = try KarabinerFilePort(target: file, gate: gate, runtime: {
+            if calls.next() == 2 {
+                let temporary = try XCTUnwrap(FileManager.default.contentsOfDirectory(atPath: selected.path).first {
+                    $0.hasPrefix(AtomicFileSystem.tempPrefix)
+                })
+                try FileManager.default.moveItem(at: selected, to: moved)
+                try FileManager.default.createDirectory(at: selected, withIntermediateDirectories: false)
+                try mappingBase.write(to: file)
+                try Data(contentsOf: moved.appendingPathComponent(temporary)).write(to: selected.appendingPathComponent(temporary))
+            }
+            return context
+        })
+        let patched = try KarabinerProfilePlanner.plan(mappingBase, profile: "Work", drafts: [mappingDraft()]).bytes
+        XCTAssertThrowsError(try port.replace(expected: mappingBase, with: patched, context: context))
+        XCTAssertEqual(try Data(contentsOf: file), mappingBase)
+        XCTAssertEqual(try Data(contentsOf: moved.appendingPathComponent("configuration.json")), mappingBase)
+        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: moved.path), ["configuration.json"])
+        let untouched = try XCTUnwrap(FileManager.default.contentsOfDirectory(atPath: selected.path).first {
+            $0.hasPrefix(AtomicFileSystem.tempPrefix)
+        })
+        XCTAssertEqual(try Data(contentsOf: selected.appendingPathComponent(untouched)), patched)
+    }
     func testEditDuringTemporaryWriteIsCheckedAgainBeforeRename() throws {
         let root = try directory(); defer { try? FileManager.default.removeItem(at: root) }
         let file = root.appendingPathComponent("configuration.json"); try mappingBase.write(to: file)

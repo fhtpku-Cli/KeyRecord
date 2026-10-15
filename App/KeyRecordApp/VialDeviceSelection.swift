@@ -60,6 +60,18 @@ struct VialDeviceSelection {
                                      vendorID: device.vendorID, productID: device.productID)
     }
 
+    func openVIAVersionSource(device: String, text: NativeText, authorize: () throws -> Void) throws -> VIAVersionReadConnection {
+        try authorize()
+        let candidates = try devices().filter { String(UInt32($0.vendorID) << 16 | UInt32($0.productID)) == device }
+        try authorize()
+        guard !candidates.isEmpty else { throw VialHIDError.disconnected }
+        guard let selected = choose(candidates, text), candidates.contains(selected) else { throw CancellationError() }
+        try authorize()
+        let endpoint = try open(selected)
+        do { try authorize() } catch { endpoint.close(); throw error }
+        return VIAVersionReadConnection(endpoint: endpoint, vendorID: selected.vendorID, productID: selected.productID)
+    }
+
     func openSelectedDevice(record: FirmwareBatchRecord, support: FirmwareSupportDirectory,
                  text: NativeText, authorize: () throws -> Void) throws -> VialDeviceReadConnection {
         try authorize()

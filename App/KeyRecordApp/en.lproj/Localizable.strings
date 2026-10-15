@@ -418,7 +418,11 @@
 "phase4.state.importClaimed" = "User declared import";
 "phase4.state.verified" = "Verified";
 "phase4.state.partiallyVerified" = "Partially verified";
-"phase4.readbackScope" = "Readback compares the key matrix and encoders only. Macros, tap dance, combos, overrides, repeat keys, layout options, settings and other saved sections are not verified. Retain the original recovery copy.";
+"phase4.readbackScope" = "Readback compares the key matrix, encoders and supported tap dance, combo, override and alternate repeat entries. Macros, layout options, settings and unrecognized saved content remain unverified. Retain the original recovery copy.";
+"phase4.retainVIAVersions" = "Retain VIA copy and read device versions…";
+"phase4.deviceProtocol" = "Device protocol";
+"phase4.keycodeVersion" = "Keycode version";
+"phase4.versionUnknown" = "Unknown";
 "phase4.state.failed" = "Failed";
 "phase4.state.externallyChanged" = "Externally changed";
 "phase4.state.rolledBack" = "Rolled back";
@@ -435,6 +439,6 @@
 "backup.restoreFailed" = "Restore did not finish. Check the password, backup file and session access. Recovery requires an empty installation.";
 "backup.exported" = "Encrypted backup saved. Capture remains paused.";
 "backup.restored" = "Backup restored. Capture remains paused.";
-"phase4.selectDevice" = "Select the Vial keyboard to read";
-"phase4.selectDeviceDetail" = "The selected keyboard's identity and layout will be checked before comparison. This does not apply a keymap.";
+"phase4.selectDevice" = "Select the keyboard to read";
+"phase4.selectDeviceDetail" = "Read information from the selected keyboard. This does not apply a keymap.";
 "phase4.readSelectedDevice" = "Read selected keyboard";

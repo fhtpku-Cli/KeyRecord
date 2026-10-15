@@ -1,0 +1,118 @@
+{
+  "sections": {
+    "tap_dance": [
+      [
+        "KC_A",
+        "KC_B",
+        "KC_C",
+        "KC_D",
+        200
+      ]
+    ],
+    "combo": [
+      [
+        "KC_A",
+        "KC_B",
+        "KC_C",
+        "KC_D",
+        "KC_E"
+      ]
+    ],
+    "key_override": [
+      {
+        "trigger": "KC_A",
+        "replacement": "KC_B",
+        "layers": 255,
+        "trigger_mods": 1,
+        "negative_mod_mask": 2,
+        "suppressed_mods": 3,
+        "options": 128
+      }
+    ],
+    "alt_repeat_key": [
+      {
+        "keycode": "KC_A",
+        "alt_keycode": "KC_B",
+        "allowed_mods": 3,
+        "options": 8
+      }
+    ]
+  },
+  "requests": [
+    [
+      254,
+      13,
+      0
+    ],
+    [
+      254,
+      13,
+      1,
+      0
+    ],
+    [
+      254,
+      13,
+      3,
+      0
+    ],
+    [
+      254,
+      13,
+      5,
+      0
+    ],
+    [
+      254,
+      13,
+      7,
+      0
+    ]
+  ],
+  "payloads": {
+    "1": [
+      4,
+      0,
+      5,
+      0,
+      6,
+      0,
+      7,
+      0,
+      200,
+      0
+    ],
+    "3": [
+      4,
+      0,
+      5,
+      0,
+      6,
+      0,
+      7,
+      0,
+      8,
+      0
+    ],
+    "5": [
+      4,
+      0,
+      5,
+      0,
+      255,
+      0,
+      1,
+      2,
+      3,
+      128
+    ],
+    "7": [
+      4,
+      0,
+      5,
+      0,
+      3,
+      8
+    ]
+  }
+}

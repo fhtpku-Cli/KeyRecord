@@ -418,7 +418,11 @@
 "phase4.state.importClaimed" = "用户声明已导入";
 "phase4.state.verified" = "已验证";
 "phase4.state.partiallyVerified" = "部分验证";
-"phase4.readbackScope" = "读回仅比对键位矩阵和编码器。宏、Tap Dance、Combo、键覆盖、重复键、布局选项、设置及其他保存内容未验证。请保留原始恢复副本。";
+"phase4.readbackScope" = "读回比对键位矩阵、编码器及已支持的 Tap Dance、Combo、键覆盖和替代重复键条目。宏、布局选项、设置及无法识别的保存内容仍未验证。请保留原始恢复副本。";
+"phase4.retainVIAVersions" = "保留 VIA 副本并读取设备版本…";
+"phase4.deviceProtocol" = "设备协议";
+"phase4.keycodeVersion" = "键码版本";
+"phase4.versionUnknown" = "未知";
 "phase4.state.failed" = "失败";
 "phase4.state.externallyChanged" = "外部变更";
 "phase4.state.rolledBack" = "已回退";
@@ -435,6 +439,6 @@
 "backup.restoreFailed" = "恢复未完成。请检查密码、备份文件和会话访问权限。恢复需要空资料库。";
 "backup.exported" = "加密备份已保存，采集保持暂停。";
 "backup.restored" = "备份已恢复，采集保持暂停。";
-"phase4.selectDevice" = "选择要读回的 Vial 键盘";
-"phase4.selectDeviceDetail" = "比较前会核对所选键盘的身份和布局。此操作不会应用键位映射。";
+"phase4.selectDevice" = "选择要读取的键盘";
+"phase4.selectDeviceDetail" = "读取所选键盘的信息。此操作不会应用键位映射。";
 "phase4.readSelectedDevice" = "读回所选键盘";

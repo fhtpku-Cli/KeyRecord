@@ -96,6 +96,9 @@ private final class NativeVialHIDFixture: VialHIDEndpoint, @unchecked Sendable {
                 if oneShotNames { bytes.replaceSubrange(0..<4, with: [0x52, 0xa7, 0x52, encoderMismatch ? 0xb9 : 0xb8]) }
                 if persistentLayerNames { bytes.replaceSubrange(0..<4, with: [0x52, 0xe0, 0x52, encoderMismatch ? 0xfe : 0xff]) }
                 if staticLayerNames { bytes.replaceSubrange(0..<4, with: [0x7c, 0x78, 0x7c, encoderMismatch ? 0x77 : 0x7b]) }
+            case 0x0d:
+                XCTAssertEqual(bytes[2], 0)
+                bytes = Array(repeating: 0, count: 32)
             default: XCTFail("Unexpected Vial query")
             }
         default: XCTFail("Unexpected HID command")
@@ -114,6 +117,48 @@ private final class DeploymentVersionProbe: @unchecked Sendable {
 
 @MainActor
 final class KarabinerMappingFlowTests: XCTestCase {
+    func testVIAVersionSelectionRetainsIndependentProtocolAndRechecksPickerAuthority() async throws {
+        let (fixture, _, store, gate) = try await deployment()
+        let model = fixture.flow.firmwareCopies
+        let bytes = Data(#"{"vendorProductId":42,"layers":[["KC_NO"]],"protocol":13,"keycodesVersion":9,"importer":"forged"}"#.utf8)
+        let endpoint = NativeVialHIDFixture()
+        let device = VialHIDDevice(registryEntryID: 9, vendorID: 0, productID: 42, name: "Synthetic VIA")
+        var selection = VialDeviceSelection(devices: { [device] }, choose: { candidates, _ in
+            XCTAssertEqual(candidates, [device]); return device
+        }, open: { chosen in XCTAssertEqual(chosen, device); return endpoint })
+        model.configure(store: store, gate: gate, viaVersionConnection: { id, authorize in
+            try selection.openVIAVersionSource(device: id, text: NativeText(locale: "en"), authorize: authorize)
+        })
+        await model.retainVIAWithVersions(bytes, ticket: try XCTUnwrap(model.selectionTicket()))
+        let record = try XCTUnwrap(model.records.first)
+        XCTAssertEqual(record.axes.deviceProtocol, "via-9")
+        XCTAssertNil(record.axes.keycodeDialect); XCTAssertNil(record.axes.importer); XCTAssertNil(record.axes.definitionSchema)
+        XCTAssertFalse(model.canGenerate(record)); XCTAssertEqual(endpoint.requests, [.viaProtocol, .viaProtocol])
+        XCTAssertEqual(endpoint.closeCount, 1)
+        let view = NSHostingView(rootView: FirmwareCopiesSection(model: model, viaBytes: bytes, text: NativeText(locale: "en")))
+        XCTAssertTrue(NativeEvidence.elements(in: view).contains { KRAXIdentifier($0) == "phase4.retainVIAVersions" })
+        XCTAssertTrue(NativeEvidence.elements(in: view).contains { KRAXLabel($0) == "Device protocol: via-9" })
+        XCTAssertTrue(NativeEvidence.elements(in: view).contains { KRAXLabel($0) == "Keycode version: Unknown" })
+        selection.choose = { _, _ in model.clear(); return device }
+        await model.retainVIAWithVersions(bytes, ticket: try XCTUnwrap(model.selectionTicket()))
+        XCTAssertEqual(endpoint.requests.count, 2)
+        XCTAssertTrue(model.records.isEmpty)
+        let saved = try await FirmwareOperationCoordinator(store: store, resolve: { try FirmwareFileDestination(reference: $0, gate: gate) }).ledger()
+        XCTAssertEqual(saved.records.count, 1)
+    }
+    func testNativeDynamicReadbackVerifiesEmptyTablesOnlyAfterDeviceCounts() async throws {
+        let endpoint = NativeVialHIDFixture()
+        let original = #"{"version":1,"uid":18446744073709551615,"via_protocol":9,"vial_protocol":6,"layout":[[["KC_NO",-1,"KC_ENT"]]],"tap_dance":[],"combo":[],"key_override":[],"alt_repeat_key":[]}"#
+        let (fixture, store, gate, record) = try await claimedHID(endpoint, original: original)
+        let model = fixture.flow.firmwareCopies
+        await model.verifyVial(record, ticket: try XCTUnwrap(model.selectionTicket()))
+        XCTAssertEqual(model.records.last?.state, .verified)
+        XCTAssertEqual(model.records.last?.unverifiedSections, [])
+        XCTAssertEqual(model.records.last?.verifiedDynamicSections, ["alt_repeat_key", "combo", "key_override", "tap_dance"])
+        XCTAssertEqual(endpoint.requests.filter { $0 == .dynamicCounts }.count, 2)
+        let reopened = try await FirmwareOperationCoordinator(store: store, resolve: { try FirmwareFileDestination(reference: $0, gate: gate) }).reconcile()
+        XCTAssertEqual(reopened.records.last?.state, .verified)
+    }
     func testInstalledImporterMetadataRejectsMissingMalformedAndForeignBundles() async throws {
         let (_, file, _, _) = try await deployment()
         let bundle = file.deletingLastPathComponent().appendingPathComponent("Vial.app")

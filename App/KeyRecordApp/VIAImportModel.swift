@@ -25,6 +25,7 @@ final class VIAImportModel: ObservableObject {
     private var definition: VIADefinitionReference?
     private var layoutBytes: Data?
     var selectedOriginalBytes: Data? { canRead() && monitors[.layout]?.hasChanged == false ? layoutBytes : nil }
+    var layoutReference: VIALayoutReference? { selectedOriginalBytes != nil ? layout : nil }
     private var requests: [VIAImportFileKind: UUID] = [:]
     private var jobs: [VIAImportFileKind: Task<SelectedVIAFile, any Error>] = [:]
     private var monitors: [VIAImportFileKind: VIAFileMonitor] = [:]

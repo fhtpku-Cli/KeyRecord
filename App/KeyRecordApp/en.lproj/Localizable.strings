@@ -262,13 +262,15 @@
 "phase2.physicalWider" = "The candidate has a wider span. Fewer presses do not guarantee an easier action.";
 "phase2.physicalCurrentEstimate" = "Estimate under the supplied current configuration, not historical physical counts. Ranking still uses logical key reduction.";
 "phase2.via.title" = "Read-only VIA reference files";
-"phase2.via.notice" = "Choose a VIA configuration copy and its matching raw or compiled keyboard definition. Files are read for this session only; nothing is written, applied or sent to a device. Reimport after changes. Privacy closure removes the reference.";
+"phase2.via.notice" = "Export your latest configuration from VIA, then choose that file here. If you change it in VIA, export and choose it again. This section reads files only; it does not change your keyboard. Privacy closure removes the reference.";
 "phase2.via.chooseLayout" = "Choose configuration copy";
 "phase2.via.chooseDefinition" = "Choose layout definition";
 "phase2.via.layoutSelected" = "Configuration copy: %@";
 "phase2.via.definitionSelected" = "Definition: %@";
 "phase2.via.loading" = "Reading the selected reference file…";
-"phase2.via.needPair" = "Choose both files to match keyboard identity and matrix dimensions.";
+"phase2.via.needPair" = "Choose your latest VIA configuration export to see its key assignment summary. A matching keyboard definition can add position information.";
+"phase2.via.layoutSummary" = "%@ · %d layers · %d standard assignments · %d unsupported assignments in layer 0";
+"phase2.via.definitionOptional" = "This summary comes from the configuration file. To match matrix dimensions and show physical positions, also choose the matching raw or compiled keyboard definition. Positions and distances are unavailable without it.";
 "phase2.via.clear" = "Remove session reference";
 "phase2.via.summary" = "%@ · %d layers · %d geometry positions · %d standard assignments · %d unsupported assignments in layer 0";
 "phase2.via.deploymentUnknown" = "File contents are a reference. The deployed firmware and active layer have not been verified.";

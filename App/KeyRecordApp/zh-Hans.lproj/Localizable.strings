@@ -262,13 +262,15 @@
 "phase2.physicalWider" = "候选的跨度更大；少按几次不保证动作更轻松。";
 "phase2.physicalCurrentEstimate" = "按提供的当前配置估算，不是历史物理计数；排名仍采用逻辑键数简化。";
 "phase2.via.title" = "只读 VIA 参考文件";
-"phase2.via.notice" = "选择 VIA 配置副本和对应的原始或编译后键盘定义。仅在本次会话读取，不写文件、不应用映射、不查询设备；文件变化后需重新导入。隐私关闭时移除参考。";
+"phase2.via.notice" = "先在 VIA 中导出最新配置，再在这里选择该文件。如果之后又在 VIA 中修改过配置，请重新导出并选择。本区域仅读取文件，不修改键盘；隐私关闭时移除参考。";
 "phase2.via.chooseLayout" = "选择配置副本";
 "phase2.via.chooseDefinition" = "选择布局定义";
 "phase2.via.layoutSelected" = "配置副本：%@";
 "phase2.via.definitionSelected" = "布局定义：%@";
 "phase2.via.loading" = "正在读取选定参考文件…";
-"phase2.via.needPair" = "选择两份文件后，核对键盘身份和矩阵尺寸。";
+"phase2.via.needPair" = "选择最新导出的 VIA 配置即可查看按键配置概况；对应的键盘定义可补充位置信息。";
+"phase2.via.layoutSummary" = "%@ · %d 层 · 第0层 %d 个标准配置、%d 个不支持配置";
+"phase2.via.definitionOptional" = "以上概况来自配置文件。如需核对矩阵尺寸并展示物理位置，可再选择对应的原始或编译后键盘定义；未提供时不计算位置和距离。";
 "phase2.via.clear" = "移除本次参考";
 "phase2.via.summary" = "%@ · %d 层 · %d 个几何键位 · 第0层 %d 个标准配置、%d 个不支持配置";
 "phase2.via.deploymentUnknown" = "文件内容仅供参考，未验证设备实际固件和当前活动层。";

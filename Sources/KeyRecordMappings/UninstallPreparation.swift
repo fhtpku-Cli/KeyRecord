@@ -92,6 +92,7 @@ public final class UninstallPreparationCoordinator {
         if deleteLocalData {
             try await verifyRecovery(snapshot: snapshot, choices: choices)
             record.stage = .erasing; try await save(record)
+            try await verifyRecovery(snapshot: snapshot, choices: choices)
             try checkAccess(); try await eraseData()
             record.stage = .completed
             onProgress(.completed)

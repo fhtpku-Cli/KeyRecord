@@ -340,7 +340,7 @@ private enum VIAStandardKeyCodes {
             ("KC_LCTL",59,0xe0),("KC_LSFT",56,0xe1),("KC_LALT",58,0xe2),("KC_LGUI",55,0xe3),
             ("KC_RCTL",62,0xe4),("KC_RSFT",60,0xe5),("KC_RALT",61,0xe6),("KC_RGUI",54,0xe7)]
         for (name, code, usage) in special { map[name] = (code, usage) }
-        let aliases = ["KC_ENT":"KC_ENTER", "KC_SPC":"KC_SPACE", "KC_BSPACE":"KC_BSPC",
+        let aliases = ["KC_ENT":"KC_ENTER", "KC_SPC":"KC_SPACE", "KC_RGHT":"KC_RIGHT", "KC_BSPACE":"KC_BSPC",
             "KC_LCTRL":"KC_LCTL", "KC_RCTRL":"KC_RCTL", "KC_LSHIFT":"KC_LSFT", "KC_RSHIFT":"KC_RSFT"]
         for (alias, canonical) in aliases { map[alias] = map[canonical] }
         return map

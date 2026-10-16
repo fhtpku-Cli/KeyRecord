@@ -342,7 +342,9 @@
 "phase3.rebindBlocked" = "请先移除原目标受管规则，或明确停止管理，再绑定另一个目标。";
 "phase4.copiesTitle" = "固件恢复副本";
 "phase4.compatibilityUnknown" = "实际设备与版本轴尚未合格，生成路径保持阻断。保存和导出原始恢复副本不证明设备兼容性。";
-"phase4.retainVIA" = "确认这是最新官方 VIA 导出，并加密保存恢复副本";
+"phase4.retainVIA" = "确认这是最新 VIA 导出，保存恢复副本并准备文件改键";
+"phase4.fileUnavailable" = "已保存原始恢复副本，但暂不支持编辑这份文件的结构。仍可导出原始副本。";
+"phase4.fileCompatibility" = "文件改键仅支持已验证的基础键码。层入口及未知动作不能覆盖；宏、旋钮和其他字段原样保留，不推断物理位置。请另存修改文件，手动导回 VIA 并检查键盘效果。这不代表设备已验证兼容；若在 VIA 中再次改过配置，请先重新导出并选择最新副本。";
 "phase4.retainVial" = "选择并保留已确认的 Vial 原始导出";
 "phase4.layer" = "层（从 0 开始）";
 "phase4.row" = "行（从 0 开始）";

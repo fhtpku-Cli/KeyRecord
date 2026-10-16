@@ -133,6 +133,19 @@ final class FirmwareCopiesModel: ObservableObject {
         guard ticket == session, bytes == selectedOriginal() else { return }
         await retain(bytes, backend: .via)
     }
+    func retainVIAFile(_ bytes: Data?, ticket: UUID) async {
+        guard canRead(), ticket == session, !working, let bytes, bytes == selectedOriginal() else { return }
+        readRequest = UUID(); working = true; issueKey = nil
+        do {
+            let axes = try FirmwareVersionProvider.axes(bytes: bytes, backend: .via)
+            let basis: FirmwareCompatibilityBasis? = (try? VIAFileCompatibility.validate(bytes)) != nil ? .viaFile : nil
+            _ = try await coordinator().retainOriginal(bytes, backend: .via, axes: axes, confirmedAt: Date(), compatibilityBasis: basis)
+            guard canRead(), ticket == session else { return }
+            working = false; await refresh()
+            if canRead(), ticket == session, basis == nil { issueKey = "phase4.fileUnavailable" }
+        } catch { if canRead(), ticket == session { working = false; issueKey = "phase4.operationFailed" } }
+        if ticket == session { onChange() }
+    }
     func retainVial(ticket: UUID) async {
         guard canRead(), ticket == session, !working, let gate else { return }
         guard let url = selectVial(), canRead(), ticket == session else { return }
@@ -228,6 +241,7 @@ final class FirmwareCopiesModel: ObservableObject {
             isCompatible(record)
     }
     func isCompatible(_ record: FirmwareBatchRecord) -> Bool {
+        if record.compatibilityBasis == .viaFile { return record.backend == .via && record.axes.layoutFormat == "via-layout-json" }
         if let importerVersion, record.axes.importer == nil || importerVersion(record.backend) != record.axes.importer { return false }
         return support.supports(backend: record.backend, device: record.device, axes: record.axes)
     }
@@ -422,7 +436,7 @@ struct FirmwareCopiesSection: View {
         Section {
             if model.records.isEmpty { Text(text("phase4.compatibilityUnknown")).fixedSize(horizontal: false, vertical: true) }
             Button(text("phase4.retainVIA")) {
-                if let ticket = model.selectionTicket() { Task { await model.retainVIA(viaBytes, ticket: ticket) } }
+                if let ticket = model.selectionTicket() { Task { await model.retainVIAFile(viaBytes, ticket: ticket) } }
             }
                 .disabled(model.working || viaBytes == nil).accessibilityIdentifier("phase4.retainVIA")
             Button(text("phase4.retainVial")) {
@@ -443,8 +457,9 @@ struct FirmwareCopiesSection: View {
                         Text(text("phase4.requiredDefinition") + ": " + required)
                     }
                 }
-                if record.backend == .via, record.axes.definitionSchema == nil { Text(text("phase4.definitionVersionUnknown")) }
-                if record.backend == .via, record.axes.importer == nil { Text(text("phase4.onlineImporterUnknown")) }
+                if record.compatibilityBasis == .viaFile { Text(text("phase4.fileCompatibility")) }
+                if record.backend == .via, record.compatibilityBasis == nil, record.axes.definitionSchema == nil { Text(text("phase4.definitionVersionUnknown")) }
+                if record.backend == .via, record.compatibilityBasis == nil, record.axes.importer == nil { Text(text("phase4.onlineImporterUnknown")) }
                 if !model.isCompatible(record) { Text(text("phase4.compatibilityUnknown")) }
                 if let date = record.exportedAt { HStack { Text(text("phase4.exportedAt")); Text(date, style: .date) } }
                 if let date = record.importClaimedAt { HStack { Text(text("phase4.importClaimedAt")); Text(date, style: .date) } }

@@ -97,12 +97,41 @@ private final class OfflineEndpoint: VialHIDEndpoint, @unchecked Sendable {
 }
 @main
 struct FirmwareIntegrationProbe {
+    static func viaFile(original: URL, target: URL) async throws {
+        let bytes = try Data(contentsOf: original)
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("keyrecord-via-file-probe-" + UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: false)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let keys = FixtureKeys(), store = ObjectStore(root: root.appendingPathComponent("objects"), keySource: keys)
+        _ = try await store.bootstrap(); await keys.seed(); try await store.initializeFreshInstallation(version: .init(rawValue: 1))
+        let gate = KeyAvailabilityGate(); gate.update(.unlocked)
+        let operations = try FirmwareOperationCoordinator(store: store, resolve: { try FirmwareFileDestination(reference: $0, gate: gate) })
+        let axes = try FirmwareVersionProvider.axes(bytes: bytes, backend: .via)
+        let record = try await operations.retainOriginal(bytes, backend: .via, axes: axes, confirmedAt: Date(), compatibilityBasis: .viaFile)
+        let changes = VIAFileCompatibility.outputs.sorted().enumerated().map {
+            FirmwareSlotChange(slot: .init(layer: 0, column: $0.offset), output: $0.element, automatic: true)
+        }
+        let preview = try await operations.preview(record.id, changes: changes)
+        guard preview.differences.count == changes.count, preview.differences.allSatisfy({ $0.before == "KC_NO" }) else { throw FirmwareError.invalidState }
+        _ = try await operations.export(record.id, changes: changes, destination: FirmwareFileDestination(target: target, gate: gate))
+        let reopened = try FirmwareOperationCoordinator(store: store, resolve: { try FirmwareFileDestination(reference: $0, gate: gate) })
+        let ledger = try await reopened.reconcile()
+        guard ledger.records.last?.compatibilityBasis == .viaFile, ledger.records.last?.state == .awaitingUserImport,
+              ledger.records.last?.verifiedAt == nil, try await reopened.original(record.id) == bytes else { throw FirmwareError.invalidState }
+        print("PASS: VIA file preview, encrypted original, export and reopen; no device qualification")
+    }
     static func main() async {
         do { try await run() }
         catch { fputs("offline firmware integration failed: \(error)\n", stderr); exit(2) }
     }
     static func run() async throws {
         let args = Array(CommandLine.arguments.dropFirst())
+        if args == ["--via-file-outputs"] {
+            print(String(decoding: try JSONEncoder().encode(VIAFileCompatibility.outputs.sorted()), as: UTF8.self)); return
+        }
+        if args.count == 3, args[0] == "--via-file" {
+            try await viaFile(original: URL(fileURLWithPath: args[1]), target: URL(fileURLWithPath: args[2])); return
+        }
         if args == ["--help"] { print("Usage: KeyRecordFirmwareIntegrationProbe <synthetic-original.vil> <patched-output.vil> [synthetic-definition.xz [independent-keycodes.bin]]\nOffline only: in-memory keys and simulated HID endpoint; no device is opened."); return }
         guard (2...4).contains(args.count) else { throw FirmwareError.invalidDocument }
         let bytes = try Data(contentsOf: URL(fileURLWithPath: args[0]))

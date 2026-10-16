@@ -19,6 +19,7 @@ public struct FirmwareBatchRecord: Codable, Equatable, Sendable, Identifiable {
     public let axes: FirmwareVersionAxes
     public let baselineSHA256: String
     public let originalExportConfirmedAt: Date
+    public var compatibilityBasis: FirmwareCompatibilityBasis?
     public var state: FirmwareMappingState = .draft
     public var artifactSHA256: String?
     public var exportedAt: Date?
@@ -102,13 +103,20 @@ public actor FirmwareOperationCoordinator {
         try await save(ledger); try injection(phase)
     }
     public func retainOriginal(_ bytes: Data, backend: FirmwareBackend, axes: FirmwareVersionAxes,
-                               confirmedAt: Date) async throws -> FirmwareBatchRecord {
+                               confirmedAt: Date, compatibilityBasis: FirmwareCompatibilityBasis? = nil) async throws -> FirmwareBatchRecord {
         try begin(); defer { busy = false }
         var ledger = try await ledger()
         guard ledger.pending == nil else { throw FirmwareError.busy }
         let document = try FirmwareDocument(bytes: bytes, backend: backend)
+        if compatibilityBasis == .viaFile {
+            guard backend == .via, axes == (try FirmwareVersionProvider.axes(bytes: bytes, backend: .via)) else {
+                throw FirmwareError.unknownCompatibility
+            }
+            try VIAFileCompatibility.validate(bytes)
+        }
         let record = FirmwareBatchRecord(id: UUID(), backend: backend, device: document.device, axes: axes,
-            baselineSHA256: KarabinerTransactionCoordinator.fileDigest(bytes), originalExportConfirmedAt: confirmedAt)
+            baselineSHA256: KarabinerTransactionCoordinator.fileDigest(bytes), originalExportConfirmedAt: confirmedAt,
+            compatibilityBasis: compatibilityBasis)
         _ = try await store.put(identity: identity(record.id, original: true), payload: bytes)
         ledger.records.append(record)
         try await save(ledger)
@@ -130,11 +138,17 @@ public actor FirmwareOperationCoordinator {
     }
     public func prepare(_ batch: UUID, changes: [FirmwareSlotChange]) async throws -> Data {
         let (record, document) = try await draftDocument(batch)
+        return try patch(document, record: record, changes: changes)
+    }
+    private func patch(_ document: FirmwareDocument, record: FirmwareBatchRecord, changes: [FirmwareSlotChange]) throws -> Data {
+        if record.compatibilityBasis == .viaFile {
+            return try document.patchVIAFile(changes, expectedDevice: record.device)
+        }
         return try document.patch(changes, expectedDevice: record.device, axes: record.axes, support: support)
     }
     public func preview(_ batch: UUID, changes: [FirmwareSlotChange]) async throws -> FirmwarePatchPreview {
         let (record, document) = try await draftDocument(batch)
-        _ = try document.patch(changes, expectedDevice: record.device, axes: record.axes, support: support)
+        _ = try patch(document, record: record, changes: changes)
         return try FirmwarePatchPreview(batch: batch, differences: changes.map {
             FirmwareSlotDifference(change: $0, before: try document.value(at: $0.slot))
         })

@@ -6,6 +6,8 @@ B 的工程基础及只读 VIA 参考已由 [PR #21](https://github.com/fhtpku-C
 
 ## Phase status
 
+2026-10-16 VIA 文件改键正式入口：已将文件编辑兼容范围与设备资格分开，最新配置可经加密保留、改键预览、导出，再由用户手动导回 VIA。90 个基础输出键码通过 9 类官方字典及实际官方导入函数离线对照；未知动作、层入口、恢复副本和删除前复核保护保留。旧记录不自动放行，真实设备支持目录仍为空。见[范围与复现](phase4/VIA_FILE_EDITING_20261016.md)。
+
 2026-10-16 VIA 层与修饰键组合入口：补齐 `LM(...)` 的覆盖保护，既有官方离线转换回归扩展至 20 个场景；不扩展可生成输出或层可达性。见[复现与范围](phase4/VIA_LAYER_MOD_ENTRIES_20261016.md)。
 
 2026-10-16 VIA Fn 层入口：补齐官方导出名称 `FN_MO13`／`FN_MO23` 的覆盖保护，阻止手动改键破坏这些层入口；新增 10 个实际执行官方转换函数的离线往返场景并接入 CI。见[复现与范围](phase4/VIA_FN_ENTRIES_20261016.md)。
@@ -42,7 +44,7 @@ B 的工程基础及只读 VIA 参考已由 [PR #21](https://github.com/fhtpku-C
 | Phase 1: collection, privacy, encrypted storage | **Approved Apple Silicon MVP complete and merged** | Measured arm64 macOS 27.0 build 26A428 only; development-signed local trial. Existing candidate-specific short ARM and lifecycle evidence retained. Full original G1/v1, all OS/architectures and public release are not claimed. |
 | Phase 2：确定性分析 | **A/B 工程开发与离线自审完成；真实 G2 证据后置** | 能力过滤、范围明确的冲突检查、特殊键池、手动候选、物理链消费/回退与只读副本已接通。实际后端、完整真实部署/变换链、系统选择器授权和真实保存重开集中留后；产品不冒充已连接或真实物理收益。 |
 | Phase 3: Karabiner stable path | **部署会话和原生卸载工程增量完成；完整 G3 未完成** | 目标绑定、加密引用、隐私重开和外部监测已接通；暂停捕获→逐份恢复副本→规则→登录项→数据选择的默认卸载准备及阶段显示已离线执行。历史阶段仅供检查，维护期间后台对账延后并恢复。空生产支持目录只读，真实版本、重载、效果和停用 p95 后置。[本批记录](phase3/RECOVERY_CHOICES_20261013.md)。 |
-| Phase 4: VIA/Vial Beta | **离线兼容与生产组合接入已实现；未合格** | 矩阵、编码器、四类动态条目及宏、布局选项、QMK 设置已接通实际只读协议与离线验证；层入口保护保留。VIA 已支持原始及官方编译定义的离线读取，展示独立设备协议要求的 v2/v3，并修复版本读取期间保存过期副本的问题。在线导入器运行版本与其实际加载的定义来源仍未验证；索引/依赖版本不能代替它们。空支持目录继续阻止未合格映射生成及 Vial 读回打开设备；VIA 版本检查仅只读。未知表示与真实 GUI/设备证据继续后置。见[最新来源与修复批次](phase4/VIA_DEFINITION_SOURCES_20261015.md)及[配置读回批次](phase4/CONFIGURATION_READBACK_20261015.md)。 |
+| Phase 4: VIA/Vial Beta | **VIA 文件改键入口与离线读回工程已实现；真实设备未合格** | VIA 可在明确的基础键码范围内保留、预览并导出修改文件，由用户手动导入检查；不依赖浏览器实例绑定，不推断设备资格或物理位置。原始及编译定义仍用于参考。Vial 的矩阵、编码器、四类动态条目、宏、布局选项及 QMK 设置已接通只读协议与离线验证；未知表示保持部分验证。空设备支持目录继续阻止未合格设备操作，真实 GUI 导入、HID 和键盘效果后置。见[文件入口](phase4/VIA_FILE_EDITING_20261016.md)及[配置读回](phase4/CONFIGURATION_READBACK_20261015.md)。 |
 | FR-P6 full password backup | **密码备份及空资料库恢复工程已实现** | 全部已保存对象独立密码加密，原子恢复到独立本地密钥；已有资料库不可覆盖，原删除前复核保留。真实 Keychain 恢复和 Intel 计时后置。[实现与边界](PASSWORD_BACKUP_20261015.md)。 |
 | Full v1 / public distribution | **Not qualified** | PRD §15 requirements, real backup/restore qualification, Intel/full support matrix, public name/license decision, signing/notarization and backend requirements remain. |
 

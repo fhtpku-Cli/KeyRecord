@@ -84,7 +84,7 @@ def main():
         run(f"{mode}-transaction", ["swift", "run", "KeyRecordFirmwareIntegrationProbe",
                                    original, patched, definition, raw])
         run(f"{mode}-restore", common + ["--check", patched])
-    print("PASS: 11 official fixtures, 10 active-source scenarios, 10 VIA Fn keycode round trips and 9 official/Swift encrypted transaction round trips", flush=True)
+    print("PASS: 11 official fixtures, 10 active-source scenarios, 20 VIA layer-entry round trips and 9 official/Swift encrypted transaction round trips", flush=True)
 
 
 if __name__ == "__main__":

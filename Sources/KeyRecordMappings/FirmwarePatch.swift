@@ -206,7 +206,7 @@ public struct FirmwareDocument: Sendable {
         return result
     }
     private static func protected(_ token: String) -> Bool {
-        ["MO(", "LT(", "TG(", "TO(", "TT(", "DF(", "OSL("].contains { token.hasPrefix($0) }
+        ["MO(", "LT(", "LM(", "TG(", "TO(", "TT(", "DF(", "OSL("].contains { token.hasPrefix($0) }
             || ["QK_BOOT", "QK_REBOOT", "QK_CLEAR_EEPROM", "RESET", "EE_CLR", "FN_MO13", "FN_MO23"].contains(token)
     }
     private func reachable(automatic: Bool, vial6: Bool) throws -> Set<Int> {

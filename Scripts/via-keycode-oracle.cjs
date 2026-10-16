@@ -43,5 +43,13 @@ for (const protocol of [7, 10, 11, 12, 13]) {
     console.log(`PASS: protocol ${protocol} exports and imports ${token} (0x${raw.toString(16)})`);
     count++;
   }
+  for (const token of ['LM(1,MOD_LCTL)', 'LM(2,MOD_LSFT | MOD_LALT)']) {
+    const raw = keys.getByteForCode(token, dictionary);
+    assert.equal(typeof raw, 'number');
+    assert.ok(raw >= dictionary._QK_LAYER_MOD && raw <= dictionary._QK_LAYER_MOD_MAX);
+    assert.equal(keys.getCodeForByte(raw, dictionary, reverse), token);
+    console.log(`PASS: protocol ${protocol} exports and imports ${token} (0x${raw.toString(16)})`);
+    count++;
+  }
 }
-console.log(`PASS: ${count} official VIA Fn layer-entry round trips; no device or runtime qualification`);
+console.log(`PASS: ${count} official VIA layer-entry round trips; no device or runtime qualification`);

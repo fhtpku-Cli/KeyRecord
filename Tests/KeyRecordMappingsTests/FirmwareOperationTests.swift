@@ -201,8 +201,8 @@ final class FirmwareOperationTests: XCTestCase {
         XCTAssertThrowsError(try document.patch([FirmwareSlotChange(slot: FirmwareSlot(layer: 1, column: 1), output: "KC_C", automatic: true)], expectedDevice: "42", axes: firmwareAxes, support: firmwareSupport()))
         XCTAssertThrowsError(try document.patch([FirmwareSlotChange(slot: FirmwareSlot(layer: 0, column: 1), output: "MACRO(1)", automatic: true)], expectedDevice: "42", axes: firmwareAxes, support: firmwareSupport()))
     }
-    func testVIAFnLayerEntriesCannotBeReplacedByManualOrAutomaticChanges() throws {
-        for token in ["FN_MO13", "FN_MO23"] {
+    func testVIALayerEntriesCannotBeReplacedByManualOrAutomaticChanges() throws {
+        for token in ["FN_MO13", "FN_MO23", "LM(1,MOD_LCTL)", "LM(2,MOD_LSFT | MOD_LALT)"] {
             let bytes = Data("{\"vendorProductId\":42,\"layers\":[[\"\(token)\",\"KC_NO\"]]}".utf8)
             let document = try FirmwareDocument(bytes: bytes, backend: .via)
             for automatic in [false, true] {
@@ -216,19 +216,19 @@ final class FirmwareOperationTests: XCTestCase {
             XCTAssertEqual(try FirmwareDocument(bytes: patched, backend: .via).value(at: .init(layer: 0, column: 0)), token)
         }
     }
-    func testVIAFnEntryRefusalDoesNotCreatePreviewArtifactOrChangeEncryptedOriginal() async throws {
-        for token in ["FN_MO13", "FN_MO23"] {
+    func testVIALayerEntryRefusalDoesNotCreatePreviewArtifactOrChangeEncryptedOriginal() async throws {
+        for token in ["FN_MO13", "FN_MO23", "LM(1,MOD_LCTL)", "LM(2,MOD_LSFT | MOD_LALT)"] {
             let (root, store, _, gate) = try await fixture()
             let operations = try coordinator(store, gate)
             let bytes = Data("{\"vendorProductId\":42,\"layers\":[[\"\(token)\",\"KC_NO\"]]}".utf8)
             let batch = try await operations.retainOriginal(bytes, backend: .via, axes: firmwareAxes, confirmedAt: Date())
             let changes = [FirmwareSlotChange(slot: .init(layer: 0, column: 0), output: "KC_A", automatic: false)]
-            do { _ = try await operations.preview(batch.id, changes: changes); XCTFail("Fn layer entry must not produce a preview") }
+            do { _ = try await operations.preview(batch.id, changes: changes); XCTFail("Layer entry must not produce a preview") }
             catch FirmwareError.protectedEntry {}
             let output = root.appendingPathComponent("patch.json")
             do {
                 _ = try await operations.export(batch.id, changes: changes, destination: FirmwareFileDestination(target: output, gate: gate))
-                XCTFail("Fn layer entry must not be overwritten")
+                XCTFail("Layer entry must not be overwritten")
             } catch FirmwareError.protectedEntry {}
             XCTAssertFalse(FileManager.default.fileExists(atPath: output.path))
             let ledger = try await operations.ledger()

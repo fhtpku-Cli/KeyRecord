@@ -90,6 +90,12 @@ async function fileRoundTrips() {
     for (const [protocol, keycodesVersion] of versions) {
       const dictionary = dictionaries.getBasicKeyDict(protocol, keycodesVersion);
       const reverse = keys.getByteToKey(dictionary);
+      for (let layer = 0; layer < 32; layer++) {
+        const raw = keys.getByteForCode(`LT(${layer},KC_A)`, dictionary);
+        assert.equal(keys.getCodeForByte(raw, dictionary, reverse), `LT(${layer % 16},KC_A)`);
+      }
+      const momentary = keys.getByteForCode('MO(31)', dictionary);
+      assert.equal(keys.getCodeForByte(momentary, dictionary, reverse), 'MO(31)');
       for (const output of outputs) {
         const raw = keys.getByteForCode(output, dictionary);
         assert.ok(Number.isInteger(raw) && raw > 0 && raw <= 255, `${protocol}: ${output}`);
@@ -130,6 +136,7 @@ async function fileRoundTrips() {
       }
     }
     console.log(`PASS: ${outputs.length} VIA file output keycodes across ${versions.length} dictionary variants; official file import, shape/device/macro rejection and encrypted Swift export`);
+    console.log(`PASS: LT destinations 0–31 encode into 0–15 across ${versions.length} official dictionaries; MO(31) remains distinct`);
   } finally { fs.rmSync(directory, {recursive: true, force: true}); }
 }
 fileRoundTrips().catch(error => { console.error(error); process.exitCode = 1; });

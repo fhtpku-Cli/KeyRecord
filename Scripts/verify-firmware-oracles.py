@@ -64,6 +64,8 @@ def main():
     store_dependencies = args.via_store_dependencies or args.reader.resolve().parent.parent
     run("via-session-oracle", ["node", root / "Scripts/via-session-oracle.cjs",
                               args.via_source.resolve(), store_dependencies.resolve()])
+    run("via-keycode-oracle", ["node", root / "Scripts/via-keycode-oracle.cjs",
+                              args.via_source.resolve(), store_dependencies.resolve(), args.reader.resolve()])
 
     modes = ["basic", "modifier", "modifier-tap", "one-shot", "persistent-layer", "static-layer", "to",
              "layer-tap", "layer-mod"]
@@ -82,7 +84,7 @@ def main():
         run(f"{mode}-transaction", ["swift", "run", "KeyRecordFirmwareIntegrationProbe",
                                    original, patched, definition, raw])
         run(f"{mode}-restore", common + ["--check", patched])
-    print("PASS: 11 official fixtures, 10 active-source scenarios and 9 official/Swift encrypted transaction round trips", flush=True)
+    print("PASS: 11 official fixtures, 10 active-source scenarios, 10 VIA Fn keycode round trips and 9 official/Swift encrypted transaction round trips", flush=True)
 
 
 if __name__ == "__main__":

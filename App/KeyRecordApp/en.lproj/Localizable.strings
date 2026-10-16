@@ -342,7 +342,9 @@
 "phase3.rebindBlocked" = "Remove the previous managed rules or explicitly stop managing them before binding another target.";
 "phase4.copiesTitle" = "Firmware recovery copies";
 "phase4.compatibilityUnknown" = "Firmware device and version axes remain unqualified. Generation is blocked; retaining and exporting an original recovery copy does not prove device compatibility.";
-"phase4.retainVIA" = "Keep this latest official VIA export as an encrypted recovery copy";
+"phase4.retainVIA" = "Keep this latest VIA export and prepare file edits";
+"phase4.fileUnavailable" = "The original recovery copy was saved, but this file structure is not supported for editing. You can still export the original.";
+"phase4.fileCompatibility" = "File editing: supported basic keycodes only. Layer entries and unknown actions cannot be replaced; macros, encoders and other fields are preserved. No physical position is inferred. Export a separate file, import it into VIA yourself and check the keyboard. This does not establish device compatibility. If you change the configuration in VIA, export and select a fresh copy first.";
 "phase4.retainVial" = "Select and retain a confirmed Vial original export";
 "phase4.layer" = "Layer (starting at 0)";
 "phase4.row" = "Row (starting at 0)";

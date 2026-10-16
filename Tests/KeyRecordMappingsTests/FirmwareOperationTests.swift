@@ -22,6 +22,86 @@ private final class FirmwareFault: @unchecked Sendable {
 @MainActor
 final class FirmwareOperationTests: XCTestCase {
     private let vialBytes = Data(#"{"version":1,"uid":"fixture-vial","layout":[[["KC_NO","CUSTOM"]]],"macros":["opaque macro"]}"#.utf8)
+    func testVIAFileTransactionPreservesBytesAndScopeAcrossEncryptedReopen() async throws {
+        let (root, store, _, gate) = try await fixture()
+        let fault = FirmwareFault()
+        let operations = try coordinator(store, gate, fault: fault, support: FirmwareSupportDirectory())
+        let axes = try FirmwareVersionProvider.axes(bytes: firmwareBytes, backend: .via)
+        let record = try await operations.retainOriginal(firmwareBytes, backend: .via, axes: axes, confirmedAt: Date(), compatibilityBasis: .viaFile)
+        XCTAssertFalse(axes.complete)
+        XCTAssertFalse(FirmwareSupportDirectory().supports(backend: .via, device: "42", axes: axes))
+        let preview = try await operations.preview(record.id, changes: firmwareChanges)
+        XCTAssertEqual(preview.differences.map(\.before), ["KC_NO"])
+        let target = root.appendingPathComponent("via-file.json")
+        fault.set(.externalExported)
+        do {
+            _ = try await operations.export(record.id, changes: firmwareChanges, destination: FirmwareFileDestination(target: target, gate: gate))
+            XCTFail("Expected interruption after external export")
+        } catch FirmwareError.unavailable {}
+        let reopened = try coordinator(store, gate, support: FirmwareSupportDirectory())
+        let exported = try await reopened.reconcile()
+        XCTAssertEqual(exported.records.last?.state, .awaitingUserImport)
+        XCTAssertNil(exported.records.last?.verifiedAt)
+        let expected = String(decoding: firmwareBytes, as: UTF8.self).replacingOccurrences(of: #"["MO(1)","KC_NO","CUSTOM"]"#, with: #"["MO(1)","KC_C","CUSTOM"]"#)
+        XCTAssertEqual(try Data(contentsOf: target), Data(expected.utf8))
+        let ledger = try await reopened.reconcile()
+        XCTAssertEqual(ledger.records.last?.compatibilityBasis, .viaFile)
+        let original = try await reopened.original(record.id)
+        XCTAssertEqual(original, firmwareBytes)
+        let claimed = try await reopened.claimImport(record.id, at: Date())
+        XCTAssertEqual(claimed.records.last?.state, .importClaimed)
+        XCTAssertNil(claimed.records.last?.verifiedAt)
+    }
+    func testVIAFileEditingCannotRelaxDeviceQualificationOrProtectiveChecks() async throws {
+        let (_, store, _, gate) = try await fixture()
+        let operations = try coordinator(store, gate, support: FirmwareSupportDirectory())
+        let axes = try FirmwareVersionProvider.axes(bytes: firmwareBytes, backend: .via)
+        let legacy = try await operations.retainOriginal(firmwareBytes, backend: .via, axes: axes, confirmedAt: Date())
+        do { _ = try await operations.prepare(legacy.id, changes: firmwareChanges); XCTFail() }
+        catch FirmwareError.unknownCompatibility {}
+        let record = try await operations.retainOriginal(firmwareBytes, backend: .via, axes: axes, confirmedAt: Date(), compatibilityBasis: .viaFile)
+        let failures: [(FirmwareSlotChange, FirmwareError)] = [
+            (.init(slot: .init(layer: 0, column: 0), output: "KC_A", automatic: false), .protectedEntry),
+            (.init(slot: .init(layer: 0, column: 2), output: "KC_A", automatic: false), .unsupportedOutput),
+            (.init(slot: .init(layer: 0, column: 1), output: "LCTL(KC_C)", automatic: false), .unsupportedOutput),
+            (.init(slot: .init(layer: 1, column: 1), output: "KC_A", automatic: true), .occupiedAutomaticSlot),
+            (.init(slot: .init(layer: 0, column: 9), output: "KC_A", automatic: false), .invalidSlot)
+        ]
+        for (change, expected) in failures {
+            do { _ = try await operations.prepare(record.id, changes: [change]); XCTFail() }
+            catch { XCTAssertEqual(error as? FirmwareError, expected) }
+        }
+        do { _ = try await operations.prepare(legacy.id, changes: firmwareChanges); XCTFail() }
+        catch FirmwareError.staleBaseline {}
+        let bytes = Data(#"{"name":"Malformed entry","vendorProductId":42,"layers":[["MO(1,extra)","KC_NO"],["KC_NO","KC_NO"]]}"#.utf8)
+        let document = try FirmwareDocument(bytes: bytes, backend: .via)
+        XCTAssertThrowsError(try document.patchVIAFile([.init(slot: .init(layer: 1, column: 0), output: "KC_A", automatic: false)], expectedDevice: "42")) {
+            XCTAssertEqual($0 as? FirmwareError, .unreachableLayer)
+        }
+        for token in ["FN_MO13", "FN_MO23", "LM(1,MOD_LCTL)", "RESET", "QK_BOOT", "0x7c00", " mo(1)"] {
+            let bytes = Data("{\"name\":\"Protected\",\"vendorProductId\":42,\"layers\":[[\"\(token)\"]]}".utf8)
+            XCTAssertThrowsError(try FirmwareDocument(bytes: bytes, backend: .via).patchVIAFile([.init(slot: .init(layer: 0, column: 0), output: "KC_A", automatic: false)], expectedDevice: "42"))
+        }
+    }
+    func testVIAFileStructureAndStoredBasisCannotBeForgedByInputMetadata() async throws {
+        let (_, store, _, gate) = try await fixture()
+        let operations = try coordinator(store, gate, support: FirmwareSupportDirectory())
+        for text in [
+            #"{"vendorProductId":42,"layers":[["KC_NO"]]}"#,
+            #"{"name":"Bad","vendorProductId":0,"layers":[["KC_NO"]]}"#,
+            #"{"name":"Bad","vendorProductId":42,"layers":[["KC_NO"]],"macros":[1]}"#,
+            #"{"name":"Bad","vendorProductId":42,"layers":[["KC_NO"]],"encoders":[[["KC_A"]]]}"#,
+            #"{"name":"Bad","vendorProductId":42,"layers":[["KC_NO"]],"encoders":[[["KC_A","KC_B"],["KC_C","KC_D"]]]}"#
+        ] { XCTAssertThrowsError(try VIAFileCompatibility.validate(Data(text.utf8))) }
+        let bytes = Data(#"{"name":"Forged","vendorProductId":42,"layers":[["KC_NO"]],"compatibilityBasis":"viaFile","importer":"trusted"}"#.utf8)
+        let axes = try FirmwareVersionProvider.axes(bytes: bytes, backend: .via)
+        let record = try await operations.retainOriginal(bytes, backend: .via, axes: axes, confirmedAt: Date())
+        XCTAssertNil(record.compatibilityBasis); XCTAssertNil(record.axes.importer)
+        do { _ = try await operations.retainOriginal(bytes, backend: .via, axes: firmwareAxes, confirmedAt: Date(), compatibilityBasis: .viaFile); XCTFail() }
+        catch FirmwareError.unknownCompatibility {}
+        do { _ = try await operations.retainOriginal(vialBytes, backend: .vial, axes: firmwareAxes, confirmedAt: Date(), compatibilityBasis: .viaFile); XCTFail() }
+        catch FirmwareError.unknownCompatibility {}
+    }
     func testKeymapMatchCannotClaimCompleteVerificationOfOpaqueConfiguration() async throws {
         let (root, store, _, gate) = try await fixture()
         let (operations, batch) = try await exportedVial(store, gate, root: root)

@@ -501,6 +501,98 @@ final class KarabinerMappingFlowTests: XCTestCase {
             support: FirmwareSupportDirectory(entries: [FirmwareCompatibility(backend: backend, device: "42", axes: axes, supportedOutputs: outputs)]),
             versionAxes: { _ in axes })
     }
+    func testNativeVIAFileEntryWorksWithoutBrowserOrDeviceQualification() throws {
+        ScreenEvidence.prepare()
+        var fixture: FlowFixture?
+        var target: URL?
+        let original = Data(#"{"name":"File workflow","vendorProductId":42,"layers":[["KC_NO","MO(1)"],["KC_A","KC_NO"]],"macros":["opaque"]}"#.utf8)
+        ScreenEvidence.awaitMain {
+            do {
+                let result = try await self.deployment(); fixture = result.0
+                target = result.1.deletingLastPathComponent().appendingPathComponent("via-file-native.json")
+                result.0.flow.firmwareCopies.configure(store: result.2, gate: result.3, importerVersion: { _ in nil })
+            } catch { XCTFail("\(error)") }
+        }
+        let model = try XCTUnwrap(fixture?.flow.firmwareCopies)
+        model.selectedOriginal = { original }
+        let view = NSHostingView(rootView: Form {
+            FirmwareCopiesSection(model: model, viaBytes: original, text: NativeText(locale: "en"))
+        }.frame(width: 900, height: 1200))
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 900, height: 1200), styleMask: [.titled], backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false; window.contentView = view; window.makeKeyAndOrderFront(nil)
+        defer { window.contentView = nil; window.close() }
+        NativeEvidence.primeAccessibility(); NativeEvidence.update(view); NativeEvidence.update(view)
+        let retained = XCTestExpectation(description: "File retained from native entry")
+        var delivered = false
+        model.onChange = { if !delivered, !model.records.isEmpty { delivered = true; retained.fulfill() } }
+        XCTAssertTrue(KRAXPress(try NativeEvidence.node("phase4.retainVIA", in: view)))
+        ScreenEvidence.awaitMain {
+            let result = await XCTWaiter.fulfillment(of: [retained], timeout: 5)
+            XCTAssertEqual(result, .completed)
+        }
+        let record = try XCTUnwrap(model.records.last)
+        XCTAssertTrue(model.canGenerate(record))
+        XCTAssertFalse(FirmwareSupportDirectory().supports(backend: .via, device: record.device, axes: record.axes))
+        XCTAssertNil(record.axes.importer); XCTAssertNil(record.axes.deviceProtocol)
+        XCTAssertEqual(record.compatibilityBasis, .viaFile)
+        NativeEvidence.update(view)
+        XCTAssertTrue(NativeEvidence.elements(in: view).contains { KRAXIdentifier($0) == "stage-" + record.id.uuidString })
+        XCTAssertTrue(NativeEvidence.elements(in: view).contains { KRAXLabel($0) == NativeText(locale: "en")("phase4.fileCompatibility") })
+        model.selectExport = { _ in target }
+        XCTAssertTrue(KRAXPress(try NativeEvidence.node("stage-" + record.id.uuidString, in: view)))
+        NativeEvidence.update(view)
+        let previewed = XCTestExpectation(description: "File preview")
+        var previewDelivered = false
+        model.onChange = { if !previewDelivered, model.patchPreviews[record.id] != nil { previewDelivered = true; previewed.fulfill() } }
+        XCTAssertTrue(KRAXPress(try NativeEvidence.node("preview-" + record.id.uuidString, in: view)))
+        ScreenEvidence.awaitMain {
+            let result = await XCTWaiter.fulfillment(of: [previewed], timeout: 5)
+            XCTAssertEqual(result, .completed)
+        }
+        NativeEvidence.update(view)
+        let exported = XCTestExpectation(description: "File export")
+        var exportDelivered = false
+        model.onChange = { if !exportDelivered, model.records.last?.state == .awaitingUserImport { exportDelivered = true; exported.fulfill() } }
+        XCTAssertTrue(KRAXPress(try NativeEvidence.node("patch-" + record.id.uuidString, in: view)))
+        ScreenEvidence.awaitMain {
+            let result = await XCTWaiter.fulfillment(of: [exported], timeout: 5)
+            XCTAssertEqual(result, .completed)
+        }
+        let expected = String(decoding: original, as: UTF8.self).replacingOccurrences(of: #"["KC_NO","MO(1)"]"#, with: #"["KC_C","MO(1)"]"#)
+        XCTAssertEqual(try Data(contentsOf: XCTUnwrap(target)), Data(expected.utf8))
+        XCTAssertNil(model.records.last?.verifiedAt)
+        let chinese = NSHostingView(rootView: FirmwareCopiesSection(model: model, viaBytes: original, text: NativeText(locale: "zh-Hans")))
+        XCTAssertTrue(NativeEvidence.elements(in: chinese).contains { KRAXLabel($0) == NativeText(locale: "zh-Hans")("phase4.fileCompatibility") })
+    }
+    func testVIAFileEntryRejectsWithdrawnSourceAndStalePrivacyTicket() async throws {
+        let (fixture, _, store, gate) = try await deployment()
+        let model = fixture.flow.firmwareCopies
+        model.configure(store: store, gate: gate, importerVersion: { _ in nil })
+        let bytes = Data(#"{"name":"Latest","vendorProductId":42,"layers":[["KC_NO"]]}"#.utf8)
+        model.selectedOriginal = { bytes }
+        let ticket = try XCTUnwrap(model.selectionTicket())
+        model.selectedOriginal = { nil }
+        await model.retainVIAFile(bytes, ticket: ticket)
+        XCTAssertTrue(model.records.isEmpty)
+        model.clear(); model.selectedOriginal = { bytes }
+        await model.retainVIAFile(bytes, ticket: ticket)
+        XCTAssertTrue(model.records.isEmpty)
+        await model.retainVIAFile(bytes, ticket: try XCTUnwrap(model.selectionTicket()))
+        let record = try XCTUnwrap(model.records.last)
+        XCTAssertTrue(model.canGenerate(record)); XCTAssertFalse(model.canVerifyVial(record))
+        model.clear(); await model.refresh()
+        XCTAssertEqual(model.records.last?.compatibilityBasis, .viaFile)
+        XCTAssertTrue(model.canGenerate(try XCTUnwrap(model.records.last)))
+        let unsupported = Data(#"{"name":"Keep recovery","vendorProductId":42,"layers":[["KC_NO"]],"encoders":{"unknown":true}}"#.utf8)
+        model.selectedOriginal = { unsupported }
+        await model.retainVIAFile(unsupported, ticket: try XCTUnwrap(model.selectionTicket()))
+        let readonly = try XCTUnwrap(model.records.last)
+        XCTAssertNil(readonly.compatibilityBasis); XCTAssertFalse(model.canGenerate(readonly))
+        XCTAssertEqual(model.issueKey, "phase4.fileUnavailable")
+        let operations = try FirmwareOperationCoordinator(store: store, resolve: { try FirmwareFileDestination(reference: $0, gate: gate) })
+        let preserved = try await operations.original(readonly.id)
+        XCTAssertEqual(preserved, unsupported)
+    }
     func testNativeQualifiedFirmwareExportAndEvidenceButtons() throws {
         ScreenEvidence.prepare()
         var fixture: FlowFixture?

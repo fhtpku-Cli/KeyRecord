@@ -43,7 +43,7 @@ public enum VIAFileCompatibility {
         if token.range(of: pattern, options: .regularExpression) != nil { return token }
         if token.hasPrefix("LT("), token.hasSuffix(")") {
             let parts = token.dropFirst(3).dropLast().split(separator: ",", omittingEmptySubsequences: false)
-            if parts.count == 2, let layer = Int(parts[0]), (0...31).contains(layer),
+            if parts.count == 2, let layer = Int(parts[0]), (0...15).contains(layer),
                String(layer) == parts[0], outputs.contains(String(parts[1])) { return token }
         }
         return ""

@@ -22,6 +22,52 @@ private final class FirmwareFault: @unchecked Sendable {
 @MainActor
 final class FirmwareOperationTests: XCTestCase {
     private let vialBytes = Data(#"{"version":1,"uid":"fixture-vial","layout":[[["KC_NO","CUSTOM"]]],"macros":["opaque macro"]}"#.utf8)
+    func testVIAFileLayerTapCannotAuthorizeTruncatedLayerDestinations() async throws {
+        func configuration(_ entry: String) throws -> Data {
+            var layers = Array(repeating: ["KC_NO", "KC_NO"], count: 32)
+            layers[0][0] = entry
+            return try JSONSerialization.data(withJSONObject: ["name": "Layer bounds", "vendorProductId": 42,
+                "layers": layers, "macros": [String]()])
+        }
+        for layer in 0...31 {
+            let bytes = try configuration("LT(\(layer),KC_A)")
+            let document = try FirmwareDocument(bytes: bytes, backend: .via)
+            for automatic in [false, true] {
+                let changes = [FirmwareSlotChange(slot: .init(layer: layer, column: 1), output: "KC_C", automatic: automatic)]
+                if layer < 16 {
+                    let patched = try document.patchVIAFile(changes, expectedDevice: "42")
+                    let result = try FirmwareDocument(bytes: patched, backend: .via)
+                    XCTAssertEqual(try result.value(at: changes[0].slot), "KC_C")
+                    XCTAssertEqual(try result.value(at: .init(layer: 0, column: 0)), "LT(\(layer),KC_A)")
+                } else {
+                    XCTAssertThrowsError(try document.patchVIAFile(changes, expectedDevice: "42"), "layer \(layer), automatic \(automatic)") {
+                        XCTAssertEqual($0 as? FirmwareError, .unreachableLayer)
+                    }
+                }
+            }
+        }
+        let momentary = try FirmwareDocument(bytes: configuration("MO(31)"), backend: .via)
+        XCTAssertNoThrow(try momentary.patchVIAFile([.init(slot: .init(layer: 31, column: 1), output: "KC_C", automatic: true)], expectedDevice: "42"))
+        let (root, store, _, gate) = try await fixture()
+        let operations = try coordinator(store, gate, support: FirmwareSupportDirectory())
+        let bytes = try configuration("LT(16,KC_A)")
+        let axes = try FirmwareVersionProvider.axes(bytes: bytes, backend: .via)
+        let record = try await operations.retainOriginal(bytes, backend: .via, axes: axes, confirmedAt: Date(), compatibilityBasis: .viaFile)
+        let changes = [FirmwareSlotChange(slot: .init(layer: 16, column: 1), output: "KC_C", automatic: false)]
+        do { _ = try await operations.preview(record.id, changes: changes); XCTFail("Truncated layer must not be previewed as reachable") }
+        catch FirmwareError.unreachableLayer {}
+        let target = root.appendingPathComponent("unreachable.json")
+        do {
+            _ = try await operations.export(record.id, changes: changes, destination: FirmwareFileDestination(target: target, gate: gate))
+            XCTFail("Truncated layer must not authorize export")
+        } catch FirmwareError.unreachableLayer {}
+        XCTAssertFalse(FileManager.default.fileExists(atPath: target.path))
+        let ledger = try await operations.ledger()
+        XCTAssertEqual(ledger.records.last?.state, .draft)
+        XCTAssertNil(ledger.pending)
+        let original = try await operations.original(record.id)
+        XCTAssertEqual(original, bytes)
+    }
     func testVIAFileTransactionPreservesBytesAndScopeAcrossEncryptedReopen() async throws {
         let (root, store, _, gate) = try await fixture()
         let fault = FirmwareFault()

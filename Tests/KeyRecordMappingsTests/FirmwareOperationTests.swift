@@ -22,6 +22,28 @@ private final class FirmwareFault: @unchecked Sendable {
 @MainActor
 final class FirmwareOperationTests: XCTestCase {
     private let vialBytes = Data(#"{"version":1,"uid":"fixture-vial","layout":[[["KC_NO","CUSTOM"]]],"macros":["opaque macro"]}"#.utf8)
+    func testLargeVIAFileWithMissingLayerReferencesPreservesReachabilityAndOriginal() throws {
+        for count in [1_000, 4_000, 16_000] {
+            let layers = [Array(repeating: "MO(31)", count: count) + ["KC_NO"],
+                          Array(repeating: "KC_NO", count: count + 1)]
+            let bytes = try JSONSerialization.data(withJSONObject: ["name": "Missing layer fixture", "vendorProductId": 42,
+                "layers": layers, "macros": [String]()])
+            let document = try FirmwareDocument(bytes: bytes, backend: .via)
+            let start = ContinuousClock.now
+            for automatic in [false, true] {
+                let patched = try document.patchVIAFile([.init(slot: .init(layer: 0, column: count), output: "KC_C", automatic: automatic)], expectedDevice: "42")
+                let result = try FirmwareDocument(bytes: patched, backend: .via)
+                XCTAssertEqual(try result.value(at: .init(layer: 0, column: count)), "KC_C")
+                XCTAssertEqual(try result.value(at: .init(layer: 0, column: 0)), "MO(31)")
+                XCTAssertEqual(try result.value(at: .init(layer: 1, column: count)), "KC_NO")
+                XCTAssertThrowsError(try document.patchVIAFile([.init(slot: .init(layer: 1, column: count), output: "KC_C", automatic: automatic)], expectedDevice: "42")) {
+                    XCTAssertEqual($0 as? FirmwareError, .unreachableLayer)
+                }
+            }
+            XCTAssertEqual(document.bytes, bytes)
+            print("Offline VIA missing-layer fixture: \(count) references, \(start.duration(to: .now))")
+        }
+    }
     func testVIAFileLayerTapCannotAuthorizeTruncatedLayerDestinations() async throws {
         func configuration(_ entry: String) throws -> Data {
             var layers = Array(repeating: ["KC_NO", "KC_NO"], count: 32)

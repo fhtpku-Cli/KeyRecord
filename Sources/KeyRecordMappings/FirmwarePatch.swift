@@ -223,6 +223,7 @@ public struct FirmwareDocument: Sendable {
             || ["QK_BOOT", "QK_REBOOT", "QK_CLEAR_EEPROM", "RESET", "EE_CLR", "FN_MO13", "FN_MO23"].contains(token)
     }
     private func reachable(automatic: Bool, vial6: Bool, viaFile: Bool) throws -> Set<Int> {
+        let availableLayers = Set(slots.keys.map(\.layer))
         var reachable: Set<Int> = [0]
         var frontier: Set<Int> = [0]
         while !frontier.isEmpty {
@@ -233,7 +234,7 @@ public struct FirmwareDocument: Sendable {
                 let prefixes = automatic ? ["MO(", "LT("] : ["MO(", "LT(", "TG(", "TO(", "TT(", "DF(", "OSL("]
                 guard let prefix = prefixes.first(where: { token.hasPrefix($0) }), token.hasSuffix(")") else { continue }
                 let remainder = token.dropFirst(prefix.count).dropLast()
-                guard let layer = Int(remainder.split(separator: ",").first ?? ""), slots.keys.contains(where: { $0.layer == layer }) else { continue }
+                guard let layer = Int(remainder.split(separator: ",").first ?? ""), availableLayers.contains(layer) else { continue }
                 if !reachable.contains(layer) { next.insert(layer) }
             }
             reachable.formUnion(next)

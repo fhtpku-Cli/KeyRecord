@@ -10,6 +10,41 @@ import KeyRecordAnalysis
 final class VIAImportFlowTests: XCTestCase {
     private let karabinerBytes = Data(#"{"profiles":[{"name":"Synthetic A","selected":true,"complex_modifications":{"rules":[{"manipulators":[{"type":"basic","from":{"key_code":"f1"},"to":[{"key_code":"c","modifiers":["left_command"]}]}]}]}},{"name":"Synthetic B"}]}"#.utf8)
 
+    func testExplicitLayoutReferenceSelectionClearsOnReloadAndPrivacy() async throws {
+        let (root, layout, definition) = try files()
+        let fixture = try await ready(root)
+        let bytes = Data(#"{"name":"options","vendorProductId":65538,"matrix":{"rows":2,"cols":2},"layouts":{"labels":["Split"],"keymap":[["0,0","0,1\n\n\n0,0"],[{"x":4,"w":2},"1,0\n\n\n0,1"]]}}"#.utf8)
+        try bytes.write(to: definition)
+        let model = fixture.flow.viaImport
+        defer { model.clear() }
+        await model.load(kind: .layout, url: layout)
+        await model.load(kind: .definition, url: definition)
+        XCTAssertNil(model.configuration?.geometry)
+        XCTAssertEqual(model.optionChoices, [nil])
+        for locale in ["en", "zh-Hans"] {
+            let view = NSHostingView(rootView: VIAImportSection(model: model, text: NativeText(locale: locale)))
+            XCTAssertTrue(NativeEvidence.elements(in: view).contains { KRAXIdentifier($0) == "phase2.via.option.0" })
+        }
+        model.selectLayoutOption(0, choice: 1)
+        XCTAssertEqual(model.configuration?.geometry?.positions["1,0"]?.x, 2)
+        XCTAssertEqual(model.configuration?.physicalEvidence.device, .unknown)
+        XCTAssertEqual(model.selectedOriginalBytes, layoutBytes)
+        XCTAssertEqual(try Data(contentsOf: definition), bytes)
+        model.selectLayoutOption(0, choice: nil)
+        XCTAssertNil(model.configuration?.geometry)
+        model.selectLayoutOption(0, choice: 0)
+        XCTAssertNotNil(model.configuration?.geometry?.positions["0,1"])
+        await model.load(kind: .layout, url: layout)
+        XCTAssertNil(model.configuration?.geometry)
+        XCTAssertEqual(model.optionChoices, [nil])
+        model.selectLayoutOption(0, choice: 1)
+        fixture.observeLocked(); fixture.flow.sync(from: fixture.orchestrator.state)
+        model.selectLayoutOption(0, choice: 0)
+        XCTAssertNil(model.configuration)
+        XCTAssertTrue(model.optionChoices.isEmpty)
+        XCTAssertTrue(model.layoutOptions.isEmpty)
+    }
+
     func testKarabinerCopyFeedsConflictEvidenceWithoutConnectingBackend() async throws {
         let (root, _, _) = try files()
         let fixture = try await ready(root)

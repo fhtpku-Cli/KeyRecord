@@ -47,6 +47,25 @@ final class VIAReferenceParserTests: XCTestCase {
         layouts["keys"] = keys; object["layouts"] = layouts
         return try JSONSerialization.data(withJSONObject: object)
     }
+    func testOfficialCompilerAgreesWithSelectedOptionsAndRotation() throws {
+        let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        let fixture = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: root.appendingPathComponent(
+            "evidence/phase4/fixtures/synthetic/via-compiled-definitions.json"))) as? [String: Any])
+        for item in try XCTUnwrap(fixture["geometryFixtures"] as? [[String: Any]]) {
+            let rawBytes = try JSONSerialization.data(withJSONObject: XCTUnwrap(item["raw"]))
+            let compiledBytes = try JSONSerialization.data(withJSONObject: XCTUnwrap(item["compiled"]))
+            let options = try VIAReferenceParser.definition(rawBytes).layoutOptions
+            for selection in options.isEmpty ? [[]] : [[0], [1]] {
+                let raw = try XCTUnwrap(VIAReferenceParser.definition(rawBytes, layoutSelection: selection).geometry)
+                let compiled = try XCTUnwrap(VIAReferenceParser.definition(compiledBytes, layoutSelection: selection).geometry)
+                XCTAssertEqual(Set(raw.positions.keys), Set(compiled.positions.keys))
+                for (id, position) in raw.positions {
+                    XCTAssertEqual(position.x, try XCTUnwrap(compiled.positions[id]?.x), accuracy: 0.000001)
+                    XCTAssertEqual(position.y, try XCTUnwrap(compiled.positions[id]?.y), accuracy: 0.000001)
+                }
+            }
+        }
+    }
     func testCompiledDefinitionRejectsMalformedCoordinatesShapesAndMixedRepresentations() throws {
         let mutations: [(inout [String: Any], inout [[String: Any]]) -> Void] = [
             { _, keys in keys[0]["row"] = 2 }, { _, keys in keys[0]["col"] = -1 },
@@ -55,13 +74,15 @@ final class VIAReferenceParserTests: XCTestCase {
             { _, keys in keys.append(keys[0]) }, { _, keys in keys = [] },
             { layouts, _ in layouts["keymap"] = [["0,0"]] },
             { layouts, _ in layouts["height"] = -1 }, { layouts, _ in layouts["optionKeys"] = [] },
-            { layouts, _ in layouts["optionKeys"] = ["0": ["0": true]] }
+            { layouts, _ in layouts["optionKeys"] = ["0": ["0": true]] },
+            { layouts, keys in layouts["optionKeys"] = ["00": ["0": [keys[0]]]] },
+            { layouts, keys in layouts["optionKeys"] = ["0": ["01": [keys[0]]]] }
         ]
         for change in mutations { XCTAssertThrowsError(try VIAReferenceParser.definition(compiled(change))) }
     }
-    func testCompiledOptionsRotationEncoderAndFutureGeometryRemainUnmeasured() throws {
+    func testCompiledUnselectedOptionsEncoderAndFutureGeometryRemainUnmeasured() throws {
         let mutations: [(inout [String: Any], inout [[String: Any]]) -> Void] = [
-            { _, keys in keys[0]["r"] = 15 }, { _, keys in keys[0]["d"] = true },
+            { _, keys in keys[0]["d"] = true },
             { _, keys in keys[0]["ei"] = 0 }, { _, keys in keys[0]["w2"] = 2 },
             { _, keys in keys[0]["future_geometry"] = 1 },
             { layouts, _ in layouts["future_geometry"] = 1 },
@@ -144,13 +165,56 @@ final class VIAReferenceParserTests: XCTestCase {
         XCTAssertEqual(parsed.positionCount(for: try KeyCode(0)), 0)
     }
 
-    func testUnsupportedRotationShapeAndAlignmentDoNotBecomeGeometry() throws {
-        for properties in [#"{"r":15}"#, #"{"w2":2}"#, #"{"a":7}"#, #"{"d":true}"#] {
+    func testUnsupportedShapeAndAlignmentDoNotBecomeGeometry() throws {
+        for properties in [#"{"w2":2}"#, #"{"a":7}"#, #"{"d":true}"#] {
             let data = Data("{\"name\":\"complex\",\"vendorProductId\":65538,\"matrix\":{\"rows\":1,\"cols\":1},\"layouts\":{\"keymap\":[[\(properties),\"0,0\"]]}}".utf8)
             let parsed = try VIAReferenceParser.definition(data)
             XCTAssertNil(parsed.geometry)
             XCTAssertTrue(parsed.limitations.contains(.complexGeometry))
         }
+    }
+
+    func testRotationPersistsAcrossRowsAndUsesClusterOrigin() throws {
+        let data = Data(#"{"name":"rotation","vendorProductId":65538,"matrix":{"rows":2,"cols":1},"layouts":{"keymap":[[{"r":90,"rx":2,"ry":3},"0,0"],["1,0"]]}}"#.utf8)
+        let geometry = try XCTUnwrap(VIAReferenceParser.definition(data).geometry)
+        XCTAssertEqual(try XCTUnwrap(geometry.positions["0,0"]?.x), 1.5, accuracy: 0.000001)
+        XCTAssertEqual(try XCTUnwrap(geometry.positions["1,0"]?.x), 0.5, accuracy: 0.000001)
+        XCTAssertEqual(try XCTUnwrap(geometry.positions["1,0"]?.y), 0.5, accuracy: 0.000001)
+        let rotated = try VIAReferenceParser.definition(compiled { _, keys in
+            keys[0]["r"] = 90; keys[0]["rx"] = 0; keys[0]["ry"] = 0
+        })
+        XCTAssertEqual(try XCTUnwrap(rotated.geometry?.positions["1,0"]?.x), -0.5, accuracy: 0.000001)
+        XCTAssertEqual(try XCTUnwrap(rotated.geometry?.positions["1,0"]?.y), 0.5, accuracy: 0.000001)
+    }
+
+    func testExplicitOptionsAlignAlternativesAndPackedValuesRejectReservedChoices() throws {
+        let data = Data(#"{"name":"options","vendorProductId":65538,"matrix":{"rows":1,"cols":3},"layouts":{"labels":["Split",["Mode","A","B","C"]],"keymap":[["0,0","0,1\n\n\n0,0"],[{"x":4,"w":2},"0,2\n\n\n0,1"]]}}"#.utf8)
+        XCTAssertNil(try VIAReferenceParser.definition(data).geometry)
+        let selected = try VIAReferenceParser.definition(data, layoutSelection: [1, 2])
+        XCTAssertEqual(selected.geometry?.positions.count, 2)
+        XCTAssertNil(selected.geometry?.positions["0,1"])
+        XCTAssertEqual(selected.geometry?.positions["0,2"]?.x, 2)
+        XCTAssertEqual(selected.geometry?.positions["0,2"]?.y, 0.5)
+        XCTAssertEqual(try VIAReferenceParser.definition(data, packedLayoutOptions: 6), selected)
+        for packed: UInt32 in [3, 7, 8, UInt32.max] {
+            XCTAssertThrowsError(try VIAReferenceParser.definition(data, packedLayoutOptions: packed))
+        }
+        for choices in [[1], [2, 0], [-1, 0], [0, 3]] {
+            XCTAssertThrowsError(try VIAReferenceParser.definition(data, layoutSelection: choices))
+        }
+        XCTAssertThrowsError(try VIAReferenceParser.definition(data, layoutSelection: [0, 0], packedLayoutOptions: 0))
+    }
+
+    func testCompiledOptionSelectionAndUnknownRawOptionGeometryDoNotGuess() throws {
+        let bytes = try compiled { layouts, keys in
+            layouts["labels"] = ["Split"]
+            let alternative = keys.removeLast()
+            layouts["optionKeys"] = ["0": ["0": [alternative], "1": []]]
+        }
+        XCTAssertEqual(try VIAReferenceParser.definition(bytes, layoutSelection: [0]).geometry?.positions.count, 4)
+        XCTAssertEqual(try VIAReferenceParser.definition(bytes, layoutSelection: [1]).geometry?.positions.count, 3)
+        let rotatedOptions = Data(#"{"name":"options","vendorProductId":65538,"matrix":{"rows":1,"cols":1},"layouts":{"labels":["Split"],"keymap":[[{"r":15},"0,0\n\n\n0,0"]]}}"#.utf8)
+        XCTAssertNil(try VIAReferenceParser.definition(rotatedOptions, layoutSelection: [0]).geometry)
     }
 
     func testDuplicateInvalidAndOutOfMatrixPositionsAreRejected() throws {

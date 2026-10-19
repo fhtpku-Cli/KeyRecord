@@ -23,6 +23,20 @@ struct VIAImportSection: View {
             if let name = model.layoutFilename { Text(String(format: text("phase2.via.layoutSelected"), name)).lineLimit(2) }
             if let name = model.definitionFilename { Text(String(format: text("phase2.via.definitionSelected"), name)).lineLimit(2) }
             if !model.loading.isEmpty { Text(text("phase2.via.loading")) }
+            if !model.layoutOptions.isEmpty {
+                Text(text("phase2.via.optionReference")).font(.caption)
+                ForEach(Array(model.layoutOptions.enumerated()), id: \.offset) { index, option in
+                    Picker(option.title, selection: Binding<Int>(
+                        get: { model.optionChoices.indices.contains(index) ? model.optionChoices[index] ?? -1 : -1 },
+                        set: { model.selectLayoutOption(index, choice: $0 < 0 ? nil : $0) })) {
+                        Text(text("phase2.via.optionUnknown")).tag(-1)
+                        ForEach(option.choices.indices, id: \.self) { choice in
+                            Text(option.isToggle ? text(choice == 0 ? "phase2.via.optionOff" : "phase2.via.optionOn") : option.choices[choice]).tag(choice)
+                        }
+                    }.disabled(!model.loading.isEmpty)
+                        .accessibilityIdentifier("phase2.via.option.\(index)")
+                }
+            }
             if let issue = model.issue { Text(text(VIAImportLabels.issueKey(issue))).accessibilityIdentifier("phase2.via.issue") }
             if let configuration = model.configuration {
                 VIAReferenceSummary(configuration: configuration, text: text)

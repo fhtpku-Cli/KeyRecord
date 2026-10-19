@@ -537,6 +537,10 @@
 "physical.sources.note" = "重新检查会读取本机键盘映射属性和 Karabiner 当前配置，不会应用改键。文件、Profile 选择和部分读回不能证明完整映射已生效；依据不足或变化时，两组按键都使用逻辑按键数。";
 "physical.sources.refresh" = "重新检查可用来源";
 "physical.association.title" = "设备与布局";
+"phase2.via.optionReference" = "VIA 导出的配置不含布局选项。这里的选择仅作几何参考，不修改文件，也不确认键盘上的实际布局。";
+"phase2.via.optionUnknown" = "未知";
+"phase2.via.optionOff" = "关闭";
+"phase2.via.optionOn" = "开启";
 "physical.association.unchecked" = "需要重新检查";
 "physical.association.matchedReference" = "唯一键盘服务与布局参考匹配，物理映射仍未确认";
 "physical.association.missingLayout" = "没有适用的布局参考；Vial 需重新读回设备定义";

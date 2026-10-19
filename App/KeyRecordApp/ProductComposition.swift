@@ -1668,6 +1668,7 @@ struct ProductScreens: View {
 
     private func analysis(_ surface: AnalysisSurface) -> some View {
         let visible = flow.sensitiveContentVisible
+        let selectedBackend = flow.intendedBackend
         return AnalysisDashboardView(
             snapshot: visible ? flow.analysis?.constrained(to: BackendCapabilityCatalog.reference(flow.intendedBackend),
                 confirmed: flow.keyboardPoolConfirmed) : nil,
@@ -1676,10 +1677,9 @@ struct ProductScreens: View {
             ignoredKeys: flow.ignoredRecommendationKeys,
             keyboardPool: flow.keyboardPoolConfirmed,
             backend: .disconnected(flow.intendedBackend),
-            createMapping: flow.intendedBackend == .karabiner ? { output, trigger, scope in
-                flow.karabinerMappings.stage(output: output, trigger: trigger, scope: scope)
-                flow.presentSettings()
-            } : nil,
+            createMapping: { output, trigger, scope in
+                flow.beginRecommendation(output: output, trigger: trigger, scope: scope, backend: selectedBackend)
+            },
             physicalEvidence: flow.viaImport.configuration?.physicalEvidence,
             viaReference: flow.viaImport.configuration,
             conflictEvidence: flow.candidateConflictEvidence,

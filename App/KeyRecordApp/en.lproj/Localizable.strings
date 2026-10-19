@@ -510,3 +510,14 @@
 "phase3.behavior.failed" = "Test failed. Temporary rules removed; previous configuration restored.";
 "phase3.behavior.cancelled" = "Test cancelled. Temporary rules removed; previous configuration restored.";
 "phase3.behavior.cleanupPending" = "Test cleanup is pending. Keep the target available and retry. External edits will not be overwritten; completion has not been recorded.";
+"recommendation.title" = "Recommendation draft";
+"recommendation.karabiner" = "Select or connect the intended profile below, then create the draft. Conflict checks and risk confirmation are still required before applying.";
+"recommendation.firmware" = "This creates a manual basic key replacement, only at the file position and layer you choose. It also affects that key when modifiers are held. Select the latest copy for the intended keyboard, then a position showing the original trigger. This is not a shortcut rule, application-specific mapping, or proof of physical key identity. Compatibility, protected-entry and layer checks run before staging and again before export.";
+"recommendation.unsupported.application" = "The firmware file editor cannot create application-specific mappings. This recommendation has not been changed to global scope. Use Karabiner or explicitly choose a different recommendation scope.";
+"recommendation.unsupported.shortcut" = "This handoff supports basic key replacements only. It cannot express this modifier combination or chord trigger; no modifiers have been removed. Use Karabiner for a shortcut rule.";
+"recommendation.unsupported.invalid" = "This recommendation cannot form a valid mapping. Check its keys, modifiers and scope; no draft was created.";
+"recommendation.unsupported.key" = "These keys cannot be represented by the supported basic firmware outputs. No draft was created.";
+"recommendation.noCopy" = "No compatible current copy is available for this backend. Import and retain the latest configuration below. Unknown device/version combinations remain unavailable.";
+"recommendation.noPosition" = "No matching positions are loaded. Select an available copy or check its original configuration; no position will be guessed.";
+"recommendation.stageFirmware" = "Check and confirm this manual replacement";
+"recommendation.dismiss" = "Discard this handoff";

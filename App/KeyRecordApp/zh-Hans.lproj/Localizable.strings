@@ -510,3 +510,14 @@
 "phase3.behavior.failed" = "测试失败。临时规则已清理，测试前配置已恢复。";
 "phase3.behavior.cancelled" = "测试已取消。临时规则已清理，测试前配置已恢复。";
 "phase3.behavior.cleanupPending" = "测试仍待清理，请保持目标可用并重试。不会覆盖外部修改，也尚未记录测试完成。";
+"recommendation.title" = "推荐草稿";
+"recommendation.karabiner" = "先在下方选择或连接目标 Profile，再创建草稿。应用前仍须检查冲突并确认风险。";
+"recommendation.firmware" = "这里只生成手动基础改键，范围是你选择的配置位置和层；按住修饰键时也会受影响。请选择目标键盘最新副本，再选择原值对应触发键的位置。这不是组合快捷键规则或应用专属映射，也不能证明物理键位身份。加入草稿及导出前仍会检查兼容性、受保护入口和层可达性。";
+"recommendation.unsupported.application" = "固件文件编辑器不能创建应用专属映射，也不会擅自把此推荐改为全局。请使用 Karabiner，或明确选择其他推荐范围。";
+"recommendation.unsupported.shortcut" = "此入口仅支持基础单键替换，不能表达这组修饰键或组合触发条件；没有丢弃任何修饰键。请使用 Karabiner 创建快捷键规则。";
+"recommendation.unsupported.invalid" = "此推荐无法构成有效映射，请检查按键、修饰键和范围；尚未创建草稿。";
+"recommendation.unsupported.key" = "受支持的固件基础输出无法表达这些按键，尚未创建草稿。";
+"recommendation.noCopy" = "此后端暂无兼容的当前副本。请在下方导入并保存最新配置；未知设备或版本仍不可用。";
+"recommendation.noPosition" = "尚未加载匹配位置，请选择可用副本或核对原始配置；不会猜测位置。";
+"recommendation.stageFirmware" = "检查并确认手动替换此位置";
+"recommendation.dismiss" = "放弃此次衔接";

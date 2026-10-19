@@ -255,6 +255,37 @@ final class FirmwareCopiesModel: ObservableObject {
         else { changes.append(change) }
         patchDrafts[record.id] = changes; patchPreviews[record.id] = nil; patchIssueKeys[record.id] = nil
     }
+    func recommendationSlots(_ request: RecommendationDraft, record: FirmwareBatchRecord, ticket: UUID) async -> [FirmwareSlotDifference] {
+        guard ticket == session, records.contains(record), canGenerate(record) else { return [] }
+        working = true; readRequest = UUID()
+        defer { if ticket == session { working = false; onChange() } }
+        do {
+            let slots = try await coordinator().recommendationSlots(record.id, request: request)
+            guard ticket == session, records.contains(record), canInspectPatchDraft(record) else { return [] }
+            return slots
+        } catch {
+            if ticket == session, canRead() { patchIssueKeys[record.id] = Self.patchIssueKey(error) }
+            return []
+        }
+    }
+    func stageRecommendation(_ request: RecommendationDraft, record: FirmwareBatchRecord, slot: FirmwareSlot,
+                             ticket: UUID, isCurrent: @MainActor () -> Bool) async -> Bool {
+        guard isCurrent(), ticket == session, records.contains(record), canGenerate(record) else { return false }
+        let existing = patchDrafts[record.id] ?? []
+        working = true; readRequest = UUID()
+        defer { if ticket == session { working = false; onChange() } }
+        do {
+            let preview = try await coordinator().previewRecommendation(record.id, request: request, slot: slot, existing: existing)
+            guard isCurrent(), ticket == session, records.contains(record), canInspectPatchDraft(record),
+                  existing == (patchDrafts[record.id] ?? []) else { return false }
+            patchDrafts[record.id] = preview.differences.map(\.change)
+            patchPreviews[record.id] = preview; patchIssueKeys[record.id] = nil
+            return true
+        } catch {
+            if ticket == session, canRead(), isCurrent() { patchIssueKeys[record.id] = Self.patchIssueKey(error) }
+            return false
+        }
+    }
     func loadVIAFileSlots(_ record: FirmwareBatchRecord, ticket: UUID) async {
         guard ticket == session, records.contains(record), canGenerate(record), record.compatibilityBasis == .viaFile else { return }
         working = true; readRequest = UUID()

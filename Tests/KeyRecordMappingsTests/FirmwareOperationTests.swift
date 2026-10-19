@@ -2,6 +2,7 @@ import XCTest
 import Foundation
 import Darwin
 import KeyRecordCore
+import KeyRecordAnalysis
 import KeyRecordStore
 @testable import KeyRecordMappings
 
@@ -21,6 +22,60 @@ private final class FirmwareFault: @unchecked Sendable {
 }
 @MainActor
 final class FirmwareOperationTests: XCTestCase {
+    func testRecommendationRequiresExplicitMatchingPositionAndPreservesExistingChanges() async throws {
+        let (_, store, _, gate) = try await fixture()
+        let operations = try coordinator(store, gate, support: FirmwareSupportDirectory())
+        let bytes = Data(#"{"name":"Recommendation","vendorProductId":42,"layers":[["KC_A","KC_A","MO(1)","KC_NO"],["KC_A","KC_NO","KC_TRNS","KC_NO"],["KC_A","KC_NO","KC_NO","KC_NO"]],"macros":["opaque"]}"#.utf8)
+        let axes = try FirmwareVersionProvider.axes(bytes: bytes, backend: .via)
+        let record = try await operations.retainOriginal(bytes, backend: .via, axes: axes, confirmedAt: Date(), compatibilityBasis: .viaFile)
+        let bare = ModifierSet(command: .none, option: .none, control: .none, shift: .none, fn: .none)
+        let request = RecommendationDraft(backend: .via, output: Chord(keyCode: try KeyCode(8), modifiers: bare),
+            trigger: Chord(keyCode: try KeyCode(0), modifiers: bare), scope: .global)
+        let slots = try await operations.recommendationSlots(record.id, request: request)
+        XCTAssertEqual(slots.map(\.change.slot), [.init(layer: 0, column: 0), .init(layer: 0, column: 1), .init(layer: 1, column: 0), .init(layer: 2, column: 0)])
+        XCTAssertTrue(slots.allSatisfy { $0.before == "KC_A" && $0.change.output == "KC_C" && !$0.change.automatic })
+        let existing = FirmwareSlotChange(slot: .init(layer: 0, column: 3), output: "KC_B", automatic: true)
+        let preview = try await operations.previewRecommendation(record.id, request: request, slot: slots[1].change.slot, existing: [existing])
+        XCTAssertEqual(preview.differences.map(\.change), [existing, slots[1].change])
+        for (slot, changes, error) in [
+            (slots[1].change.slot, [slots[1].change], FirmwareError.invalidSlot),
+            (FirmwareSlot(layer: 0, column: 3), [], .invalidSlot),
+            (FirmwareSlot(layer: 2, column: 0), [], .unreachableLayer),
+            (slots[0].change.slot, [FirmwareSlotChange(slot: .init(layer: 0, column: 2), output: "KC_B", automatic: false)], .protectedEntry)
+        ] {
+            do { _ = try await operations.previewRecommendation(record.id, request: request, slot: slot, existing: changes); XCTFail("Expected \(error)") }
+            catch let actual as FirmwareError { XCTAssertEqual(actual, error) }
+        }
+        let wrong = RecommendationDraft(backend: .vial, output: request.output, trigger: request.trigger, scope: .global)
+        do { _ = try await operations.recommendationSlots(record.id, request: wrong); XCTFail("Backend mismatch") }
+        catch FirmwareError.unsupportedOutput {}
+        let original = try await operations.original(record.id)
+        XCTAssertEqual(original, bytes)
+        _ = try await operations.retainOriginal(bytes, backend: .via, axes: axes, confirmedAt: Date(), compatibilityBasis: .viaFile)
+        do { _ = try await operations.previewRecommendation(record.id, request: request, slot: slots[0].change.slot, existing: []); XCTFail("Stale original") }
+        catch FirmwareError.staleBaseline {}
+    }
+
+    func testVialRecommendationRetainsSupportQualificationAndAliasMatching() async throws {
+        let (_, store, _, gate) = try await fixture()
+        let bytes = Data(#"{"version":1,"uid":"42","layout":[[["KC_ENTER","KC_ENT"]]],"macros":[]}"#.utf8)
+        let operations = try coordinator(store, gate, support: FirmwareSupportDirectory())
+        let record = try await operations.retainOriginal(bytes, backend: .vial, axes: firmwareAxes, confirmedAt: Date())
+        let bare = ModifierSet(command: .none, option: .none, control: .none, shift: .none, fn: .none)
+        let request = RecommendationDraft(backend: .vial, output: Chord(keyCode: try KeyCode(8), modifiers: bare),
+            trigger: Chord(keyCode: try KeyCode(36), modifiers: bare), scope: .global)
+        do { _ = try await operations.recommendationSlots(record.id, request: request); XCTFail("Unknown device") }
+        catch FirmwareError.unknownCompatibility {}
+        let supported = try coordinator(store, gate, support: firmwareSupport(.vial))
+        let slots = try await supported.recommendationSlots(record.id, request: request)
+        XCTAssertEqual(slots.map(\.before), ["KC_ENTER", "KC_ENT"])
+        let preview = try await supported.previewRecommendation(record.id, request: request, slot: slots[1].change.slot, existing: [])
+        XCTAssertEqual(preview.differences.map(\.change.output), ["KC_C"])
+        let unsupported = RecommendationDraft(backend: .vial, output: Chord(keyCode: try KeyCode(11), modifiers: bare), trigger: request.trigger, scope: .global)
+        do { _ = try await supported.recommendationSlots(record.id, request: unsupported); XCTFail("Unsupported output") }
+        catch FirmwareError.unsupportedOutput {}
+    }
+
     func testVIAFilePositionCatalogMatchesRealPatchRestrictions() throws {
         let bytes = Data(#"{"name":"Positions","vendorProductId":42,"layers":[["KC_A","MO(1)","CUSTOM","FN_MO13","LM(1,MOD_LCTL)","QK_BOOT"],["KC_NO","KC_TRNS","KC_B","KC_C","KC_D","KC_E"],["KC_A","KC_A","KC_A","KC_A","KC_A","KC_A"]],"macros":["preserved"]}"#.utf8)
         let document = try FirmwareDocument(bytes: bytes, backend: .via)

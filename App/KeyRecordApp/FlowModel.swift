@@ -255,13 +255,37 @@ final class AppFlowObservable: ObservableObject {
     @Published private(set) var ignoredRecommendationKeys: Set<String> = []
     @Published private(set) var keyboardPoolConfirmed: Set<KeyCode> = []
     @Published var statisticsSection: StatisticsSection = .overview
-    @Published var intendedBackend: RecommendationBackend = .karabiner
+    @Published var intendedBackend: RecommendationBackend = .karabiner {
+        didSet { if oldValue != intendedBackend { recommendationDraft = nil } }
+    }
+    @Published private(set) var recommendationDraft: RecommendationDraft?
     let viaImport = VIAImportModel()
     let karabinerImport = KarabinerImportModel()
     let karabinerMappings = KarabinerMappingModel()
     lazy var karabinerDeployment = KarabinerDeploymentModel(mappings: karabinerMappings)
     let firmwareCopies = FirmwareCopiesModel()
     let passwordBackup = PasswordBackupModel()
+
+    func beginRecommendation(output: Chord, trigger: Chord, scope: RecommendationScope, backend: RecommendationBackend) {
+        guard sensitiveContentVisible, backend == intendedBackend else { return }
+        recommendationDraft = RecommendationDraft(backend: backend, output: output, trigger: trigger, scope: scope)
+        presentSettings()
+    }
+    func dismissRecommendation() { recommendationDraft = nil }
+    func stageKarabinerRecommendation(_ request: RecommendationDraft) {
+        guard sensitiveContentVisible, recommendationDraft == request, intendedBackend == .karabiner,
+              request.route == .karabiner else { return }
+        let count = karabinerMappings.drafts.count
+        karabinerMappings.stage(output: request.output, trigger: request.trigger, scope: request.scope)
+        if karabinerMappings.drafts.count == count + 1 { recommendationDraft = nil }
+    }
+    func stageFirmwareRecommendation(_ request: RecommendationDraft, record: FirmwareBatchRecord, slot: FirmwareSlot) async {
+        guard sensitiveContentVisible, recommendationDraft == request, let ticket = firmwareCopies.selectionTicket() else { return }
+        let staged = await firmwareCopies.stageRecommendation(request, record: record, slot: slot, ticket: ticket) { [weak self] in
+            self?.recommendationDraft == request && self?.sensitiveContentVisible == true && self?.intendedBackend == request.backend
+        }
+        if staged, recommendationDraft == request { recommendationDraft = nil }
+    }
 
     var candidateConflictEvidence: CandidateConflictEvidence {
         let observations = snapshot.map { snapshot in
@@ -606,6 +630,7 @@ final class AppFlowObservable: ObservableObject {
             ignoredRecommendationKeys = lifecycleState.preferences?.ignoredRecommendationKeys ?? []
             keyboardPoolConfirmed = lifecycleState.preferences?.keyboardPoolConfirmed ?? []
         } else {
+            recommendationDraft = nil
             ignoredRecommendationKeys = []
             keyboardPoolConfirmed = []
             viaImport.clear()
@@ -681,7 +706,7 @@ final class AppFlowObservable: ObservableObject {
         karabinerDeployment.visibilityChanged(sensitiveContentVisible)
         if sensitiveContentVisible { karabinerDeployment.updateObservations() }
         if !sensitiveContentVisible { firmwareCopies.clear(); if !showsConsent { passwordBackup.clear() } }
-        if !sensitiveContentVisible { rawAnalysis = nil; viaImport.clear(); karabinerImport.clear(); karabinerMappings.clear() }
+        if !sensitiveContentVisible { recommendationDraft = nil; rawAnalysis = nil; viaImport.clear(); karabinerImport.clear(); karabinerMappings.clear() }
         dialog = flow.dialog
         objectWillChange.send()
     }

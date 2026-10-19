@@ -128,6 +128,211 @@ private final class DeploymentVersionProbe: @unchecked Sendable {
 
 @MainActor
 final class KarabinerMappingFlowTests: XCTestCase {
+    private func recommendationChord(_ key: Int, command: ModifierSideState = .none) throws -> Chord {
+        Chord(keyCode: try KeyCode(key), modifiers: .init(command: command, option: .none, control: .none, shift: .none, fn: .none))
+    }
+    func testProductRecommendationEntryReachesBackendHandoffWithoutLosingShortcut() throws {
+        ScreenEvidence.prepare()
+        for backend in [RecommendationBackend.karabiner, .via] {
+            var fixture: FlowFixture?
+            ScreenEvidence.awaitMain {
+                do { fixture = try await self.ready().0 } catch { XCTFail("Setup: \(error)") }
+            }
+            let flow = try XCTUnwrap(fixture?.flow)
+            let cycle = try XCTUnwrap(fixture?.orchestrator.state.preferences?.currentCycleID)
+            let analysis = try AnalysisEngine.analyze(AnalysisPreview.input(cycleID: cycle))
+            flow.publishAnalysis(analysis); flow.intendedBackend = backend; flow.statisticsSection = .candidates
+            let view = NSHostingView(rootView: ProductScreens(flow: flow).frame(width: 1100, height: 1000))
+            view.sizingOptions = []
+            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1100, height: 1000), styleMask: [.titled], backing: .buffered, defer: false)
+            window.isReleasedWhenClosed = false; window.contentView = view; window.makeKeyAndOrderFront(nil)
+            defer { window.contentView = nil; window.close() }
+            NativeEvidence.primeAccessibility(); NativeEvidence.update(view); NativeEvidence.update(view)
+            let buttons = NativeEvidence.elements(in: view).filter { KRAXIdentifier($0) == "phase3.createDraft" }
+            XCTAssertTrue(KRAXPress(try XCTUnwrap(buttons.first)))
+            NativeEvidence.update(view); NativeEvidence.update(view)
+            let request = try XCTUnwrap(flow.recommendationDraft)
+            XCTAssertEqual(request.backend, backend)
+            XCTAssertNotEqual(request.output.modifiers, recommendationBareModifiers)
+            XCTAssertEqual(flow.statisticsSection, .settings)
+            _ = try NativeEvidence.node("recommendation.summary", in: view)
+            if backend == .karabiner {
+                XCTAssertEqual(request.route, .karabiner)
+                XCTAssertTrue(KRAXPress(try NativeEvidence.node("recommendation.stageKarabiner", in: view)))
+                XCTAssertEqual(flow.karabinerMappings.drafts.first?.output, request.output)
+                XCTAssertEqual(flow.karabinerMappings.drafts.first?.trigger, request.trigger)
+            } else {
+                _ = try NativeEvidence.node("recommendation.unsupported", in: view)
+                XCTAssertTrue(flow.firmwareCopies.patchDrafts.isEmpty)
+            }
+        }
+    }
+    private var recommendationBareModifiers: ModifierSet {
+        .init(command: .none, option: .none, control: .none, shift: .none, fn: .none)
+    }
+    func testRecommendationRetainsExactKarabinerIntentUntilProfileSelected() async throws {
+        let (fixture, file) = try await ready()
+        let flow = fixture.flow
+        flow.karabinerImport.clear()
+        let output = try recommendationChord(8, command: .right), trigger = try recommendationChord(111)
+        flow.beginRecommendation(output: output, trigger: trigger, scope: .application("com.example.Editor"), backend: .karabiner)
+        let request = try XCTUnwrap(flow.recommendationDraft)
+        flow.stageKarabinerRecommendation(request)
+        XCTAssertEqual(flow.recommendationDraft, request); XCTAssertTrue(flow.karabinerMappings.drafts.isEmpty)
+        await flow.karabinerImport.load(url: file, ticket: try XCTUnwrap(flow.karabinerImport.selectionTicket()))
+        flow.stageKarabinerRecommendation(request)
+        let draft = try XCTUnwrap(flow.karabinerMappings.drafts.first)
+        XCTAssertEqual(draft.output, output); XCTAssertEqual(draft.trigger, trigger)
+        XCTAssertEqual(draft.scope, .application("com.example.Editor")); XCTAssertEqual(draft.profile, "Synthetic")
+        XCTAssertNil(flow.recommendationDraft); XCTAssertFalse(flow.karabinerMappings.canApply)
+        flow.stageKarabinerRecommendation(request)
+        XCTAssertEqual(flow.karabinerMappings.drafts.count, 1)
+    }
+    func testRecommendationCancellationBackendSwitchAndPrivacyRejectStaleRequests() async throws {
+        let (fixture, _, _, _) = try await deployment()
+        let flow = fixture.flow
+        let output = try recommendationChord(8), trigger = try recommendationChord(0)
+        flow.beginRecommendation(output: output, trigger: trigger, scope: .global, backend: .karabiner)
+        let old = try XCTUnwrap(flow.recommendationDraft)
+        flow.dismissRecommendation(); flow.stageKarabinerRecommendation(old)
+        XCTAssertTrue(flow.karabinerMappings.drafts.isEmpty)
+        flow.beginRecommendation(output: output, trigger: trigger, scope: .global, backend: .karabiner)
+        flow.intendedBackend = .via
+        XCTAssertNil(flow.recommendationDraft)
+        flow.beginRecommendation(output: output, trigger: trigger, scope: .global, backend: .karabiner)
+        XCTAssertNil(flow.recommendationDraft)
+        flow.beginRecommendation(output: output, trigger: trigger, scope: .global, backend: .via)
+        XCTAssertNotNil(flow.recommendationDraft)
+        fixture.observeLocked(); flow.sync(from: fixture.orchestrator.state)
+        XCTAssertNil(flow.recommendationDraft)
+        flow.beginRecommendation(output: output, trigger: trigger, scope: .global, backend: .via)
+        XCTAssertNil(flow.recommendationDraft)
+    }
+    func testFirmwareRecommendationStagingRejectsChangedIntentAndDuplicateDraft() async throws {
+        let (fixture, _, _, _) = try await deployment()
+        let flow = fixture.flow, model = flow.firmwareCopies
+        let original = Data(#"{"name":"Intent","vendorProductId":42,"layers":[["KC_A","KC_A"]],"macros":[]}"#.utf8)
+        model.selectedOriginal = { original }
+        await model.retainVIAFile(original, ticket: try XCTUnwrap(model.selectionTicket()))
+        let record = try XCTUnwrap(model.records.last), ticket = try XCTUnwrap(model.selectionTicket())
+        flow.intendedBackend = .via
+        flow.beginRecommendation(output: try recommendationChord(8), trigger: try recommendationChord(0), scope: .global, backend: .via)
+        let request = try XCTUnwrap(flow.recommendationDraft)
+        var checks = 0
+        let stale = await model.stageRecommendation(request, record: record, slot: .init(layer: 0, column: 0), ticket: ticket) {
+            checks += 1; return checks == 1
+        }
+        XCTAssertFalse(stale); XCTAssertNil(model.patchDrafts[record.id])
+        await flow.stageFirmwareRecommendation(request, record: record, slot: .init(layer: 0, column: 1))
+        XCTAssertNil(flow.recommendationDraft)
+        let changes = try XCTUnwrap(model.patchDrafts[record.id])
+        XCTAssertEqual(changes, [.init(slot: .init(layer: 0, column: 1), output: "KC_C", automatic: false)])
+        flow.beginRecommendation(output: try recommendationChord(11), trigger: try recommendationChord(0), scope: .global, backend: .via)
+        let duplicate = try XCTUnwrap(flow.recommendationDraft)
+        await flow.stageFirmwareRecommendation(duplicate, record: record, slot: .init(layer: 0, column: 1))
+        XCTAssertEqual(flow.recommendationDraft, duplicate); XCTAssertEqual(model.patchDrafts[record.id], changes)
+        XCTAssertNotNil(model.patchIssueKeys[record.id])
+        await model.retainVIAFile(original, ticket: ticket)
+        await flow.stageFirmwareRecommendation(duplicate, record: record, slot: .init(layer: 0, column: 0))
+        XCTAssertEqual(model.patchDrafts[record.id], changes)
+    }
+    func testVialRecommendationUsesQualifiedCopyWithoutPromotingProductionSupport() async throws {
+        let (fixture, file, store, gate) = try await deployment()
+        let flow = fixture.flow, model = flow.firmwareCopies
+        let original = Data(#"{"version":1,"uid":"42","layout":[[["KC_A","KC_A"]]],"macros":[]}"#.utf8)
+        let source = file.deletingLastPathComponent().appendingPathComponent("recommendation.vil")
+        try original.write(to: source)
+        model.configure(store: store, gate: gate, versionAxes: { _ in self.fixtureAxes })
+        model.selectVial = { source }
+        await model.retainVial(ticket: try XCTUnwrap(model.selectionTicket()))
+        let record = try XCTUnwrap(model.records.last)
+        flow.intendedBackend = .vial
+        flow.beginRecommendation(output: try recommendationChord(8), trigger: try recommendationChord(0), scope: .global, backend: .vial)
+        let request = try XCTUnwrap(flow.recommendationDraft)
+        await flow.stageFirmwareRecommendation(request, record: record, slot: .init(layer: 0, column: 1))
+        XCTAssertEqual(flow.recommendationDraft, request); XCTAssertTrue(model.patchDrafts.isEmpty)
+        qualifiedFirmware(model, store: store, gate: gate, backend: .vial)
+        await model.refresh()
+        await flow.stageFirmwareRecommendation(request, record: record, slot: .init(layer: 0, column: 1))
+        XCTAssertNil(flow.recommendationDraft)
+        XCTAssertEqual(model.patchDrafts[record.id], [.init(slot: .init(layer: 0, column: 1), output: "KC_C", automatic: false)])
+        XCTAssertFalse(FirmwareSupportDirectory().supports(backend: .vial, device: record.device, axes: record.axes))
+    }
+    func testNativeRecommendationFirmwareSelectionAndUnsupportedReasons() throws {
+        ScreenEvidence.prepare()
+        for locale in ["en", "zh-Hans"] {
+            var fixture: FlowFixture?
+            ScreenEvidence.awaitMain {
+                do {
+                    let result = try await self.deployment(); fixture = result.0
+                    let model = result.0.flow.firmwareCopies
+                    let original = Data(#"{"name":"Selection","vendorProductId":42,"layers":[["KC_A","KC_A"]],"macros":["opaque"]}"#.utf8)
+                    model.selectedOriginal = { original }
+                    await model.retainVIAFile(original, ticket: try XCTUnwrap(model.selectionTicket()))
+                } catch { XCTFail("Setup: \(error)") }
+            }
+            let flow = try XCTUnwrap(fixture?.flow), model = flow.firmwareCopies
+            let record = try XCTUnwrap(model.records.last), text = NativeText(locale: locale)
+            flow.intendedBackend = .via
+            flow.beginRecommendation(output: try recommendationChord(8), trigger: try recommendationChord(0), scope: .global, backend: .via)
+            let request = try XCTUnwrap(flow.recommendationDraft)
+            let view = NSHostingView(rootView: Form { RecommendationDraftSection(flow: flow, request: request, text: text) }.formStyle(.grouped).frame(width: 900, height: 700))
+            view.sizingOptions = []
+            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 900, height: 700), styleMask: [.titled], backing: .buffered, defer: false)
+            window.isReleasedWhenClosed = false; window.contentView = view; window.makeKeyAndOrderFront(nil)
+            defer { window.contentView = nil; window.close() }
+            NativeEvidence.primeAccessibility(); NativeEvidence.update(view); NativeEvidence.update(view)
+            let loaded = XCTestExpectation(description: "Recommendation positions loaded")
+            var delivered = false
+            model.onChange = { if !model.working, !delivered { delivered = true; loaded.fulfill() } }
+            XCTAssertTrue(KRAXPress(try NativeEvidence.node("recommendation.copy-" + record.id.uuidString, in: view)))
+            ScreenEvidence.awaitMain {
+                let result = await XCTWaiter.fulfillment(of: [loaded], timeout: 5)
+                XCTAssertEqual(result, .completed)
+            }
+            NativeEvidence.update(view); NativeEvidence.update(view)
+            XCTAssertFalse(KRAXEnabled(try NativeEvidence.node("recommendation.stageFirmware", in: view)))
+            XCTAssertTrue(KRAXPress(try NativeEvidence.node("recommendation.position-0-0-1", in: view)))
+            NativeEvidence.update(view)
+            XCTAssertTrue(KRAXEnabled(try NativeEvidence.node("recommendation.stageFirmware", in: view)))
+            if let root = NativeEvidence.outputRoot() {
+                try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+                try ScreenEvidence.capturePNG(view).write(to: root.appendingPathComponent("recommendation-position-" + locale + ".png"))
+            }
+            let staged = XCTestExpectation(description: "Recommendation staged")
+            var stagedDelivered = false
+            model.onChange = { if model.patchPreviews[record.id] != nil, !stagedDelivered { stagedDelivered = true; staged.fulfill() } }
+            XCTAssertTrue(KRAXPress(try NativeEvidence.node("recommendation.stageFirmware", in: view)))
+            ScreenEvidence.awaitMain {
+                let result = await XCTWaiter.fulfillment(of: [staged], timeout: 5)
+                XCTAssertEqual(result, .completed)
+            }
+            XCTAssertEqual(model.patchDrafts[record.id]?.first?.slot, .init(layer: 0, column: 1))
+            XCTAssertEqual(model.patchPreviews[record.id]?.differences.first?.before, "KC_A")
+            XCTAssertNil(flow.recommendationDraft)
+            for (scope, command, reason) in [(RecommendationScope.global, ModifierSideState.left, "shortcut"), (.application("com.example.Editor"), .none, "application")] {
+                flow.beginRecommendation(output: try recommendationChord(8, command: command), trigger: try recommendationChord(0), scope: scope, backend: .via)
+                let rejected = try XCTUnwrap(flow.recommendationDraft)
+                view.rootView = Form { RecommendationDraftSection(flow: flow, request: rejected, text: text) }.formStyle(.grouped).frame(width: 900, height: 700)
+                NativeEvidence.update(view); NativeEvidence.update(view)
+                XCTAssertEqual(KRAXLabel(try NativeEvidence.node("recommendation.unsupported", in: view)), text("recommendation.unsupported." + reason))
+                XCTAssertFalse(NativeEvidence.elements(in: view).contains { KRAXIdentifier($0) == "recommendation.stageFirmware" })
+                XCTAssertEqual(model.patchDrafts[record.id]?.count, 1)
+                XCTAssertTrue(KRAXPress(try NativeEvidence.node("recommendation.dismiss", in: view)))
+                XCTAssertNil(flow.recommendationDraft)
+            }
+            let exported = FileManager.default.temporaryDirectory.appendingPathComponent("recommendation-" + UUID().uuidString + ".json")
+            addTeardownBlock { try? FileManager.default.removeItem(at: exported) }
+            model.selectExport = { _ in exported }
+            ScreenEvidence.awaitMain {
+                guard let ticket = model.selectionTicket() else { XCTFail("Missing session"); return }
+                await model.exportPreview(record, ticket: ticket)
+            }
+            XCTAssertEqual(try Data(contentsOf: exported), Data(#"{"name":"Selection","vendorProductId":42,"layers":[["KC_A","KC_C"]],"macros":["opaque"]}"#.utf8))
+            XCTAssertEqual(model.records.last?.state, .awaitingUserImport)
+            XCTAssertNil(model.records.last?.verifiedAt)
+        }
+    }
     func testVIAVersionSelectionRetainsIndependentProtocolAndRechecksPickerAuthority() async throws {
         let (fixture, _, store, gate) = try await deployment()
         let model = fixture.flow.firmwareCopies

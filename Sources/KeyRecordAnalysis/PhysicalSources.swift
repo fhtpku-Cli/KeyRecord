@@ -16,6 +16,10 @@ public struct PhysicalSourceInput: Equatable, Sendable {
     public let via: VIAImportedConfiguration?
     public let software: PhysicalSoftwareReference?
     public let firmware: PhysicalFirmwareReference?
+    public var layoutReference: PhysicalLayoutReference? {
+        if backend == .vial { return firmware?.layout }
+        return via.map { .init(name: $0.name, vendorProductID: $0.vendorProductID, geometry: $0.geometry) }
+    }
     public init(backend: RecommendationBackend, scope: RecommendationScope,
                 via: VIAImportedConfiguration?, software: PhysicalSoftwareReference?, firmware: PhysicalFirmwareReference? = nil) {
         self.backend = backend; self.scope = scope; self.via = via; self.software = software
@@ -25,7 +29,7 @@ public struct PhysicalSourceInput: Equatable, Sendable {
 
 public struct PhysicalSourceSummary: Equatable, Sendable, Identifiable {
     public enum Kind: String, Sendable { case geometry, device, firmware, software, macOS }
-    public enum Status: String, Sendable { case reference, collected, observed, missing, changed, unsupported }
+    public enum Status: String, Sendable { case reference, readbackReference, collected, observed, missing, changed, unsupported }
     public let id: Kind
     public let status: Status
     public init(_ kind: Kind, _ status: Status) { id = kind; self.status = status }
@@ -61,12 +65,13 @@ public struct PhysicalSourceReport: Equatable, Sendable {
         let softwareEvidence = TransformEvidence(link: .software, status: state,
             reference: software.map { "karabiner-profile:" + $0.identityName } ?? "",
             mapping: software == nil ? nil : CanonicalTransform(mappings: mappings, completeInverseFor: []))
-        let evidence = PhysicalEvidence(geometry: via?.geometry,
+        let geometry = input.layoutReference?.geometry
+        let evidence = PhysicalEvidence(geometry: geometry,
             chain: [firmware, softwareEvidence, .init(link: .macOS, status: state, reference: "", mapping: nil)],
             device: .unknown, scope: input.scope)
         let softwareStatus: PhysicalSourceSummary.Status = software != nil ? .reference : input.software == nil ? .missing : .unsupported
         return Self(evidence: evidence, sources: [
-            .init(.geometry, via?.geometry == nil ? .missing : .reference), .init(.device, .missing),
+            .init(.geometry, geometry == nil ? .missing : input.backend == .vial ? .readbackReference : .reference), .init(.device, .missing),
             .init(.firmware, readback != nil ? .collected : via == nil ? .missing : .reference), .init(.software, softwareStatus), .init(.macOS, .missing)
         ].map { changed ? .init($0.id, .changed) : $0 })
     }

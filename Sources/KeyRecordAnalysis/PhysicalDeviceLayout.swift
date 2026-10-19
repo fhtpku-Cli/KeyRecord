@@ -1,5 +1,14 @@
 import Foundation
 
+public struct PhysicalLayoutReference: Equatable, Sendable {
+    public let name: String
+    public let vendorProductID: UInt32
+    public let geometry: CanonicalGeometry?
+    public init(name: String, vendorProductID: UInt32, geometry: CanonicalGeometry?) {
+        self.name = name; self.vendorProductID = vendorProductID; self.geometry = geometry
+    }
+}
+
 public struct PhysicalKeyboardIdentity: Equatable, Sendable {
     public let vendorID: UInt32?
     public let productID: UInt32?
@@ -42,7 +51,7 @@ public struct PhysicalDeviceLayoutResolution: Equatable, Sendable {
 
     public static func resolve(input: PhysicalSourceInput, system: PhysicalSystemSnapshot?) -> Self {
         func unavailable(_ status: Status) -> Self { .init(status: status, match: nil) }
-        guard input.backend != .vial, let layout = input.via else { return unavailable(.missingLayout) }
+        guard let layout = input.layoutReference else { return unavailable(.missingLayout) }
         guard let geometry = layout.geometry, !geometry.positions.isEmpty else { return unavailable(.missingGeometry) }
         guard let system, !system.services.isEmpty else { return unavailable(.missingDevice) }
         guard system.services.allSatisfy({ $0.registryID != 0 && $0.identity.vendorID != nil &&

@@ -212,6 +212,13 @@ public actor VialDeviceReadSession {
         // shows only one direction. These are not matrix positions.
         let adapter = try VialReadbackAdapter(transport: transport, matrixRows: definition.rows, matrixColumns: definition.columns,
             encoderIndices: Set(definition.encoderPositions.map(\.index)), hasLayoutOptions: definition.hasLayoutOptions)
-        return try await adapter.observe(record: record, original: original, authorize: authorize, at: date)
+        let observation = try await adapter.observe(record: record, original: original, authorize: authorize, at: date)
+        let finalDefinition = try await VialDefinitionReader(transport: transport).read(expectedUID: uid, authorize: authorize)
+        guard finalDefinition.bytes == definition.bytes else { throw VialDefinitionError.changedDevice }
+        try Task.checkCancellation(); try authorize()
+        return VialKeymapObservation(device: observation.device, axes: observation.axes, values: observation.values,
+            encoderValues: observation.encoderValues, dynamicEntries: observation.dynamicEntries,
+            configurationValues: observation.configurationValues, observedAt: date(),
+            definition: .init(device: String(definition.uid), bytes: definition.bytes))
     }
 }

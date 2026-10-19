@@ -528,6 +528,7 @@
 "physical.sources.software" = "软件映射";
 "physical.sources.macOS" = "macOS 映射";
 "physical.sources.reference" = "仅文件参考";
+"physical.sources.readbackReference" = "Vial 设备定义的读回快照，非实时映射";
 "physical.sources.collected" = "已读取部分依据，完整映射未确认";
 "physical.sources.observed" = "已提供当前观察";
 "physical.sources.missing" = "尚无依据";
@@ -538,7 +539,7 @@
 "physical.association.title" = "设备与布局";
 "physical.association.unchecked" = "需要重新检查";
 "physical.association.matchedReference" = "唯一 USB 服务与布局参考匹配，物理映射仍未确认";
-"physical.association.missingLayout" = "没有适用的布局参考";
+"physical.association.missingLayout" = "没有适用的布局参考；Vial 需重新读回设备定义";
 "physical.association.missingGeometry" = "布局位置不完整或有歧义";
 "physical.association.missingDevice" = "尚无可用键盘服务";
 "physical.association.incompleteIdentity" = "键盘身份信息不完整";

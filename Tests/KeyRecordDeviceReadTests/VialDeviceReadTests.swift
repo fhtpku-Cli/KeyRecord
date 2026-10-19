@@ -330,6 +330,9 @@ final class VialDeviceReadTests: XCTestCase {
         let session = VialDeviceReadSession(transport: transport, vendorID: 0x1234, productID: 0x5678)
         let observed = try await session.observe(record: batch(), original: originalVial)
         XCTAssertEqual(observed.values, [.init(layer: 0, column: 0): "0x0006", .init(layer: 0, column: 2): "0x0028"])
+        XCTAssertEqual(observed.definition?.device, "42")
+        XCTAssertEqual(observed.definition?.bytes, try VialXZDecoder.decode(definitionXZ))
+        XCTAssertEqual(endpoint.requests.filter { $0 == .definitionSize }.count, 2)
         XCTAssertEqual(endpoint.requests.filter { $0.bytes[0] == 0x12 }.count, 1)
         let before = endpoint.requests.count
         let wrong = Data(String(decoding: originalVial, as: UTF8.self).replacingOccurrences(of: #""KC_C",-1,"KC_ENT""#, with: #"-1,"KC_C","KC_ENT""#).utf8)
@@ -337,6 +340,19 @@ final class VialDeviceReadTests: XCTestCase {
         catch { XCTAssertEqual(error as? VialReadbackError, .invalidMatrix) }
         XCTAssertEqual(endpoint.requests.count - before, 10)
         transport.close()
+    }
+    func testSessionRejectsDefinitionChangeWithUnchangedUIDAfterKeymap() async throws {
+        actor Changing: VialReadTransport {
+            var readKeymap = false
+            let shifted = Data(base64Encoded: "/Td6WFoAAATm1rRGAgAhARYAAAB0L+Wj4ACEAHJdAD2IicZUNsMXT+Tj0LL2o1xY9+vhKXbIvBy+vt7ajJ9ByJ+U3t83EJIzjavDD0/txhM7o8p2unsGnnWbxEuUfVifBNNdOsvnERH+MjQdNyzfGKOpZsOfDPQyS8tONaowXCuAH39Nx2eH4eVL43tiuwzCZgAAALpFqcDlBTElAAGOAYUBAAD7pMoBscRn+wIAAAAABFla")!
+            func exchange(_ request: VialReadRequest, timeoutMilliseconds: Int) async throws -> [UInt8] {
+                if request.bytes[0] == 0x12 { readKeymap = true }
+                return response(request, compressed: readKeymap ? shifted : definitionXZ)
+            }
+        }
+        let session = VialDeviceReadSession(transport: Changing(), vendorID: 0x1234, productID: 0x5678)
+        do { _ = try await session.observe(record: batch(), original: originalVial); XCTFail("Changed geometry must not accompany a readback") }
+        catch { XCTAssertEqual(error as? VialDefinitionError, .changedDevice) }
     }
     func testDefinitionWrongUIDAndPrivacyRevocationStopFurtherQueries() async throws {
         let endpoint = Endpoint(response: { response($0, uid: 43) }), transport = VialHIDTransport(endpoint: endpoint, deadline: Deadline())

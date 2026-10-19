@@ -140,6 +140,11 @@ public actor FirmwareOperationCoordinator {
         let (record, document) = try await draftDocument(batch)
         return try patch(document, record: record, changes: changes)
     }
+    public func viaFileSlots(_ batch: UUID) async throws -> [VIAFileSlot] {
+        let (record, document) = try await draftDocument(batch)
+        guard record.compatibilityBasis == .viaFile else { throw FirmwareError.unknownCompatibility }
+        return try document.viaFileSlots()
+    }
     private func patch(_ document: FirmwareDocument, record: FirmwareBatchRecord, changes: [FirmwareSlotChange]) throws -> Data {
         if record.compatibilityBasis == .viaFile {
             return try document.patchVIAFile(changes, expectedDevice: record.device)

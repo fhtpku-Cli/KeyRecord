@@ -1,6 +1,6 @@
 # Documentation status index
 
-Reviewed 2026-10-01 (Asia/Shanghai), after PR #17 merged as `8bb99e81`.
+Reviewed 2026-10-19 (Asia/Shanghai), for the VIA file editing workflow increment.
 This index includes the approved Phase 2 plan and subsequent engineering records. It distinguishes present
 guidance from dated evidence; it does not regenerate historical verdicts.
 
@@ -43,8 +43,8 @@ automated checks, signed real Keychain runs and owner UI observations are distin
 
 ## Phase 2 analysis
 
-Logical analysis and the dashboard prototype exist, while the product uses the
-Phase 1 aggregate view. These records do not establish full FR-R/FR-E or G2.
+Phase 2 analysis and candidate screens are wired into the product; A/B offline
+engineering is complete. These records do not establish full FR-R/FR-E or real G2 qualification.
 Phase 1 native UI evidence does not automatically qualify the separate dashboard.
 
 - [docs/phase2/PRODUCT_PLAN.md](phase2/PRODUCT_PLAN.md) — Approved Phase 2 plan; A/B engineering complete, real G2 evidence deferred
@@ -57,6 +57,7 @@ Phase 1 native UI evidence does not automatically qualify the separate dashboard
 
 ## Dated plans, checkpoints and execution reports
 
+- [docs/phase4/VIA_GUIDED_FILE_EDITING_20261019.md](phase4/VIA_GUIDED_FILE_EDITING_20261019.md) — Actual file position and supported-key selection, native flow and preserved verification boundaries
 - [docs/phase4/PREVIEW_CORRECTIONS_20261013.md](phase4/PREVIEW_CORRECTIONS_20261013.md) — PR #28 已合并；最新预览失败说明与纠正流程、89 项离线测试及自审
 - [docs/phase4/PATCH_PREVIEW_20261013.md](phase4/PATCH_PREVIEW_20261013.md) — 前一批固件多槽草稿、差异预览、86 项离线测试及资格边界
 - [docs/phase3/RECOVERY_CHOICES_20261013.md](phase3/RECOVERY_CHOICES_20261013.md) — 前一批逐份恢复选择、历史阶段和维护对账互斥、81 项相关测试

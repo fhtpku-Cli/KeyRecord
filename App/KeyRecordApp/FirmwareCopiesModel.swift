@@ -15,6 +15,7 @@ final class FirmwareCopiesModel: ObservableObject {
     @Published private(set) var patchDrafts: [UUID: [FirmwareSlotChange]] = [:]
     @Published private(set) var patchPreviews: [UUID: FirmwarePatchPreview] = [:]
     @Published private(set) var patchIssueKeys: [UUID: String] = [:]
+    @Published private(set) var viaFileSlots: [UUID: [VIAFileSlot]] = [:]
     @Published private(set) var previousPreparation: UninstallPreparationRecord?
     @Published var recoverySelections: [UUID: RecoverySelection] = [:]
     @Published var deleteLocalData = false
@@ -109,6 +110,7 @@ final class FirmwareCopiesModel: ObservableObject {
         recoverySelections = [:]; deleteLocalData = false
         uninstallStage = nil; previousPreparation = nil; uninstallReady = false
         patchDrafts = [:]; patchPreviews = [:]; patchIssueKeys = [:]
+        viaFileSlots = [:]
     }
     func refresh() async {
         guard canRead(), !working, store != nil else { return }
@@ -124,6 +126,7 @@ final class FirmwareCopiesModel: ObservableObject {
                 patchDrafts = patchDrafts.filter { id, _ in records.contains(where: { $0.id == id && $0.state == .draft }) }
                 patchPreviews = patchPreviews.filter { id, _ in records.contains(where: { $0.id == id && canGenerate($0) }) }
                 patchIssueKeys = patchIssueKeys.filter { id, _ in records.contains(where: { $0.id == id && canGenerate($0) }) }
+                viaFileSlots = viaFileSlots.filter { id, _ in records.contains(where: { $0.id == id && canInspectPatchDraft($0) }) }
                 onChange()
             }
         } catch { if canRead(), ticket == session { issueKey = "phase4.operationFailed"; onChange() } }
@@ -251,6 +254,19 @@ final class FirmwareCopiesModel: ObservableObject {
         if let index = changes.firstIndex(where: { $0.slot == change.slot }) { changes[index] = change }
         else { changes.append(change) }
         patchDrafts[record.id] = changes; patchPreviews[record.id] = nil; patchIssueKeys[record.id] = nil
+    }
+    func loadVIAFileSlots(_ record: FirmwareBatchRecord, ticket: UUID) async {
+        guard ticket == session, records.contains(record), canGenerate(record), record.compatibilityBasis == .viaFile else { return }
+        working = true; readRequest = UUID()
+        defer { if ticket == session { working = false; onChange() } }
+        do {
+            let slots = try await coordinator().viaFileSlots(record.id)
+            guard ticket == session, records.contains(record), canInspectPatchDraft(record) else { return }
+            viaFileSlots[record.id] = slots
+            patchIssueKeys[record.id] = nil
+        } catch {
+            if canRead(), ticket == session { patchIssueKeys[record.id] = Self.patchIssueKey(error) }
+        }
     }
     func removePatchChange(slot: FirmwareSlot, record: FirmwareBatchRecord, ticket: UUID) {
         guard ticket == session, records.contains(record), canGenerate(record),
@@ -510,6 +526,9 @@ private struct FirmwareOperationRow: View {
             }
         }
         if record.state == .awaitingUserImport {
+            if record.compatibilityBasis == .viaFile {
+                Text(text("phase4.fileImportNext")).fixedSize(horizontal: false, vertical: true)
+            }
             Button(text("phase4.claimImport")) { request(.claimImport, key: "phase4.claimImportConfirm") }
                 .disabled(model.working || pending != nil).accessibilityIdentifier("claim-" + record.id.uuidString)
             Button(text("phase4.abandonExport")) { request(.abandon, key: "phase4.abandonConfirm") }

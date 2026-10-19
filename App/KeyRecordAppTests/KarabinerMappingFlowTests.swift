@@ -531,14 +531,36 @@ final class KarabinerMappingFlowTests: XCTestCase {
             XCTAssertEqual(result, .completed)
         }
         let record = try XCTUnwrap(model.records.last)
-        XCTAssertTrue(model.canGenerate(record))
         XCTAssertFalse(FirmwareSupportDirectory().supports(backend: .via, device: record.device, axes: record.axes))
         XCTAssertNil(record.axes.importer); XCTAssertNil(record.axes.deviceProtocol)
         XCTAssertEqual(record.compatibilityBasis, .viaFile)
         NativeEvidence.update(view)
+        if model.viaFileSlots[record.id] == nil || model.working {
+            let loaded = XCTestExpectation(description: "Positions loaded from encrypted original")
+            var loadedDelivered = false
+            model.onChange = {
+                if !loadedDelivered, model.viaFileSlots[record.id] != nil, !model.working { loadedDelivered = true; loaded.fulfill() }
+            }
+            ScreenEvidence.awaitMain {
+                let result = await XCTWaiter.fulfillment(of: [loaded], timeout: 5)
+                XCTAssertEqual(result, .completed)
+            }
+        }
+        NativeEvidence.update(view)
+        XCTAssertTrue(model.canGenerate(record))
         XCTAssertTrue(NativeEvidence.elements(in: view).contains { KRAXIdentifier($0) == "stage-" + record.id.uuidString })
         XCTAssertTrue(NativeEvidence.elements(in: view).contains { KRAXLabel($0) == NativeText(locale: "en")("phase4.fileCompatibility") })
         model.selectExport = { _ in target }
+        XCTAssertFalse(KRAXEnabled(try NativeEvidence.node("stage-" + record.id.uuidString, in: view)))
+        XCTAssertTrue(KRAXPress(try NativeEvidence.node("via-output-\(record.id)-KC_C", in: view)))
+        XCTAssertTrue(KRAXPress(try NativeEvidence.node("via-slot-\(record.id)-0-1", in: view)))
+        NativeEvidence.update(view)
+        XCTAssertFalse(KRAXEnabled(try NativeEvidence.node("stage-" + record.id.uuidString, in: view)))
+        XCTAssertEqual(KRAXLabel(try NativeEvidence.node("via-restriction-" + record.id.uuidString, in: view)), NativeText(locale: "en")("phase4.patchIssue.protected"))
+        XCTAssertTrue(KRAXPress(try NativeEvidence.node("via-slot-\(record.id)-0-0", in: view)))
+        NativeEvidence.update(view)
+        XCTAssertEqual(KRAXLabel(try NativeEvidence.node("via-original-" + record.id.uuidString, in: view)), "Original key: No action")
+        XCTAssertTrue(KRAXEnabled(try NativeEvidence.node("stage-" + record.id.uuidString, in: view)))
         XCTAssertTrue(KRAXPress(try NativeEvidence.node("stage-" + record.id.uuidString, in: view)))
         NativeEvidence.update(view)
         let previewed = XCTestExpectation(description: "File preview")
@@ -592,6 +614,87 @@ final class KarabinerMappingFlowTests: XCTestCase {
         let operations = try FirmwareOperationCoordinator(store: store, resolve: { try FirmwareFileDestination(reference: $0, gate: gate) })
         let preserved = try await operations.original(readonly.id)
         XCTAssertEqual(preserved, unsupported)
+    }
+    func testVIAFilePositionChoicesReopenAndWithdrawWithPrivacyAndNewOriginal() async throws {
+        let (fixture, _, store, gate) = try await deployment()
+        let model = fixture.flow.firmwareCopies
+        model.configure(store: store, gate: gate)
+        let original = Data(#"{"name":"Positions","vendorProductId":42,"layers":[["KC_A","QK_BOOT","CUSTOM"]],"macros":[]}"#.utf8)
+        model.selectedOriginal = { original }
+        let ticket = try XCTUnwrap(model.selectionTicket())
+        await model.retainVIAFile(original, ticket: ticket)
+        let first = try XCTUnwrap(model.records.last)
+        await model.loadVIAFileSlots(first, ticket: ticket)
+        XCTAssertEqual(model.viaFileSlots[first.id]?.map(\.original), ["KC_A", "QK_BOOT", "CUSTOM"])
+        model.clear()
+        XCTAssertTrue(model.viaFileSlots.isEmpty)
+        await model.loadVIAFileSlots(first, ticket: ticket)
+        XCTAssertTrue(model.viaFileSlots.isEmpty)
+        model.selectedOriginal = { nil }
+        await model.refresh()
+        let reopened = try XCTUnwrap(model.records.last)
+        let current = try XCTUnwrap(model.selectionTicket())
+        await model.loadVIAFileSlots(reopened, ticket: current)
+        XCTAssertEqual(model.viaFileSlots[first.id]?.first?.original, "KC_A")
+        model.selectedOriginal = { original }
+        await model.retainVIAFile(original, ticket: current)
+        XCTAssertNil(model.viaFileSlots[first.id])
+        await model.loadVIAFileSlots(first, ticket: current)
+        XCTAssertNil(model.viaFileSlots[first.id])
+        let latest = try XCTUnwrap(model.records.last)
+        model.canRead = { false }
+        await model.loadVIAFileSlots(latest, ticket: current)
+        XCTAssertTrue(model.viaFileSlots.isEmpty)
+    }
+    func testNativeVIAFilePositionAndOutputChoicesInBothLanguages() throws {
+        ScreenEvidence.prepare()
+        var fixture: FlowFixture?
+        let original = Data(#"{"name":"Choices","vendorProductId":42,"layers":[["KC_NO","MO(1)","CUSTOM"],["KC_A","KC_NO","KC_NO"]],"macros":[]}"#.utf8)
+        ScreenEvidence.awaitMain {
+            do {
+                let result = try await self.deployment(); fixture = result.0
+                let model = result.0.flow.firmwareCopies
+                model.configure(store: result.2, gate: result.3)
+                model.selectedOriginal = { original }
+                await model.retainVIAFile(original, ticket: try XCTUnwrap(model.selectionTicket()))
+                await model.loadVIAFileSlots(try XCTUnwrap(model.records.last), ticket: try XCTUnwrap(model.selectionTicket()))
+            } catch { XCTFail("\(error)") }
+        }
+        let model = try XCTUnwrap(fixture?.flow.firmwareCopies)
+        let record = try XCTUnwrap(model.records.last)
+        for locale in ["en", "zh-Hans"] {
+            let text = NativeText(locale: locale)
+            let view = NSHostingView(rootView: Form { FirmwarePatchDraftSection(model: model, record: record, text: text) }
+                .formStyle(.grouped).frame(width: 640, height: 950))
+            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 640, height: 950), styleMask: [.titled], backing: .buffered, defer: false)
+            window.isReleasedWhenClosed = false; window.contentView = view; window.makeKeyAndOrderFront(nil)
+            defer { window.contentView = nil; window.close() }
+            NativeEvidence.primeAccessibility(); NativeEvidence.update(view)
+            XCTAssertFalse(KRAXEnabled(try NativeEvidence.node("stage-" + record.id.uuidString, in: view)))
+            for (column, reason) in [(1, "phase4.patchIssue.protected"), (2, "phase4.readOnlyAction")] {
+                XCTAssertTrue(KRAXPress(try NativeEvidence.node("via-slot-\(record.id)-0-\(column)", in: view)))
+                NativeEvidence.update(view)
+                XCTAssertEqual(KRAXLabel(try NativeEvidence.node("via-restriction-" + record.id.uuidString, in: view)), text(reason))
+                XCTAssertFalse(KRAXEnabled(try NativeEvidence.node("stage-" + record.id.uuidString, in: view)))
+            }
+            let slot = try NativeEvidence.node("via-slot-\(record.id)-0-0", in: view)
+            XCTAssertTrue(KRAXFocus(slot))
+            try NativeEvidence.key(" ", code: 49, window: window)
+            let released = try XCTUnwrap(NSEvent.keyEvent(with: .keyUp, location: .zero, modifierFlags: [], timestamp: 0,
+                windowNumber: window.windowNumber, context: nil, characters: " ", charactersIgnoringModifiers: " ", isARepeat: false, keyCode: 49))
+            window.sendEvent(released)
+            NativeEvidence.update(view)
+            XCTAssertTrue(KRAXPress(try NativeEvidence.node("via-output-\(record.id)-KC_C", in: view)))
+            NativeEvidence.update(view)
+            XCTAssertEqual(KRAXLabel(try NativeEvidence.node("via-original-" + record.id.uuidString, in: view)), text("phase4.originalKey") + ": " + text("phase4.key.KC_NO"))
+            XCTAssertTrue(KRAXPress(try NativeEvidence.node("stage-" + record.id.uuidString, in: view)))
+            NativeEvidence.update(view)
+            XCTAssertEqual(model.patchDrafts[record.id]?.first?.output, "KC_C")
+            if let root = NativeEvidence.outputRoot() {
+                try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+                try ScreenEvidence.capturePNG(view).write(to: root.appendingPathComponent("via-file-choices-" + locale + ".png"))
+            }
+        }
     }
     func testNativeQualifiedFirmwareExportAndEvidenceButtons() throws {
         ScreenEvidence.prepare()

@@ -270,6 +270,7 @@ final class AppFlowObservable: ObservableObject {
     let passwordBackup = PasswordBackupModel()
     let configurationExport = ConfigurationExportModel()
     let menuShortcuts = MenuShortcutsModel()
+    let updates = UpdatesModel()
 
     func beginRecommendation(output: Chord, trigger: Chord, scope: RecommendationScope, backend: RecommendationBackend) {
         guard sensitiveContentVisible, backend == intendedBackend else { return }

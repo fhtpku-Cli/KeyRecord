@@ -1,0 +1,28 @@
+KeyRecord
+Copyright 2026 KeyRecord contributors
+
+KeyRecord's original code and documentation are licensed under the Apache
+License, Version 2.0. See LICENSE for the full terms. Third-party materials
+retain their own copyright and license notices; this notice does not relicense
+them. The license does not grant trademark rights in KeyRecord or other names.
+
+Argon2 reference implementation
+https://github.com/P-H-C/phc-winner-argon2
+Revision: f57e61e19229e23c4445b85494dbf7c07de721cb
+Copyright 2015 Daniel Dinu, Dmitry Khovratovich, Jean-Philippe Aumasson,
+and Samuel Neves.
+The upstream implementation offers CC0 1.0 or Apache-2.0. KeyRecord uses it
+under Apache-2.0. Its original license notice is included in
+ThirdParty/Argon2-LICENSE.txt (Argon2-LICENSE.txt in the application bundle).
+KeyRecord does not modify the dependency's source code.
+
+The application dynamically uses macOS-provided Apple frameworks and liblzma.
+These system components are not redistributed in the application bundle.
+
+VIA, Vial, QMK and Karabiner-Elements remain separate third-party projects.
+KeyRecord implements limited file/protocol interoperability and does not
+bundle their applications or firmware. Compatibility and real-device support
+are separate from this attribution. Historical research materials under
+evidence/phase0/sources retain their original license files. Offline test
+checkouts are not application dependencies. See THIRD_PARTY_NOTICES.md for
+the source and distribution boundaries.

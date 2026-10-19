@@ -161,10 +161,12 @@ final class ProductComposition: NSObject, NSMenuDelegate, NSWindowDelegate {
 
     static func make() async throws -> ProductComposition {
         #if DEBUG
-        try await assemble(try systemBoundaries(storeRoot: nil, namespace: nil))
+        let composition = try await assemble(try systemBoundaries(storeRoot: nil, namespace: nil))
         #else
-        try await assemble(try productionBoundaries())
+        let composition = try await assemble(try productionBoundaries())
         #endif
+        composition.flow.updates.configure(.system())
+        return composition
     }
 
     #if DEBUG
@@ -406,6 +408,7 @@ final class ProductComposition: NSObject, NSMenuDelegate, NSWindowDelegate {
         }
         hooks.fail = { [weak self] stage in await self?.recoverAfterFailedMaintenance(stage) }
         hooks.erased = { [weak self] in
+            self?.flow.updates.eraseHistory()
             self?.maintenanceRecovery = nil
             self?.holdRuntimeTasks = false
         }
@@ -639,6 +642,7 @@ final class ProductComposition: NSObject, NSMenuDelegate, NSWindowDelegate {
 
     func boot() async -> NSStatusItem {
         await restoreRuntime()
+        flow.updates.start()
         return installStatusItem()
     }
 
@@ -1507,6 +1511,7 @@ final class ProductComposition: NSObject, NSMenuDelegate, NSWindowDelegate {
         let flushBefore = await flush.lifecycleFlushObservation()
         #endif
         if lifecycle.phase == .unstarted || lifecycle.phase == .consent {
+            flow.updates.stop()
             #if DEBUG
             detail.earlyReturn = "not-started"
             detail.quitDecision = "terminate"
@@ -1523,6 +1528,7 @@ final class ProductComposition: NSObject, NSMenuDelegate, NSWindowDelegate {
         await lifecycle.quit()
         syncRuntime()
         if lifecycle.phase == .stopped {
+            flow.updates.stop()
             #if DEBUG
             detail.quitDecision = "terminate"
             await endQuitAction(action, detail: detail, flushBefore: flushBefore)
@@ -1537,6 +1543,7 @@ final class ProductComposition: NSObject, NSMenuDelegate, NSWindowDelegate {
         #endif
         if !reductionDirtyBefore && !schedulerDirtyBefore
             && !reductionDirtyAfter && !schedulerDirtyAfter {
+            flow.updates.stop()
             #if DEBUG
             detail.quitDecision = "terminate"
             await endQuitAction(action, detail: detail, flushBefore: flushBefore)

@@ -65,6 +65,8 @@ struct SettingsFlowView: View {
             ExcludedApplicationsSection(flow: flow, text: text)
             LoginItemSection(flow: flow, text: text)
             LanguageSection(flow: flow, text: text)
+            UpdatesSection(model: flow.updates, text: text)
+            LicenseNoticesSection(text: text)
             if flow.sensitiveContentVisible {
                 Toggle(text("settings.showDockIcon"), isOn: Binding(get: { flow.showDockIcon },
                     set: { enabled in Task { await flow.setShowDockIcon(enabled) } }))

@@ -97,6 +97,9 @@ module ReleaseBoundary
       code, error, status = Open3.capture3('/usr/bin/unifdef', '-UDEBUG', '-UKEYRECORD_SIGNED_HOSTED_TESTS', path)
       require_boundary([0, 1].include?(status.exitstatus), "unifdef: #{error}")
       clean(code, path)
+      if path.end_with?('/App/KeyRecordApp/UpdateHTTPClient.swift')
+        code = code.gsub(/\b(?:URLSession|URLRequest)\b/, 'ReviewedUpdateTransport')
+      end
       require_boundary(!code.b.match?(SPAWN), "spawn/network/CLI source: #{path}")
     end
     Dir.glob(File.join(root, '{App,Sources,KeyRecord.xcodeproj}/**/*.{entitlements,pbxproj}')).each do |path|

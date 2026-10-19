@@ -2093,6 +2093,21 @@ final class KarabinerMappingFlowTests: XCTestCase {
         XCTAssertTrue(ready); XCTAssertEqual(try Data(contentsOf: file), bytes)
     }
 
+    func testBehaviorTestKeepsOneClickDisableAvailableAndStopsPermanentMappings() async throws {
+        let (fixture, file, _, _) = try await deployment()
+        let model = fixture.flow.karabinerMappings
+        await fixture.flow.karabinerDeployment.bind(url: file, profile: "Synthetic")
+        try stage(model); await model.check(); await model.apply()
+        let permanent = try XCTUnwrap(model.lastLedger?.desired.first)
+        var draft = try XCTUnwrap(model.drafts.first); draft.scope = .application("com.example.Editor"); model.update(draft)
+        await model.check(behaviorTest: true); await model.startBehaviorTest()
+        XCTAssertTrue(model.canDisable); XCTAssertFalse(model.canManage)
+        await model.disable()
+        XCTAssertEqual(model.behaviorState, "cancelled")
+        XCTAssertEqual(model.lastLedger?.desired, [permanent]); XCTAssertEqual(model.lastLedger?.disabled, true)
+        XCTAssertFalse(try String(contentsOf: file, encoding: .utf8).contains("KeyRecord:"))
+    }
+
     func testNativeBehaviorStartEndFailAndCancelInBothLocales() throws {
         ScreenEvidence.prepare()
         for locale in ["en", "zh-Hans"] {

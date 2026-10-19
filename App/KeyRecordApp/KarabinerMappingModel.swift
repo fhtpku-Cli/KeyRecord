@@ -60,8 +60,11 @@ final class KarabinerMappingModel: ObservableObject {
     var canStartBehaviorTest: Bool { behaviorPreparation && behaviorState != "running" && canCommit }
     var hasBehaviorCleanup: Bool { behaviorState == "running" || behaviorState == "cleanupPending" }
     var canManage: Bool {
+        !hasBehaviorCleanup && canDisable
+    }
+    var canDisable: Bool {
         synchronizeRuntime()
-        guard canRead(), !maintenance, !working, !hasBehaviorCleanup, let coordinator, let profile = lastLedger?.managedProfile else { return false }
+        guard canRead(), !maintenance, !working, let coordinator, let profile = lastLedger?.managedProfile else { return false }
         do { try coordinator.currentContext().requireWrite(profile: profile); return true } catch { return false }
     }
     var canInspect: Bool { canRead() && !working && !hasBehaviorCleanup && coordinator != nil && lastLedger?.managedProfile != nil }
@@ -198,6 +201,8 @@ final class KarabinerMappingModel: ObservableObject {
     }
     func verify() async { guard let coordinator, canInspect else { return }; await run { try await coordinator.verifyConfiguration() } }
     func disable() async {
+        guard canDisable else { return }
+        if hasBehaviorCleanup { await finishBehaviorTest() }
         guard let coordinator, canManage else { return }
         await run { try await coordinator.setDisabled(true) }
     }
@@ -336,11 +341,11 @@ struct KarabinerMappingSection: View {
                 }
                 if let verified = batch.verifiedAt { Text(verified, style: .date); Text(text("phase3.configurationOnly")) }
                 HStack {
-                    Button(text("phase3.verify")) { Task { await model.verify() } }.accessibilityIdentifier("phase3.verify")
-                    Button(text("phase3.disable")) { Task { await model.disable() } }.disabled(!model.canManage).accessibilityIdentifier("phase3.disable")
+                    Button(text("phase3.verify")) { Task { await model.verify() } }.disabled(!model.canInspect).accessibilityIdentifier("phase3.verify")
+                    Button(text("phase3.disable")) { Task { await model.disable() } }.disabled(!model.canDisable).accessibilityIdentifier("phase3.disable")
                     Button(text("phase3.restore")) { Task { await model.restore() } }.disabled(!model.canManage).accessibilityIdentifier("phase3.restore")
                     Button(text("phase3.rollback")) { Task { await model.rollback() } }.disabled(!model.canManage)
-                }.disabled(!model.canInspect)
+                }
                 if batch.state == .externallyChanged {
                     Button(text("phase3.adopt")) { Task { await model.resolve(.adopt) } }.accessibilityIdentifier("phase3.adopt")
                     Button(text("phase3.reapply")) { Task { await model.resolve(.reapply) } }.disabled(!model.canManage).accessibilityIdentifier("phase3.reapply")

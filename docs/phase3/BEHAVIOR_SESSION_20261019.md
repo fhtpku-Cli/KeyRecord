@@ -17,8 +17,10 @@ The same coordinator keeps an in-memory active session through watcher refreshes
 End, failure report and cancellation restore the pretest configuration. Leaving
 the mapping screen requests cancellation, including when start is still pending.
 Normal quit waits for cleanup before closing the protected store; failed cleanup
-cancels termination and remains visible for retry. Configuration verification
-does not record application behavior. A successful user report is transient,
+cancels termination and remains visible for retry.
+The menu's one-click disable remains available during a test: it first cleans
+the temporary rules, then disables the restored permanent mappings if any.
+Configuration verification does not record application behavior. A successful user report is transient,
 displayed only after cleanup, and does not grant backend qualification.
 
 After a crash or privacy closure, the encrypted journal is recovered when the
@@ -47,8 +49,8 @@ close/reopen privacy access. A production-composition test injects host dependen
 and checks that quit is blocked by an external edit, then cleans before shutdown.
 The native regression script includes the production quit test in both CI events.
 
-Local validation passed 807 package tests and 108 native regression tests
-(88 mapping/file-flow, 18 VIA import, two production-composition cases), plus
+Local validation passed 807 package tests and 109 native regression tests
+(89 mapping/file-flow, 18 VIA import, two production-composition cases), plus
 unsigned Debug build-for-testing. English and Chinese native screenshots were
 captured from temporary configurations; these are not actual Karabiner effects.
 

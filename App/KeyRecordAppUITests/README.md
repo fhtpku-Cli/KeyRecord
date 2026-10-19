@@ -1,6 +1,6 @@
 # 原生 UI 测试目标
 
-核对日期：2026-10-20。功能开发暂停；本文说明已有测试入口及证据范围。
+核对日期：2026-10-20。本轮 v1 开发状态见当前项目说明；本文说明已有测试入口及证据范围。
 
 - `KeyRecordAppUITests/Phase1FlowTests.swift` 使用 DEBUG 专用 `KEYRECORD_FLOW_FIXTURE`、内存替身和临时存储，属于签名宿主 XCUITest 场景。文件存在或编译通过不代表全部场景在签名宿主上执行。
 - `KeyRecordAppTests` 是另一个测试目标，覆盖原生组件、可访问性、渲染、产品组合、存储/恢复、后端及文件流程。hostless 执行与显式启用的真实 Keychain 用例有不同副作用和证据范围。

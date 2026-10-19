@@ -1,6 +1,6 @@
 # Phase 1 验收记录
 
-> 2026-10-20 核对：限定 Apple Silicon MVP 的完成结论继续有效，但只覆盖这里列出的原候选与动作。后续 Phase 2/3/4、密码备份和物理来源变更未重新取得全套实机资格。当前功能开发暂停；代码现状和未验证范围见 [PROJECT_STATUS](PROJECT_STATUS.md)。
+> 2026-10-20 核对：限定 Apple Silicon MVP 的完成结论继续有效，但只覆盖这里列出的原候选与动作。后续 Phase 2/3/4、密码备份和物理来源变更未重新取得全套实机资格。当前本轮 v1 开发状态见当前项目说明；代码现状和未验证范围见 [PROJECT_STATUS](PROJECT_STATUS.md)。
 
 Current status: [PROJECT_STATUS.md](PROJECT_STATUS.md). Requirements: [PHASE1_CONTRACT.md](PHASE1_CONTRACT.md) and architecture §12.4/15. This matrix separates executable regression coverage from host qualification; it is not a new gate or acceptance receipt.
 

@@ -11,7 +11,7 @@
 | `KeyRecordMappings` | Karabiner 事务与草稿、固件文件修补、文件/设备兼容依据、读回比对和恢复记录 |
 | `KeyRecordDeviceRead`、`KeyRecordLimitedXZ` | 显式选定设备的白名单非变更协议与有界系统 liblzma 定义解码；实际 HID 资格仍后置 |
 | `App/KeyRecordApp/ProductComposition.swift` | 接通部署、设备选择、来源适配器、密码备份及卸载准备；生产支持目录仍空 |
-| `PhysicalSourcesModel` 及分析层来源模型 | 系统属性、Profile、文件、USB 型号与 Vial 定义快照；变化/隐私撤销旧观察，不建立历史设备归属或完整真实链 |
+| `PhysicalSourcesModel` 及分析层来源模型 | 系统属性、Profile、文件、厂商号来源明确的设备型号与 Vial 定义快照；变化/隐私撤销旧观察，不建立历史设备归属或完整真实链 |
 | `MenuShortcutsModel` | 显式选择应用后读取有界菜单快捷键，临时证据接入候选与事务准备；失效/拒绝仍可按提示级继续 |
 | `ConfigurationExportModel`、`UpdatesModel`、`UpdateHTTPClient` | 普通无统计配置导出、固定更新查询及用户确认打开版本页；不自动安装 |
 | `Scripts/release-package.rb` | 默认只显示计划；显式执行时构建/签名检查/公证/staple/评估/打包，本轮只有模拟验证 |
@@ -712,7 +712,7 @@ commit(batch):
 
 ### 9.2 ViaAdapter
 
-**当前实现（截至第七批）**：VIA 文件编辑从加密原始副本取得实际层/位置，允许现有 90 个基础输出键，预览和导出再次执行结构、来源、保护入口及可达性检查。官方字典/导入方法离线回归建立的是文件编辑兼容依据，用户仍须手动导回官方 VIA 并确认实际按键效果。无需浏览器实例绑定；文件概况或布局定义不证明当前固件、在线导入器和物理设备资格。见[文件兼容](phase4/VIA_FILE_EDITING_20261016.md)和[正式编辑入口](phase4/VIA_GUIDED_FILE_EDITING_20261019.md)。
+**当前实现（2026-10-20）**：VIA 文件编辑从加密原始副本取得实际层/位置，允许现有 90 个基础输出键，预览和导出再次执行结构、来源、保护入口及可达性检查。官方字典/导入方法离线回归建立的是文件编辑兼容依据，用户仍须手动导回官方 VIA 并确认实际按键效果。无需浏览器实例绑定；文件概况或布局定义不证明当前固件、在线导入器和物理设备资格。见[文件兼容](phase4/VIA_FILE_EDITING_20261016.md)和[正式编辑入口](phase4/VIA_GUIDED_FILE_EDITING_20261019.md)。
 
 VIA/Vial 文件生成仍不直接写设备；Vial 的解析、传输及读回见下一节。早期“工厂 nil”“不能生成”等描述仅适用于对应日期，保留在[历史状态](PROJECT_HISTORY.md)及[批次索引](STATUS_INDEX.md)，不再作为本节的当前结论。
 
@@ -730,7 +730,7 @@ VIA/Vial 文件生成仍不直接写设备；Vial 的解析、传输及读回见
 
 ### 9.3 VialAdapter
 
-**当前实现（截至第七批）**：正式组合已接入显式设备选择和只读连接工厂，生产设备支持目录仍为空。协议实现覆盖独立定义、矩阵/编码器、Tap Dance、Combo、Key Override、Alternate Repeat Key、宏、布局选项及 QMK 设置；不生成这些高级配置，未知表示保持部分验证。独立定义中的简单几何与同次读回键码对应，来源变化后必须重新读回，不借用 VIA 文件几何。
+**当前实现（2026-10-20）**：正式组合已接入显式设备选择和只读连接工厂，生产设备支持目录仍为空。协议实现覆盖独立定义、矩阵/编码器、Tap Dance、Combo、Key Override、Alternate Repeat Key、宏、布局选项及 QMK 设置；不生成这些高级配置，未知表示保持部分验证。独立定义中的矩形旋转/明确布局选项几何与同次读回键码和布局选项对应，来源变化后必须重新读回，不借用 VIA 文件几何。
 
 [配置读回](phase4/CONFIGURATION_READBACK_20261015.md)、[验证范围](phase4/VERIFICATION_SCOPE_20261015.md)及[Vial 几何快照](phase2/VIAL_LAYOUT_20261019.md)记录具体执行边界。官方方法与模拟端口回归通过不等于 GUI 导入或真实 HID 通过。下列 Phase 0 描述保留其原始证据范围，后续离线实现不改写历史判定。
 

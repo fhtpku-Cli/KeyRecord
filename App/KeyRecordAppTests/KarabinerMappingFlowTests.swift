@@ -130,6 +130,117 @@ private final class DeploymentVersionProbe: @unchecked Sendable {
 
 @MainActor
 final class KarabinerMappingFlowTests: XCTestCase {
+    func testNativeMenuReadButtonAndPermissionFallbackInBothLanguages() throws {
+        ScreenEvidence.prepare()
+        for locale in ["en", "zh-Hans"] {
+            let model = MenuShortcutsModel(), text = NativeText(locale: locale)
+            let gate = KeyAvailabilityGate(); gate.update(.unlocked); model.gate = gate; model.canRead = { true }
+            let target = MenuApplicationTarget(bundleID: "com.example.Editor", pid: 73, launchedAt: Date())
+            model.ports.resolve = { _ in target }
+            model.ports.read = { _, _ in throw MenuShortcutReadError.unavailable }
+            model.application = target.bundleID
+            let view = NSHostingView(rootView: Form {
+                MenuShortcutsSection(model: model, choices: [.init(bundleID: target.bundleID, name: "Synthetic Editor", isExcluded: false, isForeground: false)], text: text)
+            }.formStyle(.grouped).frame(width: 720, height: 480))
+            view.sizingOptions = []
+            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 720, height: 480), styleMask: [.titled], backing: .buffered, defer: false)
+            window.isReleasedWhenClosed = false; window.contentView = view; window.makeKeyAndOrderFront(nil)
+            defer { window.contentView = nil; window.close() }
+            NativeEvidence.primeAccessibility(); NativeEvidence.update(view); NativeEvidence.update(view)
+            let finished = XCTestExpectation(description: "Menu read denial displayed")
+            var delivered = false
+            model.onChange = { if model.issueKey != nil, !delivered { delivered = true; finished.fulfill() } }
+            XCTAssertTrue(KRAXPress(try NativeEvidence.node("menuShortcuts.read", in: view)))
+            ScreenEvidence.awaitMain {
+                let result = await XCTWaiter.fulfillment(of: [finished], timeout: 5)
+                XCTAssertEqual(result, .completed)
+            }
+            NativeEvidence.update(view)
+            XCTAssertEqual(KRAXLabel(try NativeEvidence.node("menuShortcuts.status", in: view)), text("menuShortcuts.unavailable"))
+            XCTAssertTrue(KRAXEnabled(try NativeEvidence.node("menuShortcuts.read", in: view)))
+            XCTAssertNil(model.evidence)
+            if let root = NativeEvidence.outputRoot() {
+                try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+                try ScreenEvidence.capturePNG(view).write(to: root.appendingPathComponent("menu-read-denied-" + locale + ".png"))
+            }
+        }
+    }
+
+    func testMenuScanBoundsCancellationAndPartialShortcuts() throws {
+        let chord = try XCTUnwrap(MenuShortcutEvidence.chord(virtualKey: 8, modifiers: 0))
+        let result = try MenuShortcutScan.read(root: 0, check: {}, children: { $0 == 0 ? [1, 2] : [] },
+            shortcut: { $0 == 1 ? chord : nil })
+        XCTAssertEqual(result, [chord])
+        XCTAssertThrowsError(try MenuShortcutScan.read(root: 0, check: {}, children: { [$0] }, shortcut: { _ in nil }))
+        XCTAssertThrowsError(try MenuShortcutScan.read(root: 0, check: {}, children: { _ in Array(0...2048) }, shortcut: { _ in nil }))
+        var visited = 0
+        XCTAssertThrowsError(try MenuShortcutScan.read(root: 0, check: { throw CancellationError() },
+            children: { _ in visited += 1; return [] }, shortcut: { _ in visited += 1; return nil }))
+        XCTAssertEqual(visited, 0)
+    }
+
+    func testMenuEvidenceFeedsActualPreparationAndWithdrawsAfterAppRestart() async throws {
+        let (fixture, file, _, gate) = try await deployment()
+        let flow = fixture.flow, model = flow.menuShortcuts
+        model.gate = gate
+        let target = MenuApplicationTarget(bundleID: "com.example.Editor", pid: 71, launchedAt: Date(timeIntervalSince1970: 1))
+        var current: MenuApplicationTarget? = target
+        model.ports.resolve = { _ in current }
+        let shortcut = try XCTUnwrap(MenuShortcutEvidence.chord(virtualKey: 111, modifiers: 8))
+        model.ports.read = { _, check in try check(); return [shortcut] }
+        model.application = target.bundleID
+        await flow.karabinerDeployment.bind(url: file, profile: "Synthetic")
+        try stage(flow.karabinerMappings)
+        await model.refresh()
+        XCTAssertEqual(model.evidence?.shortcuts, [shortcut])
+        await flow.karabinerMappings.check()
+        XCTAssertEqual(flow.karabinerMappings.prepared?.reports.first?.findings.map(\.kind), [.applicationMenuShortcut])
+        XCTAssertFalse(flow.karabinerMappings.canApply)
+        flow.karabinerMappings.riskConfirmed = true
+        XCTAssertTrue(flow.karabinerMappings.canApply)
+        current = MenuApplicationTarget(bundleID: target.bundleID, pid: target.pid, launchedAt: Date(timeIntervalSince1970: 2))
+        XCTAssertNil(model.evidence)
+        XCTAssertFalse(flow.karabinerMappings.canApply)
+        current = nil
+        await model.refresh()
+        XCTAssertNil(model.evidence)
+        XCTAssertEqual(model.issueKey, "menuShortcuts.unavailable")
+        await flow.karabinerMappings.check()
+        XCTAssertTrue(flow.karabinerMappings.canApply)
+        XCTAssertTrue(flow.karabinerMappings.prepared?.reports.first?.limitations.contains(.menuUnavailable) == true)
+    }
+
+    func testMenuLateReadCannotSurviveCancelSelectionOrPrivacyChange() async throws {
+        for mode in ["cancel", "selection", "privacy", "gate"] {
+            let (fixture, _, _, gate) = try await deployment()
+            let model = fixture.flow.menuShortcuts
+            model.gate = gate
+            let target = MenuApplicationTarget(bundleID: "com.example.Editor", pid: 72, launchedAt: Date())
+            model.ports.resolve = { _ in target }
+            let started = XCTestExpectation(description: "Menu read started")
+            let release = DispatchSemaphore(value: 0)
+            model.ports.read = { _, check in
+                started.fulfill()
+                guard release.wait(timeout: .now() + 5) == .success else { throw MenuShortcutReadError.limit }
+                try check(); return []
+            }
+            model.application = target.bundleID
+            let task = Task { await model.refresh() }
+            let result = await XCTWaiter.fulfillment(of: [started], timeout: 5)
+            XCTAssertEqual(result, .completed)
+            switch mode {
+            case "cancel": model.clear()
+            case "selection": model.application = "com.example.Other"
+            case "privacy": fixture.observeLocked(); fixture.flow.sync(from: fixture.orchestrator.state)
+            default: gate.update(.locked); gate.update(.unlocked)
+            }
+            release.signal(); await task.value
+            XCTAssertNil(model.evidence)
+            XCTAssertFalse(model.working)
+            if mode == "privacy" { XCTAssertEqual(model.application, "") }
+        }
+    }
+
     func testConfigurationExportCancellationOverwriteAndPrivacyRevocation() async throws {
         for mode in ["success", "cancel", "existing", "pickerPrivacy", "snapshotPrivacy"] {
             let (fixture, file, store, gate) = try await deployment()

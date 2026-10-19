@@ -561,3 +561,12 @@
 "physical.association.modelMismatch" = "键盘型号与布局不匹配";
 "physical.association.ambiguous" = "多个键盘服务匹配，无法唯一对应";
 "physical.association.match" = "布局参考：%@（USB 厂商与产品编号 %@）。这不代表已确认历史按键来自该键盘。";
+"phase2.conflict.applicationMenuShortcut" = "候选触发与所选应用菜单中发现的快捷键重叠。";
+"phase2.conflict.limit.menuPartial" = "菜单证据只是一个应用的部分快照。菜单可能变化，未匹配不代表没有冲突或已验证实际效果。";
+"menuShortcuts.title" = "可选菜单快捷键检查";
+"menuShortcuts.notice" = "选择正在运行的应用，主动读取其菜单快捷键。仅读取快捷键键码及修饰键，不读取菜单标题、窗口或文本。辅助功能权限可选，未授权也可继续映射。";
+"menuShortcuts.application" = "应用";
+"menuShortcuts.choose" = "选择应用";
+"menuShortcuts.read" = "读取菜单快捷键";
+"menuShortcuts.partial" = "已读取菜单快照，仅包含能提供受支持虚拟键码的快捷键；菜单变化后请重新读取。这不代表应用效果已验证。";
+"menuShortcuts.unavailable" = "菜单证据不可用。请保持所选应用运行；如需读取，可在系统设置中允许辅助功能。仍可在证据有限的提示下继续映射。";

@@ -28,6 +28,7 @@ struct SettingsFlowView: View {
                     Text(text("phase2.layout"))
                 }
                 FunctionKeyPoolSection(flow: flow, text: text)
+                MenuShortcutsSection(model: flow.menuShortcuts, choices: flow.choices, text: text)
                 Section {
                     Picker(text("phase2.backendChoice"), selection: $flow.intendedBackend) {
                         Text("Karabiner").tag(RecommendationBackend.karabiner)

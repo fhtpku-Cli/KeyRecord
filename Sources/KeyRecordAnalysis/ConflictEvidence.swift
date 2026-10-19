@@ -7,7 +7,7 @@ public struct ConflictFinding: Equatable, Sendable {
     public let kind: CandidateConflict
     public var severity: ConflictSeverity {
         switch kind {
-        case .observedShortcut, .knownSystemRisk: return .warning
+        case .observedShortcut, .knownSystemRisk, .applicationMenuShortcut: return .warning
         case .existingRuleOverlap, .mappingCycle, .protectedLayerEntry: return .blocking
         }
     }
@@ -15,7 +15,7 @@ public struct ConflictFinding: Equatable, Sendable {
 
 public enum ConflictLimitation: String, CaseIterable, Hashable, Sendable {
     case observationsUnavailable, unknownApplication, backendRulesUnavailable
-    case referenceOnly, unsupportedRules, profileMismatch, backendVersionUnknown, menuUnavailable, traversalLimit
+    case referenceOnly, unsupportedRules, profileMismatch, backendVersionUnknown, menuUnavailable, menuPartial, traversalLimit
 }
 
 public struct BackendRule: Equatable, Sendable {
@@ -60,11 +60,13 @@ public struct CandidateConflictEvidence: Equatable, Sendable {
     public let backendRules: BackendRuleEvidence?
     public let profile: String?
     public let devices: Set<String>?
+    public let menu: MenuShortcutEvidence?
 
     public init(observations: [ChordBucket]?, backendRules: BackendRuleEvidence? = nil,
-                profile: String? = nil, devices: Set<String>? = nil) {
+                profile: String? = nil, devices: Set<String>? = nil, menu: MenuShortcutEvidence? = nil) {
         self.observations = observations; self.backendRules = backendRules
         self.profile = profile; self.devices = devices
+        self.menu = menu
     }
 }
 

@@ -561,3 +561,12 @@
 "physical.association.modelMismatch" = "Keyboard model does not match the layout";
 "physical.association.ambiguous" = "Multiple matching keyboard services; no unique match";
 "physical.association.match" = "Layout reference: %@ (USB vendor/product IDs %@). This does not identify the keyboard used for recorded activity.";
+"phase2.conflict.applicationMenuShortcut" = "The trigger overlaps a shortcut found in the selected application's menu.";
+"phase2.conflict.limit.menuPartial" = "Menu evidence is a partial snapshot of one application. Menus can change; no match does not prove no conflict or actual behavior.";
+"menuShortcuts.title" = "Optional menu shortcut check";
+"menuShortcuts.notice" = "Choose a running application and read its menu shortcuts. Only shortcut key codes and modifiers are read, not menu titles, windows or text. Accessibility permission is optional; you can continue mapping without it.";
+"menuShortcuts.application" = "Application";
+"menuShortcuts.choose" = "Choose application";
+"menuShortcuts.read" = "Read menu shortcuts";
+"menuShortcuts.partial" = "Menu snapshot loaded. Only supported virtual-key shortcuts are included; refresh after menu changes. This does not verify application behavior.";
+"menuShortcuts.unavailable" = "Menu evidence is unavailable. Keep the selected application running and, if desired, allow Accessibility in System Settings. Mapping remains available with limited evidence.";

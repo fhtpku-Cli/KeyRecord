@@ -186,7 +186,8 @@ extension ObjectStore {
                 excludedBundleIDs: preferences.excludedBundleIDs,
                 ignoredRecommendationKeys: preferences.ignoredRecommendationKeys,
                 layout: preferences.layout, loginItemEnabled: preferences.loginItemEnabled,
-                locale: preferences.locale, keyboardPoolConfirmed: preferences.keyboardPoolConfirmed)
+                locale: preferences.locale, keyboardPoolConfirmed: preferences.keyboardPoolConfirmed,
+                showDockIcon: preferences.showDockIcon)
             _ = try await put(identity: CycleResetObjects.preferences, payload: try encodeJSON(updated),
                               injection: injection.cycleWrite)
             try requireProtectedSession(sessionToken)

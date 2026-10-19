@@ -331,6 +331,11 @@ final class ProductComposition: NSObject, NSMenuDelegate, NSWindowDelegate {
         composition.terminateApplication = host.terminate
         #endif
         composition.resumeSuspendedWriter = { try await destruction.resumeWriterIfIdle() }
+        flow.configurationExport.snapshot = { [weak flow] in
+            guard let flow, flow.sensitiveContentVisible else { throw FirmwareError.unavailable }
+            return try await ConfigurationExport.load(store: store, gate: gate,
+                karabinerDrafts: flow.karabinerMappings.drafts, firmwareDrafts: flow.firmwareCopies.patchDrafts)
+        }
         composition.completeRecoveredReset = { try await destruction.completeRecoveredReset() }
         flow.passwordBackup.restore = { [weak composition] objects in
             guard let composition, composition.flow.showsConsent else { throw PasswordBackupError.destinationNotEmpty }
@@ -427,6 +432,15 @@ final class ProductComposition: NSObject, NSMenuDelegate, NSWindowDelegate {
             try await lifecycle.setKeyboardPoolConfirmed(keys)
             self?.syncRuntime()
         }
+        flow.saveDockIconAction = { [weak self] enabled in
+            guard let app = NSApp else { throw FirmwareError.unavailable }
+            let previous = app.activationPolicy()
+            guard app.setActivationPolicy(enabled ? .regular : .accessory) else { throw FirmwareError.unavailable }
+            do { try await lifecycle.setShowDockIcon(enabled) }
+            catch { app.setActivationPolicy(previous); throw error }
+            self?.syncRuntime()
+        }
+        flow.onRecommendationAttentionChanged = { [weak self] in self?.updateMenuBarAccessibility() }
     }
 
     private func registerLifecycleObservers(hooks: ProductMaintenanceHooks) {
@@ -685,7 +699,7 @@ final class ProductComposition: NSObject, NSMenuDelegate, NSWindowDelegate {
     }
 
     private func installStatusItem() -> NSStatusItem {
-        let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+        let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         item.button?.image = NSImage(systemSymbolName: "keyboard", accessibilityDescription: "KeyRecord")
         item.button?.setAccessibilityIdentifier("menu.open")
         menuBarButton = item.button
@@ -715,6 +729,7 @@ final class ProductComposition: NSObject, NSMenuDelegate, NSWindowDelegate {
         self.developerMenu = developerMenu
         #endif
         item.menu = menu
+        updateMenuBarAccessibility()
         return item
     }
 
@@ -1254,6 +1269,10 @@ final class ProductComposition: NSObject, NSMenuDelegate, NSWindowDelegate {
 
     private func sync() {
         flow.sync(from: lifecycle.state)
+        let activation: NSApplication.ActivationPolicy = lifecycle.state.preferences?.showDockIcon == true ? .regular : .accessory
+        if let app = NSApp, app.activationPolicy() != activation, !app.setActivationPolicy(activation) {
+            flow.noticeKey = "phase2.preferenceSaveFailed"
+        }
         if let locale = lifecycle.state.preferences?.locale { flow.language = locale.rawValue }
         switch lifecycle.state.notice {
         case .pauseFlushFailed, .quitFlushFailed: flow.noticeKey = "flow.actionUnavailable"
@@ -1401,13 +1420,15 @@ final class ProductComposition: NSObject, NSMenuDelegate, NSWindowDelegate {
 
     private func handlePrivacyInvalidation(reason: BlockedReason = .privacyCheckRequired) async {
         flow.passwordBackup.clear()
+        flow.configurationExport.clear()
         lifecycle.requireRecovery(reason: reason)
         await closeProtectedState()
     }
 
     private func updateMenuBarAccessibility() {
-        menuBarButton?.title = ""
-        menuBarButton?.setAccessibilityLabel(text("app.name"))
+        let badge = flow.sensitiveContentVisible && flow.hasUnseenRecommendations
+        menuBarButton?.title = badge ? "•" : ""
+        menuBarButton?.setAccessibilityLabel(badge ? text("phase2.newRecommendations") : text("app.name"))
     }
 
     private func closeProtectedState() async {

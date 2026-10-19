@@ -48,6 +48,21 @@ final class KeyboardPoolPreferenceTests: XCTestCase {
 
 @MainActor
 final class LayoutPreferenceTests: XCTestCase {
+    func testDockPreferenceDefaultsForOldDataAndSurvivesOtherChanges() async throws {
+        let harness = LifecycleHarness()
+        await harness.collectOpen()
+        let before = try XCTUnwrap(harness.orchestrator.state.preferences)
+        var legacy = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(before)) as? [String: Any])
+        legacy.removeValue(forKey: "showDockIcon")
+        XCTAssertFalse(try JSONDecoder().decode(Preferences.self, from: JSONSerialization.data(withJSONObject: legacy)).showDockIcon)
+        try await harness.orchestrator.setShowDockIcon(true)
+        try await harness.orchestrator.setLayout(LayoutPreference(preset: .iso, hasAsked: true))
+        await harness.orchestrator.reload()
+        XCTAssertEqual(harness.orchestrator.state.preferences?.showDockIcon, true)
+        await harness.storage.failSubsequentSaves()
+        do { try await harness.orchestrator.setShowDockIcon(false); XCTFail("Saved despite failure") } catch {}
+        XCTAssertEqual(harness.orchestrator.state.preferences?.showDockIcon, true)
+    }
     func testLayoutPersistsWithoutChangingCollectionPreferences() async throws {
         let harness = LifecycleHarness()
         await harness.collectOpen()

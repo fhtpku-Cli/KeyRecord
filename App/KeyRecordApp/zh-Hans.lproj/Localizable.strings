@@ -1,4 +1,14 @@
 "app.name" = "KeyRecord";
+"settings.mappingNewCycle" = "写入映射或声明已导入固件后，可以开启新的统计周期。这不代表映射效果已经验证。";
+"settings.reviewNewCycle" = "复核开启新周期…";
+"settings.keepCurrentCycle" = "继续当前周期";
+"settings.showDockIcon" = "在 Dock 中显示 KeyRecord";
+"settings.exportTitle" = "映射与偏好";
+"settings.exportWarning" = "此文件为明文，包含映射规则、草稿及偏好（含应用标识），不含使用统计、原始固件文件或恢复副本。它供查阅留存，不是后端官方导入文件；完整恢复请使用密码备份。";
+"settings.export" = "导出映射与偏好…";
+"settings.exported" = "已导出映射与偏好，不含统计数据。";
+"phase4.batchName" = "映射批次名称";
+"phase4.saveName" = "保存名称";
 "phase2.conflict.title" = "能力与冲突检查";
 "phase2.conflict.partial" = "检查仅覆盖下面列出的证据，不能证明应用行为或不存在其他冲突。";
 "phase2.conflict.referenceSupported" = "参考键码格式支持这些键和作用域；当前版本和实际连接仍未验证。";

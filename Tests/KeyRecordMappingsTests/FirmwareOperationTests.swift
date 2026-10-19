@@ -22,6 +22,71 @@ private final class FirmwareFault: @unchecked Sendable {
 }
 @MainActor
 final class FirmwareOperationTests: XCTestCase {
+    func testRenamePersistsWithoutChangingOriginalOrDeploymentState() async throws {
+        let (_, store, _, gate) = try await fixture()
+        let operations = try coordinator(store, gate)
+        let record = try await retain(operations)
+        let oldWire = try JSONEncoder().encode(record)
+        XCTAssertNil(try JSONDecoder().decode(FirmwareBatchRecord.self, from: oldWire).name)
+        let renamed = try await operations.rename(record.id, name: "  C / Global  ")
+        XCTAssertEqual(renamed.records.first?.name, "C / Global")
+        XCTAssertEqual(renamed.records.first?.state, record.state)
+        XCTAssertEqual(renamed.records.first?.changes, record.changes)
+        let original = try await operations.original(record.id)
+        XCTAssertEqual(original, firmwareBytes)
+        for invalid in ["   ", String(repeating: "a", count: 257)] {
+            do { _ = try await operations.rename(record.id, name: invalid); XCTFail("Accepted invalid name") }
+            catch FirmwareError.invalidDocument {}
+        }
+        let reopened = try await coordinator(store, gate).ledger()
+        XCTAssertEqual(reopened.records.first?.name, "C / Global")
+    }
+
+    func testConfigurationExportIncludesOnlyPreferencesAndMappingSelections() async throws {
+        let (_, store, _, gate) = try await fixture()
+        let preferences = Preferences(currentCycleID: CycleID(rawValue: UUID().uuidString), excludedBundleIDs: ["com.example.private"], showDockIcon: true)
+        _ = try await store.put(identity: CycleResetObjects.preferences, payload: JSONEncoder().encode(preferences))
+        _ = try await store.put(identity: CycleResetObjects.currentCycle, payload: Data("SECRET_STATISTICS".utf8))
+        let operations = try coordinator(store, gate)
+        let record = try await retain(operations)
+        _ = try await operations.rename(record.id, name: "C / Global")
+        let before = try await store.entries()
+        let exported = try await ConfigurationExport.load(store: store, gate: gate, firmwareDrafts: [record.id: firmwareChanges])
+        XCTAssertTrue(exported.preferences.showDockIcon)
+        XCTAssertEqual(exported.firmware.first?.name, "C / Global")
+        XCTAssertEqual(exported.firmwareDrafts.first?.changes, firmwareChanges)
+        let json = try XCTUnwrap(JSONSerialization.jsonObject(with: exported.encoded()) as? [String: Any])
+        XCTAssertEqual(Set(json.keys), ["schemaVersion", "preferences", "karabiner", "firmware", "karabinerDrafts", "firmwareDrafts"])
+        let text = String(decoding: try exported.encoded(), as: UTF8.self)
+        for forbidden in ["SECRET_STATISTICS", "sensitive macro", "currentCycleID", "baselineSHA256", "locator", "bookmark"] {
+            XCTAssertFalse(text.contains(forbidden), forbidden)
+        }
+        let after = try await store.entries()
+        XCTAssertEqual(before, after)
+        gate.update(.locked)
+        do { _ = try await ConfigurationExport.load(store: store, gate: gate); XCTFail("Exported while locked") } catch {}
+    }
+
+    func testConfigurationExportExcludesTemporaryRulesAndRefusesPendingTransaction() async throws {
+        let (_, store, _, gate) = try await fixture()
+        _ = try await store.put(identity: CycleResetObjects.preferences,
+            payload: JSONEncoder().encode(Preferences(currentCycleID: CycleID(rawValue: UUID().uuidString))))
+        let journal = try EncryptedKarabinerTransactionStore(store: store, namespace: UUID())
+        var ledger = KarabinerLedger()
+        let chord = Chord(keyCode: try KeyCode(8), modifiers: ModifierSet())
+        let saved = KarabinerMappingDraft(name: "Saved", profile: "Example", trigger: chord, output: chord)
+        var temporary = saved; temporary.temporary = true; temporary.name = "TEMPORARY_SECRET"
+        ledger.desired = [saved, temporary]
+        try await journal.save(ledger)
+        let value = try await ConfigurationExport.load(store: store, gate: gate, karabinerDrafts: [temporary, saved])
+        XCTAssertEqual(value.karabiner.first?.mappings, [saved])
+        XCTAssertEqual(value.karabinerDrafts, [saved])
+        XCTAssertFalse(String(decoding: try value.encoded(), as: UTF8.self).contains("TEMPORARY_SECRET"))
+        ledger.pending = UUID(); try await journal.save(ledger)
+        do { _ = try await ConfigurationExport.load(store: store, gate: gate); XCTFail("Exported pending transaction") }
+        catch FirmwareError.busy {}
+    }
+
     func testRecommendationRequiresExplicitMatchingPositionAndPreservesExistingChanges() async throws {
         let (_, store, _, gate) = try await fixture()
         let operations = try coordinator(store, gate, support: FirmwareSupportDirectory())

@@ -1,4 +1,14 @@
 "app.name" = "KeyRecord";
+"settings.mappingNewCycle" = "After writing a mapping or declaring a firmware import, you can start a new statistics cycle. This does not confirm the mapping's effect.";
+"settings.reviewNewCycle" = "Review starting a new cycle…";
+"settings.keepCurrentCycle" = "Keep the current cycle";
+"settings.showDockIcon" = "Show KeyRecord in the Dock";
+"settings.exportTitle" = "Mappings and preferences";
+"settings.exportWarning" = "This export is plaintext and contains your mapping rules, drafts and preferences, including app identifiers. It excludes usage statistics, original firmware files and recovery copies. It is a readable record, not an official backend import file; use password backup for complete restoration.";
+"settings.export" = "Export mappings and preferences…";
+"settings.exported" = "Mappings and preferences exported without statistics.";
+"phase4.batchName" = "Mapping batch name";
+"phase4.saveName" = "Save name";
 "phase2.conflict.title" = "Capability and conflict checks";
 "phase2.conflict.partial" = "Checks cover only the listed evidence; they do not prove application behavior or absence of all conflicts.";
 "phase2.conflict.referenceSupported" = "The reference dialect supports these keys and scope. Runtime version and connection remain unverified.";

@@ -214,7 +214,7 @@ extension Preferences {
                          loginItemEnabled: Bool? = nil, locale: ProductLocale? = nil,
                          layout: LayoutPreference? = nil,
                          ignoredRecommendationKeys: Set<String>? = nil,
-                         keyboardPoolConfirmed: Set<KeyCode>? = nil) -> Preferences {
+                         keyboardPoolConfirmed: Set<KeyCode>? = nil, showDockIcon: Bool? = nil) -> Preferences {
         Preferences(
             currentCycleID: currentCycleID,
             expectedCollecting: expectedCollecting ?? self.expectedCollecting,
@@ -223,6 +223,7 @@ extension Preferences {
             layout: layout ?? self.layout,
             loginItemEnabled: loginItemEnabled ?? self.loginItemEnabled,
             locale: locale ?? self.locale,
-            keyboardPoolConfirmed: keyboardPoolConfirmed ?? self.keyboardPoolConfirmed)
+            keyboardPoolConfirmed: keyboardPoolConfirmed ?? self.keyboardPoolConfirmed,
+            showDockIcon: showDockIcon ?? self.showDockIcon)
     }
 }

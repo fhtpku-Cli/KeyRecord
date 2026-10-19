@@ -45,6 +45,7 @@ enum PrivacySchemaAudit {
         "VIAReferenceParser.swift": ["VIAJSONValue"],
         "KarabinerPlan.swift": ["MappingScope", "MappingDevice", "KarabinerMappingDraft"],
         "KarabinerDeployment.swift": ["KarabinerTargetReference"],
+        "ConfigurationExport.swift": ["ExportedPreferences", "ExportedKarabinerProfile", "ExportedFirmwareMapping", "ExportedFirmwareDraft", "ConfigurationExport"],
         "FirmwarePatch.swift": ["FirmwareBackend", "FirmwareVersionAxes", "FirmwareSlot", "FirmwareSlotChange"],
         "VIAFileCompatibility.swift": ["FirmwareCompatibilityBasis"],
         "FirmwareOperations.swift": ["FirmwareMappingState", "FirmwareJournalPhase", "FirmwareExportReference", "FirmwareBatchRecord", "FirmwarePendingOperation", "FirmwareLedger"],
@@ -63,11 +64,17 @@ enum PrivacySchemaAudit {
     }
 
     static let recordFields: [String: [String: Set<String>]] = [
+        "ConfigurationExport.swift": [
+            "ExportedPreferences": ["excludedBundleIDs", "ignoredRecommendationKeys", "layout", "loginItemEnabled", "locale", "keyboardPoolConfirmed", "showDockIcon"],
+            "ExportedKarabinerProfile": ["reference", "disabled", "mappings"],
+            "ExportedFirmwareMapping": ["id", "backend", "name", "device", "state", "changes"],
+            "ExportedFirmwareDraft": ["batch", "changes"],
+            "ConfigurationExport": ["schemaVersion", "preferences", "karabiner", "firmware", "karabinerDrafts", "firmwareDrafts"]],
         "KarabinerDeployment.swift": ["KarabinerTargetReference": ["namespace", "bookmark", "location", "profile"]],
         "FirmwarePatch.swift": ["FirmwareVersionAxes": ["definitionSchema", "deviceProtocol", "layoutFormat", "keycodeDialect", "importer", "complete"],
             "FirmwareSlot": ["layer", "row", "column"], "FirmwareSlotChange": ["slot", "output", "automatic"]],
         "FirmwareOperations.swift": ["FirmwareExportReference": ["bookmark", "location"],
-            "FirmwareBatchRecord": ["id", "backend", "device", "axes", "baselineSHA256", "originalExportConfirmedAt", "compatibilityBasis", "state", "artifactSHA256", "exportedAt", "importClaimedAt", "verifiedAt", "verificationSource", "unverifiedSections", "verifiedDynamicSections", "verifiedConfigurationSections", "changes"],
+            "FirmwareBatchRecord": ["id", "backend", "device", "axes", "baselineSHA256", "originalExportConfirmedAt", "compatibilityBasis", "state", "artifactSHA256", "exportedAt", "importClaimedAt", "verifiedAt", "verificationSource", "unverifiedSections", "verifiedDynamicSections", "verifiedConfigurationSections", "changes", "name"],
             "FirmwarePendingOperation": ["batch", "phase", "target", "recordedAt", "verificationPassed", "previousState", "verificationState", "verificationSource", "unverifiedSections", "verifiedDynamicSections", "verifiedConfigurationSections"],
             "FirmwareLedger": ["records", "pending"]],
         "UninstallPreparation.swift": ["UninstallPreparationRecord": ["id", "choices", "deleteLocalData", "stage"]],
@@ -127,7 +134,7 @@ enum PrivacySchemaAudit {
             "CycleSummary": ["currentSchemaVersion", "schemaVersion", "cycleID", "perChordTotals", "perBareKeyTotals", "distinctActiveDays"]],
         "Preferences.swift": ["LayoutPreference": ["preset", "hasAsked"],
             "Preferences": ["currentSchemaVersion", "schemaVersion", "expectedCollecting",
-            "currentCycleID", "excludedBundleIDs", "ignoredRecommendationKeys", "layout", "loginItemEnabled", "locale", "keyboardPoolConfirmed"]],
+            "currentCycleID", "excludedBundleIDs", "ignoredRecommendationKeys", "layout", "loginItemEnabled", "locale", "keyboardPoolConfirmed", "showDockIcon"]],
         "EncryptedManifest.swift": ["Wire": ["schema", "current", "entries"],
             "Entry": ["objectType", "schemaVersion", "logicalID", "locator", "keyVersion"]],
         "KeyringMetadata.swift": ["Wire": ["schema", "current", "versions", "retirementPending", "rotationFrom", "rotationTo"]],

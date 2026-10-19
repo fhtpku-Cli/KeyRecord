@@ -4,14 +4,15 @@ import KeyRecordCore
 extension ObjectStore {
     /// Actor isolation gives one consistent manifest without an await between objects.
     /// Callers flush and pause capture before taking this snapshot.
-    public func backupSnapshot(gate: KeyAvailabilityGate) throws -> [BackupObject] {
+    public func backupSnapshot(gate: KeyAvailabilityGate, objectTypes: Set<String>? = nil) throws -> [BackupObject] {
         let generation = try gate.begin()
         guard lease == nil else { throw KeyringError.busy }
         let manifest = try opened()
         try requireBackupReady()
-        guard manifest.entries.count <= PasswordBackup.maximumObjects else { throw PasswordBackupError.limitExceeded }
+        let entries = manifest.entries.filter { objectTypes?.contains($0.identity.objectType) ?? true }
+        guard entries.count <= PasswordBackup.maximumObjects else { throw PasswordBackupError.limitExceeded }
         var total = 0
-        return try manifest.entries.map { entry in
+        return try entries.map { entry in
             try gate.use(generation) {
                 try Task.checkCancellation()
                 guard let material = cachedMaterial(entry.keyVersion) else { throw KeyringError.locked }

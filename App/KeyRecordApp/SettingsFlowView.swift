@@ -11,6 +11,15 @@ struct SettingsFlowView: View {
     var body: some View {
         Form {
             if flow.sensitiveContentVisible {
+                if flow.offersNewCycle {
+                    Section {
+                        Text(text("settings.mappingNewCycle"))
+                        Button(text("settings.reviewNewCycle")) { flow.reviewNewCycle() }
+                            .accessibilityIdentifier("settings.mappingNewCycle.review")
+                        Button(text("settings.keepCurrentCycle")) { flow.continueCurrentCycle() }
+                            .accessibilityIdentifier("settings.mappingNewCycle.keep")
+                    }
+                }
                 Section {
                     AnalysisLayoutControls(layout: flow.layout, ask: flow.analysis?.shouldAskLayout == true && !flow.layout.hasAsked,
                                            text: text, noticeKey: flow.noticeKey == "phase2.preferenceSaveFailed" ? flow.noticeKey : nil,
@@ -44,6 +53,7 @@ struct SettingsFlowView: View {
                 } else { VIAImportSection(model: flow.viaImport, text: text) }
                 FirmwareCopiesSection(model: flow.firmwareCopies, viaBytes: flow.viaImport.selectedOriginalBytes, text: text)
                 PasswordBackupSection(model: flow.passwordBackup, restoring: false, text: text)
+                ConfigurationExportSection(model: flow.configurationExport, text: text)
             }
             Section {
                 Text(text("consent.disclosure")).fixedSize(horizontal: false, vertical: true)
@@ -54,6 +64,11 @@ struct SettingsFlowView: View {
             ExcludedApplicationsSection(flow: flow, text: text)
             LoginItemSection(flow: flow, text: text)
             LanguageSection(flow: flow, text: text)
+            if flow.sensitiveContentVisible {
+                Toggle(text("settings.showDockIcon"), isOn: Binding(get: { flow.showDockIcon },
+                    set: { enabled in Task { await flow.setShowDockIcon(enabled) } }))
+                    .accessibilityIdentifier("settings.showDockIcon")
+            }
             DangerSection(flow: flow, text: text)
             if !flow.sensitiveContentVisible, flow.firmwareCopies.uninstallReady { Text(text("phase4.uninstallReady")) }
         }

@@ -130,6 +130,79 @@ private final class DeploymentVersionProbe: @unchecked Sendable {
 
 @MainActor
 final class KarabinerMappingFlowTests: XCTestCase {
+    func testConfigurationExportCancellationOverwriteAndPrivacyRevocation() async throws {
+        for mode in ["success", "cancel", "existing", "pickerPrivacy", "snapshotPrivacy"] {
+            let (fixture, file, store, gate) = try await deployment()
+            let model = fixture.flow.configurationExport
+            model.gate = gate
+            _ = try await store.put(identity: CycleResetObjects.preferences,
+                payload: JSONEncoder().encode(try XCTUnwrap(fixture.orchestrator.state.preferences)))
+            let destination = file.deletingLastPathComponent().appendingPathComponent("settings.json")
+            let existing = Data("KEEP EXISTING".utf8)
+            if mode == "existing" { try existing.write(to: destination) }
+            var snapshots = 0
+            model.selectDestination = {
+                XCTAssertTrue(model.busy)
+                if mode == "pickerPrivacy" { fixture.observeLocked(); fixture.flow.sync(from: fixture.orchestrator.state) }
+                return mode == "cancel" ? nil : destination
+            }
+            model.snapshot = {
+                snapshots += 1
+                let value = try await ConfigurationExport.load(store: store, gate: gate)
+                if mode == "snapshotPrivacy" { fixture.observeLocked(); fixture.flow.sync(from: fixture.orchestrator.state) }
+                return value
+            }
+            await model.export()
+            XCTAssertFalse(model.busy)
+            if mode == "success" {
+                _ = try JSONDecoder().decode(ConfigurationExport.self, from: Data(contentsOf: destination))
+                XCTAssertEqual(model.message, "settings.exported")
+            } else if mode == "existing" {
+                XCTAssertEqual(try Data(contentsOf: destination), existing)
+                XCTAssertEqual(model.message, "backup.chooseNewFile")
+            } else {
+                XCTAssertFalse(FileManager.default.fileExists(atPath: destination.path))
+                XCTAssertNil(model.message)
+                if mode != "snapshotPrivacy" { XCTAssertEqual(snapshots, 0) }
+            }
+        }
+    }
+
+    func testSuccessfulApplyOffersCycleReviewWithoutResettingAndPrivacyClearsPrompt() async throws {
+        let (fixture, file, _, _) = try await deployment()
+        let flow = fixture.flow, model = flow.karabinerMappings
+        await flow.karabinerDeployment.bind(url: file, profile: "Synthetic")
+        let cycle = fixture.orchestrator.state.preferences?.currentCycleID
+        await model.apply()
+        XCTAssertFalse(flow.offersNewCycle)
+        try stage(model); await model.check(); await model.apply()
+        XCTAssertTrue(flow.offersNewCycle)
+        XCTAssertEqual(fixture.orchestrator.state.preferences?.currentCycleID, cycle)
+        XCTAssertEqual(flow.dialog, .none)
+        flow.continueCurrentCycle()
+        XCTAssertFalse(flow.offersNewCycle)
+        flow.offerNewCycle(); flow.reviewNewCycle()
+        guard case .resetConfirmation = flow.dialog else { return XCTFail("Must retain deletion review") }
+        XCTAssertEqual(fixture.orchestrator.state.preferences?.currentCycleID, cycle)
+        flow.offerNewCycle()
+        fixture.observeLocked(); flow.sync(from: fixture.orchestrator.state)
+        XCTAssertFalse(flow.offersNewCycle)
+    }
+
+    func testDockPreferenceUsesSaveResultAndIgnoresLatePrivateCompletion() async throws {
+        let (fixture, _) = try await ready()
+        let flow = fixture.flow
+        flow.saveDockIconAction = { _ in throw FirmwareError.unavailable }
+        await flow.setShowDockIcon(true)
+        XCTAssertFalse(flow.showDockIcon)
+        XCTAssertEqual(flow.noticeKey, "phase2.preferenceSaveFailed")
+        flow.saveDockIconAction = { _ in }
+        await flow.setShowDockIcon(true)
+        XCTAssertTrue(flow.showDockIcon)
+        flow.saveDockIconAction = { _ in fixture.observeLocked(); flow.sync(from: fixture.orchestrator.state) }
+        await flow.setShowDockIcon(true)
+        XCTAssertFalse(flow.showDockIcon)
+    }
     private final class SystemSourceProbe: @unchecked Sendable {
         private let lock = NSLock()
         private var snapshot: PhysicalSystemSnapshot?
@@ -713,9 +786,11 @@ final class KarabinerMappingFlowTests: XCTestCase {
         XCTAssertNil(flow.recommendationDraft)
         let changes = try XCTUnwrap(model.patchDrafts[record.id])
         XCTAssertEqual(changes, [.init(slot: .init(layer: 0, column: 1), output: "KC_C", automatic: false)])
+        let named = try XCTUnwrap(model.records.last)
+        XCTAssertEqual(named.name, flow.karabinerMappings.defaultName(request.output, .global))
         flow.beginRecommendation(output: try recommendationChord(11), trigger: try recommendationChord(0), scope: .global, backend: .via)
         let duplicate = try XCTUnwrap(flow.recommendationDraft)
-        await flow.stageFirmwareRecommendation(duplicate, record: record, slot: .init(layer: 0, column: 1))
+        await flow.stageFirmwareRecommendation(duplicate, record: named, slot: .init(layer: 0, column: 1))
         XCTAssertEqual(flow.recommendationDraft, duplicate); XCTAssertEqual(model.patchDrafts[record.id], changes)
         XCTAssertNotNil(model.patchIssueKeys[record.id])
         await model.retainVIAFile(original, ticket: ticket)
@@ -812,7 +887,8 @@ final class KarabinerMappingFlowTests: XCTestCase {
             model.selectExport = { _ in exported }
             ScreenEvidence.awaitMain {
                 guard let ticket = model.selectionTicket() else { XCTFail("Missing session"); return }
-                await model.exportPreview(record, ticket: ticket)
+                guard let current = model.records.last else { XCTFail("Missing named batch"); return }
+                await model.exportPreview(current, ticket: ticket)
             }
             XCTAssertEqual(try Data(contentsOf: exported), Data(#"{"name":"Selection","vendorProductId":42,"layers":[["KC_A","KC_C"]],"macros":["opaque"]}"#.utf8))
             XCTAssertEqual(model.records.last?.state, .awaitingUserImport)
@@ -1783,11 +1859,13 @@ final class KarabinerMappingFlowTests: XCTestCase {
         record = try XCTUnwrap(model.records.last)
         XCTAssertEqual(record.state, .awaitingUserImport)
         XCTAssertNil(record.importClaimedAt); XCTAssertNil(record.verifiedAt)
+        XCTAssertFalse(fixture.flow.offersNewCycle)
         let document = try FirmwareDocument(bytes: Data(contentsOf: output), backend: .via)
         XCTAssertEqual(try document.value(at: FirmwareSlot(layer: 0, column: 0)), "KC_C")
         await model.perform(.claimImport, record: record, ticket: try XCTUnwrap(model.selectionTicket()))
         record = try XCTUnwrap(model.records.last)
         XCTAssertEqual(record.state, .importClaimed); XCTAssertNil(record.verifiedAt)
+        XCTAssertTrue(fixture.flow.offersNewCycle)
         await model.perform(.viaFailed, record: record, ticket: try XCTUnwrap(model.selectionTicket()))
         record = try XCTUnwrap(model.records.last)
         XCTAssertEqual(record.state, .failed)

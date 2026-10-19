@@ -250,6 +250,8 @@ final class AppFlowObservable: ObservableObject {
     @Published var loginItemErrorKey: String?
     @Published var language = "en"
     @Published var noticeKey: String?
+    @Published private(set) var showDockIcon = false
+    @Published private(set) var offersNewCycle = false
     @Published private var rawAnalysis: AnalysisSnapshot?
     @Published private(set) var layout = LayoutPreference()
     @Published private(set) var ignoredRecommendationKeys: Set<String> = []
@@ -266,6 +268,7 @@ final class AppFlowObservable: ObservableObject {
     lazy var karabinerDeployment = KarabinerDeploymentModel(mappings: karabinerMappings)
     let firmwareCopies = FirmwareCopiesModel()
     let passwordBackup = PasswordBackupModel()
+    let configurationExport = ConfigurationExportModel()
 
     func beginRecommendation(output: Chord, trigger: Chord, scope: RecommendationScope, backend: RecommendationBackend) {
         guard sensitiveContentVisible, backend == intendedBackend else { return }
@@ -282,7 +285,8 @@ final class AppFlowObservable: ObservableObject {
     }
     func stageFirmwareRecommendation(_ request: RecommendationDraft, record: FirmwareBatchRecord, slot: FirmwareSlot) async {
         guard sensitiveContentVisible, recommendationDraft == request, let ticket = firmwareCopies.selectionTicket() else { return }
-        let staged = await firmwareCopies.stageRecommendation(request, record: record, slot: slot, ticket: ticket) { [weak self] in
+        let staged = await firmwareCopies.stageRecommendation(request, record: record, slot: slot, ticket: ticket,
+            defaultName: karabinerMappings.defaultName(request.output, .global)) { [weak self] in
             self?.recommendationDraft == request && self?.sensitiveContentVisible == true && self?.intendedBackend == request.backend
         }
         if staged, recommendationDraft == request { recommendationDraft = nil }
@@ -317,6 +321,26 @@ final class AppFlowObservable: ObservableObject {
     var saveLayoutAction: (@MainActor (LayoutPreference) async throws -> Void)?
     var saveIgnoredAction: (@MainActor (Set<String>) async throws -> Void)?
     var saveKeyboardPoolAction: (@MainActor (Set<KeyCode>) async throws -> Void)?
+    var saveDockIconAction: (@MainActor (Bool) async throws -> Void)?
+    var onRecommendationAttentionChanged: @MainActor () -> Void = {}
+
+    func setShowDockIcon(_ enabled: Bool) async {
+        guard sensitiveContentVisible, let saveDockIconAction else { return }
+        do {
+            try await saveDockIconAction(enabled)
+            if sensitiveContentVisible { showDockIcon = enabled }
+        } catch { if sensitiveContentVisible { noticeKey = "phase2.preferenceSaveFailed" } }
+    }
+    func offerNewCycle() {
+        guard sensitiveContentVisible else { return }
+        offersNewCycle = true
+    }
+    func continueCurrentCycle() { offersNewCycle = false }
+    func reviewNewCycle() {
+        guard sensitiveContentVisible, !firmwareCopies.working else { return }
+        requestReset()
+        offersNewCycle = false
+    }
     #if DEBUG
     private var diagnostics: CaptureDiagnosticsRecorder?
 
@@ -336,6 +360,11 @@ final class AppFlowObservable: ObservableObject {
         self.flow = flow
         self.actions = actions
         self.protectedGate = protectedGate
+        configurationExport.gate = protectedGate
+        configurationExport.canExport = { [weak self] in
+            guard let self else { return false }
+            return self.sensitiveContentVisible && !self.karabinerMappings.working && !self.firmwareCopies.working
+        }
         physicalSources.input = { [weak self] scope in self?.physicalSourceInput(scope) }
         physicalSources.onChange = { [weak self] in self?.objectWillChange.send() }
         viaImport.protectedGate = protectedGate
@@ -351,6 +380,8 @@ final class AppFlowObservable: ObservableObject {
         karabinerImport.onChange = { [weak self] in self?.physicalSources.invalidate(); self?.karabinerMappings.invalidate(); self?.objectWillChange.send() }
         karabinerMappings.canRead = { [weak self] in self?.sensitiveContentVisible == true }
         karabinerMappings.protectedGate = protectedGate
+        karabinerMappings.onMappingApplied = { [weak self] in self?.offerNewCycle() }
+        firmwareCopies.onImportClaimed = { [weak self] in self?.offerNewCycle() }
         karabinerMappings.configuration = { [weak self] in self?.karabinerDeployment.selectedConfiguration ?? self?.karabinerImport.selectedConfiguration }
         karabinerMappings.observations = { [weak self] in self?.candidateConflictEvidence.observations }
         karabinerMappings.synchronizeRuntime = { [weak self] in self?.karabinerDeployment.updateObservations() }
@@ -463,6 +494,7 @@ final class AppFlowObservable: ObservableObject {
     func markRecommendationsReviewed() {
         recommendationAttention.markRecommendationAreaOpened(topIDs: analysis?.topRecommendations.map(\.id) ?? [])
         objectWillChange.send()
+        onRecommendationAttentionChanged()
     }
 
     func saveLayout(_ preset: LayoutPreset) async {
@@ -586,6 +618,7 @@ final class AppFlowObservable: ObservableObject {
         let visible = contentVisible ?? sensitiveContentVisible
         let viewing = statisticsWindowOpen && statisticsSection != .settings && visible
         recommendationAttention.observe(topIDs: topIDs, contentVisible: visible, currentlyViewing: viewing)
+        onRecommendationAttentionChanged()
     }
 
     var sensitiveContentVisible: Bool {
@@ -636,12 +669,16 @@ final class AppFlowObservable: ObservableObject {
     /// deciding login rejection wording; the observable only exposes its localized key.
     func sync(from lifecycleState: LifecycleState) {
         hasSavedPreferences = lifecycleState.preferences != nil
+        showDockIcon = lifecycleState.preferences?.showDockIcon ?? false
+        if presentationCycleID != lifecycleState.preferences?.currentCycleID { offersNewCycle = false }
         layout = lifecycleState.preferences?.layout ?? LayoutPreference()
         let visible = SensitiveVisibility.isVisible(lifecycleState)
         if visible {
             ignoredRecommendationKeys = lifecycleState.preferences?.ignoredRecommendationKeys ?? []
             keyboardPoolConfirmed = lifecycleState.preferences?.keyboardPoolConfirmed ?? []
         } else {
+            offersNewCycle = false
+            configurationExport.clear()
             recommendationDraft = nil
             ignoredRecommendationKeys = []
             keyboardPoolConfirmed = []
@@ -716,6 +753,7 @@ final class AppFlowObservable: ObservableObject {
     }
 
     private func mirror() {
+        if !sensitiveContentVisible { offersNewCycle = false; configurationExport.clear() }
         karabinerDeployment.visibilityChanged(sensitiveContentVisible)
         if sensitiveContentVisible { karabinerDeployment.updateObservations() }
         if !sensitiveContentVisible { firmwareCopies.clear(); if !showsConsent { passwordBackup.clear() } }

@@ -80,6 +80,10 @@ public struct VIAImportedConfiguration: Equatable, Sendable {
 }
 
 public enum VIAReferenceParser {
+    public static func standardKeyCode(_ token: String) -> KeyCode? {
+        if case .standard(let key, _) = VIAStandardKeyCodes.binding(token) { return key }
+        return nil
+    }
     public static func isStandardFirmwareOutput(_ token: String) -> Bool {
         if case .standard = VIAStandardKeyCodes.binding(token) { return true }
         let wrappers = ["LCTL(", "LSFT(", "LALT(", "LGUI(", "RCTL(", "RSFT(", "RALT(", "RGUI("]

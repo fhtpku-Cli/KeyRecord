@@ -1,5 +1,87 @@
 import SwiftUI
 import KeyRecordMappings
+import KeyRecordAnalysis
+
+struct RecommendationDraftSection: View {
+    @ObservedObject var flow: AppFlowObservable
+    let request: RecommendationDraft
+    let text: NativeText
+    @State private var selectedRecord: FirmwareBatchRecord?
+    @State private var options: [FirmwareSlotDifference] = []
+    @State private var selectedSlot: FirmwareSlot?
+    private var model: FirmwareCopiesModel { flow.firmwareCopies }
+    private var eligibleRecords: [FirmwareBatchRecord] {
+        model.records.filter { $0.backend.rawValue == request.backend.rawValue && model.canInspectPatchDraft($0) }
+    }
+    var body: some View {
+        Section {
+            Text(request.backend.rawValue + ": " + AnalysisLabels.chord(request.trigger, text: text)
+                 + " → " + AnalysisLabels.chord(request.output, text: text))
+                .accessibilityIdentifier("recommendation.summary")
+            Text({ if case .application(let app) = request.scope { return app }; return text("phase2.global") }())
+            switch request.route {
+            case .unsupported(let reason):
+                Text(text("recommendation.unsupported." + reason)).fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("recommendation.unsupported")
+            case .karabiner:
+                Text(text("recommendation.karabiner"))
+                Button(text("phase3.createDraft")) { flow.stageKarabinerRecommendation(request) }
+                    .disabled(flow.karabinerMappings.working || flow.karabinerMappings.maintenance)
+                    .accessibilityIdentifier("recommendation.stageKarabiner")
+            case .firmware:
+                firmwareChoices
+            }
+            Button(text("recommendation.dismiss")) { flow.dismissRecommendation() }
+                .accessibilityIdentifier("recommendation.dismiss")
+        } header: { Text(text("recommendation.title")) }
+        .onChange(of: model.records) { _, _ in
+            if let selectedRecord, !eligibleRecords.contains(selectedRecord) { self.selectedRecord = nil; options = []; selectedSlot = nil }
+        }
+    }
+    private var firmwareChoices: some View {
+        VStack(alignment: .leading) {
+            Text(text("recommendation.firmware")).fixedSize(horizontal: false, vertical: true)
+            if eligibleRecords.isEmpty { Text(text("recommendation.noCopy")).accessibilityIdentifier("recommendation.noCopy") }
+            ForEach(eligibleRecords) { record in
+                Button(record.backend.rawValue + " · " + record.device + " · " + String(record.id.uuidString.prefix(8))) {
+                    selectedRecord = record; selectedSlot = nil; options = []
+                    if let ticket = model.selectionTicket() {
+                        Task {
+                            let loaded = await model.recommendationSlots(request, record: record, ticket: ticket)
+                            if flow.recommendationDraft == request, selectedRecord == record { options = loaded }
+                        }
+                    }
+                }.disabled(model.working).accessibilityIdentifier("recommendation.copy-" + record.id.uuidString)
+            }
+            if let record = selectedRecord {
+                if !model.working, options.isEmpty { Text(text("recommendation.noPosition")) }
+                ScrollView {
+                    VStack(alignment: .leading) {
+                        ForEach(options, id: \.change.slot) { option in positionButton(option) }
+                    }
+                }.frame(maxHeight: 180)
+                if let issue = model.patchIssueKeys[record.id] { Text(text(issue)).accessibilityIdentifier("recommendation.issue") }
+                Button(text("recommendation.stageFirmware")) {
+                    if let selectedSlot { Task { await flow.stageFirmwareRecommendation(request, record: record, slot: selectedSlot) } }
+                }.disabled(selectedSlot == nil || !model.canGenerate(record))
+                    .accessibilityIdentifier("recommendation.stageFirmware")
+            }
+        }
+    }
+    private func positionButton(_ option: FirmwareSlotDifference) -> some View {
+        let slot = option.change.slot
+        let position = request.backend == .via ? String(format: text("phase4.viaSlot"), slot.layer, slot.column)
+            : String(format: text("phase4.vialSlot"), slot.layer, slot.row, slot.column)
+        let label = position + ": " + option.before + " → " + option.change.output
+        return Button {
+            selectedSlot = slot
+        } label: {
+            HStack { Text(label); if selectedSlot == slot { Image(systemName: "checkmark") } }
+        }.disabled(model.working)
+            .accessibilityIdentifier("recommendation.position-\(slot.layer)-\(slot.row)-\(slot.column)")
+            .accessibilityLabel(label)
+    }
+}
 
 struct FirmwarePatchDraftSection: View {
     @ObservedObject var model: FirmwareCopiesModel

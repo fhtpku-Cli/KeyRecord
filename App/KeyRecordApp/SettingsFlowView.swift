@@ -33,6 +33,9 @@ struct SettingsFlowView: View {
                 } header: {
                     Text(text("phase2.backend"))
                 }
+                if let request = flow.recommendationDraft {
+                    RecommendationDraftSection(flow: flow, request: request, text: text).id(request.id)
+                }
                 if flow.intendedBackend == .karabiner {
                     KarabinerImportSection(model: flow.karabinerImport, text: text)
                     KarabinerDeploymentSection(model: flow.karabinerDeployment,

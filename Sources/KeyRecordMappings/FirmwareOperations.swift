@@ -1,5 +1,6 @@
 import Foundation
 import KeyRecordStore
+import KeyRecordAnalysis
 
 public enum FirmwareMappingState: String, Codable, Sendable {
     case draft, awaitingUserImport, importClaimed, verified, partiallyVerified, failed, externallyChanged, rolledBack
@@ -144,6 +145,29 @@ public actor FirmwareOperationCoordinator {
         let (record, document) = try await draftDocument(batch)
         guard record.compatibilityBasis == .viaFile else { throw FirmwareError.unknownCompatibility }
         return try document.viaFileSlots()
+    }
+    public func recommendationSlots(_ batch: UUID, request: RecommendationDraft) async throws -> [FirmwareSlotDifference] {
+        let (record, document) = try await draftDocument(batch)
+        guard request.backend.rawValue == record.backend.rawValue, case .firmware(let output) = request.route else {
+            throw FirmwareError.unsupportedOutput
+        }
+        if record.compatibilityBasis == .viaFile { try VIAFileCompatibility.validate(document.bytes) }
+        else {
+            guard try support.outputs(backend: record.backend, device: record.device, axes: record.axes).contains(output) else {
+                throw FirmwareError.unsupportedOutput
+            }
+        }
+        return try document.slotValues().filter { VIAReferenceParser.standardKeyCode($0.value) == request.trigger.keyCode }
+            .sorted { ($0.key.layer, $0.key.row, $0.key.column) < ($1.key.layer, $1.key.row, $1.key.column) }
+            .map { FirmwareSlotDifference(change: FirmwareSlotChange(slot: $0.key, output: output, automatic: false), before: $0.value) }
+    }
+    public func previewRecommendation(_ batch: UUID, request: RecommendationDraft, slot: FirmwareSlot,
+                                      existing: [FirmwareSlotChange]) async throws -> FirmwarePatchPreview {
+        guard !existing.contains(where: { $0.slot == slot }),
+              let selection = try await recommendationSlots(batch, request: request).first(where: { $0.change.slot == slot }) else {
+            throw FirmwareError.invalidSlot
+        }
+        return try await preview(batch, changes: existing + [selection.change])
     }
     private func patch(_ document: FirmwareDocument, record: FirmwareBatchRecord, changes: [FirmwareSlotChange]) throws -> Data {
         if record.compatibilityBasis == .viaFile {

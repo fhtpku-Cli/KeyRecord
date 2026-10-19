@@ -31,6 +31,7 @@ public struct FirmwareBatchRecord: Codable, Equatable, Sendable, Identifiable {
     public var verifiedDynamicSections: [String]?
     public var verifiedConfigurationSections: [String]?
     public var changes: [FirmwareSlotChange] = []
+    public var name: String?
 }
 public struct FirmwarePendingOperation: Codable, Equatable, Sendable {
     public let batch: UUID
@@ -129,6 +130,17 @@ public actor FirmwareOperationCoordinator {
         let bytes = try await store.read(identity(batch, original: true))
         guard KarabinerTransactionCoordinator.fileDigest(bytes) == record.baselineSHA256 else { throw FirmwareError.unavailable }
         return bytes
+    }
+    public func rename(_ batch: UUID, name: String) async throws -> FirmwareLedger {
+        try begin(); defer { busy = false }
+        let name = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty, name.utf8.count <= 256 else { throw FirmwareError.invalidDocument }
+        var ledger = try await ledger()
+        guard ledger.pending == nil else { throw FirmwareError.busy }
+        guard let index = ledger.records.firstIndex(where: { $0.id == batch }) else { throw FirmwareError.unavailable }
+        ledger.records[index].name = name
+        try await save(ledger)
+        return ledger
     }
     private func draftDocument(_ batch: UUID) async throws -> (FirmwareBatchRecord, FirmwareDocument) {
         let ledger = try await ledger()

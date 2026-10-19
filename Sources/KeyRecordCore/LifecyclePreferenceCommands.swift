@@ -1,6 +1,9 @@
 import Foundation
 
 extension LifecycleOrchestrator {
+    public func setShowDockIcon(_ enabled: Bool) async throws {
+        try await saveVisiblePreference { $0.updating(showDockIcon: enabled) }
+    }
     public func setLayout(_ layout: LayoutPreference) async throws {
         try await saveVisiblePreference { $0.updating(layout: layout) }
     }

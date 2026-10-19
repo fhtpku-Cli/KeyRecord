@@ -31,6 +31,7 @@ final class KarabinerMappingModel: ObservableObject {
     var observations: @MainActor () -> [ChordBucket]? = { nil }
     var synchronizeRuntime: @MainActor () -> Void = {}
     var onChange: @MainActor () -> Void = {}
+    var onMappingApplied: @MainActor () -> Void = {}
     var protectedGate: KeyAvailabilityGate?
     var defaultName: @MainActor (Chord, RecommendationScope) -> String = { _, _ in "KeyRecord mapping" }
     private var coordinator: KarabinerTransactionCoordinator?
@@ -140,7 +141,7 @@ final class KarabinerMappingModel: ObservableObject {
     }
     func apply() async {
         guard canApply, let coordinator, let prepared else { return }
-        await run { try await coordinator.apply(prepared, riskConfirmed: self.riskConfirmed) }
+        await run(applied: true) { try await coordinator.apply(prepared, riskConfirmed: self.riskConfirmed) }
     }
     func startBehaviorTest() async {
         guard canStartBehaviorTest, let coordinator, let prepared else { return }
@@ -216,7 +217,7 @@ final class KarabinerMappingModel: ObservableObject {
         await run { try await coordinator.resolveExternal(choice, confirmation: self.riskConfirmed ? self.prepared : nil) }
     }
     func removeManaged() async { guard let coordinator, canManage else { return }; await run { try await coordinator.removeManagedRules() } }
-    private func run(_ operation: () async throws -> KarabinerLedger) async {
+    private func run(applied: Bool = false, _ operation: () async throws -> KarabinerLedger) async {
         guard canRead(), !working else { return }
         let currentSession = session
         working = true
@@ -224,6 +225,7 @@ final class KarabinerMappingModel: ObservableObject {
             let result = try await operation()
             guard canRead(), currentSession == session else { return }
             lastLedger = result; prepared = nil; riskConfirmed = false; issueKey = nil
+            if applied { onMappingApplied() }
             if hasBehaviorCleanup, !result.desired.contains(where: \.temporary) { behaviorState = "cancelled" }
         } catch {
             if canRead(), currentSession == session {

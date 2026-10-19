@@ -45,6 +45,7 @@ final class FirmwareCopiesModel: ObservableObject {
     var canRead: @MainActor () -> Bool = { false }
     var selectedOriginal: @MainActor () -> Data? = { nil }
     var onChange: @MainActor () -> Void = {}
+    var onImportClaimed: @MainActor () -> Void = {}
     var selectVial: @MainActor () -> URL? = {
         let panel = NSOpenPanel(); panel.canChooseDirectories = false; panel.allowsMultipleSelection = false
         return panel.runModal() == .OK ? panel.url : nil
@@ -273,7 +274,7 @@ final class FirmwareCopiesModel: ObservableObject {
         }
     }
     func stageRecommendation(_ request: RecommendationDraft, record: FirmwareBatchRecord, slot: FirmwareSlot,
-                             ticket: UUID, isCurrent: @MainActor () -> Bool) async -> Bool {
+                             ticket: UUID, defaultName: String? = nil, isCurrent: @MainActor () -> Bool) async -> Bool {
         guard isCurrent(), ticket == session, records.contains(record), canGenerate(record) else { return false }
         let existing = patchDrafts[record.id] ?? []
         working = true; readRequest = UUID()
@@ -282,6 +283,12 @@ final class FirmwareCopiesModel: ObservableObject {
             let preview = try await coordinator().previewRecommendation(record.id, request: request, slot: slot, existing: existing)
             guard isCurrent(), ticket == session, records.contains(record), canInspectPatchDraft(record),
                   existing == (patchDrafts[record.id] ?? []) else { return false }
+            if record.name == nil, let defaultName {
+                let ledger = try await coordinator().rename(record.id, name: defaultName)
+                guard isCurrent(), ticket == session, canRead(), records.contains(record),
+                      existing == (patchDrafts[record.id] ?? []) else { return false }
+                records = ledger.records
+            }
             patchDrafts[record.id] = preview.differences.map(\.change)
             patchPreviews[record.id] = preview; patchIssueKeys[record.id] = nil
             return true
@@ -420,6 +427,16 @@ final class FirmwareCopiesModel: ObservableObject {
         } catch { if canRead(), ticket == session { issueKey = "phase4.operationFailed" } }
     }
     enum RecordAction { case claimImport, abandon, rollback, viaPassed, viaFailed }
+    func rename(_ record: FirmwareBatchRecord, name: String) async {
+        guard canRead(), !working, records.contains(record) else { return }
+        let ticket = session
+        working = true
+        defer { if ticket == session { working = false; onChange() } }
+        do {
+            let ledger = try await coordinator().rename(record.id, name: name)
+            if canRead(), ticket == session { records = ledger.records; issueKey = nil }
+        } catch { if canRead(), ticket == session { issueKey = "phase4.operationFailed" } }
+    }
     func perform(_ action: RecordAction, record: FirmwareBatchRecord, ticket: UUID) async {
         guard canRead(), ticket == session, !working, records.contains(record) else { return }
         working = true; issueKey = nil
@@ -434,7 +451,10 @@ final class FirmwareCopiesModel: ObservableObject {
             case .viaPassed: ledger = try await operations.confirmVIABehavior(record.id, passed: true, at: Date())
             case .viaFailed: ledger = try await operations.confirmVIABehavior(record.id, passed: false, at: Date())
             }
-            if canRead(), ticket == session { records = ledger.records }
+            if canRead(), ticket == session {
+                records = ledger.records
+                if case .claimImport = action { onImportClaimed() }
+            }
         } catch { if canRead(), ticket == session { issueKey = "phase4.operationFailed" } }
     }
     func prepareUninstall(ticket: UUID, request: UninstallRequest) async {
@@ -503,6 +523,7 @@ struct FirmwareCopiesSection: View {
                 }.disabled(model.working || viaBytes == nil).accessibilityIdentifier("phase4.retainVIAVersions")
             }
             ForEach(model.records) { record in
+                FirmwareBatchNameRow(model: model, record: record, text: text).id(record.id)
                 Text(record.device + ": " + text("phase4.state.\(record.state.rawValue)"))
                 if record.backend == .vial { Text(text("phase4.readbackScope")) }
                 if record.backend == .via, let protocolVersion = record.axes.deviceProtocol {
@@ -547,6 +568,24 @@ struct FirmwareCopiesSection: View {
             }
         }
         FirmwareUninstallSection(model: model, text: text)
+    }
+}
+
+private struct FirmwareBatchNameRow: View {
+    @ObservedObject var model: FirmwareCopiesModel
+    let record: FirmwareBatchRecord
+    let text: NativeText
+    @State private var name = ""
+    var body: some View {
+        HStack {
+            TextField(text("phase4.batchName"), text: $name)
+                .accessibilityIdentifier("firmware-name-" + record.id.uuidString)
+            Button(text("phase4.saveName")) { Task { await model.rename(record, name: name) } }
+                .disabled(model.working || name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || name.utf8.count > 256)
+                .accessibilityIdentifier("firmware-name-save-" + record.id.uuidString)
+        }
+        .onAppear { name = record.name ?? record.backend.rawValue.uppercased() + " " + record.device }
+        .onChange(of: record.name) { _, value in name = value ?? record.backend.rawValue.uppercased() + " " + record.device }
     }
 }
 

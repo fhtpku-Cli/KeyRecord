@@ -101,7 +101,7 @@ final class CycleResetTests: XCTestCase {
             ignoredRecommendationKeys: ["008:left:none:none:left:none"],
             layout: LayoutPreference(preset: .split, hasAsked: true),
             loginItemEnabled: true, locale: .simplifiedChinese,
-            keyboardPoolConfirmed: [try KeyCode(122)])
+            keyboardPoolConfirmed: [try KeyCode(122)], showDockIcon: true)
         _ = try await store.put(identity: CycleResetObjects.preferences, payload: JSONEncoder().encode(original))
         let next = try await store.resetCycle(operationID: resetOperation, day: LocalDay("2026-09-13"))
         let saved = try JSONDecoder().decode(Preferences.self, from: try await store.read(CycleResetObjects.preferences))
@@ -113,6 +113,7 @@ final class CycleResetTests: XCTestCase {
         XCTAssertEqual(saved.locale, original.locale)
         XCTAssertEqual(saved.loginItemEnabled, original.loginItemEnabled)
         XCTAssertEqual(saved.keyboardPoolConfirmed, original.keyboardPoolConfirmed)
+        XCTAssertTrue(saved.showDockIcon)
     }
 
     func testRepeatedOperationReturnsOriginalCycleAfterReopen() async throws {

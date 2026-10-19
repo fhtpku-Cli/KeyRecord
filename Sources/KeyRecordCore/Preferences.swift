@@ -24,11 +24,13 @@ public struct Preferences: Equatable, Codable, Sendable {
     public let loginItemEnabled: Bool
     public let locale: ProductLocale
     public let keyboardPoolConfirmed: Set<KeyCode>
+    public let showDockIcon: Bool
 
     public init(
         currentCycleID: CycleID, expectedCollecting: Bool = false, excludedBundleIDs: Set<String> = [],
         ignoredRecommendationKeys: Set<String> = [], layout: LayoutPreference = LayoutPreference(),
-        loginItemEnabled: Bool = false, locale: ProductLocale = .english, keyboardPoolConfirmed: Set<KeyCode> = []
+        loginItemEnabled: Bool = false, locale: ProductLocale = .english, keyboardPoolConfirmed: Set<KeyCode> = [],
+        showDockIcon: Bool = false
     ) {
         schemaVersion = Self.currentSchemaVersion
         self.currentCycleID = currentCycleID
@@ -39,11 +41,13 @@ public struct Preferences: Equatable, Codable, Sendable {
         self.loginItemEnabled = loginItemEnabled
         self.locale = locale
         self.keyboardPoolConfirmed = keyboardPoolConfirmed
+        self.showDockIcon = showDockIcon
     }
 
     enum CodingKeys: String, CodingKey, CaseIterable {
         case schemaVersion, expectedCollecting, currentCycleID, excludedBundleIDs
         case ignoredRecommendationKeys, layout, loginItemEnabled, locale, keyboardPoolConfirmed
+        case showDockIcon
     }
 
     public init(from decoder: any Decoder) throws {
@@ -57,5 +61,6 @@ public struct Preferences: Equatable, Codable, Sendable {
         loginItemEnabled = try values.decode(Bool.self, forKey: .loginItemEnabled)
         locale = try values.decode(ProductLocale.self, forKey: .locale)
         keyboardPoolConfirmed = try values.decode(Set<KeyCode>.self, forKey: .keyboardPoolConfirmed)
+        showDockIcon = try values.decodeIfPresent(Bool.self, forKey: .showDockIcon) ?? false
     }
 }

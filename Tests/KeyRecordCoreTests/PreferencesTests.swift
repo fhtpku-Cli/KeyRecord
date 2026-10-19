@@ -37,7 +37,7 @@ final class PreferencesTests: XCTestCase {
         XCTAssertEqual(cycleWire["rawValue"] as? String, cycle.rawValue)
         XCTAssertEqual(Set(json.keys), [
             "schemaVersion", "expectedCollecting", "currentCycleID", "excludedBundleIDs",
-            "ignoredRecommendationKeys", "layout", "loginItemEnabled", "locale", "keyboardPoolConfirmed",
+            "ignoredRecommendationKeys", "layout", "loginItemEnabled", "locale", "keyboardPoolConfirmed", "showDockIcon",
         ])
     }
 

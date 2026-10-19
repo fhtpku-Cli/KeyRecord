@@ -21,6 +21,47 @@ private final class FirmwareFault: @unchecked Sendable {
 }
 @MainActor
 final class FirmwareOperationTests: XCTestCase {
+    func testVIAFilePositionCatalogMatchesRealPatchRestrictions() throws {
+        let bytes = Data(#"{"name":"Positions","vendorProductId":42,"layers":[["KC_A","MO(1)","CUSTOM","FN_MO13","LM(1,MOD_LCTL)","QK_BOOT"],["KC_NO","KC_TRNS","KC_B","KC_C","KC_D","KC_E"],["KC_A","KC_A","KC_A","KC_A","KC_A","KC_A"]],"macros":["preserved"]}"#.utf8)
+        let document = try FirmwareDocument(bytes: bytes, backend: .via)
+        let slots = try document.viaFileSlots()
+        XCTAssertEqual(slots.count, 18)
+        XCTAssertEqual(slots.map(\.slot), (0..<3).flatMap { layer in (0..<6).map { FirmwareSlot(layer: layer, column: $0) } })
+        XCTAssertEqual(slots[1].restriction, .protectedEntry)
+        XCTAssertEqual(slots[2].restriction, .unsupportedOutput)
+        XCTAssertEqual(slots[12].restriction, .unreachableLayer)
+        for entry in slots {
+            let change = FirmwareSlotChange(slot: entry.slot, output: "KC_Z", automatic: false)
+            if let restriction = entry.restriction {
+                XCTAssertThrowsError(try document.patchVIAFile([change], expectedDevice: "42")) {
+                    XCTAssertEqual($0 as? FirmwareError, restriction)
+                }
+            } else {
+                let edited = try document.patchVIAFile([change], expectedDevice: "42")
+                XCTAssertEqual(try FirmwareDocument(bytes: edited, backend: .via).value(at: entry.slot), "KC_Z")
+            }
+        }
+        XCTAssertEqual(document.bytes, bytes)
+        let large = try JSONSerialization.data(withJSONObject: ["name": "Wide file", "vendorProductId": 42,
+            "layers": [Array(repeating: "KC_A", count: 300)], "macros": [String]()])
+        let largeSlots = try FirmwareDocument(bytes: large, backend: .via).viaFileSlots()
+        XCTAssertEqual(largeSlots.last?.slot.column, 299)
+        XCTAssertNil(largeSlots.last?.restriction)
+    }
+    func testVIAFilePositionCatalogRequiresLatestExplicitFileBasis() async throws {
+        let (_, store, _, gate) = try await fixture()
+        let operations = try coordinator(store, gate, support: FirmwareSupportDirectory())
+        let axes = try FirmwareVersionProvider.axes(bytes: firmwareBytes, backend: .via)
+        let legacy = try await operations.retainOriginal(firmwareBytes, backend: .via, axes: axes, confirmedAt: Date())
+        do { _ = try await operations.viaFileSlots(legacy.id); XCTFail("Old records must not gain file editing") }
+        catch FirmwareError.unknownCompatibility {}
+        let first = try await operations.retainOriginal(firmwareBytes, backend: .via, axes: axes, confirmedAt: Date(), compatibilityBasis: .viaFile)
+        let slots = try await operations.viaFileSlots(first.id)
+        XCTAssertEqual(slots.count, 6)
+        _ = try await operations.retainOriginal(firmwareBytes, backend: .via, axes: axes, confirmedAt: Date(), compatibilityBasis: .viaFile)
+        do { _ = try await operations.viaFileSlots(first.id); XCTFail("Old originals must not be selectable") }
+        catch FirmwareError.staleBaseline {}
+    }
     private let vialBytes = Data(#"{"version":1,"uid":"fixture-vial","layout":[[["KC_NO","CUSTOM"]]],"macros":["opaque macro"]}"#.utf8)
     func testLargeVIAFileWithMissingLayerReferencesPreservesReachabilityAndOriginal() throws {
         for count in [1_000, 4_000, 16_000] {

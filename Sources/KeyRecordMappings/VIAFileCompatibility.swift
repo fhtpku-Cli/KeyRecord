@@ -7,6 +7,12 @@ public enum FirmwareCompatibilityBasis: String, Codable, Sendable {
     case viaFile
 }
 
+public struct VIAFileSlot: Equatable, Sendable {
+    public let slot: FirmwareSlot
+    public let original: String
+    public let restriction: FirmwareError?
+}
+
 public enum VIAFileCompatibility {
     public static let outputs: Set<String> = Set(
         "ABCDEFGHIJKLMNOPQRSTUVWXYZ".map { "KC_\($0)" }

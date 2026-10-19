@@ -193,6 +193,20 @@ public struct FirmwareDocument: Sendable {
         try VIAFileCompatibility.validate(bytes)
         return try patch(changes, outputs: VIAFileCompatibility.outputs, vial6: false, viaFile: true)
     }
+    public func viaFileSlots() throws -> [VIAFileSlot] {
+        guard backend == .via else { throw FirmwareError.unknownCompatibility }
+        try VIAFileCompatibility.validate(bytes)
+        let layers = try reachable(automatic: false, vial6: false, viaFile: true)
+        return try slots.keys.sorted { ($0.layer, $0.column) < ($1.layer, $1.column) }.map { slot in
+            let old = try value(at: slot)
+            var restriction: FirmwareError?
+            do {
+                try Self.validateReplacementSource(old, automatic: false, vial6: false, viaFile: true)
+                guard layers.contains(slot.layer) else { throw FirmwareError.unreachableLayer }
+            } catch let error as FirmwareError { restriction = error }
+            return VIAFileSlot(slot: slot, original: old, restriction: restriction)
+        }
+    }
     private func patch(_ changes: [FirmwareSlotChange], outputs: Set<String>, vial6: Bool, viaFile: Bool) throws -> Data {
         guard !changes.isEmpty, Set(changes.map(\.slot)).count == changes.count else { throw FirmwareError.invalidSlot }
         var edits: [(Range<Int>, Data)] = []
@@ -200,14 +214,7 @@ public struct FirmwareDocument: Sendable {
             guard outputs.contains(change.output), VIAReferenceParser.isStandardFirmwareOutput(change.output), !Self.protected(change.output) else { throw FirmwareError.unsupportedOutput }
             guard let node = slots[change.slot] else { throw FirmwareError.invalidSlot }
             let old = try value(at: change.slot)
-            let protectedToken = vial6 ? old.trimmingCharacters(in: .whitespacesAndNewlines) : old
-            guard !Self.protected(protectedToken), !(vial6 && VialKeycodeDialect.protectedEntry(old)) else { throw FirmwareError.protectedEntry }
-            if viaFile, old != "KC_NO", old != "KC_TRNS", !VIAFileCompatibility.outputs.contains(old) {
-                throw FirmwareError.unsupportedOutput
-            }
-            if change.automatic, old != "KC_NO", !(vial6 && (try? VialKeycodeDialect.rawValue(old)) == 0) {
-                throw FirmwareError.occupiedAutomaticSlot
-            }
+            try Self.validateReplacementSource(old, automatic: change.automatic, vial6: vial6, viaFile: viaFile)
             guard try reachable(automatic: change.automatic, vial6: vial6, viaFile: viaFile).contains(change.slot.layer) else { throw FirmwareError.unreachableLayer }
             edits.append((node.range, try JSONEncoder().encode(change.output)))
         }
@@ -217,6 +224,16 @@ public struct FirmwareDocument: Sendable {
         guard parsed.device == device, Set(parsed.slots.keys) == Set(slots.keys) else { throw FirmwareError.invalidDocument }
         if viaFile { try VIAFileCompatibility.validate(result) }
         return result
+    }
+    private static func validateReplacementSource(_ old: String, automatic: Bool, vial6: Bool, viaFile: Bool) throws {
+        let protectedToken = vial6 ? old.trimmingCharacters(in: .whitespacesAndNewlines) : old
+        guard !Self.protected(protectedToken), !(vial6 && VialKeycodeDialect.protectedEntry(old)) else { throw FirmwareError.protectedEntry }
+        if viaFile, old != "KC_NO", old != "KC_TRNS", !VIAFileCompatibility.outputs.contains(old) {
+            throw FirmwareError.unsupportedOutput
+        }
+        if automatic, old != "KC_NO", !(vial6 && (try? VialKeycodeDialect.rawValue(old)) == 0) {
+            throw FirmwareError.occupiedAutomaticSlot
+        }
     }
     private static func protected(_ token: String) -> Bool {
         ["MO(", "LT(", "LM(", "TG(", "TO(", "TT(", "DF(", "OSL("].contains { token.hasPrefix($0) }

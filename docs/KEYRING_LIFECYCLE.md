@@ -1,4 +1,6 @@
-# Task 11: versioned local keyring
+# 本地版本化密钥环与历史验证
+
+> 2026-10-20 核对：功能开发暂停。下方密钥、隔离、轮换和退休检查继续保留；2026-10-01 的真实观察只覆盖当时候选。当前锁屏来源运行范围与实测范围见 [PROJECT_STATUS](PROJECT_STATUS.md)。完整密码备份/空库恢复已实现，但不导出本地密钥、也不覆盖已有资料库；[真实 Keychain 恢复仍待验证](PASSWORD_BACKUP_20261015.md)。Q11 数量和命令属于历史测试，不是当前完整测试清单。
 
 ## Current implementation and historical test boundary
 

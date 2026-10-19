@@ -1,5 +1,7 @@
 # Vial 6 官方基础键名离线兼容
 
+> 历史记录说明（2026-10-20 核对）：本页保留所述日期/提交的实现、命令和验证范围，其中“当前”“待实现”“下一步”仅指当时。功能开发已暂停，最新状态见 [PROJECT_STATUS](../PROJECT_STATUS.md)，后续安排见 [ROADMAP](../ROADMAP.md)；本页不授权新实机、设备或删除操作。
+
 状态日期：2026-10-14，Asia/Shanghai。从 [PR #33](https://github.com/fhtpku-Cli/KeyRecord/pull/33) 合并提交 `0bd3ea0f45f1e0b5d54fab628237466f4ea0bf21` 继续，在独立工作树及 `codex/vial-basic-keycodes` 分支实施。主目录及父任务工作树保持只读。
 
 ## 问题与范围

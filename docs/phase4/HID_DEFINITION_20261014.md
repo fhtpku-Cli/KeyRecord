@@ -1,5 +1,7 @@
 # HID 传输端与独立设备定义读取
 
+> 历史记录说明（2026-10-20 核对）：本页保留所述日期/提交的实现、命令和验证范围，其中“当前”“待实现”“下一步”仅指当时。功能开发已暂停，最新状态见 [PROJECT_STATUS](../PROJECT_STATUS.md)，后续安排见 [ROADMAP](../ROADMAP.md)；本页不授权新实机、设备或删除操作。
+
 状态日期：2026-10-14，Asia/Shanghai。
 
 [PR #30](https://github.com/fhtpku-Cli/KeyRecord/pull/30) 已按用户确认合并为 `3415d393ab3b2424b78f66ef61a75b6b58ddab16`，[合并后主干 CI](https://github.com/fhtpku-Cli/KeyRecord/actions/runs/38429930883) 成功。本批复用当前窗口及干净受管工作树，从实际主干新建 `codex/hid-definition-offline`；上下文和端口连续，无需新开窗口。主目录保持原 HEAD 和 215 项历史改动，只读。

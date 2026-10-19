@@ -1,5 +1,7 @@
 # PR #10 合并版：单页安全输入回归
 
+> 历史记录说明（2026-10-20 核对）：本页保留所述日期/提交的实现、命令和验证范围，其中“当前”“待实现”“下一步”仅指当时。功能开发已暂停，最新状态见 [PROJECT_STATUS](PROJECT_STATUS.md)，后续安排见 [ROADMAP](ROADMAP.md)；本页不授权新实机、设备或删除操作。
+
 > Status reconciliation (2026-10-01): this is a dated record for the candidates and rounds named below. “Current”, “next”, “pending” and BLOCKED refer to that checkpoint, not today's work queue. The approved Apple Silicon Phase 1 MVP is complete and merged; see [current acceptance](PHASE1_ACCEPTANCE.md) and [roadmap](ROADMAP.md). Original observations and failures retain their scope; these instructions do not authorize another host round.
 
 被测源码：`64590a0e9b57a55af9a23921983f2c16bb59c62e`（PR #10 合并提交）。
@@ -50,7 +52,7 @@ KeyRecord 的隐藏/恢复结论来自诊断展示状态，不是本轮逐帧屏
 
 [单页操作流程](PRIVACY_RESOURCE_USER_STEPS.md#单页安全输入回归采集中)可重复使用。
 本轮仅支持该版本、该主机的 Debug 安全输入停采/恢复/正常退出观察。
-先按 [项目状态的收尾顺序](PROJECT_STATUS.md#worktree-closeout-and-evidence-order--2026-09-27)
+先按当时的[历史收尾顺序](PROJECT_HISTORY.md#worktree-closeout-and-evidence-order--2026-09-27)
 整理现有改动与证据，并核查权限撤销/恢复的已有覆盖；不安排本页自动重跑。
 Phase 1/G1 尚未验收：正式打字/空闲测量各三轮、Intel 实机、权限变化、快速用户切换、
 实际网络观测及签名 Release 资格仍待完成。旧候选的锁屏和资源结果不能转记成本提交的新测量。

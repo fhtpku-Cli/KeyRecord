@@ -1,11 +1,28 @@
 # 技术架构规格说明书
 
+> 状态核对：2026-10-20。功能开发暂停。本页保留完整目标架构及既有安全约束，原实验结论和早期增量不代表当前运行状态；现状见 [PROJECT_STATUS](PROJECT_STATUS.md)。
+
+## 当前源码结构与能力对照
+
+| 实际位置 | 当前责任与限制 |
+|---|---|
+| `Sources/KeyRecordCore`、`KeyRecordCapture`、`KeyRecordStore` | 生命周期、采集聚合、加密对象与事务；Store 已实现密码备份/空库恢复，使用 Package.swift 指定的 PHC Argon2 C 依赖，不再是仅系统框架零外部源码依赖 |
+| `KeyRecordConfigurationRead`、`KeyRecordAnalysis` | 有界配置解析、统计推荐、物理证据消费及逻辑回退 |
+| `KeyRecordMappings` | Karabiner 事务与草稿、固件文件修补、文件/设备兼容依据、读回比对和恢复记录 |
+| `KeyRecordDeviceRead`、`KeyRecordLimitedXZ` | 显式选定设备的白名单非变更协议与有界系统 liblzma 定义解码；实际 HID 资格仍后置 |
+| `App/KeyRecordApp/ProductComposition.swift` | 接通部署、设备选择、来源适配器、密码备份及卸载准备；生产支持目录仍空 |
+| `PhysicalSourcesModel` 及分析层来源模型 | 系统属性、Profile、文件、USB 型号与 Vial 定义快照；变化/隐私撤销旧观察，不建立历史设备归属或完整真实链 |
+
+第 3 章的规划模块名/端口伪代码不是 Package.swift 的逐项清单，以 [Package.swift](../Package.swift)和实际源码为准。第 5.4 节密码信封已由[备份实现](PASSWORD_BACKUP_20261015.md)落地；不覆盖已有资料库，不导出本机 Keychain 密钥。
+
+推荐转草稿见[衔接记录](phase4/RECOMMENDATION_HANDOFF_20261019.md)，Karabiner 临时测试开始/结束/取消/失败/异常重开清理见[行为会话](phase3/BEHAVIOR_SESSION_20261019.md)。Vial 快照两次定义一致只拒绝读取期间可见的定义变化，不保证整个设备的原子快照或持续当前性。逻辑回退、兼容检查和删除前复核均继续保留。
+
 **产品：待定（内部代号：KeyRecord）**
 
 | 项目 | 内容 |
 |---|---|
 | 文档版本 | v0.1（草案） |
-| 日期 | 架构草案 2026-09-03；状态口径核对 2026-10-01 |
+| 日期 | 架构草案 2026-09-03；状态口径核对 2026-10-20 |
 | 状态 | 全产品架构规格；历史实验结论不等于当前 MVP 状态 |
 | 对应需求文档 | PRD v0.2（2026-09-03，修订草案），本文不修改其任何需求、数字、术语与非目标 |
 | 目标读者 | 工程、QA、安全 QA；产品与设计师可参考第 1、2、14、15 章 |
@@ -692,23 +709,11 @@ commit(batch):
 
 ### 9.2 ViaAdapter
 
-**官方基础键名兼容（2026-10-14）**：Vial 6 归一化静态表覆盖官方基础/特殊/ISO 集合的 117 个名称及 68 个别名，完整矩阵和编码器比对可接受 `KC_QUOTE`、数字键盘等官方序列化名称。未知动作、raw hex、修饰键方向/层保护及支持目录约束维持原有语义。80 项相关离线场景、官方源码方法与公开 API 闭环、原生 AXPress 和未签名构建通过；正式工厂 nil、生产目录为空。见[本批记录](phase4/BASIC_KEYCODES_20261014.md)。
+**当前实现（截至第七批）**：VIA 文件编辑从加密原始副本取得实际层/位置，允许现有 90 个基础输出键，预览和导出再次执行结构、来源、保护入口及可达性检查。官方字典/导入方法离线回归建立的是文件编辑兼容依据，用户仍须手动导回官方 VIA 并确认实际按键效果。无需浏览器实例绑定；文件概况或布局定义不证明当前固件、在线导入器和物理设备资格。见[文件兼容](phase4/VIA_FILE_EDITING_20261016.md)和[正式编辑入口](phase4/VIA_GUIDED_FILE_EDITING_20261019.md)。
 
-**普通组合修饰名（2026-10-14）**：同一静态表增加 10 个官方普通组合名称及 14 个实际有效别名；官方脚本生成 18 普通名称（含原有 8 个单修饰）与基础值交叉夹具，并可提供独立 big-endian 矩阵/编码器字节给离线探针。LCS 实际无效，左右方向、深度、未知动作、完整比较与自动输出约束保留。84 项本批相关离线场景、原生按钮、20 份独立字节报告及加密重开通过；正式工厂 nil、生产目录为空，设备资格仍后置。见[本批记录](phase4/MODIFIER_KEYCODES_20261014.md)。
+VIA/Vial 文件生成仍不直接写设备；Vial 的解析、传输及读回见下一节。早期“工厂 nil”“不能生成”等描述仅适用于对应日期，保留在[历史状态](PROJECT_HISTORY.md)及[批次索引](STATUS_INDEX.md)，不再作为本节的当前结论。
 
-**官方层点击名（2026-10-14）**：离线官方脚本按夹具实际层数调用 `recreate_keyboard_keycodes`，Swift 接受 LT0…LT15 的基础子键名称并复用既有层入口保护与可达性。16 层合成矩阵和稀疏编码器以官方独立 320 字节贯穿完整比较和加密重开；89 项本批包/App 场景及原生 AXPress 通过。没有扩大自动输出或生产支持，没有新增门禁；设备与发布资格仍后置。见[本批记录](phase4/LAYER_TAP_KEYCODES_20261014.md)。
-
-**编码器只读回增量（2026-10-14）**：编码器槽位使用独立的层/索引/方向类型，保留官方 `encoder_layout` 的双方向和索引空洞；与独立定义匹配后发 typed GET_ENCODER。完整比对同时检查矩阵和编码器，任何缺失观察拒绝、编码器单独变化记为外部变更。没有写编码器命令，矩阵修补保持编码器原始字节。64 项包测试、13 项 App/原生场景、官方源码方法往返与未签名构建通过；正式工厂 nil、生产支持目录为空。见[本批记录](phase4/ENCODER_READBACK_20261014.md)。
-
-**App 独立设备读回增量（2026-10-14）**：`FirmwareCopiesModel` 可注入按批次选择的 `VialDeviceReadConnection` 工厂；单次连接持有传输与独立定义会话，读取结束或取消关闭，不复用失败连接。App 从加密原始副本执行独立定义/逐层坐标匹配，再进入既有键图适配和完整比对事务。重配置或隐私清空使票据失效并关闭活动连接；显式取消使旧完成不能更新后续操作。57 项包测试和 9 项合成 App/原生测试已运行，包括 AXPress、底层报告、真实系统 XZ 与加密结果重开。默认工厂 nil、支持目录为空，没有启用真实设备。见[本批记录](phase4/APP_DEVICE_READ_20261014.md)。
-
-**HID 与独立定义增量（2026-10-14）**：独立 `KeyRecordDeviceRead` 模块实现明确选中 Raw HID 接口的 IOKit 异步报告源码；单交换、超时/取消后关闭连接、分页 XZ 定义和逐层占用坐标匹配已通过底层报告夹具执行。系统 liblzma 解码同时限制输入、输出和内存。56 项相关包测试及公开 API/官方源码方法闭环通过，正式 App 默认不打开设备，原生系统收发/取消仍未实测。真实证据及无编号响应限制见[本批记录](phase4/HID_DEFINITION_20261014.md)。下文保留前序范围。
-
-**后端离线接入增量（2026-10-13）**：正式模块已处理 Vial 官方空位格式、从文件取得部分版本轴，并实现 Vial 6 / VIA 9 的只读协议适配器；原生读回按钮可注入该适配器并进入现有完整键图比对和证据恢复。实际执行官方源码保存/恢复方法、公开 API 驱动和模拟报告，47 项相关离线测试通过。独立定义的矩阵行列数必须与文件一致；分块读取不保证设备原子快照。正式支持目录为空，默认 HID 端口 nil；部分轴和源码往返不构成真实设备资格。详情与未覆盖键码/版本/子协议见[本批记录](phase4/BACKEND_OFFLINE_INTEGRATION_20261013.md)，以下段落保留较早批次范围。
-
-**固件核心与原生流程增量（2026-10-13）**：有界修补、五轴/设备匹配、加密副本和阶段对账已接通 VIA/Vial 恢复副本、多槽草稿/只读差异预览/合格批次导出、导入声明、VIA 用户行为结果、放弃和恢复声明界面。预览复用修补校验，不改日志或副本；按展示过的修改导出前重新校验，编辑、新副本或隐私会话使旧预览失效。预览失败按副本显示校验原因及纠正说明，仅保留内存本地化键，不显示底层错误内容；纠正后可重新预览和导出。Vial 已有注入快照的完整键位图比对、时间顺序和证据恢复；观察值及预览不持久化。默认支持目录为空、版本轴 nil、读取端口 nil，无法生成或实际读回；导入不代表 verified。没有取得真实设备资格。最新 89 项离线测试见[本批记录](phase4/PREVIEW_CORRECTIONS_20261013.md)。
-
-**Phase 0 证据状态**：SP-4A：PASS（仅定义 schema）（V2/V3 定义解析与不透明保留），不得外推其他轴。SP-4B 只在 SHA-256 固定的合成夹具上验证未版本化 `.layout.json` 形状、边界与选中槽修补；该布局产物不是有版本的稳定交换标准。设备协议、固件选择的键码方言、官方导入器与真实设备行为均阻塞；协议/键码字典依赖固件，VIA protocol 13 与固定版本 Vial GUI 不兼容。VIA_GENERATION 保持阻塞，合成往返不是部署兼容性。[证据：`evidence/phase0/sp4a/evidence.json`；`evidence/phase0/sp4b/axes.json`；`evidence/phase0/sp4b/round-trip.json`；`evidence/phase0/fixtures/synthetic/via-layout.json`；`evidence/phase0/conclusions.json`]
+以下是设备合格路径的完整目标约束；有限 VIA 文件编辑有单独且明确的文件兼容依据，不将任何未知设备轴改写为已知。
 
 - **目标格式**：厂商定义 JSON 的格式版本 V2/V3 为支持目标（V1、O4）。V2/V3 是定义文件格式版本，不是设备协议版本。兼容性按五个独立版本轴判定：定义 schema、设备协议、布局备份格式、键码方言、官方导入器兼容性（PRD 8.1）。任一必需版本轴未知或不受支持即阻断生成（V7、FR-BE5）。版本轴支持矩阵【待定 O4】，由 SP-4A/SP-4B 产出。
 - **基线**：每个批次从用户最近一次经官方工具导出的基线出发；无最新基线即阻断（V3、FR-BE8）。基线与产物均记录来源哈希（A5）。
@@ -722,6 +727,10 @@ commit(batch):
 
 ### 9.3 VialAdapter
 
+**当前实现（截至第七批）**：正式组合已接入显式设备选择和只读连接工厂，生产设备支持目录仍为空。协议实现覆盖独立定义、矩阵/编码器、Tap Dance、Combo、Key Override、Alternate Repeat Key、宏、布局选项及 QMK 设置；不生成这些高级配置，未知表示保持部分验证。独立定义中的简单几何与同次读回键码对应，来源变化后必须重新读回，不借用 VIA 文件几何。
+
+[配置读回](phase4/CONFIGURATION_READBACK_20261015.md)、[验证范围](phase4/VERIFICATION_SCOPE_20261015.md)及[Vial 几何快照](phase2/VIAL_LAYOUT_20261019.md)记录具体执行边界。官方方法与模拟端口回归通过不等于 GUI 导入或真实 HID 通过。下列 Phase 0 描述保留其原始证据范围，后续离线实现不改写历史判定。
+
 **Phase 0 证据状态**：固定源码与合成回放证明公开构造仅限白名单约束的协议版本、UID、定义页与 keymap 查询，deny-all 默认使解锁及变更操作不可构造；但发送出站 HID report 不是字面只读，且未在获批设备上实机捕获。SP-5A 的合成 `.vil` 往返未通过官方导入器，SP-5B 实机捕获阻塞；Vial Beta 必须同时通过 SP-5A 与 SP-5B，故 VIAL_BETA 保持阻塞。[证据：`evidence/phase0/sp5a/evidence.json`；`evidence/phase0/sp5b/deny-mutation.json`；`evidence/phase0/sp5b/replay.json`；`evidence/phase0/sp5b/evidence.json`；`evidence/phase0/conclusions.json`]
 
 - 能力与 VIA 对齐（VL1）：不生成 Combo、Tap Dance、宏、Key Override（VL1、N11、N12）；仅全局作用域；仅现有可达层；未知版本阻断（VL4）。
@@ -733,7 +742,7 @@ commit(batch):
 
 ### 9.4 后端能力落实对照
 
-PRD 8.1 能力矩阵的架构落实：Karabiner 走 9.1 事务直写（稳定、默认）；VIA/Vial 走"基线 → 修补 → 导出 → 用户官方导入"（Beta）；三者在 UI 与域模型中共享第 8 章状态机与批次概念，但适配器实现完全隔离，互不允许共享可变状态（AP7）。
+PRD 8.1 能力矩阵的架构落实：Karabiner 以 9.1 事务直写为目标稳定路径（默认，但生产支持资格仍未取得）；VIA/Vial 走"基线 → 修补 → 导出 → 用户官方导入"（Beta）；三者在 UI 与域模型中共享第 8 章状态机与批次概念，但适配器实现完全隔离，互不允许共享可变状态（AP7）。
 
 ### 9.5 固件操作日志与崩溃对账（FirmwareOperationJournal）
 
@@ -907,6 +916,8 @@ recordVerification(mapping, batch, artifact, method, result):
 
 ## 13. Spike 门禁表（承接 O5）
 
+本节保留原 Phase 0 的验证计划与写回结果，不是 2026-10-20 当前功能状态。后续已完成限定采集 MVP、密码备份和后端离线实现；VIA 有限文件编辑与设备资格分开，真实后端/发布要求未豁免。最新工程与实测范围见 [PROJECT_STATUS](PROJECT_STATUS.md)。
+
 > **Current-status note — status-summary (2026-10-01):** The spike table and dependency writeback describe their historical generation. Scoped Apple Silicon Phase 1 is complete; full G1/v1, FR-P6 and backend/public-release requirements are not. Use [roadmap](ROADMAP.md) and [acceptance](PHASE1_ACCEPTANCE.md). Historical JSON is not regenerated to match prose.
 
 凡【Spike 门禁】标记的内容，未通过前不得冻结 API、版本矩阵或行为承诺。每项 spike 产出书面结论并回写本文对应章节。
@@ -967,6 +978,8 @@ recordVerification(mapping, batch, artifact, method, result):
 
 ### 14.3 未决事项承接
 
+下表的 Phase 0 证据状态按当时保留；O4 的设备支持矩阵仍待真实证据，不能据旧 VIA_GENERATION 阻塞推断现在没有有限文件编辑。O5 的实际生产模块、已实现接口及依赖以本页开头的当前源码对照为准。
+
 > **Current-status note — status-o6 (2026-10-01):** O6 OPEN below is historical; the T24 projection later recorded RESOLVED for its bound SP2 generation. See [current product status](PROJECT_STATUS.md) for later measured qualification. Neither result expands C7/C8 or support to every macOS version.
 
 | 编号 | 承接方式 |
@@ -999,11 +1012,13 @@ recordVerification(mapping, batch, artifact, method, result):
 
 v1 发布门禁：PRD 第 15 章 17 项验收全部通过。
 
-**Phase 0 门禁写回**：G0：OPEN，Phase 1 的 G1 同时受 G0 与 SP-6A Keychain 选择阻塞；Phase 3 的 KARABINER_STABLE 受版本采样、实机重载和 ≤2 秒 p95 停用阻塞；Phase 4 的 VIA_GENERATION 受设备协议、键码方言和官方导入器阻塞，VIAL_BETA 受 SP-5A+SP-5B 双门禁阻塞；完整备份与最终发布受 Intel 计时及未冻结依赖阻塞。任何夹具结果均不替代相应实机/官方导入证据。[证据：`evidence/phase0/conclusions.json`]
+**历史 Phase 0 门禁写回（不是当前阶段判定）**：G0：OPEN，Phase 1 的 G1 同时受 G0 与 SP-6A Keychain 选择阻塞；Phase 3 的 KARABINER_STABLE 受版本采样、实机重载和 ≤2 秒 p95 停用阻塞；Phase 4 的 VIA_GENERATION 受设备协议、键码方言和官方导入器阻塞，VIAL_BETA 受 SP-5A+SP-5B 双门禁阻塞；完整备份与最终发布受 Intel 计时及未冻结依赖阻塞。任何夹具结果均不替代相应实机/官方导入证据。[证据：`evidence/phase0/conclusions.json`]
 
 ---
 
 ## 16. ADR 记录
+
+决策和原证据列保留原阶段语境，不重新判定历史实验。ADR-002/003 的采集和密钥链后续已有限定 MVP 实测；ADR-006 的 PHC 依赖集成及备份工程已完成，Intel 计时和真实恢复/发布验证仍缺。当前实现见本页开头及第 5.4 节，不能把原证据列的“尚未冻结/仍阻塞”外推为当前没有生产代码。
 
 > **Current-status note — status-adr (2026-10-01):** ADR status cells retain historical evidence writebacks. Tap/lifecycle blockers below are not current acceptance; see [PROJECT_STATUS](PROJECT_STATUS.md). ADR-010's pending-review wording predates [owner approval](PHASE1_CONTRACT.md#allocation-and-owner-approval): reset retains exactly CycleSummary plus mappings/backups/ignored items/preferences, not daily details/sourceCounts/kind/scopeClass. No new architecture choice is introduced.
 

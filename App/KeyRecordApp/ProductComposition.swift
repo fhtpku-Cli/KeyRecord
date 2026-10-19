@@ -700,7 +700,7 @@ final class ProductComposition: NSObject, NSMenuDelegate, NSWindowDelegate {
             menu.addItem(entry)
         }
         let disable = NSMenuItem(title: text("phase3.disable"), action: #selector(disableManagedMapping), keyEquivalent: "")
-        disable.target = self; disable.isEnabled = flow.karabinerMappings.canManage
+        disable.target = self; disable.isEnabled = flow.karabinerMappings.canDisable
         menu.addItem(disable); mappingDisableItem = disable
         #if DEBUG
         let developerMenu = LocalDevelopmentCaptureMenu(qualification: localCapture, transaction: self)
@@ -1470,6 +1470,10 @@ final class ProductComposition: NSObject, NSMenuDelegate, NSWindowDelegate {
     /// A dead source may still leave retained aggregate or staged changes after recovery
     /// fails. Quit may bypass a failed flush only when both stores report no unsaved work.
     func prepareQuit(invocation: String = "menu") async -> Bool {
+        guard await flow.karabinerMappings.prepareForQuit() else {
+            flow.noticeKey = "phase3.behavior.cleanupPending"
+            return false
+        }
         #if DEBUG
         var detail = CapturePrivacyActionDetail()
         detail.invocation = invocation
@@ -1550,7 +1554,7 @@ final class ProductComposition: NSObject, NSMenuDelegate, NSWindowDelegate {
     @objc private func quit() { Task { await requestQuit() } }
     func menuWillOpen(_ menu: NSMenu) {
         mappingDisableItem?.title = text("phase3.disable")
-        mappingDisableItem?.isEnabled = flow.karabinerMappings.canManage
+        mappingDisableItem?.isEnabled = flow.karabinerMappings.canDisable
         // KR-08 follow-up: opening the menu must re-READ liveness, not reuse the cached
         // value. The first fix only refreshed the cache on boot/pause/resume/close, so a
         // session that died afterwards still rendered as "Collecting" — the same

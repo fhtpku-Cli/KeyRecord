@@ -509,6 +509,38 @@ private func waitUntil(_ label: String, timeout: Duration = .seconds(8),
 final class ProductRecoveryQuitTests: XCTestCase {
     private var products: [SyntheticProduct] = []
 
+    func testQuitCleansTemporaryBehaviorRulesBeforeClosingProtectedStore() async throws {
+        let product = try SyntheticProduct.fresh(); products.append(product)
+        product.configureBackends = { host in
+            host.karabinerDeployment = KarabinerDeploymentDependencies(version: { "synthetic-version" }, authority: { _, _ in .temporaryConfiguration })
+        }
+        try await product.boot(journal: false)
+        await product.composition.startOrRetry(); await product.composition.flow.accept()
+        let original = Data(#"{"profiles":[{"name":"Synthetic","selected":true,"complex_modifications":{"rules":[]}}]}"#.utf8)
+        let target = product.root.appendingPathComponent("behavior-copy.json")
+        try original.write(to: target)
+        let deployment = product.composition.flow.karabinerDeployment
+        try await waitUntil("backend session ready") { !deployment.working }
+        await deployment.bind(url: target, profile: "Synthetic")
+        let model = product.composition.flow.karabinerMappings
+        let modifiers = ModifierSet(command: .none, option: .none, control: .none, shift: .none, fn: .none)
+        model.stage(output: Chord(keyCode: try KeyCode(8), modifiers: modifiers),
+            trigger: Chord(keyCode: try KeyCode(111), modifiers: modifiers), scope: .application("com.example.Editor"))
+        await model.check(behaviorTest: true)
+        model.riskConfirmed = true
+        await model.startBehaviorTest()
+        XCTAssertEqual(model.behaviorState, "running")
+        let running = try Data(contentsOf: target)
+        try (running + Data(" ".utf8)).write(to: target, options: .atomic)
+        let blocked = await product.composition.prepareQuit()
+        XCTAssertFalse(blocked); XCTAssertEqual(product.phase, .collecting)
+        XCTAssertEqual(try Data(contentsOf: target), running + Data(" ".utf8))
+        try running.write(to: target, options: .atomic)
+        let accepted = await product.composition.prepareQuit()
+        XCTAssertTrue(accepted); XCTAssertEqual(product.phase, .stopped)
+        XCTAssertEqual(try Data(contentsOf: target), original)
+    }
+
     func testProductionCompositionUsesHostBackendDependenciesAndKeepsUnknownDevicesReadOnly() async throws {
         let product = try SyntheticProduct.fresh(); products.append(product)
         let axes = FirmwareVersionAxes(definitionSchema: "synthetic-schema", deviceProtocol: "via-9/vial-6",

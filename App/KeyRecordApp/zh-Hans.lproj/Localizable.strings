@@ -499,3 +499,14 @@
 "phase4.key.KC_RALT" = "右 Option / Alt";
 "phase4.key.KC_LGUI" = "左 Command / GUI";
 "phase4.key.KC_RGUI" = "右 Command / GUI";
+"phase3.behavior.help" = "临时测试应用范围的草稿。测试期间会替换现有 KeyRecord 规则，结束后恢复测试前配置（包括停用状态）。请到目标应用尝试快捷键，再报告结果；用户报告不代表后端正式支持。若外部修改或数据锁定阻止清理，将保留待清理状态，直到能够安全重开目标。";
+"phase3.behavior.check" = "检查应用行为测试";
+"phase3.behavior.start" = "开始临时测试";
+"phase3.behavior.running" = "测试进行中，请到目标应用尝试快捷键。";
+"phase3.behavior.pass" = "有效，结束测试";
+"phase3.behavior.fail" = "无效，结束测试";
+"phase3.behavior.cancel" = "取消／重试清理";
+"phase3.behavior.passed" = "你已报告有效。临时规则已清理，测试前配置已恢复；此结果不代表后端正式支持。";
+"phase3.behavior.failed" = "测试失败。临时规则已清理，测试前配置已恢复。";
+"phase3.behavior.cancelled" = "测试已取消。临时规则已清理，测试前配置已恢复。";
+"phase3.behavior.cleanupPending" = "测试仍待清理，请保持目标可用并重试。不会覆盖外部修改，也尚未记录测试完成。";

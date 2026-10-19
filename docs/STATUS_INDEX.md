@@ -1,6 +1,6 @@
 # Documentation status index
 
-Reviewed 2026-10-19 (Asia/Shanghai), for the VIA file editing workflow increment.
+Reviewed 2026-10-19 (Asia/Shanghai), for the Karabiner application behavior test session increment.
 This index includes the approved Phase 2 plan and subsequent engineering records. It distinguishes present
 guidance from dated evidence; it does not regenerate historical verdicts.
 
@@ -11,6 +11,7 @@ guidance from dated evidence; it does not regenerate historical verdicts.
 - [docs/ROADMAP.md](ROADMAP.md) — Roadmap and current delivery status
 - [docs/PHASE1_ACCEPTANCE.md](PHASE1_ACCEPTANCE.md) — Phase 1 acceptance
 - [docs/STATUS_INDEX.md](STATUS_INDEX.md) — Documentation status index
+- [Karabiner behavior session](phase3/BEHAVIOR_SESSION_20261019.md) — Temporary test lifecycle, cleanup and offline evidence boundaries
 
 The approved native Apple Silicon Phase 1 MVP is complete. Qualification is
 bounded to the cited candidates and arm64 macOS 27.0 build 26A428. Full G1/v1,

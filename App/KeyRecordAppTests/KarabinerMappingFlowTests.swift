@@ -2047,6 +2047,123 @@ final class KarabinerMappingFlowTests: XCTestCase {
         fixture.flow.firmwareCopies.configure(store: store, gate: gate)
         return (fixture, file, store, gate)
     }
+    func testBehaviorSessionRefreshCancelAndPrivacyReopenUseTemporaryConfiguration() async throws {
+        let (fixture, file, _, gate) = try await deployment()
+        let deployment = fixture.flow.karabinerDeployment, model = fixture.flow.karabinerMappings
+        await deployment.bind(url: file, profile: "Synthetic")
+        try stage(model)
+        var draft = try XCTUnwrap(model.drafts.first); draft.scope = .application("com.example.Editor"); model.update(draft)
+        await model.check(behaviorTest: true)
+        XCTAssertTrue(model.canStartBehaviorTest); XCTAssertFalse(model.canApply)
+        await model.startBehaviorTest()
+        XCTAssertEqual(model.behaviorState, "running")
+        await model.refresh()
+        XCTAssertEqual(model.behaviorState, "running"); XCTAssertNotEqual(try Data(contentsOf: file), bytes)
+        XCTAssertFalse(model.canManage)
+        await model.finishBehaviorTest("failed")
+        XCTAssertEqual(model.behaviorState, "failed"); XCTAssertEqual(try Data(contentsOf: file), bytes)
+        await model.check(behaviorTest: true); await model.startBehaviorTest()
+        await deployment.bind(url: file, profile: "Synthetic")
+        XCTAssertTrue(deployment.connected); XCTAssertNil(model.behaviorState)
+        XCTAssertEqual(try Data(contentsOf: file), bytes)
+        await model.check(behaviorTest: true); await model.startBehaviorTest()
+        gate.update(.locked); fixture.observeLocked(); fixture.flow.sync(from: fixture.orchestrator.state)
+        XCTAssertFalse(deployment.connected); XCTAssertNil(model.behaviorState)
+        gate.update(.unlocked); fixture.observe(); fixture.flow.sync(from: fixture.orchestrator.state)
+        for _ in 0..<100 where !deployment.connected { try await Task.sleep(for: .milliseconds(25)) }
+        XCTAssertTrue(deployment.connected)
+        XCTAssertEqual(try Data(contentsOf: file), bytes)
+        XCTAssertFalse(model.lastLedger?.desired.contains(where: \.temporary) ?? true)
+    }
+
+    func testBehaviorCleanupFailureBlocksQuitAndRetryRestoresConfiguration() async throws {
+        let (fixture, file, _, _) = try await deployment()
+        let model = fixture.flow.karabinerMappings
+        await fixture.flow.karabinerDeployment.bind(url: file, profile: "Synthetic")
+        try stage(model)
+        var draft = try XCTUnwrap(model.drafts.first); draft.scope = .application("com.example.Editor"); model.update(draft)
+        await model.check(behaviorTest: true); await model.startBehaviorTest()
+        let during = try Data(contentsOf: file)
+        try (during + Data(" ".utf8)).write(to: file, options: .atomic)
+        let blocked = await model.prepareForQuit()
+        XCTAssertFalse(blocked); XCTAssertEqual(model.behaviorState, "cleanupPending")
+        XCTAssertEqual(try Data(contentsOf: file), during + Data(" ".utf8))
+        try during.write(to: file, options: .atomic)
+        let ready = await model.prepareForQuit()
+        XCTAssertTrue(ready); XCTAssertEqual(try Data(contentsOf: file), bytes)
+    }
+
+    func testBehaviorTestKeepsOneClickDisableAvailableAndStopsPermanentMappings() async throws {
+        let (fixture, file, _, _) = try await deployment()
+        let model = fixture.flow.karabinerMappings
+        await fixture.flow.karabinerDeployment.bind(url: file, profile: "Synthetic")
+        try stage(model); await model.check(); await model.apply()
+        let permanent = try XCTUnwrap(model.lastLedger?.desired.first)
+        var draft = try XCTUnwrap(model.drafts.first); draft.scope = .application("com.example.Editor"); model.update(draft)
+        await model.check(behaviorTest: true); await model.startBehaviorTest()
+        XCTAssertTrue(model.canDisable); XCTAssertFalse(model.canManage)
+        await model.disable()
+        XCTAssertEqual(model.behaviorState, "cancelled")
+        XCTAssertEqual(model.lastLedger?.desired, [permanent]); XCTAssertEqual(model.lastLedger?.disabled, true)
+        XCTAssertFalse(try String(contentsOf: file, encoding: .utf8).contains("KeyRecord:"))
+    }
+
+    func testNativeBehaviorStartEndFailAndCancelInBothLocales() throws {
+        ScreenEvidence.prepare()
+        for locale in ["en", "zh-Hans"] {
+            var fixture: FlowFixture!
+            var file: URL!
+            ScreenEvidence.awaitMain {
+                do {
+                    (fixture, file, _, _) = try await self.deployment()
+                    await fixture.flow.karabinerDeployment.bind(url: file, profile: "Synthetic")
+                    let model = fixture.flow.karabinerMappings
+                    try self.stage(model)
+                    var draft = try XCTUnwrap(model.drafts.first); draft.scope = .application("com.example.Editor"); model.update(draft)
+                } catch { XCTFail("\(error)") }
+            }
+            let model = fixture.flow.karabinerMappings
+            let view = NSHostingView(rootView: Form { KarabinerMappingSection(model: model, text: NativeText(locale: locale)) }
+                .formStyle(.grouped).frame(width: 900, height: 1200))
+            view.sizingOptions = []
+            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 900, height: 1200), styleMask: [.titled], backing: .buffered, defer: false)
+            window.isReleasedWhenClosed = false; window.contentView = view; window.makeKeyAndOrderFront(nil)
+            defer { window.contentView = nil; window.close() }
+            NativeEvidence.primeAccessibility(); NativeEvidence.update(view)
+            func press(_ id: String, completed: @escaping @MainActor () -> Bool) throws {
+                let done = XCTestExpectation(description: id)
+                var delivered = false
+                model.onChange = { if !model.working, completed(), !delivered { delivered = true; done.fulfill() } }
+                NativeEvidence.update(view)
+                let button = try NativeEvidence.node(id, in: view)
+                XCTAssertTrue(KRAXEnabled(button)); XCTAssertTrue(KRAXPress(button))
+                ScreenEvidence.awaitMain {
+                    let result = await XCTWaiter.fulfillment(of: [done], timeout: 5)
+                    XCTAssertEqual(result, .completed)
+                }
+                NativeEvidence.update(view)
+            }
+            for (button, state) in [("pass", "passed"), ("fail", "failed"), ("cancel", "cancelled")] {
+                try press("phase3.behavior.check") { model.canStartBehaviorTest }
+                try press("phase3.behavior.start") { model.behaviorState == "running" }
+                XCTAssertNotEqual(try Data(contentsOf: file), bytes)
+                try press("phase3.behavior." + button) { model.behaviorState == state }
+                XCTAssertEqual(try Data(contentsOf: file), bytes)
+                XCTAssertNil(model.lastLedger?.batches.last?.verificationSource)
+            }
+            if let output = NativeEvidence.outputRoot() {
+                try ScreenEvidence.capturePNG(view).write(to: output.appendingPathComponent("karabiner-behavior-" + locale + ".png"))
+            }
+            try press("phase3.behavior.check") { model.canStartBehaviorTest }
+            try press("phase3.behavior.start") { model.behaviorState == "running" }
+            window.contentView = nil
+            ScreenEvidence.awaitMain {
+                for _ in 0..<100 where model.hasBehaviorCleanup { try? await Task.sleep(for: .milliseconds(25)) }
+            }
+            XCTAssertEqual(model.behaviorState, "cancelled")
+            XCTAssertEqual(try Data(contentsOf: file), bytes)
+        }
+    }
     func testDeploymentBindingPersistsEncryptedTargetAndReopensAfterPrivacy() async throws {
         let (fixture, file, store, gate) = try await deployment()
         let deployment = fixture.flow.karabinerDeployment

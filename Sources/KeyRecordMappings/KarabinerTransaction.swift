@@ -45,7 +45,7 @@ public enum KarabinerMappingState: String, Codable, CaseIterable, Sendable {
     case draft, written, pendingVerification, verified, failed, externallyChanged, rolledBack, disabled, unmanaged
 }
 
-public enum KarabinerOperationKind: String, Codable, Sendable { case apply, disable, restore, rollback, remove }
+public enum KarabinerOperationKind: String, Codable, Sendable { case apply, disable, restore, rollback, remove, behaviorTest }
 
 public struct KarabinerBackup: Codable, Equatable, Sendable {
     public let id: UUID
@@ -170,6 +170,7 @@ public actor KarabinerTransactionCoordinator {
     private let configuration: any KarabinerConfigurationPort
     private let store: any KarabinerTransactionStore
     private var busy = false
+    private var activeBehaviorTest: UUID?
     public init(configuration: any KarabinerConfigurationPort, store: any KarabinerTransactionStore) {
         self.configuration = configuration; self.store = store
     }
@@ -197,13 +198,80 @@ public actor KarabinerTransactionCoordinator {
     public func apply(_ prepared: KarabinerPreparedOperation, riskConfirmed: Bool = false) async throws -> KarabinerLedger {
         try begin(); defer { busy = false }
         var ledger = try await store.load()
+        try requireNoBehaviorCleanup(ledger)
         guard ledger.pending == nil else { throw KarabinerMappingError.busy }
         guard ledger.managedProfile == nil || ledger.managedProfile == prepared.plan.diff.profile else { throw KarabinerMappingError.invalidDraft }
         if let accepted = ledger.acceptedSHA256, digest(try configuration.read()) != accepted { throw KarabinerMappingError.externalChange }
         try await commit(prepared, kind: .apply, riskConfirmed: riskConfirmed, ledger: &ledger)
         return ledger
     }
-    private func begin() throws { guard !busy else { throw KarabinerMappingError.busy }; busy = true }
+    private func begin(allowBehaviorTest: Bool = false) throws {
+        guard !busy, allowBehaviorTest || activeBehaviorTest == nil else { throw KarabinerMappingError.busy }
+        busy = true
+    }
+
+    public func prepareBehaviorTest(profile: String, drafts: [KarabinerMappingDraft]) throws -> KarabinerPreparedOperation {
+        guard !drafts.isEmpty, drafts.allSatisfy({ if case .application = $0.scope { return true }; return false }) else {
+            throw KarabinerMappingError.invalidDraft
+        }
+        return try prepare(profile: profile, drafts: drafts.map { draft in
+            var temporary = draft; temporary.temporary = true; return temporary
+        })
+    }
+
+    public func startBehaviorTest(_ prepared: KarabinerPreparedOperation, riskConfirmed: Bool = false) async throws -> KarabinerLedger {
+        try begin(); defer { busy = false }
+        var ledger = try await store.load()
+        guard ledger.pending == nil, !ledger.desired.contains(where: \.temporary),
+              ledger.managedProfile == nil || ledger.managedProfile == prepared.plan.diff.profile,
+              !prepared.plan.drafts.isEmpty,
+              prepared.plan.drafts.allSatisfy({ draft in
+                  if case .application = draft.scope { return draft.temporary }; return false
+              }) else { throw KarabinerMappingError.invalidDraft }
+        if let accepted = ledger.acceptedSHA256, digest(try configuration.read()) != accepted { throw KarabinerMappingError.externalChange }
+        try await commit(prepared, kind: .behaviorTest, riskConfirmed: riskConfirmed, ledger: &ledger)
+        guard ledger.batches.last?.state == .pendingVerification, ledger.pending == nil else { throw KarabinerMappingError.unavailable }
+        activeBehaviorTest = ledger.batches.last?.id
+        return ledger
+    }
+
+    public func endBehaviorTest() async throws -> KarabinerLedger {
+        try begin(allowBehaviorTest: true); defer { busy = false }
+        activeBehaviorTest = nil
+        var ledger = try await store.load()
+        try await finishCurrent(ledger: &ledger)
+        try await cleanBehaviorTest(ledger: &ledger)
+        return ledger
+    }
+
+    private func cleanBehaviorTest(ledger: inout KarabinerLedger) async throws {
+        guard ledger.desired.contains(where: \.temporary),
+              let batch = behaviorTestBatch(in: ledger) else { return }
+        if Self.classify(current: try configuration.read(), batch: batch) == .noWrite {
+            let backup = try await store.backup(batch.backupID)
+            guard digest(backup.before) == batch.beforeSHA256 else { throw KarabinerMappingError.unavailable }
+            ledger.desired = backup.previousDesired; ledger.disabled = backup.previousDisabled
+            ledger.managedProfile = backup.previousProfile; ledger.acceptedSHA256 = batch.beforeSHA256
+            if !ledger.batches.isEmpty {
+                ledger.batches[ledger.batches.count - 1].state = .rolledBack
+                ledger.batches[ledger.batches.count - 1].verificationSource = nil
+                ledger.batches[ledger.batches.count - 1].verifiedAt = nil
+            }
+            try await store.save(ledger)
+            return
+        }
+        try await rollback(batch: batch, ledger: &ledger)
+        guard ledger.pending == nil, !ledger.desired.contains(where: \.temporary) else { throw KarabinerMappingError.unavailable }
+    }
+    private func requireNoBehaviorCleanup(_ ledger: KarabinerLedger) throws {
+        if ledger.desired.contains(where: \.temporary), behaviorTestBatch(in: ledger) != nil {
+            throw KarabinerMappingError.busy
+        }
+    }
+    private func behaviorTestBatch(in ledger: KarabinerLedger) -> KarabinerBatch? {
+        guard let batch = ledger.batches.last(where: { $0.kind != .rollback }), batch.kind == .behaviorTest else { return nil }
+        return batch
+    }
 
     private func commit(_ prepared: KarabinerPreparedOperation, kind: KarabinerOperationKind,
                         riskConfirmed: Bool, destination: KarabinerManagement? = nil, ledger: inout KarabinerLedger) async throws {
@@ -227,7 +295,7 @@ public actor KarabinerTransactionCoordinator {
         let destination: KarabinerManagement
         if let restoring { destination = restoring }
         else { switch kind {
-        case .apply, .restore: destination = KarabinerManagement(desired: drafts, disabled: false, profile: profile)
+        case .apply, .restore, .behaviorTest: destination = KarabinerManagement(desired: drafts, disabled: false, profile: profile)
         case .disable: destination = KarabinerManagement(desired: ledger.desired, disabled: true, profile: profile)
         case .remove: destination = KarabinerManagement(desired: [], disabled: false, profile: nil)
         case .rollback:
@@ -271,7 +339,7 @@ public actor KarabinerTransactionCoordinator {
         case .externalChange:
             ledger.batches[index].state = .externallyChanged
             ledger.managedProfile = batch.profile
-            if batch.kind == .apply { ledger.desired = try await store.backup(batch.backupID).drafts }
+            if batch.kind == .apply || batch.kind == .behaviorTest { ledger.desired = try await store.backup(batch.backupID).drafts }
         }
         ledger.pending = nil
         try await store.save(ledger)
@@ -279,8 +347,10 @@ public actor KarabinerTransactionCoordinator {
     }
     private func trim(ledger: inout KarabinerLedger) async throws {
         while ledger.batches.count > 10 {
-            let oldest = ledger.batches[0]
-            ledger.batches.removeFirst()
+            let testID = ledger.desired.contains(where: \.temporary)
+                ? behaviorTestBatch(in: ledger)?.id : nil
+            let index = ledger.batches.firstIndex(where: { $0.id != testID }) ?? 0
+            let oldest = ledger.batches.remove(at: index)
             ledger.cleanupBackups.append(oldest.backupID)
             try await store.save(ledger)
         }
@@ -291,7 +361,7 @@ public actor KarabinerTransactionCoordinator {
         }
     }
     public func reconcile(rollbackRequested: Bool = false) async throws -> KarabinerLedger {
-        try begin(); defer { busy = false }
+        try begin(allowBehaviorTest: true); defer { busy = false }
         var ledger = try await store.load()
         try await trim(ledger: &ledger)
         try await store.discardUnreferencedBackups(retaining: Set(ledger.batches.map(\.backupID)))
@@ -308,7 +378,11 @@ public actor KarabinerTransactionCoordinator {
             }
             try await store.save(ledger)
         }
-        if let profile = ledger.managedProfile, ledger.desired.contains(where: \.temporary), ledger.batches.last?.state != .externallyChanged {
+        if ledger.batches.last?.state == .externallyChanged { activeBehaviorTest = nil }
+        if activeBehaviorTest != nil { return ledger }
+        if ledger.desired.contains(where: \.temporary), behaviorTestBatch(in: ledger) != nil {
+            try await cleanBehaviorTest(ledger: &ledger)
+        } else if let profile = ledger.managedProfile, ledger.desired.contains(where: \.temporary), ledger.batches.last?.state != .externallyChanged {
             let permanent = ledger.desired.filter { !$0.temporary }
             let prepared = try prepare(profile: profile, drafts: ledger.disabled ? [] : permanent)
             try await commit(prepared, kind: ledger.disabled ? .disable : .apply, riskConfirmed: true,
@@ -319,6 +393,7 @@ public actor KarabinerTransactionCoordinator {
     public func verifyConfiguration() async throws -> KarabinerLedger {
         try begin(); defer { busy = false }
         var ledger = try await store.load()
+        try requireNoBehaviorCleanup(ledger)
         guard ledger.pending == nil, let expected = ledger.acceptedSHA256, !ledger.batches.isEmpty else { throw KarabinerMappingError.unavailable }
         let index = ledger.batches.count - 1
         if digest(try configuration.read()) == expected {
@@ -338,6 +413,7 @@ public actor KarabinerTransactionCoordinator {
     public func setDisabled(_ disabled: Bool, confirmation: KarabinerPreparedOperation? = nil) async throws -> KarabinerLedger {
         try begin(); defer { busy = false }
         var ledger = try await store.load()
+        try requireNoBehaviorCleanup(ledger)
         guard ledger.pending == nil, let profile = ledger.managedProfile,
               ledger.acceptedSHA256 == digest(try configuration.read()) else { throw KarabinerMappingError.externalChange }
         let desired = ledger.desired
@@ -349,7 +425,12 @@ public actor KarabinerTransactionCoordinator {
     public func rollbackLatest() async throws -> KarabinerLedger {
         try begin(); defer { busy = false }
         var ledger = try await store.load()
+        try requireNoBehaviorCleanup(ledger)
         guard ledger.pending == nil, let batch = ledger.batches.last else { throw KarabinerMappingError.unavailable }
+        let backup = try await store.backup(batch.backupID)
+        guard !backup.previousDesired.contains(where: \.temporary) else {
+            throw KarabinerMappingError.unavailable
+        }
         try await rollback(batch: batch, ledger: &ledger)
         return ledger
     }
@@ -361,7 +442,8 @@ public actor KarabinerTransactionCoordinator {
         case .externalChange: throw KarabinerMappingError.externalChange
         case .ourWrite:
             let backup = try await store.backup(batch.backupID)
-            guard digest(backup.before) == batch.beforeSHA256 else { throw KarabinerMappingError.unavailable }
+            guard digest(backup.before) == batch.beforeSHA256,
+                  !backup.previousDesired.contains(where: \.temporary) else { throw KarabinerMappingError.unavailable }
             let context = try configuration.context(); try context.requireWrite(profile: batch.profile)
             ledger.pending = nil
             try await write(base: current, expected: backup.before, drafts: backup.previousDesired, profile: batch.profile,
@@ -372,6 +454,7 @@ public actor KarabinerTransactionCoordinator {
     public func resolveExternal(_ choice: KarabinerExternalChoice, confirmation: KarabinerPreparedOperation? = nil) async throws -> KarabinerLedger {
         try begin(); defer { busy = false }
         var ledger = try await store.load()
+        try requireNoBehaviorCleanup(ledger)
         guard ledger.pending == nil, let profile = ledger.managedProfile else { throw KarabinerMappingError.unavailable }
         let current = try configuration.read()
         switch choice {
@@ -410,6 +493,7 @@ public actor KarabinerTransactionCoordinator {
     public func removeManagedRules() async throws -> KarabinerLedger {
         try begin(); defer { busy = false }
         var ledger = try await store.load()
+        try requireNoBehaviorCleanup(ledger)
         guard ledger.pending == nil, let profile = ledger.managedProfile,
               ledger.acceptedSHA256 == digest(try configuration.read()) else { throw KarabinerMappingError.externalChange }
         let current = try configuration.read()

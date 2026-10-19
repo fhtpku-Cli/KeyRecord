@@ -2,6 +2,8 @@
 set -euo pipefail
 export LC_ALL=C
 
+mode=strict
+if [[ "${1:-}" == --reviewed-updates ]]; then mode=reviewed-updates; shift; fi
 if [[ $# -ne 1 || ! -f "$1" || -L "$1" ]]; then
     printf '%s\n' '{"status":"FAIL","reason":"expected one regular Mach-O executable"}'
     exit 1
@@ -22,6 +24,16 @@ trap '/bin/rm -rf "$scratch"' EXIT
 
 # Match both imported symbols and strings used by dynamic Objective-C/network lookups.
 pattern='URLSession|NSURLSession|URLRequest|NSURLRequest|NSURLConnection|CFNetwork|CFHTTP|CF(Read|Write)Stream(Create|Open|Set)|NWConnection|NWListener|NWPathMonitor|(^|[^[:alnum:]])nw_[[:alnum:]_]+|(^|[[:space:]])_?(socket|socketpair|connect|connectx|connectat|sendto|sendmsg|getaddrinfo|res_query|curl_[[:alnum:]_]+|SSL_connect|posix_spawn[p]?|execve|execvp|execl|popen)([[:space:]]|$)|(^|[[:space:]])_system([[:space:]]|$)|https?://|/bin/(sh|bash|zsh)'
+if [[ "$mode" == reviewed-updates ]]; then
+    pattern="${pattern#URLSession|NSURLSession|URLRequest|NSURLRequest|}"
+    for input in nm strings; do
+        /usr/bin/sed \
+          -e 's@https://api.github.com/repos/fhtpku-Cli/KeyRecord/releases/latest@reviewed-release-api@g' \
+          -e 's@https://github.com/fhtpku-Cli/KeyRecord/releases/tag/@reviewed-release-page@g' \
+          "$scratch/$input" > "$scratch/$input.reviewed"
+        /bin/mv "$scratch/$input.reviewed" "$scratch/$input"
+    done
+fi
 if /usr/bin/grep -Ein "$pattern" "$scratch/nm" "$scratch/strings"; then
     printf '%s\n' '{"status":"FAIL","reason":"network or shell capability reference","liveReceipt":false}'
     exit 1

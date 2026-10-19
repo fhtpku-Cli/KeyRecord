@@ -1,6 +1,6 @@
 # 原生卸载准备与固件流程增量
 
-> 历史记录说明（2026-10-20 核对）：本页保留所述日期/提交的实现、命令和验证范围，其中“当前”“待实现”“下一步”仅指当时。功能开发已暂停，最新状态见 [PROJECT_STATUS](../PROJECT_STATUS.md)，后续安排见 [ROADMAP](../ROADMAP.md)；本页不授权新实机、设备或删除操作。
+> 历史记录说明（2026-10-20 核对）：本页保留所述日期/提交的实现、命令和验证范围，其中“当前”“待实现”“下一步”仅指当时。本页不代表当前开发状态，最新状态见 [PROJECT_STATUS](../PROJECT_STATUS.md)，后续安排见 [ROADMAP](../ROADMAP.md)；本页不授权新实机、设备或删除操作。
 
 后续状态：本批 [PR #25](https://github.com/fhtpku-Cli/KeyRecord/pull/25) 已合并为 `454bf3f6edac6799a22f1e1a948fc341d85e5aa3`。最新卸载停采集/进度和离线 Vial 证据增量见[后续记录](RECOVERY_READBACK_20261013.md)；下文保留本批执行范围。
 

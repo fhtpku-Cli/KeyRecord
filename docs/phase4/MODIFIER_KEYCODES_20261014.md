@@ -1,6 +1,6 @@
 # Vial 6 普通组合修饰键离线兼容
 
-> 历史记录说明（2026-10-20 核对）：本页保留所述日期/提交的实现、命令和验证范围，其中“当前”“待实现”“下一步”仅指当时。功能开发已暂停，最新状态见 [PROJECT_STATUS](../PROJECT_STATUS.md)，后续安排见 [ROADMAP](../ROADMAP.md)；本页不授权新实机、设备或删除操作。
+> 历史记录说明（2026-10-20 核对）：本页保留所述日期/提交的实现、命令和验证范围，其中“当前”“待实现”“下一步”仅指当时。本页不代表当前开发状态，最新状态见 [PROJECT_STATUS](../PROJECT_STATUS.md)，后续安排见 [ROADMAP](../ROADMAP.md)；本页不授权新实机、设备或删除操作。
 
 状态日期：2026-10-14，Asia/Shanghai。从 [PR #34](https://github.com/fhtpku-Cli/KeyRecord/pull/34) 合并提交 `ad7c9c9c2ceef4f4f7c15c1d3a02fb67f2497571` 继续；其[主干 CI](https://github.com/fhtpku-Cli/KeyRecord/actions/runs/38466188256) 已成功。独立工作树及 `codex/vial-modifier-combinations` 分支实施，主目录和父工作树只读。
 

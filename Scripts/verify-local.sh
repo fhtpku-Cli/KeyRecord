@@ -34,6 +34,7 @@ attempt="$(mktemp -d "$repo_root/.build/verification/run.XXXXXX")"
 echo "Verification artifacts: $attempt"
 
 swift test 2>&1 | tee "$attempt/swift-test.log"
+ruby Scripts/test-release-package.rb 2>&1 | tee "$attempt/release-package.log"
 bash Scripts/test-capture-harness-offline.sh "$(swift build --show-bin-path)/KeyRecordCaptureHarness" \
   2>&1 | tee "$attempt/capture-harness.log"
 swift build -c release 2>&1 | tee "$attempt/swift-release.log"
@@ -47,11 +48,15 @@ xcodebuild -project KeyRecord.xcodeproj -scheme KeyRecordApp -configuration Debu
   2>&1 | tee "$attempt/app-debug.log"
 
 release_app="$attempt/release/Build/Products/Release/KeyRecordApp.app"
+ruby Scripts/release-boundary.rb project "$repo_root" 2>&1 | tee "$attempt/release-source.log"
+ruby Scripts/release-boundary.rb bundle "$release_app" 2>&1 | tee "$attempt/release-bundle.log"
+bash Scripts/audit-product-network.sh --reviewed-updates "$release_app/Contents/MacOS/KeyRecordApp" \
+  2>&1 | tee "$attempt/release-network-static.log"
 test_bundle="$attempt/debug/Build/Products/Debug/KeyRecordAppTests.xctest"
 if [[ "$build_only" == true ]]; then
   echo 'Build-only verification completed. App XCTest and live-host qualification were not run.'
 elif [[ "$firmware_app_tests" == true ]]; then
-  bash Scripts/test-firmware-native.sh "$test_bundle" "$attempt/qa" 2>&1 | tee "$attempt/app-tests.log"
+  T23_RELEASE_APP="$release_app" bash Scripts/test-firmware-native.sh "$test_bundle" "$attempt/qa" 2>&1 | tee "$attempt/app-tests.log"
   echo 'Firmware development verification completed. Live-host qualification was not run.'
 else
   # Match the existing hostless runner and exclude inherited capture/debug opt-ins.

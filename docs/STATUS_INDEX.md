@@ -10,12 +10,15 @@
 - 历史实验原始数据、凭据、已有哈希和第三方文本保持原意；不重写旧结果、不补造缺失产物。临时目录或本机绝对路径可能已过期。
 - 包测试、官方方法离线对照、未签名构建、原生模拟测试、真实设备/Keychain/卸载和公开发行是不同证据层级。当前 CI 模式见 [README](../README.md#build-and-test)。
 
-下表覆盖当前分支全部 143 份受版本控制或本轮新增的 Markdown 文档；不发布脏主目录中未跟踪的私人计划/证据。文件名继续保留，新增与现行说明以中文维护。
+下表覆盖受版本控制或本轮新增的 Markdown 文档；不发布脏主目录中未跟踪的私人计划/证据。文件名继续保留，新增与现行说明以中文维护。
 
 ## 当前入口、需求与执行说明
 
 - [App/KeyRecordAppUITests/README.md](../App/KeyRecordAppUITests/README.md)
 - [README.md](../README.md)
+- [THIRD_PARTY_NOTICES.md](../THIRD_PARTY_NOTICES.md)
+- [docs/RELEASE_PREPARATION_20261020.md](RELEASE_PREPARATION_20261020.md)
+- [docs/V1_REQUIREMENT_AUDIT_20261020.md](V1_REQUIREMENT_AUDIT_20261020.md)
 - [docs/DESIGN.md](DESIGN.md)
 - [docs/DOCUMENTATION_REVIEW_20261020.md](DOCUMENTATION_REVIEW_20261020.md)
 - [docs/KEYRING_LIFECYCLE.md](KEYRING_LIFECYCLE.md)

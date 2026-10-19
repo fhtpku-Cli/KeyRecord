@@ -11,13 +11,16 @@
 | `KeyRecordMappings` | Karabiner 事务与草稿、固件文件修补、文件/设备兼容依据、读回比对和恢复记录 |
 | `KeyRecordDeviceRead`、`KeyRecordLimitedXZ` | 显式选定设备的白名单非变更协议与有界系统 liblzma 定义解码；实际 HID 资格仍后置 |
 | `App/KeyRecordApp/ProductComposition.swift` | 接通部署、设备选择、来源适配器、密码备份及卸载准备；生产支持目录仍空 |
-| `PhysicalSourcesModel` 及分析层来源模型 | 系统属性、Profile、文件、USB 型号与 Vial 定义快照；变化/隐私撤销旧观察，不建立历史设备归属或完整真实链 |
+| `PhysicalSourcesModel` 及分析层来源模型 | 系统属性、Profile、文件、厂商号来源明确的设备型号与 Vial 定义快照；变化/隐私撤销旧观察，不建立历史设备归属或完整真实链 |
+| `MenuShortcutsModel` | 显式选择应用后读取有界菜单快捷键，临时证据接入候选与事务准备；失效/拒绝仍可按提示级继续 |
+| `ConfigurationExportModel`、`UpdatesModel`、`UpdateHTTPClient` | 普通无统计配置导出、固定更新查询及用户确认打开版本页；不自动安装 |
+| `Scripts/release-package.rb` | 默认只显示计划；显式执行时构建/签名检查/公证/staple/评估/打包，本轮只有模拟验证 |
 
 第 3 章的规划模块名/端口伪代码不是 Package.swift 的逐项清单，以 [Package.swift](../Package.swift)和实际源码为准。第 5.4 节密码信封已由[备份实现](PASSWORD_BACKUP_20261015.md)落地；不覆盖已有资料库，不导出本机 Keychain 密钥。
 
 推荐转草稿见[衔接记录](phase4/RECOMMENDATION_HANDOFF_20261019.md)，Karabiner 临时测试开始/结束/取消/失败/异常重开清理见[行为会话](phase3/BEHAVIOR_SESSION_20261019.md)。Vial 快照两次定义一致只拒绝读取期间可见的定义变化，不保证整个设备的原子快照或持续当前性。逻辑回退、兼容检查和删除前复核均继续保留。
 
-**产品：待定（内部代号：KeyRecord）**
+**产品：KeyRecord；自有代码许可证 Apache-2.0**
 
 | 项目 | 内容 |
 |---|---|
@@ -26,7 +29,7 @@
 | 状态 | 全产品架构规格；历史实验结论不等于当前 MVP 状态 |
 | 对应需求文档 | PRD v0.2（2026-09-03，修订草案），本文不修改其任何需求、数字、术语与非目标 |
 | 目标读者 | 工程、QA、安全 QA；产品与设计师可参考第 1、2、14、15 章 |
-| 承接关系 | 承接 PRD 未决事项 O5（最终 API 与 spike 验证细节）；O1/O2/O3/O4/O6/O7 在本文中仅映射到决策或门禁，不擅自落定 |
+| 承接关系 | 承接 O5；O1/O2 已由用户明确决定，O3/O4/O6/O7 保留各自真实证据与范围限制，不擅自授予资格 |
 
 ## 0. 阅读指引、图例与假设
 
@@ -49,7 +52,7 @@
 2. Karabiner-Elements 由用户自行安装与授权；本产品不捆绑、不代装（K2）。
 3. 用户可经官方工具使用 VIA/Vial；本产品只生成导入产物，不替代官方工具。
 4. macOS 14 及以上为目标系统；MVP 可限 Apple Silicon，完整 v1 的 FR-S1 目标为 Universal 二进制。
-5. 正式产品名待定（O1）；代码内命名空间使用 `KeyRecord`，不作为对外名称。
+5. 正式产品名和代码命名空间均为 `KeyRecord`（O1 已定）；自有代码采用 Apache-2.0（O2 已定）。
 6. 本文中出现的具体系统 API 名称用于说明意图；其可用性、行为与精度以第 13 章 spike 结论为准，spike 未通过前不得写入实现。
 
 ---
@@ -142,7 +145,7 @@ flowchart TB
         opj["OperationJournal（Karabiner/固件操作日志，仅元数据）"]
     end
 
-    upd["UpdateChecker（每周一次，用户确认安装）"]
+    upd["UpdatesModel / UpdateHTTPClient（每周一次，确认打开版本页）"]
 
     UI --> CAP
     UI --> CORE
@@ -173,7 +176,7 @@ flowchart TB
 | KeyRecordCapture | EventSource 实现、tap 生命周期、PrivacyGate、各 Provider 实现 | KeyRecordCore | CoreGraphics、AppKit |
 | KeyRecordStore | 加密对象存储、Keychain、原子文件、备份/KDF 信封、崩溃日志 | KeyRecordCore | CryptoKit、Security、Foundation |
 | KeyRecordBackends | 三个后端适配器、Karabiner 配置存储、VIA/Vial 解析与修补、Vial 查询传输 | KeyRecordCore、KeyRecordStore | Foundation、IOKit（HID，仅 Vial 查询） |
-| KeyRecordApp | 菜单栏与主面板 UI、生命周期编排、组合根、UpdateChecker | 以上全部 | SwiftUI、AppKit、ServiceManagement |
+| KeyRecordApp | 菜单栏与主面板 UI、生命周期编排、组合根、UpdatesModel / UpdateHTTPClient | 以上全部 | SwiftUI、AppKit、ServiceManagement |
 | KeyRecordTestSupport | 假实现（Fake）、夹具、黄金样本、属性测试生成器 | KeyRecordCore 等 | XCTest |
 
 ### 3.2 端口协议（测试接缝，全部为 protocol）
@@ -709,7 +712,7 @@ commit(batch):
 
 ### 9.2 ViaAdapter
 
-**当前实现（截至第七批）**：VIA 文件编辑从加密原始副本取得实际层/位置，允许现有 90 个基础输出键，预览和导出再次执行结构、来源、保护入口及可达性检查。官方字典/导入方法离线回归建立的是文件编辑兼容依据，用户仍须手动导回官方 VIA 并确认实际按键效果。无需浏览器实例绑定；文件概况或布局定义不证明当前固件、在线导入器和物理设备资格。见[文件兼容](phase4/VIA_FILE_EDITING_20261016.md)和[正式编辑入口](phase4/VIA_GUIDED_FILE_EDITING_20261019.md)。
+**当前实现（2026-10-20）**：VIA 文件编辑从加密原始副本取得实际层/位置，允许现有 90 个基础输出键，预览和导出再次执行结构、来源、保护入口及可达性检查。官方字典/导入方法离线回归建立的是文件编辑兼容依据，用户仍须手动导回官方 VIA 并确认实际按键效果。无需浏览器实例绑定；文件概况或布局定义不证明当前固件、在线导入器和物理设备资格。见[文件兼容](phase4/VIA_FILE_EDITING_20261016.md)和[正式编辑入口](phase4/VIA_GUIDED_FILE_EDITING_20261019.md)。
 
 VIA/Vial 文件生成仍不直接写设备；Vial 的解析、传输及读回见下一节。早期“工厂 nil”“不能生成”等描述仅适用于对应日期，保留在[历史状态](PROJECT_HISTORY.md)及[批次索引](STATUS_INDEX.md)，不再作为本节的当前结论。
 
@@ -727,7 +730,7 @@ VIA/Vial 文件生成仍不直接写设备；Vial 的解析、传输及读回见
 
 ### 9.3 VialAdapter
 
-**当前实现（截至第七批）**：正式组合已接入显式设备选择和只读连接工厂，生产设备支持目录仍为空。协议实现覆盖独立定义、矩阵/编码器、Tap Dance、Combo、Key Override、Alternate Repeat Key、宏、布局选项及 QMK 设置；不生成这些高级配置，未知表示保持部分验证。独立定义中的简单几何与同次读回键码对应，来源变化后必须重新读回，不借用 VIA 文件几何。
+**当前实现（2026-10-20）**：正式组合已接入显式设备选择和只读连接工厂，生产设备支持目录仍为空。协议实现覆盖独立定义、矩阵/编码器、Tap Dance、Combo、Key Override、Alternate Repeat Key、宏、布局选项及 QMK 设置；不生成这些高级配置，未知表示保持部分验证。独立定义中的矩形旋转/明确布局选项几何与同次读回键码和布局选项对应，来源变化后必须重新读回，不借用 VIA 文件几何。
 
 [配置读回](phase4/CONFIGURATION_READBACK_20261015.md)、[验证范围](phase4/VERIFICATION_SCOPE_20261015.md)及[Vial 几何快照](phase2/VIAL_LAYOUT_20261019.md)记录具体执行边界。官方方法与模拟端口回归通过不等于 GUI 导入或真实 HID 通过。下列 Phase 0 描述保留其原始证据范围，后续离线实现不改写历史判定。
 
@@ -888,7 +891,7 @@ recordVerification(mapping, batch, artifact, method, result):
 | 属性测试 | 任意事件序列下聚合不变量（无重复计数、日键单调、失败关闭期间零增量、来源计数之和等于总计数）；任意合法输入下评分与推荐内容确定性（两次运行规范负载相等） | 生成器 + 固定时钟 |
 | 故障注入事务测试 | 在 commit 各阶段之间注入崩溃：rename 前、rename 后 journal 确认前、确认后；读回不一致按 hExpect/hBase/其他三分类（仅 hExpect 允许自动恢复，其他禁止自动写）；固件导出各阶段（artifactReady/batchRecorded/externalExported/claimRecorded/evidenceRecorded/done）之间崩溃与孤儿清理；验证 reconcile 表三种哈希分支；密钥缺失、信封损坏、磁盘写失败 | 故障注入 FileSystem / EncryptedStore |
 | 隐私金丝雀测试 | 注入带产品标记的测试事件与金丝雀字符串，扫描存储目录与日志：无可还原文本、无序列、无精确时间戳、裸键行无应用归属字段；路径与文件名不含日期、周期、对象类型、bundle ID、键码（FR-P2/P3/P5） | 发布流水线 |
-| 联网能力审计 | 扫描产品源码与待发布的 Release 可执行文件，拒绝网络客户端、外部端点及借助子进程联网的能力；用正反例验证审计器。将来加入更新检查时单独审查其请求范围（FR-P1、FR-S5） | 发布流水线 |
+| 联网能力审计 | 限定 UpdateHTTPClient 的固定 GitHub Releases 查询，其他网络/子进程能力继续拒绝；源码反例、模拟 URLProtocol 和 Release 二进制审计配合验证（FR-P1、FR-S5），不代替真实发行验证 | 发布流水线 |
 | 集成测试 | 采集 → 聚合 → 推荐 → Karabiner 应用 → 读回验证 → 回滚全链路（假文件系统 + 录制事件流） | 测试目标 |
 | 真实设备测试 | 至少 3 款真实键盘（覆盖 VIA 与 Vial 目标设备），型号清单【待定 O3】 | 手动 + 录制 |
 | 可访问性测试 | 主流程全键盘完成；VoiceOver 朗读关键状态（FR-U4） | 手动 + AX 检查 |
@@ -949,20 +952,20 @@ recordVerification(mapping, batch, artifact, method, result):
 | PRD 组 | 需求要点 | 架构组件 | 验证 |
 |---|---|---|---|
 | FR-C1..C8 采集 | 首开询问、暂停恢复、退出恢复、登录项、重置保留、计数语义、归属与失败关闭、持续快捷键 | 10.2 生命周期、4.3/4.4 前台三态与隐私门、4.6/4.7 规范化与聚合、5.1 Preferences/CycleSummary | 单元（状态机/计数语义/前台三态）、集成（退出恢复）、金丝雀（排除期间零增量） |
-| FR-P1..P7 隐私 | 数据不出设备、不可还原文本、裸键最小化、失败关闭、加密存储、备份加密、密钥生命周期 | 5.2/5.3/5.4 存储与密钥、10.3 日志、未来的 UpdateChecker | 联网能力审计、金丝雀扫描、故障注入（密钥缺失）、KDF 评审 |
+| FR-P1..P7 隐私 | 数据不出设备、不可还原文本、裸键最小化、失败关闭、加密存储、备份加密、密钥生命周期 | 5.2/5.3/5.4 存储与密钥、10.3 日志、UpdatesModel / UpdateHTTPClient | 联网能力审计、金丝雀扫描、故障注入（密钥缺失）、KDF 评审 |
 | FR-R1..R7 / FR-E1..E2 推荐 | 确定性、资格门槛、半衰期、展示上限、声明边界、作用域默认、触发约束、布局几何、询问时机 | 第 6 章推荐引擎、5.1 Preferences（布局询问一次） | 纯单元 + 属性测试（含全部边界用例） |
 | FR-BE1..BE8 后端 | 事务写入、受管块隔离、外部变更、层约束、版本轴阻断、Vial 非变更、不透明内容、基线与选中槽 | 9.1/9.2/9.3 适配器、9.5 操作日志 | 故障注入事务测试（含读回不一致三分类与固件导出各阶段）、黄金样本、录制回放（白名单断言） |
 | FR-M1..M5 流程与冲突 | 固定顺序、草稿独立、硬阻断、高风险确认、权限降级 | 8.1 域对象、第 7 章冲突、UI 创建流程 | UI 流程测试 + 冲突单元测试 |
 | FR-A1..A4 应用与回滚 | 状态展示、临时规则清理、一键停用、卸载准备 | 第 8 章状态机、9.1 停用与清理、9.5 固件对账、10.2 卸载 | 集成测试（含异常退出后启动清理与固件导出对账） |
 | FR-BK1..BK3 备份 | 滚动 10 份、固件备份保留、导出边界 | 5.1 BackupMetadata、5.4 KDF 信封 | 单元（滚动清理）、导出内容扫描 |
 | FR-U1..U5 UX | 菜单栏优先、通知克制、双语、可访问性、命名 | KeyRecordApp | 手动 + AX 测试、本地化覆盖率检查 |
-| FR-S1..S6 平台 | MVP 原生 Apple Silicon；完整 v1 双架构；资源预算、单进程、更新确认、无遥测、签名公证 | 模块结构、未来的 UpdateChecker、发布流程 | 构建验证、性能基准（12.4）、联网能力审计、发布物签名/公证验证 |
+| FR-S1..S6 平台 | MVP 原生 Apple Silicon；完整 v1 双架构；资源预算、单进程、更新确认、无遥测、签名公证 | 模块结构、UpdatesModel / UpdateHTTPClient、发布流程 | 构建验证、性能基准（12.4）、联网能力审计、发布物签名/公证验证 |
 
 ### 14.2 非目标的结构执行
 
 | 非目标 | 执行机制 |
 |---|---|
-| N1 云同步/账号 | 无账号与同步模块；当前版本也无 UpdateChecker，未来网络面仅允许经单独审查的更新检查 |
+| N1 云同步/账号 | 无账号与同步模块；唯一网络面为固定 GitHub Releases 更新检查，不传统计或配置 |
 | N2 遥测 | 无分析依赖；产品源码与构建产物联网能力审计断言 |
 | N3 站点级作用域 | 作用域枚举只有 global/app(bundleId)；测试断言浏览器只出现整浏览器选项 |
 | N4 窗口/焦点规则 | 采集路径无窗口读取代码；辅助功能调用点唯一且仅菜单读取 |
@@ -984,8 +987,8 @@ recordVerification(mapping, batch, artifact, method, result):
 
 | 编号 | 承接方式 |
 |---|---|
-| O1 产品名 | 代码命名空间固定 `KeyRecord`，对外名称留空待评审 |
-| O2 许可证 | 时间门禁：首个可运行原型公开前必须评审落定（Phase 0/G0 阻断公开动作）；本文不选择许可证 |
+| O1 产品名 | 已定：KeyRecord |
+| O2 许可证 | 已定：Apache-2.0；LICENSE、NOTICE 及 Argon2 原声明随应用分发 |
 | O3 测试键盘清单 | 真实设备测试的输入；未落定前真实设备测试标记阻塞 |
 | O4 版本支持矩阵 | 当前为 EVIDENCE_OR_BLOCKED：仅各独立轴的证据或阻塞已记录，不推断跨轴兼容；Karabiner 稳定、VIA 生成与 Vial Beta 仍阻塞。[证据：`evidence/phase0/conclusions.json`] |
 | O5 API 与 spike 细节 | 本文第 3/4/9 章 + 第 13 章 spike 表 |

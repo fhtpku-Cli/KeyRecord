@@ -1,6 +1,21 @@
 import Foundation
 
 public enum SourceInspection {
+    /// The updater is the sole reviewed network transport. Other capabilities and
+    /// additional endpoints remain visible to the existing egress audit.
+    public static func excludingUpdateTransport(_ source: String, file: URL) -> String {
+        guard file.path.hasSuffix("/App/KeyRecordApp/UpdateHTTPClient.swift") else { return source }
+        var result = source
+        for literal in [
+            "https://api.github.com/repos/fhtpku-Cli/KeyRecord/releases/latest",
+            "https://github.com/fhtpku-Cli/KeyRecord/releases/tag/"
+        ] { result = result.replacingOccurrences(of: literal, with: "reviewed-release-endpoint") }
+        for symbol in ["URLSession", "URLSessionConfiguration", "URLSessionTaskDelegate", "URLSessionTask", "URLRequest"] {
+            result = result.replacingOccurrences(of: "\\b" + symbol + "\\b",
+                with: "ReviewedUpdateTransport", options: .regularExpression)
+        }
+        return result
+    }
     public static let root = URL(fileURLWithPath: #filePath)
         .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
 

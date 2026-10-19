@@ -1,9 +1,10 @@
 # 隐私边界与 T20 历史检查
 
-> 2026-10-20 核对：功能开发暂停。本文的 T20 数量、DTO 清单和命令属于原阶段，当前序列化范围还包括映射、固件恢复记录及密码备份；以现行源码和隐私审计测试为准。密码备份工程已完成，真实 Keychain 恢复仍后置。既有安全约束不变，旧候选的二进制审计不自动覆盖最新产品，现状见 [PROJECT_STATUS](PROJECT_STATUS.md)。
+> 2026-10-20 核对：当前开发状态以 PROJECT_STATUS 和 v1 执行计划为准。本文的 T20 数量、DTO 清单和命令属于原阶段，当前序列化范围还包括映射、固件恢复记录及密码备份；以现行源码和隐私审计测试为准。密码备份工程已完成，真实 Keychain 恢复仍后置。既有安全约束不变，旧候选的二进制审计不自动覆盖最新产品，现状见 [PROJECT_STATUS](PROJECT_STATUS.md)。
 
-This milestone has no update endpoint or network client. The future update
-exception in the normative architecture does not authorize an endpoint here.
+Historical T20 had no update endpoint or network client. The current product's
+reviewed update-only transport is described in [release preparation](RELEASE_PREPARATION_20261020.md);
+its source, binary and simulated-request checks do not reuse the old binary result.
 T20 adds evidence about the existing product; it does not change capture,
 attribution, storage, consent, or Keychain composition.
 

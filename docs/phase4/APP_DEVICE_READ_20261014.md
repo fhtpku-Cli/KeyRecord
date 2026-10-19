@@ -1,6 +1,6 @@
 # 独立设备读回接入 App
 
-> 历史记录说明（2026-10-20 核对）：本页保留所述日期/提交的实现、命令和验证范围，其中“当前”“待实现”“下一步”仅指当时。功能开发已暂停，最新状态见 [PROJECT_STATUS](../PROJECT_STATUS.md)，后续安排见 [ROADMAP](../ROADMAP.md)；本页不授权新实机、设备或删除操作。
+> 历史记录说明（2026-10-20 核对）：本页保留所述日期/提交的实现、命令和验证范围，其中“当前”“待实现”“下一步”仅指当时。本页不代表当前开发状态，最新状态见 [PROJECT_STATUS](../PROJECT_STATUS.md)，后续安排见 [ROADMAP](../ROADMAP.md)；本页不授权新实机、设备或删除操作。
 
 状态日期：2026-10-14，Asia/Shanghai。起点为 [PR #31](https://github.com/fhtpku-Cli/KeyRecord/pull/31) 合并提交 `c9a9d855e68008c1e821a45ac624bdb4964ea295`，其[主干 CI](https://github.com/fhtpku-Cli/KeyRecord/actions/runs/38437650933) 已成功。本批在本任务受管隔离工作树及 `codex/app-device-read-session` 实施；主目录的历史改动保持只读。
 

@@ -21,7 +21,7 @@ final class Phase1ReleaseIsolationTests: XCTestCase {
         XCTAssertTrue(result.output.contains("cannot find 'FlowTestComposition' in scope"), result.output)
     }
 
-    func testProductSourcesHaveNoNetworkOrShellExecutionAPIs() throws {
+    func testProductSourcesRestrictNetworkingAndRejectShellExecutionAPIs() throws {
         // Given
         let paths = ["Sources", "App/KeyRecordApp"]
         let forbidden = #"\b(URLSession|URLRequest|NWConnection|NWListener|CFReadStreamCreateForHTTPRequest|Process|NSTask|posix_spawn|execve|popen)\s*[.(]|(?<!\.)(?<!func )\bsystem\s*\(|\bimport\s+(Network|CFNetwork)\b"#
@@ -30,7 +30,7 @@ final class Phase1ReleaseIsolationTests: XCTestCase {
         for path in paths {
             for file in try SourceInspection.swiftFiles(in: SourceInspection.root.appendingPathComponent(path)) {
                 let source = try String(contentsOf: file, encoding: .utf8)
-                let code = SourceInspection.codeOnly(source)
+                let code = SourceInspection.codeOnly(SourceInspection.excludingUpdateTransport(source, file: file))
                 let matches = expression.matches(in: code, range: NSRange(code.startIndex..., in: code))
                 XCTAssertTrue(matches.isEmpty, file.lastPathComponent)
                 XCTAssertFalse(source.contains("/bin/sh"), file.lastPathComponent)

@@ -47,11 +47,12 @@ final class PrivacyEgressTests: XCTestCase {
         return output
     }
 
-    func testProductWhenScannedHasNoNetworkShellOrEndpointCapability() throws {
+    func testProductRestrictsNetworkToReviewedUpdaterAndRejectsShell() throws {
         // Given / When / Then
         for path in ["Sources", "App/KeyRecordApp"] {
             for file in try SourceInspection.swiftFiles(in: SourceInspection.root.appendingPathComponent(path)) {
-                XCTAssertEqual(try violations(String(contentsOf: file, encoding: .utf8)), [], file.path)
+                let source = try String(contentsOf: file, encoding: .utf8)
+                XCTAssertEqual(try violations(SourceInspection.excludingUpdateTransport(source, file: file)), [], file.path)
             }
         }
     }
@@ -66,6 +67,16 @@ final class PrivacyEgressTests: XCTestCase {
             "let endpoint = \"\"\"\nhttps://example.invalid\n\"\"\""]
         // When / Then
         for fixture in fixtures { XCTAssertFalse(try violations(fixture).isEmpty, fixture) }
+    }
+
+    func testUpdaterExceptionStillRejectsOtherEndpointsAndTransports() throws {
+        let file = SourceInspection.root.appendingPathComponent("App/KeyRecordApp/UpdateHTTPClient.swift")
+        let original = try String(contentsOf: file, encoding: .utf8)
+        for addition in [#"let extra = "https://evil.invalid""#, "Process()", "NWConnection()", "socket(2,1,0)"] {
+            XCTAssertFalse(try violations(SourceInspection.excludingUpdateTransport(original + addition, file: file)).isEmpty)
+        }
+        let other = file.deletingLastPathComponent().appendingPathComponent("Other.swift")
+        XCTAssertFalse(try violations(SourceInspection.excludingUpdateTransport(original, file: other)).isEmpty)
     }
 
     func testDocumentationCommentsWhenScannedDoNotCreateFalseEndpoints() throws {

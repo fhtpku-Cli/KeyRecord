@@ -3,6 +3,31 @@ import KeyRecordCore
 @testable import KeyRecordAnalysis
 
 final class PhysicalDeviceLayoutTests: XCTestCase {
+    func testBluetoothReferenceRequiresExplicitUSBVendorNamespace() throws {
+        for transport in ["Bluetooth", "BluetoothLowEnergy"] {
+            for source: UInt32? in [nil, 0, 1, 2, 3] {
+                let keyboard = PhysicalKeyboardService(registryID: 1, mappings: [],
+                    identity: .init(vendorID: 1, productID: 2, transport: transport, vendorIDSource: source))
+                let resolution = try PhysicalDeviceLayoutResolution.resolve(input: input(), system: .init(services: [keyboard]))
+                XCTAssertEqual(resolution.status, source == 2 ? .matchedReference : .unsupportedConnection)
+                XCTAssertEqual(resolution.match != nil, source == 2)
+            }
+        }
+    }
+    func testNamespaceChangeInvalidatesIdentityWithoutCollectingPersistentDeviceIdentifier() throws {
+        let original = try PhysicalKeyboardIdentity.parse(["VendorID": 1, "ProductID": 2,
+            "Transport": "Bluetooth", "VendorIDSource": 2])
+        let changed = try PhysicalKeyboardIdentity.parse(["VendorID": 1, "ProductID": 2,
+            "Transport": "Bluetooth", "VendorIDSource": 1])
+        XCTAssertNotEqual(original, changed)
+        for bad in [true, -1, 1.5, "2"] as [Any] {
+            XCTAssertThrowsError(try PhysicalKeyboardIdentity.parse(["VendorIDSource": bad]))
+        }
+        let system = try PhysicalSystemSnapshot(services: [
+            .init(registryID: 1, mappings: [], identity: original),
+            .init(registryID: 2, mappings: [], identity: original)])
+        XCTAssertEqual(try PhysicalDeviceLayoutResolution.resolve(input: input(), system: system).status, .ambiguous)
+    }
     private func input(backend: RecommendationBackend = .via, options: Bool = false) throws -> PhysicalSourceInput {
         let layout = Data(#"{"name":"Reference","vendorProductId":65538,"layers":[["KC_A","KC_C"]]}"#.utf8)
         let labels = options ? #", "labels":["Split"]"# : ""

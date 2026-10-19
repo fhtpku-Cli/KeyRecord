@@ -26,7 +26,7 @@ private final class NativePhysicalSystemPort: PhysicalSystemReading {
     func keyboardProperties(for registryID: UInt64) throws -> [String: Any] {
         guard let service = try services()[registryID] else { throw PhysicalSourceReadError.unavailable }
         var result: [String: Any] = [:]
-        for key in ["VendorID", "ProductID", "Transport"] {
+        for key in ["VendorID", "ProductID", "Transport", "VendorIDSource"] {
             result[key] = IOHIDServiceClientCopyProperty(service, key as CFString)
         }
         return result

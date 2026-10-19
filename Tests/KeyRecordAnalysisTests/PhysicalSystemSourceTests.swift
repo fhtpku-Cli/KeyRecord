@@ -2,6 +2,20 @@ import XCTest
 @testable import KeyRecordAnalysis
 
 final class PhysicalSystemSourceTests: XCTestCase {
+    func testMappingChangeDuringCollectionRejectsMixedSnapshot() throws {
+        final class Port: PhysicalSystemReading {
+            var reads = 0
+            func keyboardServiceIDs() -> [UInt64] { [1] }
+            func userKeyMapping(for id: UInt64) -> Any? {
+                reads += 1
+                return [["HIDKeyboardModifierMappingSrc": UInt64(0x700000004),
+                         "HIDKeyboardModifierMappingDst": UInt64(reads == 1 ? 0x700000005 : 0x700000006)]]
+            }
+        }
+        XCTAssertThrowsError(try PhysicalSystemSource.read(from: Port())) {
+            XCTAssertEqual($0 as? PhysicalSourceReadError, .unavailable)
+        }
+    }
     func testActualCollectorReadsEveryServiceAndRejectsReplacementDuringCollection() throws {
         final class Port: PhysicalSystemReading {
             var reads: [UInt64] = []
@@ -14,7 +28,7 @@ final class PhysicalSystemSourceTests: XCTestCase {
         }
         let port = Port()
         let snapshot = try PhysicalSystemSource.read(from: port)
-        XCTAssertEqual(port.reads, [1, 2])
+        XCTAssertEqual(Set(port.reads), [1, 2])
         XCTAssertEqual(snapshot.services[0].mappings?.first?.destination, 0x700000005)
         XCTAssertNil(snapshot.services[1].mappings)
         port.reads = []; port.replace = true

@@ -13,9 +13,11 @@ public struct PhysicalKeyboardIdentity: Equatable, Sendable {
     public let vendorID: UInt32?
     public let productID: UInt32?
     public let transport: String?
+    public let vendorIDSource: UInt32?
 
-    public init(vendorID: UInt32? = nil, productID: UInt32? = nil, transport: String? = nil) {
+    public init(vendorID: UInt32? = nil, productID: UInt32? = nil, transport: String? = nil, vendorIDSource: UInt32? = nil) {
         self.vendorID = vendorID; self.productID = productID; self.transport = transport
+        self.vendorIDSource = vendorIDSource
     }
 
     public static func parse(_ properties: [String: Any]) throws -> Self {
@@ -30,7 +32,8 @@ public struct PhysicalKeyboardIdentity: Equatable, Sendable {
             guard let text = raw as? String, !text.isEmpty, text.utf8.count <= 256 else { throw PhysicalSourceReadError.malformed }
             transport = text
         } else { transport = nil }
-        return try .init(vendorID: number("VendorID"), productID: number("ProductID"), transport: transport)
+        return try .init(vendorID: number("VendorID"), productID: number("ProductID"), transport: transport,
+                         vendorIDSource: number("VendorIDSource"))
     }
 }
 
@@ -61,8 +64,18 @@ public struct PhysicalDeviceLayoutResolution: Equatable, Sendable {
         let candidates = system.services.filter { $0.identity.vendorID == vendor && $0.identity.productID == product }
         guard !candidates.isEmpty else { return unavailable(.modelMismatch) }
         guard candidates.count == 1, let service = candidates.first else { return unavailable(.ambiguous) }
-        // VIA identifiers use the USB namespace. Other transports can report a different vendor namespace.
-        guard service.identity.transport == "USB" else { return unavailable(.unsupportedConnection) }
+        // Bluetooth PnP source 2 names the USB-IF namespace; source 1 uses Bluetooth SIG IDs.
+        // USB services can omit the source or report zero; their transport defines the namespace.
+        let identity = service.identity
+        switch identity.transport {
+        case "USB":
+            guard identity.vendorIDSource == nil || identity.vendorIDSource == 0 || identity.vendorIDSource == 2 else {
+                return unavailable(.unsupportedConnection)
+            }
+        case "Bluetooth", "BluetoothLowEnergy":
+            guard identity.vendorIDSource == 2 else { return unavailable(.unsupportedConnection) }
+        default: return unavailable(.unsupportedConnection)
+        }
         return .init(status: .matchedReference, match: .init(registryID: service.registryID,
             vendorProductID: layout.vendorProductID, layoutName: layout.name, geometry: geometry))
     }

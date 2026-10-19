@@ -2,7 +2,7 @@
 
 KeyRecord 是开发中的原生 macOS 菜单栏应用，用于本地键盘使用聚合统计、可解释的改键建议及受约束的配置工作流，不保存输入文本或逐事件序列。源码使用 Swift 6；最低编译目标 macOS 14+，不等于全部目标系统已获运行资格。
 
-**截至 2026-10-20，功能开发暂停在第七批，当前只整理文档。** 已完成限定 Apple Silicon 采集 MVP、Phase 2 A/B 离线工程、Karabiner 事务与行为测试流程、VIA 基础键文件编辑、Vial 只读协议/定义快照，以及完整密码备份与空资料库恢复。完整 Phase 3/4、真实后端支持和公开发行仍未合格。
+**截至 2026-10-20，已按用户指示恢复完整 v1 工程，见[执行计划](docs/V1_DEVELOPMENT_PLAN_20261020.md)。** 已完成限定 Apple Silicon 采集 MVP、Phase 2 A/B 离线工程、Karabiner 事务与行为测试流程、VIA 基础键文件编辑、Vial 只读协议/定义快照，以及完整密码备份与空资料库恢复。完整 Phase 3/4、真实后端支持和公开发行仍未合格。
 
 先看[当前状态](docs/PROJECT_STATUS.md)、[路线图](docs/ROADMAP.md)和[全部文档索引](docs/STATUS_INDEX.md)。产品代码核对到 [PR #73](https://github.com/fhtpku-Cli/KeyRecord/pull/73) 合并提交 `4fba3370`，对应 [main CI](https://github.com/fhtpku-Cli/KeyRecord/actions/runs/39309800836) 已通过。
 

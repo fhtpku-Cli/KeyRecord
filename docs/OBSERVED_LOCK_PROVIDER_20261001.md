@@ -1,6 +1,6 @@
 # Version-scoped lock provider preparation
 
-> 历史记录说明（2026-10-20 核对）：本页保留所述日期/提交的实现、命令和验证范围，其中“当前”“待实现”“下一步”仅指当时。功能开发已暂停，最新状态见 [PROJECT_STATUS](PROJECT_STATUS.md)，后续安排见 [ROADMAP](ROADMAP.md)；本页不授权新实机、设备或删除操作。
+> 历史记录说明（2026-10-20 核对）：本页保留所述日期/提交的实现、命令和验证范围，其中“当前”“待实现”“下一步”仅指当时。本页不代表当前开发状态，最新状态见 [PROJECT_STATUS](PROJECT_STATUS.md)，后续安排见 [ROADMAP](ROADMAP.md)；本页不授权新实机、设备或删除操作。
 
 The existing observed lock algorithm is now shared by Debug and Release source
 builds as `ObservedSessionLockProvider`. `SystemSessionLockProvider` remains a

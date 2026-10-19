@@ -1,6 +1,6 @@
 # Vial 6 协议与官方格式离线集成
 
-> 历史记录说明（2026-10-20 核对）：本页保留所述日期/提交的实现、命令和验证范围，其中“当前”“待实现”“下一步”仅指当时。功能开发已暂停，最新状态见 [PROJECT_STATUS](../PROJECT_STATUS.md)，后续安排见 [ROADMAP](../ROADMAP.md)；本页不授权新实机、设备或删除操作。
+> 历史记录说明（2026-10-20 核对）：本页保留所述日期/提交的实现、命令和验证范围，其中“当前”“待实现”“下一步”仅指当时。本页不代表当前开发状态，最新状态见 [PROJECT_STATUS](../PROJECT_STATUS.md)，后续安排见 [ROADMAP](../ROADMAP.md)；本页不授权新实机、设备或删除操作。
 
 状态日期：2026-10-13，Asia/Shanghai。本批从已核对的主干 `877900c755d2240f056503ecad24dcfc8f6856fb` 开始，[合并后 CI](https://github.com/fhtpku-Cli/KeyRecord/actions/runs/38418731109) 已成功。实施在本任务隔离工作树和 `codex/backend-offline-integration` 分支，主目录只读。
 

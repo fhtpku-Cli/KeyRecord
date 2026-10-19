@@ -1,6 +1,6 @@
 # Release 边界与 T23 历史验证
 
-> 2026-10-20 核对：功能开发暂停。本文保留 Release 边界要求与原候选验证；旧命令和 BLOCKED 结果不是要求重跑的当前任务。现状见 [PROJECT_STATUS](PROJECT_STATUS.md)。
+> 2026-10-20 核对：当前开发状态以 PROJECT_STATUS 和 v1 执行计划为准。本文保留 Release 边界要求与原候选验证；旧命令和 BLOCKED 结果不是要求重跑的当前任务。现状见 [PROJECT_STATUS](PROJECT_STATUS.md)。
 
 **Current scope — 2026-10-01:** the development-signed Apple Silicon Release
 and bounded owner-assisted native walkthrough completed; PR #17 is merged.

@@ -1,6 +1,6 @@
 # 逐份恢复选择与卸载历史阶段
 
-> 历史记录说明（2026-10-20 核对）：本页保留所述日期/提交的实现、命令和验证范围，其中“当前”“待实现”“下一步”仅指当时。功能开发已暂停，最新状态见 [PROJECT_STATUS](../PROJECT_STATUS.md)，后续安排见 [ROADMAP](../ROADMAP.md)；本页不授权新实机、设备或删除操作。
+> 历史记录说明（2026-10-20 核对）：本页保留所述日期/提交的实现、命令和验证范围，其中“当前”“待实现”“下一步”仅指当时。本页不代表当前开发状态，最新状态见 [PROJECT_STATUS](../PROJECT_STATUS.md)，后续安排见 [ROADMAP](../ROADMAP.md)；本页不授权新实机、设备或删除操作。
 
 后续状态：本批 [PR #27](https://github.com/fhtpku-Cli/KeyRecord/pull/27) 已合并为 `98477201d0f71edcc7df0fe252c33c92d7cfbfbf`。最新固件多槽预览见[后续记录](../phase4/PATCH_PREVIEW_20261013.md)，下文保留本批范围。
 

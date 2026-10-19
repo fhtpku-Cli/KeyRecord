@@ -12,6 +12,9 @@
 | `KeyRecordDeviceRead`、`KeyRecordLimitedXZ` | 显式选定设备的白名单非变更协议与有界系统 liblzma 定义解码；实际 HID 资格仍后置 |
 | `App/KeyRecordApp/ProductComposition.swift` | 接通部署、设备选择、来源适配器、密码备份及卸载准备；生产支持目录仍空 |
 | `PhysicalSourcesModel` 及分析层来源模型 | 系统属性、Profile、文件、USB 型号与 Vial 定义快照；变化/隐私撤销旧观察，不建立历史设备归属或完整真实链 |
+| `MenuShortcutsModel` | 显式选择应用后读取有界菜单快捷键，临时证据接入候选与事务准备；失效/拒绝仍可按提示级继续 |
+| `ConfigurationExportModel`、`UpdatesModel`、`UpdateHTTPClient` | 普通无统计配置导出、固定更新查询及用户确认打开版本页；不自动安装 |
+| `Scripts/release-package.rb` | 默认只显示计划；显式执行时构建/签名检查/公证/staple/评估/打包，本轮只有模拟验证 |
 
 第 3 章的规划模块名/端口伪代码不是 Package.swift 的逐项清单，以 [Package.swift](../Package.swift)和实际源码为准。第 5.4 节密码信封已由[备份实现](PASSWORD_BACKUP_20261015.md)落地；不覆盖已有资料库，不导出本机 Keychain 密钥。
 
@@ -26,7 +29,7 @@
 | 状态 | 全产品架构规格；历史实验结论不等于当前 MVP 状态 |
 | 对应需求文档 | PRD v0.2（2026-09-03，修订草案），本文不修改其任何需求、数字、术语与非目标 |
 | 目标读者 | 工程、QA、安全 QA；产品与设计师可参考第 1、2、14、15 章 |
-| 承接关系 | 承接 PRD 未决事项 O5（最终 API 与 spike 验证细节）；O1/O2/O3/O4/O6/O7 在本文中仅映射到决策或门禁，不擅自落定 |
+| 承接关系 | 承接 O5；O1/O2 已由用户明确决定，O3/O4/O6/O7 保留各自真实证据与范围限制，不擅自授予资格 |
 
 ## 0. 阅读指引、图例与假设
 
@@ -142,7 +145,7 @@ flowchart TB
         opj["OperationJournal（Karabiner/固件操作日志，仅元数据）"]
     end
 
-    upd["UpdateChecker（每周一次，用户确认安装）"]
+    upd["UpdatesModel / UpdateHTTPClient（每周一次，确认打开版本页）"]
 
     UI --> CAP
     UI --> CORE
@@ -173,7 +176,7 @@ flowchart TB
 | KeyRecordCapture | EventSource 实现、tap 生命周期、PrivacyGate、各 Provider 实现 | KeyRecordCore | CoreGraphics、AppKit |
 | KeyRecordStore | 加密对象存储、Keychain、原子文件、备份/KDF 信封、崩溃日志 | KeyRecordCore | CryptoKit、Security、Foundation |
 | KeyRecordBackends | 三个后端适配器、Karabiner 配置存储、VIA/Vial 解析与修补、Vial 查询传输 | KeyRecordCore、KeyRecordStore | Foundation、IOKit（HID，仅 Vial 查询） |
-| KeyRecordApp | 菜单栏与主面板 UI、生命周期编排、组合根、UpdateChecker | 以上全部 | SwiftUI、AppKit、ServiceManagement |
+| KeyRecordApp | 菜单栏与主面板 UI、生命周期编排、组合根、UpdatesModel / UpdateHTTPClient | 以上全部 | SwiftUI、AppKit、ServiceManagement |
 | KeyRecordTestSupport | 假实现（Fake）、夹具、黄金样本、属性测试生成器 | KeyRecordCore 等 | XCTest |
 
 ### 3.2 端口协议（测试接缝，全部为 protocol）

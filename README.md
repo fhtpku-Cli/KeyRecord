@@ -4,7 +4,7 @@ KeyRecord 是开发中的原生 macOS 菜单栏应用，用于本地键盘使用
 
 **截至 2026-10-20，已按用户指示恢复完整 v1 工程，见[执行计划](docs/V1_DEVELOPMENT_PLAN_20261020.md)。** 已完成限定 Apple Silicon 采集 MVP、Phase 2 A/B 离线工程、Karabiner 事务与行为测试流程、VIA 基础键文件编辑、Vial 只读协议/定义快照，以及完整密码备份与空资料库恢复。完整 Phase 3/4、真实后端支持和公开发行仍未合格。
 
-先看[当前状态](docs/PROJECT_STATUS.md)、[路线图](docs/ROADMAP.md)和[全部文档索引](docs/STATUS_INDEX.md)。产品代码核对到 [PR #73](https://github.com/fhtpku-Cli/KeyRecord/pull/73) 合并提交 `4fba3370`，对应 [main CI](https://github.com/fhtpku-Cli/KeyRecord/actions/runs/39309800836) 已通过。
+先看[当前状态](docs/PROJECT_STATUS.md)、[路线图](docs/ROADMAP.md)、[逐项需求核对](docs/V1_REQUIREMENT_AUDIT_20261020.md)和[全部文档索引](docs/STATUS_INDEX.md)。本轮增加来源一致性、旋转/布局选项、普通配置导出、命名、菜单快捷键参考、更新检查与发布工具；对应 PR 和最终提交 CI 见执行计划。
 
 ## 用户工作流与限制
 
@@ -24,18 +24,20 @@ KeyRecord 是开发中的原生 macOS 菜单栏应用，用于本地键盘使用
 Scripts/verify-local.sh
 ```
 
-脚本顺序执行全部 SwiftPM 测试、捕获工具离线回归、SwiftPM Release 构建、未签名 Universal Release App 构建、原生架构 Debug `build-for-testing`，默认最后执行 hostless App XCTest。失败即停止，不能据前一步成功推断后续完成。完整原生测试需要合适的图形会话，阻塞、跳过和失败不算通过。
+脚本顺序执行全部 SwiftPM 测试、发布工具模拟测试、捕获工具离线回归、SwiftPM Release 构建、未签名 Universal Release App 构建、原生架构 Debug `build-for-testing`，检查发布源码/包结构/二进制网络边界，默认最后执行 hostless App XCTest。失败即停止，不能据前一步成功推断后续完成。完整原生测试需要合适的图形会话，阻塞、跳过和失败不算通过。
 
 | 命令 | 与默认模式的区别 |
 |---|---|
 | `Scripts/verify-local.sh --build-only` | 仍执行包测试及构建，只跳过 App XCTest 执行 |
-| `Scripts/verify-local.sh --firmware-app-tests` | 执行固件/映射、导入与生产组合的原生离线测试子集，不执行整个 App 测试包 |
+| `Scripts/verify-local.sh --firmware-app-tests` | 执行固件/映射、导入、更新确认、发布边界与生产组合的原生离线子集，不执行整个 App 测试包 |
 
 **当前 [macOS CI](.github/workflows/macos.yml) 使用 `--firmware-app-tests`，不是 `--build-only`。** CI 先取得工作流指定版本的官方 VIA/Vial 方法及依赖，执行 `Scripts/verify-firmware-oracles.py`，再运行包测试、构建和原生离线子集。工具链配置为 Xcode 26.3、`macos-15`，以实际工作流和对应提交日志为准。首次下载依赖需要网络，验证使用合成输入，不连接真实键盘。
 
 日志与产物在 `.build/verification/run.*`，原生截图位于对应 `qa/`。不要并行使用同一个 SwiftPM 构建目录。测试数量属于特定提交，不能用旧数量或旧 CI 代表当前代码，也不能把构建成功当 XCTest 已执行。
 
 ## 真实验证与发布边界
+
+更新检查只向固定 GitHub Releases 地址发送空 GET，默认每周一次；用户确认后打开官方页面手动下载安装，不上传统计或配置。正式名称 KeyRecord，自有代码采用 [Apache-2.0](LICENSE)，[第三方声明](THIRD_PARTY_NOTICES.md)随包提供。[发布工具](docs/RELEASE_PREPARATION_20261020.md)已有模拟验证，尚未执行真实签名、公证或发布。
 
 已批准 Phase 1 MVP 的实测限定于原候选、原生 arm64 macOS 27.0 build `26A428`；开发签名的 Release 构建不是公证后的公开发行。当前锁屏来源可用于原生 arm64 macOS 27 及以后版本，锁屏状态为锁定或未知时停止采集，不据此声称后续系统均已实测。
 

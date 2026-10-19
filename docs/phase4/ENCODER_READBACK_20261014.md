@@ -1,6 +1,6 @@
 # Vial 编码器只读回与完整比较
 
-> 历史记录说明（2026-10-20 核对）：本页保留所述日期/提交的实现、命令和验证范围，其中“当前”“待实现”“下一步”仅指当时。功能开发已暂停，最新状态见 [PROJECT_STATUS](../PROJECT_STATUS.md)，后续安排见 [ROADMAP](../ROADMAP.md)；本页不授权新实机、设备或删除操作。
+> 历史记录说明（2026-10-20 核对）：本页保留所述日期/提交的实现、命令和验证范围，其中“当前”“待实现”“下一步”仅指当时。本页不代表当前开发状态，最新状态见 [PROJECT_STATUS](../PROJECT_STATUS.md)，后续安排见 [ROADMAP](../ROADMAP.md)；本页不授权新实机、设备或删除操作。
 
 状态日期：2026-10-14，Asia/Shanghai。起点为 [PR #32](https://github.com/fhtpku-Cli/KeyRecord/pull/32) 合并提交 `731d160c6f9c090508964c5b2e4f125dd1c1fc03`，其[主干 CI](https://github.com/fhtpku-Cli/KeyRecord/actions/runs/38457737893) 已成功。本批在任务独立工作树和 `codex/vial-encoder-read` 分支实施，主目录历史改动保持只读。
 

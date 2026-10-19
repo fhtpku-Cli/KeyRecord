@@ -62,7 +62,8 @@ public enum PhysicalSystemSource {
             return try PhysicalKeyboardService(registryID: id, mappings: mappings(port.userKeyMapping(for: id)), identity: identity)
         }
         for service in result {
-            guard try PhysicalKeyboardIdentity.parse(port.keyboardProperties(for: service.registryID)) == service.identity else {
+            guard try PhysicalKeyboardIdentity.parse(port.keyboardProperties(for: service.registryID)) == service.identity,
+                  try mappings(port.userKeyMapping(for: service.registryID)) == service.mappings else {
                 throw PhysicalSourceReadError.unavailable
             }
         }

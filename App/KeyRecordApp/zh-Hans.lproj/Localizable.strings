@@ -538,7 +538,7 @@
 "physical.sources.refresh" = "重新检查可用来源";
 "physical.association.title" = "设备与布局";
 "physical.association.unchecked" = "需要重新检查";
-"physical.association.matchedReference" = "唯一 USB 服务与布局参考匹配，物理映射仍未确认";
+"physical.association.matchedReference" = "唯一键盘服务与布局参考匹配，物理映射仍未确认";
 "physical.association.missingLayout" = "没有适用的布局参考；Vial 需重新读回设备定义";
 "physical.association.missingGeometry" = "布局位置不完整或有歧义";
 "physical.association.missingDevice" = "尚无可用键盘服务";
@@ -546,4 +546,4 @@
 "physical.association.unsupportedConnection" = "此连接方式暂不能确认布局对应";
 "physical.association.modelMismatch" = "键盘型号与布局不匹配";
 "physical.association.ambiguous" = "多个键盘服务匹配，无法唯一对应";
-"physical.association.match" = "布局参考：%@（USB %@）。这不代表已确认历史按键来自该键盘。";
+"physical.association.match" = "布局参考：%@（USB 厂商与产品编号 %@）。这不代表已确认历史按键来自该键盘。";

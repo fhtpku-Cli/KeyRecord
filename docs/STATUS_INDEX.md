@@ -1,16 +1,16 @@
 # 项目文档索引
 
-核对日期：2026-10-20（Asia/Shanghai）。功能开发暂停在第七批，现行入口为 [README](../README.md)、[当前状态](PROJECT_STATUS.md)和[路线图](ROADMAP.md)。[本次整理记录](DOCUMENTATION_REVIEW_20261020.md)说明核对依据和修正范围。
+核对日期：2026-10-20（Asia/Shanghai）。用户已在文档整理后恢复完整 v1 工程，执行见 [v1 开发计划](V1_DEVELOPMENT_PLAN_20261020.md)。现行入口为 [README](../README.md)、[当前状态](PROJECT_STATUS.md)和[路线图](ROADMAP.md)；[文档整理记录](DOCUMENTATION_REVIEW_20261020.md)保留当时的暂停决定。
 
 ## 如何判断文档含义
 
 - 需求、架构及 Phase 1 实现约定描述目标与边界，不代表全部已实现或通过验收。
-- 当前状态汇总已完成工程、支持限制和真实验证；路线图记录暂停及恢复工作前的选择，不自动启动下一批。
+- 当前状态汇总已完成工程、支持限制和真实验证；路线图与 v1 计划记录本次已授权批次，不恢复定时任务。
 - 日期工程记录、`CURRENT`、`NEXT`、`PREP` 和历史归档只描述原提交/候选。旧“下一步”“待实现”“PASS”“BLOCKED”不覆盖当前结论，也不授权重跑。
 - 历史实验原始数据、凭据、已有哈希和第三方文本保持原意；不重写旧结果、不补造缺失产物。临时目录或本机绝对路径可能已过期。
 - 包测试、官方方法离线对照、未签名构建、原生模拟测试、真实设备/Keychain/卸载和公开发行是不同证据层级。当前 CI 模式见 [README](../README.md#build-and-test)。
 
-下表覆盖当前分支全部 142 份受版本控制或本轮新增的 Markdown 文档；不发布脏主目录中未跟踪的私人计划/证据。文件名继续保留，新增与现行说明以中文维护。
+下表覆盖当前分支全部 143 份受版本控制或本轮新增的 Markdown 文档；不发布脏主目录中未跟踪的私人计划/证据。文件名继续保留，新增与现行说明以中文维护。
 
 ## 当前入口、需求与执行说明
 
@@ -29,6 +29,7 @@
 - [docs/STATUS_INDEX.md](STATUS_INDEX.md)
 - [docs/TASK23_RELEASE_BOUNDARY.md](TASK23_RELEASE_BOUNDARY.md)
 - [docs/TECHNICAL_ARCHITECTURE.md](TECHNICAL_ARCHITECTURE.md)
+- [docs/V1_DEVELOPMENT_PLAN_20261020.md](V1_DEVELOPMENT_PLAN_20261020.md)
 - [docs/phase2/B_FOUNDATIONS.md](phase2/B_FOUNDATIONS.md)
 - [docs/phase2/IMPLEMENTATION.md](phase2/IMPLEMENTATION.md)
 - [docs/phase2/PRODUCT_PLAN.md](phase2/PRODUCT_PLAN.md)

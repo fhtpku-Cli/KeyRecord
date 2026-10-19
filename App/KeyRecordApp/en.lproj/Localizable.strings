@@ -538,7 +538,7 @@
 "physical.sources.refresh" = "Recheck available sources";
 "physical.association.title" = "Device and layout";
 "physical.association.unchecked" = "Recheck required";
-"physical.association.matchedReference" = "One USB service matches the layout reference; physical mapping unverified";
+"physical.association.matchedReference" = "One keyboard service matches the layout reference; physical mapping unverified";
 "physical.association.missingLayout" = "No applicable layout reference; Vial requires a fresh device readback";
 "physical.association.missingGeometry" = "Layout positions are incomplete or ambiguous";
 "physical.association.missingDevice" = "No keyboard service available";
@@ -546,4 +546,4 @@
 "physical.association.unsupportedConnection" = "This connection cannot establish a layout match";
 "physical.association.modelMismatch" = "Keyboard model does not match the layout";
 "physical.association.ambiguous" = "Multiple matching keyboard services; no unique match";
-"physical.association.match" = "Layout reference: %@ (USB %@). This does not identify the keyboard used for recorded activity.";
+"physical.association.match" = "Layout reference: %@ (USB vendor/product IDs %@). This does not identify the keyboard used for recorded activity.";

@@ -201,6 +201,31 @@ final class KarabinerMappingFlowTests: XCTestCase {
         fixture.observeLocked(); flow.sync(from: fixture.orchestrator.state)
         XCTAssertNil(model.report(.global))
     }
+    func testBluetoothNamespaceChangeWithdrawsLayoutReferenceUntilExplicitRefresh() async throws {
+        let (fixture, file) = try await ready()
+        let flow = fixture.flow, model = flow.physicalSources
+        _ = try await loadPhysicalLayout(flow, directory: file.deletingLastPathComponent())
+        func snapshot(_ source: UInt32) throws -> PhysicalSystemSnapshot {
+            try .init(services: [.init(registryID: 71, mappings: [], identity: .init(
+                vendorID: 1, productID: 2, transport: "BluetoothLowEnergy", vendorIDSource: source))])
+        }
+        let system = SystemSourceProbe(try snapshot(2))
+        model.dependencies = PhysicalHostSourceAdapter(ports: .init(system: { try system.read() },
+            softwareURL: { file }, version: { "fixture" }), canRead: { flow.sensitiveContentVisible }).dependencies
+        await model.refresh(.global)
+        XCTAssertEqual(model.report(.global)?.deviceLayout?.match?.registryID, 71)
+        system.set(try snapshot(1))
+        XCTAssertNil(model.report(.global)?.deviceLayout)
+        await model.refresh(.global)
+        XCTAssertEqual(model.report(.global)?.deviceLayout?.status, .unsupportedConnection)
+        system.set(try snapshot(2))
+        XCTAssertNil(model.report(.global)?.deviceLayout)
+        await model.refresh(.global)
+        XCTAssertEqual(model.report(.global)?.deviceLayout?.status, .matchedReference)
+        if case .logical = try physicalResult(model) {} else { XCTFail("A model reference cannot qualify physical activity") }
+        fixture.observeLocked(); flow.sync(from: fixture.orchestrator.state)
+        XCTAssertNil(model.report(.global))
+    }
     func testDeviceLayoutAssociationRejectsSourceChangeWhileCollectionIsPending() async throws {
         let (fixture, file) = try await ready()
         let flow = fixture.flow, model = flow.physicalSources

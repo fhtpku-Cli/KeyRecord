@@ -80,6 +80,9 @@ public struct VIAImportedConfiguration: Equatable, Sendable {
 }
 
 public enum VIAReferenceParser {
+    public static func standardHIDUsage(_ key: KeyCode) -> UInt16? {
+        VIAStandardKeyCodes.values.values.first(where: { $0.0 == key.value })?.1
+    }
     public static func standardKeyCode(_ token: String) -> KeyCode? {
         if case .standard(let key, _) = VIAStandardKeyCodes.binding(token) { return key }
         return nil
@@ -327,7 +330,7 @@ private enum VIAStandardKeyCodes {
         return .standard(keyCode: key, hidUsage: pair.1)
     }
 
-    private static let values: [String: (Int, UInt16)] = {
+    static let values: [String: (Int, UInt16)] = {
         var map: [String: (Int, UInt16)] = [:]
         let letterCodes = [0,11,8,2,14,3,5,4,34,38,40,37,46,45,31,35,12,15,1,17,32,9,13,7,16,6]
         for (index, letter) in "ABCDEFGHIJKLMNOPQRSTUVWXYZ".enumerated() { map["KC_\(letter)"] = (letterCodes[index], UInt16(0x04 + index)) }

@@ -1,6 +1,6 @@
 # Documentation status index
 
-Reviewed 2026-10-19 (Asia/Shanghai), for the recommendation-to-backend draft increment.
+Reviewed 2026-10-19 (Asia/Shanghai), for the physical reference sources and observation invalidation increment.
 This index includes the approved Phase 2 plan and subsequent engineering records. It distinguishes present
 guidance from dated evidence; it does not regenerate historical verdicts.
 
@@ -13,6 +13,7 @@ guidance from dated evidence; it does not regenerate historical verdicts.
 - [docs/STATUS_INDEX.md](STATUS_INDEX.md) — Documentation status index
 - [Karabiner behavior session](phase3/BEHAVIOR_SESSION_20261019.md) — Temporary test lifecycle, cleanup and offline evidence boundaries
 - [Recommendation handoff](phase4/RECOMMENDATION_HANDOFF_20261019.md) — Backend-specific drafts, explicit firmware positions and preserved scope
+- [Physical sources](phase2/PHYSICAL_SOURCES_20261019.md) — Current file/Profile references, observation lifecycle and logical fallback; real source adapters remain separate
 
 The approved native Apple Silicon Phase 1 MVP is complete. Qualification is
 bounded to the cited candidates and arm64 macOS 27.0 build 26A428. Full G1/v1,

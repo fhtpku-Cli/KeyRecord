@@ -256,10 +256,11 @@ final class AppFlowObservable: ObservableObject {
     @Published private(set) var keyboardPoolConfirmed: Set<KeyCode> = []
     @Published var statisticsSection: StatisticsSection = .overview
     @Published var intendedBackend: RecommendationBackend = .karabiner {
-        didSet { if oldValue != intendedBackend { recommendationDraft = nil } }
+        didSet { if oldValue != intendedBackend { recommendationDraft = nil; physicalSources.invalidate() } }
     }
     @Published private(set) var recommendationDraft: RecommendationDraft?
     let viaImport = VIAImportModel()
+    let physicalSources = PhysicalSourcesModel()
     let karabinerImport = KarabinerImportModel()
     let karabinerMappings = KarabinerMappingModel()
     lazy var karabinerDeployment = KarabinerDeploymentModel(mappings: karabinerMappings)
@@ -335,28 +336,31 @@ final class AppFlowObservable: ObservableObject {
         self.flow = flow
         self.actions = actions
         self.protectedGate = protectedGate
+        physicalSources.input = { [weak self] scope in self?.physicalSourceInput(scope) }
+        physicalSources.onChange = { [weak self] in self?.objectWillChange.send() }
         viaImport.protectedGate = protectedGate
         viaImport.canRead = { [weak self] in self?.sensitiveContentVisible == true }
         viaImport.onChange = { [weak self] in
             guard let self else { return }
             if self.viaImport.selectedOriginalBytes == nil { self.firmwareCopies.cancelVIAVersionRead() }
+            self.physicalSources.invalidate()
             self.objectWillChange.send()
         }
         karabinerImport.protectedGate = protectedGate
         karabinerImport.canRead = { [weak self] in self?.sensitiveContentVisible == true }
-        karabinerImport.onChange = { [weak self] in self?.karabinerMappings.invalidate(); self?.objectWillChange.send() }
+        karabinerImport.onChange = { [weak self] in self?.physicalSources.invalidate(); self?.karabinerMappings.invalidate(); self?.objectWillChange.send() }
         karabinerMappings.canRead = { [weak self] in self?.sensitiveContentVisible == true }
         karabinerMappings.protectedGate = protectedGate
         karabinerMappings.configuration = { [weak self] in self?.karabinerDeployment.selectedConfiguration ?? self?.karabinerImport.selectedConfiguration }
         karabinerMappings.observations = { [weak self] in self?.candidateConflictEvidence.observations }
         karabinerMappings.synchronizeRuntime = { [weak self] in self?.karabinerDeployment.updateObservations() }
-        karabinerMappings.onChange = { [weak self] in self?.objectWillChange.send() }
+        karabinerMappings.onChange = { [weak self] in self?.physicalSources.invalidate(); self?.objectWillChange.send() }
         karabinerDeployment.canRead = { [weak self] in self?.sensitiveContentVisible == true }
         karabinerDeployment.observations = { [weak self] in self?.candidateConflictEvidence.observations }
-        karabinerDeployment.onChange = { [weak self] in self?.objectWillChange.send() }
+        karabinerDeployment.onChange = { [weak self] in self?.physicalSources.invalidate(); self?.objectWillChange.send() }
         firmwareCopies.canRead = { [weak self] in self?.sensitiveContentVisible == true }
         firmwareCopies.selectedOriginal = { [weak self] in self?.viaImport.selectedOriginalBytes }
-        firmwareCopies.onChange = { [weak self] in self?.objectWillChange.send() }
+        firmwareCopies.onChange = { [weak self] in self?.physicalSources.invalidate(); self?.objectWillChange.send() }
         passwordBackup.gate = protectedGate
         passwordBackup.canExport = { [weak self] in self?.sensitiveContentVisible == true }
         passwordBackup.canRestore = { [weak self] in self?.showsConsent == true }
@@ -370,6 +374,13 @@ final class AppFlowObservable: ObservableObject {
     }
 
     var menuState: MenuBarState { MenuBarState(state: state) }
+
+    private func physicalSourceInput(_ scope: RecommendationScope) -> PhysicalSourceInput? {
+        guard sensitiveContentVisible else { return nil }
+        let software = karabinerDeployment.connected ? karabinerDeployment.physicalReference
+            : karabinerImport.selectedConfiguration.map { PhysicalSoftwareReference(bytes: $0.bytes, profile: $0.profile) }
+        return PhysicalSourceInput(backend: intendedBackend, scope: scope, via: viaImport.configuration, software: software)
+    }
 
     var snapshot: AggregateSnapshot? {
         get { readPresentation(snapshotGeneration) { flow.displayedAggregate } }
@@ -642,6 +653,7 @@ final class AppFlowObservable: ObservableObject {
         }
         let cycle = lifecycleState.preferences?.currentCycleID
         if let presentationCycleID, presentationCycleID != cycle {
+            physicalSources.invalidate()
             rawAnalysis = nil
             analysisGeneration = nil
         }
@@ -706,7 +718,7 @@ final class AppFlowObservable: ObservableObject {
         karabinerDeployment.visibilityChanged(sensitiveContentVisible)
         if sensitiveContentVisible { karabinerDeployment.updateObservations() }
         if !sensitiveContentVisible { firmwareCopies.clear(); if !showsConsent { passwordBackup.clear() } }
-        if !sensitiveContentVisible { recommendationDraft = nil; rawAnalysis = nil; viaImport.clear(); karabinerImport.clear(); karabinerMappings.clear() }
+        if !sensitiveContentVisible { physicalSources.invalidate(); recommendationDraft = nil; rawAnalysis = nil; viaImport.clear(); karabinerImport.clear(); karabinerMappings.clear() }
         dialog = flow.dialog
         objectWillChange.send()
     }

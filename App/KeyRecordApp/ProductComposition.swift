@@ -62,6 +62,7 @@ struct ProductHostBoundaries {
         }
     var lockNotifications: any LockNotificationCentering = DistributedLockNotifications()
     var karabinerDeployment = KarabinerDeploymentDependencies()
+    var physicalSources = PhysicalSourceDependencies()
     var firmwareSupport = FirmwareSupportDirectory()
     var firmwareVersionAxes: @MainActor (FirmwareBackend) -> FirmwareVersionAxes? = { _ in nil }
     var firmwareImporterVersion: (@MainActor (FirmwareBackend) -> String?)? = { FirmwareImporterVersionSource().version(for: $0) }
@@ -280,6 +281,7 @@ final class ProductComposition: NSObject, NSMenuDelegate, NSWindowDelegate {
         let flow = AppFlowObservable(flow: Phase1FlowModel(lifecycle: lifecycle,
             cycleReset: destruction, localDataEraser: destruction), protectedGate: gate)
         flow.karabinerDeployment.configure(store: store, gate: gate, dependencies: host.karabinerDeployment)
+        flow.physicalSources.dependencies = host.physicalSources
         flow.firmwareCopies.configure(store: store, gate: gate, support: host.firmwareSupport,
             versionAxes: host.firmwareVersionAxes, vialConnection: { [weak flow] record, authorize in
                 return try host.vialDevices.openSelectedDevice(record: record, support: host.firmwareSupport,
@@ -1659,6 +1661,7 @@ struct ProductScreens: View {
             }
         }
         .frame(minWidth: NativeLayout.minimum.width, minHeight: NativeLayout.minimum.height)
+        .environment(\.physicalSources, flow.physicalSources)
         .nativeMotionPolicy()
         .onChange(of: flow.statisticsSection) { _, section in
             guard flow.statisticsWindowOpen, section != .settings else { return }
@@ -1680,7 +1683,7 @@ struct ProductScreens: View {
             createMapping: { output, trigger, scope in
                 flow.beginRecommendation(output: output, trigger: trigger, scope: scope, backend: selectedBackend)
             },
-            physicalEvidence: flow.viaImport.configuration?.physicalEvidence,
+            physicalEvidence: nil,
             viaReference: flow.viaImport.configuration,
             conflictEvidence: flow.candidateConflictEvidence,
             text: text,

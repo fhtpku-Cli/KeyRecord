@@ -521,3 +521,16 @@
 "recommendation.noPosition" = "尚未加载匹配位置，请选择可用副本或核对原始配置；不会猜测位置。";
 "recommendation.stageFirmware" = "检查并确认手动替换此位置";
 "recommendation.dismiss" = "放弃此次衔接";
+"physical.sources.title" = "物理按键比较的依据";
+"physical.sources.geometry" = "按键位置";
+"physical.sources.device" = "物理键盘";
+"physical.sources.firmware" = "键盘映射";
+"physical.sources.software" = "软件映射";
+"physical.sources.macOS" = "macOS 映射";
+"physical.sources.reference" = "仅文件参考";
+"physical.sources.observed" = "已提供当前观察";
+"physical.sources.missing" = "尚无依据";
+"physical.sources.changed" = "旧观察已撤回";
+"physical.sources.unsupported" = "无法确认此映射";
+"physical.sources.note" = "文件和 Profile 选择不能证明映射已生效。来源缺失、变化或存在歧义时，两组按键都使用逻辑按键数。当前观察还必须覆盖所有可能的实际按法，才会显示物理比较。";
+"physical.sources.refresh" = "重新检查可用来源";

@@ -3,6 +3,7 @@ import KeyRecordCore
 import KeyRecordAnalysis
 
 struct AnalysisCandidateView: View {
+    @Environment(\.physicalSources) private var physicalSources
     let candidate: RecommendationCandidate
     let text: NativeText
     var showsScopePicker = false
@@ -16,6 +17,9 @@ struct AnalysisCandidateView: View {
     var ignore: (() -> Void)?
     var restore: (() -> Void)?
     @State private var scopeOverride: Bool?
+    private var currentPhysicalEvidence: PhysicalEvidence? {
+        physicalSources == nil ? physicalEvidence : physicalSources?.report(selectedScope)?.evidence
+    }
 
     private var applicationScope: Binding<Bool> {
         Binding(get: {
@@ -134,7 +138,7 @@ struct AnalysisCandidateView: View {
 
     private func checkInput(_ trigger: Chord) -> CandidateCheckInput {
         CandidateCheckInput(source: candidate.chord, trigger: trigger, scope: selectedScope,
-            backend: backend, layout: layout, keyboardPool: keyboardPool, physicalEvidence: physicalEvidence,
+            backend: backend, layout: layout, keyboardPool: keyboardPool, physicalEvidence: currentPhysicalEvidence,
             conflictEvidence: conflictEvidence)
     }
 
@@ -182,6 +186,7 @@ enum AnalysisReadinessText {
 
 struct AnalysisManualCandidateEditor: View {
     @Environment(\.createMappingDraft) private var createMapping
+    @Environment(\.physicalSources) private var physicalSources
     let source: Chord
     let scope: RecommendationScope
     let backend: BackendConnection
@@ -228,6 +233,10 @@ struct AnalysisManualCandidateEditor: View {
         ModifierSet(command: command, option: option, control: control, shift: shift, fn: fn ? .active : .none)
     }
 
+    private var currentPhysicalEvidence: PhysicalEvidence? {
+        physicalSources == nil ? physicalEvidence : physicalSources?.report(scope)?.evidence
+    }
+
     var body: some View {
         GroupBox {
             VStack(alignment: .leading, spacing: NativeLayout.compact) {
@@ -263,7 +272,7 @@ struct AnalysisManualCandidateEditor: View {
                     comparison(chord)
                     AnalysisConflictView(input: CandidateCheckInput(source: source,
                         trigger: chord, scope: scope, backend: backend, layout: layout, keyboardPool: keyboardPool,
-                        physicalEvidence: physicalEvidence, conflictEvidence: conflictEvidence), text: text)
+                        physicalEvidence: currentPhysicalEvidence, conflictEvidence: conflictEvidence), text: text)
                         .accessibilityIdentifier("phase2.manual.readiness")
                     AnalysisPhysicalComparisonView(source: source, trigger: chord, scope: scope,
                         evidence: physicalEvidence, text: text)
@@ -276,7 +285,7 @@ struct AnalysisManualCandidateEditor: View {
         .onChange(of: backend) { _, _ in invalidate() }
         .onChange(of: layout) { _, _ in invalidate() }
         .onChange(of: keyboardPool) { _, _ in invalidate() }
-        .onChange(of: physicalEvidence) { _, _ in invalidate() }
+        .onChange(of: currentPhysicalEvidence) { _, _ in invalidate() }
         .onChange(of: conflictEvidence) { _, _ in invalidate() }
     }
 
@@ -318,6 +327,22 @@ struct AnalysisManualCandidateEditor: View {
 }
 
 struct AnalysisPhysicalComparisonView: View {
+    @Environment(\.physicalSources) private var sources
+    let source: Chord
+    let trigger: Chord
+    let scope: RecommendationScope
+    let evidence: PhysicalEvidence?
+    let text: NativeText
+    var body: some View {
+        if let sources {
+            PhysicalSourcesComparison(model: sources, source: source, trigger: trigger, scope: scope, text: text)
+        } else {
+            PhysicalComparisonResult(source: source, trigger: trigger, scope: scope, evidence: evidence, text: text)
+        }
+    }
+}
+
+struct PhysicalComparisonResult: View {
     let source: Chord
     let trigger: Chord
     let scope: RecommendationScope
@@ -329,8 +354,10 @@ struct AnalysisPhysicalComparisonView: View {
             switch PhysicalAnalysis.compare(source: source, trigger: trigger, scope: scope, evidence: evidence) {
             case .logical(_, _, let reason):
                 Text(text("phase2.physicalFallback") + " " + text(reasonKey(reason)))
+                    .accessibilityIdentifier("physical.result.logical")
             case .physical(let a, let b):
                 Text(String(format: text("phase2.physicalCounts"), a.pressCount, b.pressCount))
+                    .accessibilityIdentifier("physical.result.presses")
                 Text(String(format: text("phase2.physicalSpan"), a.positionDiameter, b.positionDiameter))
                 if b.positionDiameter > a.positionDiameter {
                     Text(text("phase2.physicalWider"))

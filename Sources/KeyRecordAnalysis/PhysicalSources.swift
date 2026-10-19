@@ -34,7 +34,10 @@ public struct PhysicalSourceSummary: Equatable, Sendable, Identifiable {
 public struct PhysicalSourceReport: Equatable, Sendable {
     public let evidence: PhysicalEvidence
     public let sources: [PhysicalSourceSummary]
-    public init(evidence: PhysicalEvidence, sources: [PhysicalSourceSummary]) { self.evidence = evidence; self.sources = sources }
+    public let deviceLayout: PhysicalDeviceLayoutResolution?
+    public init(evidence: PhysicalEvidence, sources: [PhysicalSourceSummary], deviceLayout: PhysicalDeviceLayoutResolution? = nil) {
+        self.evidence = evidence; self.sources = sources; self.deviceLayout = deviceLayout
+    }
 
     public static func references(_ input: PhysicalSourceInput, changed: Bool = false) -> Self {
         // A VIA file never supplies Vial device geometry or a deployed firmware claim.

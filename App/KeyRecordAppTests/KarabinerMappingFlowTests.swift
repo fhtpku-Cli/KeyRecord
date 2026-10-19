@@ -137,6 +137,87 @@ final class KarabinerMappingFlowTests: XCTestCase {
         }
         func set(_ snapshot: PhysicalSystemSnapshot?) { lock.withLock { self.snapshot = snapshot } }
     }
+    private func loadPhysicalLayout(_ flow: AppFlowObservable, directory: URL) async throws -> (URL, Data) {
+        let layout = directory.appendingPathComponent("device-layout.json")
+        let definition = directory.appendingPathComponent("device-definition.json")
+        let definitionBytes = Data(#"{"name":"Physical reference","vendorId":"0x0001","productId":"0x0002","matrix":{"rows":1,"cols":2},"layouts":{"keymap":[["0,0","0,1"]]}}"#.utf8)
+        try Data(#"{"name":"Physical reference","vendorProductId":65538,"layers":[["KC_LGUI","KC_C"]]}"#.utf8).write(to: layout)
+        try definitionBytes.write(to: definition)
+        await flow.viaImport.load(kind: .layout, url: layout)
+        await flow.viaImport.load(kind: .definition, url: definition)
+        return (definition, definitionBytes)
+    }
+    func testDeviceLayoutAssociationWithdrawsOnIdentityReplacementAmbiguityAndLayoutChange() async throws {
+        let (fixture, file) = try await ready()
+        let flow = fixture.flow, model = flow.physicalSources
+        let (definition, definitionBytes) = try await loadPhysicalLayout(flow, directory: file.deletingLastPathComponent())
+        func snapshot(_ id: UInt64 = 71, product: UInt32 = 2) throws -> PhysicalSystemSnapshot {
+            try .init(services: [.init(registryID: id, mappings: [], identity: .init(vendorID: 1, productID: product, transport: "USB"))])
+        }
+        let initial = try snapshot(), system = SystemSourceProbe(initial)
+        model.dependencies = PhysicalHostSourceAdapter(ports: .init(system: { try system.read() }, softwareURL: { file }, version: { "fixture" }), canRead: { true }).dependencies
+        await model.refresh(.global)
+        XCTAssertEqual(model.report(.global)?.deviceLayout?.match?.registryID, 71)
+        XCTAssertEqual(model.report(.global)?.deviceLayout?.match?.geometry, flow.viaImport.configuration?.geometry)
+        XCTAssertEqual(model.report(.global)?.evidence.device, .unknown)
+        if case .logical = try physicalResult(model) {} else { XCTFail("Matching model and layout do not identify recorded activity") }
+        system.set(try snapshot(product: 3))
+        XCTAssertNil(model.report(.global)?.deviceLayout)
+        system.set(initial)
+        XCTAssertNil(model.report(.global)?.deviceLayout)
+        await model.refresh(.global)
+        system.set(try snapshot(72))
+        XCTAssertNil(model.report(.global)?.deviceLayout)
+        await model.refresh(.global)
+        XCTAssertEqual(model.report(.global)?.deviceLayout?.match?.registryID, 72)
+        system.set(try .init(services: initial.services + snapshot(72).services))
+        await model.refresh(.global)
+        XCTAssertEqual(model.report(.global)?.deviceLayout?.status, .ambiguous)
+        XCTAssertNil(model.report(.global)?.deviceLayout?.match)
+        system.set(initial); await model.refresh(.global)
+        try (definitionBytes + Data(" ".utf8)).write(to: definition, options: .atomic)
+        XCTAssertNil(model.report(.global)?.deviceLayout)
+        try definitionBytes.write(to: definition, options: .atomic)
+        XCTAssertNil(model.report(.global)?.deviceLayout)
+        await flow.viaImport.load(kind: .definition, url: definition)
+        await model.refresh(.global)
+        XCTAssertEqual(model.report(.global)?.deviceLayout?.status, .matchedReference)
+        let priorGeometry = model.report(.global)?.deviceLayout?.match?.geometry
+        let shifted = String(decoding: definitionBytes, as: UTF8.self).replacingOccurrences(of: #"["0,0","0,1"]"#, with: #"[{"x":2},"0,0","0,1"]"#)
+        try Data(shifted.utf8).write(to: definition, options: .atomic)
+        XCTAssertNil(model.report(.global)?.deviceLayout)
+        await flow.viaImport.load(kind: .definition, url: definition)
+        await model.refresh(.global)
+        XCTAssertNotNil(model.report(.global)?.deviceLayout?.match)
+        XCTAssertNotEqual(model.report(.global)?.deviceLayout?.match?.geometry, priorGeometry)
+        if case .logical = try physicalResult(model) {} else { XCTFail("A new geometry reference cannot qualify physical comparison") }
+        flow.intendedBackend = .vial
+        XCTAssertNil(model.report(.global)?.deviceLayout)
+        await model.refresh(.global)
+        XCTAssertEqual(model.report(.global)?.deviceLayout?.status, .missingLayout)
+        XCTAssertNil(model.report(.global)?.evidence.geometry)
+        fixture.observeLocked(); flow.sync(from: fixture.orchestrator.state)
+        XCTAssertNil(model.report(.global))
+    }
+    func testDeviceLayoutAssociationRejectsSourceChangeWhileCollectionIsPending() async throws {
+        let (fixture, file) = try await ready()
+        let flow = fixture.flow, model = flow.physicalSources
+        let (definition, definitionBytes) = try await loadPhysicalLayout(flow, directory: file.deletingLastPathComponent())
+        let started = XCTestExpectation(description: "Device source collection"), release = DispatchSemaphore(value: 0)
+        let snapshot = try PhysicalSystemSnapshot(services: [.init(registryID: 1, mappings: [],
+            identity: .init(vendorID: 1, productID: 2, transport: "USB"))])
+        model.dependencies = PhysicalHostSourceAdapter(ports: .init(system: {
+            started.fulfill(); _ = release.wait(timeout: .now() + 5); return snapshot
+        }, softwareURL: { file }, version: { "fixture" }), canRead: { flow.sensitiveContentVisible }).dependencies
+        let read = Task { await model.refresh(.global) }
+        await fulfillment(of: [started], timeout: 5)
+        try (definitionBytes + Data(" ".utf8)).write(to: definition, options: .atomic)
+        _ = flow.viaImport.configuration
+        release.signal(); await read.value
+        XCTAssertNil(model.report(.global)?.deviceLayout)
+        XCTAssertFalse(model.isLoading(.global))
+        if case .logical = try physicalResult(model) {} else { XCTFail("Late collection must not bind an invalidated layout") }
+    }
     func testHostSourcesCollectActualAdaptersWithSimulatedSystemAndTemporaryConfiguration() async throws {
         let (fixture, file) = try await ready()
         let model = fixture.flow.physicalSources
@@ -406,17 +487,23 @@ final class KarabinerMappingFlowTests: XCTestCase {
                 try ScreenEvidence.capturePNG(view).write(to: root.appendingPathComponent("physical-sources-withdrawn-" + locale + ".png"))
             }
             let file = try XCTUnwrap(configuration)
-            let snapshot = try PhysicalSystemSnapshot(services: [.init(registryID: 1, mappings: [])])
+            ScreenEvidence.awaitMain { do { _ = try await self.loadPhysicalLayout(flow, directory: file.deletingLastPathComponent()) } catch { XCTFail("\(error)") } }
+            let snapshot = try PhysicalSystemSnapshot(services: [.init(registryID: 1, mappings: [],
+                identity: .init(vendorID: 1, productID: 2, transport: "USB"))])
             model.dependencies = PhysicalHostSourceAdapter(ports: .init(system: { snapshot }, softwareURL: { file }, version: { "fixture" }), canRead: { true }).dependencies
             ScreenEvidence.awaitMain { await model.refresh(.global) }
             NativeEvidence.update(view)
             XCTAssertEqual(KRAXLabel(try NativeEvidence.node("physical.source.macOS", in: view)), text("physical.sources.macOS") + ": " + text("physical.sources.collected"))
+            XCTAssertEqual(KRAXLabel(try NativeEvidence.node("physical.association.status", in: view)), text("physical.association.title") + ": " + text("physical.association.matchedReference"))
+            XCTAssertEqual(KRAXLabel(try NativeEvidence.node("physical.association.match", in: view)), String(format: text("physical.association.match"), "Physical reference", "0001:0002"))
             _ = try NativeEvidence.node("physical.result.logical", in: view)
             XCTAssertFalse(NativeEvidence.elements(in: view).contains { KRAXIdentifier($0) == "physical.result.presses" })
             if let root = NativeEvidence.outputRoot() {
                 try ScreenEvidence.capturePNG(view).write(to: root.appendingPathComponent("physical-sources-collected-" + locale + ".png"))
             }
             model.invalidate()
+            NativeEvidence.update(view)
+            XCTAssertFalse(NativeEvidence.elements(in: view).contains { KRAXIdentifier($0) == "physical.association.match" })
         }
     }
     private func recommendationChord(_ key: Int, command: ModifierSideState = .none) throws -> Chord {

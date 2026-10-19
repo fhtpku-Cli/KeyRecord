@@ -535,3 +535,14 @@
 "physical.sources.unsupported" = "无法确认此映射";
 "physical.sources.note" = "重新检查会读取本机键盘映射属性和 Karabiner 当前配置，不会应用改键。文件、Profile 选择和部分读回不能证明完整映射已生效；依据不足或变化时，两组按键都使用逻辑按键数。";
 "physical.sources.refresh" = "重新检查可用来源";
+"physical.association.title" = "设备与布局";
+"physical.association.unchecked" = "需要重新检查";
+"physical.association.matchedReference" = "唯一 USB 服务与布局参考匹配，物理映射仍未确认";
+"physical.association.missingLayout" = "没有适用的布局参考";
+"physical.association.missingGeometry" = "布局位置不完整或有歧义";
+"physical.association.missingDevice" = "尚无可用键盘服务";
+"physical.association.incompleteIdentity" = "键盘身份信息不完整";
+"physical.association.unsupportedConnection" = "此连接方式暂不能确认布局对应";
+"physical.association.modelMismatch" = "键盘型号与布局不匹配";
+"physical.association.ambiguous" = "多个键盘服务匹配，无法唯一对应";
+"physical.association.match" = "布局参考：%@（USB %@）。这不代表已确认历史按键来自该键盘。";

@@ -23,6 +23,14 @@ private final class NativePhysicalSystemPort: PhysicalSystemReading {
         guard let service = try services()[registryID] else { throw PhysicalSourceReadError.unavailable }
         return IOHIDServiceClientCopyProperty(service, "UserKeyMapping" as CFString)
     }
+    func keyboardProperties(for registryID: UInt64) throws -> [String: Any] {
+        guard let service = try services()[registryID] else { throw PhysicalSourceReadError.unavailable }
+        var result: [String: Any] = [:]
+        for key in ["VendorID", "ProductID", "Transport"] {
+            result[key] = IOHIDServiceClientCopyProperty(service, key as CFString)
+        }
+        return result
+    }
 }
 
 @MainActor
@@ -32,6 +40,7 @@ struct PhysicalSourceObservation {
     let isCurrent: @MainActor () -> Bool
     var sources: [PhysicalSourceSummary]? = nil
     var system: PhysicalSystemSnapshot? = nil
+    var deviceLayout: PhysicalDeviceLayoutResolution? = nil
 }
 
 struct PhysicalHostSourcePorts: Sendable {
@@ -116,7 +125,7 @@ final class PhysicalHostSourceAdapter {
             guard raw.file?.hasChanged != true, (try? ports.system()) == raw.system else { return false }
             if let software = raw.software, (try? ports.version()) != software.version { return false }
             return true
-        }, sources: rows, system: raw.system)
+        }, sources: rows, system: raw.system, deviceLayout: .resolve(input: input, system: raw.system))
     }
 }
 
@@ -159,7 +168,8 @@ final class PhysicalSourcesModel: ObservableObject {
             let ticket = session
             if observation.input == current, observation.evidence.scope == scope, observation.isCurrent(), ticket == session {
                 return PhysicalSourceReport(evidence: observation.evidence,
-                    sources: observation.sources ?? PhysicalSourceReport.observed(observation.evidence).sources)
+                    sources: observation.sources ?? PhysicalSourceReport.observed(observation.evidence).sources,
+                    deviceLayout: observation.deviceLayout)
             }
             entries[key(scope)] = nil; references.removeAll(); changed = true
         }

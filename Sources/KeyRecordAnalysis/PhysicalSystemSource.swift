@@ -11,8 +11,9 @@ public struct PhysicalUsageMapping: Equatable, Sendable {
 public struct PhysicalKeyboardService: Equatable, Sendable {
     public let registryID: UInt64
     public let mappings: [PhysicalUsageMapping]?
-    public init(registryID: UInt64, mappings: [PhysicalUsageMapping]?) {
-        self.registryID = registryID; self.mappings = mappings
+    public let identity: PhysicalKeyboardIdentity
+    public init(registryID: UInt64, mappings: [PhysicalUsageMapping]?, identity: PhysicalKeyboardIdentity = .init()) {
+        self.registryID = registryID; self.mappings = mappings; self.identity = identity
     }
 }
 
@@ -29,6 +30,11 @@ public struct PhysicalSystemSnapshot: Equatable, Sendable {
 public protocol PhysicalSystemReading {
     func keyboardServiceIDs() throws -> [UInt64]
     func userKeyMapping(for registryID: UInt64) throws -> Any?
+    func keyboardProperties(for registryID: UInt64) throws -> [String: Any]
+}
+
+public extension PhysicalSystemReading {
+    func keyboardProperties(for registryID: UInt64) throws -> [String: Any] { [:] }
 }
 
 public enum PhysicalSystemSource {
@@ -52,7 +58,13 @@ public enum PhysicalSystemSource {
         let ids = try port.keyboardServiceIDs().sorted()
         guard ids.count <= 256, Set(ids).count == ids.count else { throw PhysicalSourceReadError.malformed }
         let result = try ids.map { id in
-            try PhysicalKeyboardService(registryID: id, mappings: mappings(port.userKeyMapping(for: id)))
+            let identity = try PhysicalKeyboardIdentity.parse(port.keyboardProperties(for: id))
+            return try PhysicalKeyboardService(registryID: id, mappings: mappings(port.userKeyMapping(for: id)), identity: identity)
+        }
+        for service in result {
+            guard try PhysicalKeyboardIdentity.parse(port.keyboardProperties(for: service.registryID)) == service.identity else {
+                throw PhysicalSourceReadError.unavailable
+            }
         }
         guard try port.keyboardServiceIDs().sorted() == ids else { throw PhysicalSourceReadError.unavailable }
         return try PhysicalSystemSnapshot(services: result)

@@ -5,7 +5,7 @@
 **Current scope — 2026-10-01:** the development-signed Apple Silicon Release
 and bounded owner-assisted native walkthrough completed; PR #17 is merged.
 See [candidate](RELEASE_CANDIDATE_20261001.md) and [native result](RELEASE_NATIVE_UI_PREP_20261001.md).
-上述平台描述属于 2026-10-01 实测候选。当前源码采用原生 arm64 macOS 27 及以后版本的锁屏来源，锁定/未知仍关闭保护；不能把运行策略等同于平台资格。公开发行、公证和完整 G1/v1 仍未完成。
+上述平台描述属于 2026-10-01 实测候选。当前源码采用原生 arm64 macOS 27 及以后版本的锁屏来源，锁屏状态为锁定或未知时停止采集；不能把运行策略等同于平台资格。公开发行、公证和完整 G1/v1 仍未完成。
 
 ## Outcome boundaries
 

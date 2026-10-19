@@ -33,6 +33,13 @@ struct PhysicalSourcesComparison: View {
                     Text(text("physical.sources." + row.id.rawValue) + ": " + text("physical.sources." + row.status.rawValue))
                         .accessibilityIdentifier("physical.source." + row.id.rawValue)
                 }
+                Text(text("physical.association.title") + ": " + text("physical.association." + (report?.deviceLayout?.status.rawValue ?? "unchecked")))
+                    .accessibilityIdentifier("physical.association.status")
+                if let match = report?.deviceLayout?.match {
+                    Text(String(format: text("physical.association.match"), match.layoutName,
+                        String(format: "%04X:%04X", match.vendorProductID >> 16, match.vendorProductID & 0xffff)))
+                        .accessibilityIdentifier("physical.association.match")
+                }
                 Text(text("physical.sources.note")).fixedSize(horizontal: false, vertical: true)
                 Button(text("physical.sources.refresh")) { Task { await model.refresh(scope) } }
                     .disabled(model.isLoading(scope))

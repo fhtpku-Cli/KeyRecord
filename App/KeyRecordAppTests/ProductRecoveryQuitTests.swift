@@ -548,7 +548,8 @@ final class ProductRecoveryQuitTests: XCTestCase {
             layoutFormat: "vial-save-1", keycodeDialect: VialKeycodeDialect.name, importer: "synthetic-importer")
         var discoveries = 0
         let target = product.root.appendingPathComponent("karabiner-copy.json")
-        let systemSnapshot = try PhysicalSystemSnapshot(services: [.init(registryID: 91, mappings: [])])
+        let systemSnapshot = try PhysicalSystemSnapshot(services: [.init(registryID: 91, mappings: [],
+            identity: .init(vendorID: 1, productID: 2, transport: "USB"))])
         product.configureBackends = { host in
             host.karabinerDeployment = KarabinerDeploymentDependencies(version: { "synthetic-version" }, authority: { _, _ in .temporaryConfiguration })
             host.firmwareVersionAxes = { _ in axes }
@@ -573,6 +574,14 @@ final class ProductRecoveryQuitTests: XCTestCase {
         await product.composition.flow.physicalSources.refresh(.global)
         XCTAssertEqual(product.composition.flow.physicalSources.report(.global)?.sources.map(\.status),
                        [.missing, .collected, .missing, .collected, .collected])
+        let layout = product.root.appendingPathComponent("layout.json"), definition = product.root.appendingPathComponent("definition.json")
+        try Data(#"{"name":"Reference","vendorProductId":65538,"layers":[["KC_C"]]}"#.utf8).write(to: layout)
+        try Data(#"{"name":"Reference","vendorId":"0x0001","productId":"0x0002","matrix":{"rows":1,"cols":1},"layouts":{"keymap":[["0,0"]]}}"#.utf8).write(to: definition)
+        await product.composition.flow.viaImport.load(kind: .layout, url: layout)
+        await product.composition.flow.viaImport.load(kind: .definition, url: definition)
+        await product.composition.flow.physicalSources.refresh(.global)
+        XCTAssertEqual(product.composition.flow.physicalSources.report(.global)?.deviceLayout?.match?.registryID, 91)
+        XCTAssertEqual(product.composition.flow.physicalSources.report(.global)?.evidence.device, .unknown)
         let firmware = product.composition.flow.firmwareCopies
         let original = product.root.appendingPathComponent("original.vil")
         try Data(#"{"version":1,"uid":42,"via_protocol":9,"vial_protocol":6,"layout":[[["KC_NO"]]]}"#.utf8).write(to: original)

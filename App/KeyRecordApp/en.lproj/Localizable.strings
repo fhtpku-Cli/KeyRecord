@@ -535,3 +535,14 @@
 "physical.sources.unsupported" = "Cannot establish this mapping";
 "physical.sources.note" = "Rechecking reads local keyboard mapping properties and the current Karabiner configuration. It does not apply changes. Files, profile selections and partial readbacks do not prove the full active mapping; incomplete or changed sources keep both combinations on logical key counts.";
 "physical.sources.refresh" = "Recheck available sources";
+"physical.association.title" = "Device and layout";
+"physical.association.unchecked" = "Recheck required";
+"physical.association.matchedReference" = "One USB service matches the layout reference; physical mapping unverified";
+"physical.association.missingLayout" = "No applicable layout reference";
+"physical.association.missingGeometry" = "Layout positions are incomplete or ambiguous";
+"physical.association.missingDevice" = "No keyboard service available";
+"physical.association.incompleteIdentity" = "Keyboard identity is incomplete";
+"physical.association.unsupportedConnection" = "This connection cannot establish a layout match";
+"physical.association.modelMismatch" = "Keyboard model does not match the layout";
+"physical.association.ambiguous" = "Multiple matching keyboard services; no unique match";
+"physical.association.match" = "Layout reference: %@ (USB %@). This does not identify the keyboard used for recorded activity.";

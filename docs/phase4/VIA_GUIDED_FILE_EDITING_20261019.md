@@ -48,6 +48,10 @@ and keyboard activation on the new choice buttons; explicit focus and Space/Retu
 handling fix them. The native test retains the focus assertion and actual Space
 key down/up selection. These results do not establish real device qualification.
 
+The first CI build exposed a SwiftUI type-checking timeout under Xcode 26.3;
+the selector is split into small position, original-value and output components.
+The native interaction checks are retained after this split.
+
 ## Deferred scope
 
 Real keyboard effects, official GUI import, HID, Keychain recovery, uninstall

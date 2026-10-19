@@ -100,74 +100,9 @@ private struct VIAFilePatchControls: View {
                 if let ticket = model.selectionTicket() { Task { await model.loadVIAFileSlots(record, ticket: ticket) } }
             }.disabled(model.working).accessibilityIdentifier("load-slots-" + record.id.uuidString)
         } else {
-            Picker(text("phase4.layer"), selection: $layer) {
-                ForEach(Array(Set(slots.map { $0.slot.layer })).sorted(), id: \.self) { layer in
-                    Text(String(layer)).tag(layer)
-                }
-            }.accessibilityIdentifier("via-layer-" + record.id.uuidString)
-                .onChange(of: layer) { _, _ in selected = nil }
-            Text(text("phase4.selectPosition"))
-            ScrollView {
-                LazyVStack(alignment: .leading) {
-                    ForEach(slots.filter { $0.slot.layer == layer }, id: \.slot) { entry in
-                        Button {
-                            selected = entry.slot
-                        } label: {
-                            HStack {
-                                Text(String(format: text("phase4.filePosition"), entry.slot.column) + ": " + VIAFileKeyLabels.name(entry.original, text: text))
-                                    .lineLimit(1)
-                                if entry.restriction != nil { Image(systemName: "lock") }
-                                if selected == entry.slot { Image(systemName: "checkmark") }
-                            }
-                        }
-                        .focusable()
-                        .focused($focusedChoice, equals: "slot-\(entry.slot.layer)-\(entry.slot.column)")
-                        .onKeyPress(keys: [.space, .return]) { _ in
-                            guard !model.working else { return .ignored }
-                            selected = entry.slot
-                            return .handled
-                        }
-                        .accessibilityLabel(String(format: text("phase4.filePosition"), entry.slot.column) + ": " +
-                            VIAFileKeyLabels.name(entry.original, text: text) + (entry.restriction == nil ? "" : ", " + text("phase4.readOnlyPosition")))
-                        .accessibilityIdentifier("via-slot-\(record.id)-\(entry.slot.layer)-\(entry.slot.column)")
-                    }
-                }.padding(4)
-            }.frame(height: 150)
-            Text(text("phase4.filePositionNotice")).font(.caption).fixedSize(horizontal: false, vertical: true)
-            if let current {
-                Text(text("phase4.originalKey") + ": " + VIAFileKeyLabels.name(current.original, text: text))
-                    .fixedSize(horizontal: false, vertical: true)
-                    .accessibilityIdentifier("via-original-" + record.id.uuidString)
-                if let restriction = current.restriction {
-                    Text(text(restriction == .protectedEntry ? "phase4.patchIssue.protected" :
-                        restriction == .unreachableLayer ? "phase4.patchIssue.layer" : "phase4.readOnlyAction"))
-                        .fixedSize(horizontal: false, vertical: true)
-                        .accessibilityIdentifier("via-restriction-" + record.id.uuidString)
-                }
-            }
-            TextField(text("phase4.searchOutput"), text: $search)
-                .accessibilityIdentifier("via-output-search-" + record.id.uuidString)
-            ScrollView {
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 130), alignment: .leading)], alignment: .leading) {
-                    ForEach(outputs, id: \.self) { key in
-                        Button { output = key } label: {
-                            HStack {
-                                Text(VIAFileKeyLabels.name(key, text: text))
-                                if output == key { Image(systemName: "checkmark") }
-                            }
-                        }.focusable()
-                            .focused($focusedChoice, equals: "output-" + key)
-                            .onKeyPress(keys: [.space, .return]) { _ in
-                                guard !model.working else { return .ignored }
-                                output = key
-                                return .handled
-                            }
-                            .accessibilityIdentifier("via-output-\(record.id)-\(key)")
-                    }
-                }.padding(4)
-            }.frame(height: 140)
-            if outputs.isEmpty { Text(text("phase4.noOutputMatches")) }
-            if let output { Text(text("phase4.newKey") + ": " + VIAFileKeyLabels.name(output, text: text)) }
+            positionChoices
+            originalValue
+            outputChoices
             Text(text("phase4.basicOutputNotice")).font(.caption).fixedSize(horizontal: false, vertical: true)
             Button(text("phase4.stagePatchChange")) {
                 if let current, current.restriction == nil, let output, let ticket = model.selectionTicket() {
@@ -176,6 +111,79 @@ private struct VIAFilePatchControls: View {
             }.disabled(!model.canGenerate(record) || current == nil || current?.restriction != nil || output == nil || current?.original == output)
                 .accessibilityIdentifier("stage-" + record.id.uuidString)
         }
+    }
+    @ViewBuilder private var positionChoices: some View {
+        Picker(text("phase4.layer"), selection: $layer) {
+            ForEach(Array(Set(slots.map { $0.slot.layer })).sorted(), id: \.self) { layer in
+                Text(String(layer)).tag(layer)
+            }
+        }.accessibilityIdentifier("via-layer-" + record.id.uuidString)
+            .onChange(of: layer) { _, _ in selected = nil }
+        Text(text("phase4.selectPosition"))
+        ScrollView {
+            LazyVStack(alignment: .leading) {
+                ForEach(slots.filter { $0.slot.layer == layer }, id: \.slot) { entry in positionButton(entry) }
+            }.padding(4)
+        }.frame(height: 150)
+        Text(text("phase4.filePositionNotice")).font(.caption).fixedSize(horizontal: false, vertical: true)
+    }
+    private func positionButton(_ entry: VIAFileSlot) -> some View {
+        let title = String(format: text("phase4.filePosition"), entry.slot.column) + ": " + VIAFileKeyLabels.name(entry.original, text: text)
+        return Button { selected = entry.slot } label: {
+            HStack {
+                Text(title).lineLimit(1)
+                if entry.restriction != nil { Image(systemName: "lock") }
+                if selected == entry.slot { Image(systemName: "checkmark") }
+            }
+        }
+        .focusable()
+        .focused($focusedChoice, equals: "slot-\(entry.slot.layer)-\(entry.slot.column)")
+        .onKeyPress(keys: [.space, .return]) { _ in
+            guard !model.working else { return .ignored }
+            selected = entry.slot
+            return .handled
+        }
+        .accessibilityLabel(title + (entry.restriction == nil ? "" : ", " + text("phase4.readOnlyPosition")))
+        .accessibilityIdentifier("via-slot-\(record.id)-\(entry.slot.layer)-\(entry.slot.column)")
+    }
+    @ViewBuilder private var originalValue: some View {
+        if let current {
+            Text(text("phase4.originalKey") + ": " + VIAFileKeyLabels.name(current.original, text: text))
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityIdentifier("via-original-" + record.id.uuidString)
+            if let restriction = current.restriction {
+                Text(text(restriction == .protectedEntry ? "phase4.patchIssue.protected" :
+                    restriction == .unreachableLayer ? "phase4.patchIssue.layer" : "phase4.readOnlyAction"))
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("via-restriction-" + record.id.uuidString)
+            }
+        }
+    }
+    @ViewBuilder private var outputChoices: some View {
+        TextField(text("phase4.searchOutput"), text: $search)
+            .accessibilityIdentifier("via-output-search-" + record.id.uuidString)
+        ScrollView {
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 130), alignment: .leading)], alignment: .leading) {
+                ForEach(outputs, id: \.self) { key in outputButton(key) }
+            }.padding(4)
+        }.frame(height: 140)
+        if outputs.isEmpty { Text(text("phase4.noOutputMatches")) }
+        if let output { Text(text("phase4.newKey") + ": " + VIAFileKeyLabels.name(output, text: text)) }
+    }
+    private func outputButton(_ key: String) -> some View {
+        Button { output = key } label: {
+            HStack {
+                Text(VIAFileKeyLabels.name(key, text: text))
+                if output == key { Image(systemName: "checkmark") }
+            }
+        }.focusable()
+            .focused($focusedChoice, equals: "output-" + key)
+            .onKeyPress(keys: [.space, .return]) { _ in
+                guard !model.working else { return .ignored }
+                output = key
+                return .handled
+            }
+            .accessibilityIdentifier("via-output-\(record.id)-\(key)")
     }
 }
 

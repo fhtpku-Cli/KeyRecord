@@ -528,9 +528,10 @@
 "physical.sources.software" = "Software mapping";
 "physical.sources.macOS" = "macOS mapping";
 "physical.sources.reference" = "File reference only";
+"physical.sources.collected" = "Partial source read; full mapping unverified";
 "physical.sources.observed" = "Current observation supplied";
 "physical.sources.missing" = "Not available";
 "physical.sources.changed" = "Previous observation withdrawn";
 "physical.sources.unsupported" = "Cannot establish this mapping";
-"physical.sources.note" = "Files and profile selections do not prove deployed mappings. Missing, changed or ambiguous sources keep both combinations on logical key counts. Current observations must still cover every inverse action before physical results can appear.";
+"physical.sources.note" = "Rechecking reads local keyboard mapping properties and the current Karabiner configuration. It does not apply changes. Files, profile selections and partial readbacks do not prove the full active mapping; incomplete or changed sources keep both combinations on logical key counts.";
 "physical.sources.refresh" = "Recheck available sources";

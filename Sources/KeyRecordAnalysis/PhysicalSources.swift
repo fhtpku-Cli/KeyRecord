@@ -15,15 +15,17 @@ public struct PhysicalSourceInput: Equatable, Sendable {
     public let scope: RecommendationScope
     public let via: VIAImportedConfiguration?
     public let software: PhysicalSoftwareReference?
+    public let firmware: PhysicalFirmwareReference?
     public init(backend: RecommendationBackend, scope: RecommendationScope,
-                via: VIAImportedConfiguration?, software: PhysicalSoftwareReference?) {
+                via: VIAImportedConfiguration?, software: PhysicalSoftwareReference?, firmware: PhysicalFirmwareReference? = nil) {
         self.backend = backend; self.scope = scope; self.via = via; self.software = software
+        self.firmware = firmware
     }
 }
 
 public struct PhysicalSourceSummary: Equatable, Sendable, Identifiable {
     public enum Kind: String, Sendable { case geometry, device, firmware, software, macOS }
-    public enum Status: String, Sendable { case reference, observed, missing, changed, unsupported }
+    public enum Status: String, Sendable { case reference, collected, observed, missing, changed, unsupported }
     public let id: Kind
     public let status: Status
     public init(_ kind: Kind, _ status: Status) { id = kind; self.status = status }
@@ -32,6 +34,7 @@ public struct PhysicalSourceSummary: Equatable, Sendable, Identifiable {
 public struct PhysicalSourceReport: Equatable, Sendable {
     public let evidence: PhysicalEvidence
     public let sources: [PhysicalSourceSummary]
+    public init(evidence: PhysicalEvidence, sources: [PhysicalSourceSummary]) { self.evidence = evidence; self.sources = sources }
 
     public static func references(_ input: PhysicalSourceInput, changed: Bool = false) -> Self {
         // A VIA file never supplies Vial device geometry or a deployed firmware claim.
@@ -48,8 +51,10 @@ public struct PhysicalSourceReport: Equatable, Sendable {
             return .init(input: from, output: to)
         }
         let state: TransformStatus = changed ? .externallyChanged : .absent
-        let firmware = TransformEvidence(link: .firmware, status: state, reference: via == nil ? "" : "via-file-reference",
-            mapping: via?.physicalEvidence.chain.first?.mapping)
+        let readback = input.backend == .vial ? input.firmware : nil
+        let firmware = TransformEvidence(link: .firmware, status: state,
+            reference: readback.map { "vial-readback:" + $0.device } ?? (via == nil ? "" : "via-file-reference"),
+            mapping: readback?.mapping ?? via?.physicalEvidence.chain.first?.mapping)
         let softwareEvidence = TransformEvidence(link: .software, status: state,
             reference: software.map { "karabiner-profile:" + $0.identityName } ?? "",
             mapping: software == nil ? nil : CanonicalTransform(mappings: mappings, completeInverseFor: []))
@@ -59,7 +64,7 @@ public struct PhysicalSourceReport: Equatable, Sendable {
         let softwareStatus: PhysicalSourceSummary.Status = software != nil ? .reference : input.software == nil ? .missing : .unsupported
         return Self(evidence: evidence, sources: [
             .init(.geometry, via?.geometry == nil ? .missing : .reference), .init(.device, .missing),
-            .init(.firmware, via == nil ? .missing : .reference), .init(.software, softwareStatus), .init(.macOS, .missing)
+            .init(.firmware, readback != nil ? .collected : via == nil ? .missing : .reference), .init(.software, softwareStatus), .init(.macOS, .missing)
         ].map { changed ? .init($0.id, .changed) : $0 })
     }
 

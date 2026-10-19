@@ -33,6 +33,8 @@ public struct VIADefinitionReference: Equatable, Sendable {
     public let columns: Int
     public let geometry: CanonicalGeometry?
     public let limitations: Set<VIAReferenceLimitation>
+    public let layoutOptions: [VIALayoutOption]
+    public let layoutSelection: [Int]?
 }
 
 public struct VIAImportedConfiguration: Equatable, Sendable {
@@ -120,7 +122,8 @@ public enum VIAReferenceParser {
             hasDynamicFeatures: macros.contains { !$0.isEmpty } || !(root["encoders"]?.array ?? []).isEmpty)
     }
 
-    public static func definition(_ data: Data) throws -> VIADefinitionReference {
+    public static func definition(_ data: Data, layoutSelection: [Int]? = nil,
+                                  packedLayoutOptions: UInt32? = nil) throws -> VIADefinitionReference {
         let root = try object(data)
         let hasLegacy = root["vendorProductId"] != nil
         let hasV3 = root["vendorId"] != nil || root["productId"] != nil
@@ -143,17 +146,11 @@ public enum VIAReferenceParser {
               (layouts["keymap"] != nil) != (layouts["keys"] != nil) else { throw VIAImportError.invalidGeometry }
         var limitations: Set<VIAReferenceLimitation> = []
         let geometry: CanonicalGeometry?
-        let options: [VIAJSONValue]
-        if let value = layouts["labels"] {
-            guard let array = value.array, array.allSatisfy({ label in
-                if label.string != nil { return true }
-                return label.array?.allSatisfy({ $0.string != nil }) == true
-            }) else { throw VIAImportError.invalidGeometry }
-            options = array
-        } else { options = [] }
+        let options = try VIALayoutOption.parse(layouts["labels"])
+        let selection = try VIALayoutOption.selection(layoutSelection, packed: packedLayoutOptions, options: options)
         if layouts["keys"] != nil {
             guard hasLegacy else { throw VIAImportError.unsupportedSchema }
-            let result = try geometryFromCompiled(layouts, rows: rows, cols: cols, hasOptions: !options.isEmpty)
+            let result = try VIAGeometryParser.compiled(layouts, rows: rows, cols: cols, options: options, selection: selection)
             geometry = result.geometry
             limitations.formUnion(result.limitations)
         } else {
@@ -162,17 +159,12 @@ public enum VIAReferenceParser {
             if !Set(layouts.keys).isSubset(of: ["keymap", "labels"]) {
                 limitations.insert(.complexGeometry)
             }
-            if !options.isEmpty {
-                limitations.insert(.layoutOptions)
-                geometry = nil
-            } else {
-                let result = try geometryFromKLE(keymap, rows: rows, cols: cols)
-                geometry = limitations.contains(.complexGeometry) ? nil : result.geometry
-                limitations.formUnion(result.limitations)
-            }
+            let result = try VIAGeometryParser.kle(keymap, rows: rows, cols: cols, options: options, selection: selection)
+            geometry = limitations.contains(.complexGeometry) ? nil : result.geometry
+            limitations.formUnion(result.limitations)
         }
         return VIADefinitionReference(name: String(name.prefix(256)), vendorProductID: id, rows: rows,
-            columns: cols, geometry: geometry, limitations: limitations)
+            columns: cols, geometry: geometry, limitations: limitations, layoutOptions: options, layoutSelection: selection)
     }
 
     public static func match(layout: VIALayoutReference, definition: VIADefinitionReference) throws -> VIAImportedConfiguration {
@@ -213,102 +205,9 @@ public enum VIAReferenceParser {
         }
     }
 
-    private static func geometryFromKLE(_ keymap: [VIAJSONValue], rows: Int, cols: Int)
-        throws -> (geometry: CanonicalGeometry?, limitations: Set<VIAReferenceLimitation>) {
-        var y = 0.0
-        var positions: [PhysicalPosition] = []
-        let decorative: Set<String> = ["c", "t", "a", "f", "f2", "fa", "p", "sm", "sb", "st", "n", "g"]
-        for row in keymap {
-            guard let keys = row.array else { throw VIAImportError.invalidGeometry }
-            var x = 0.0
-            var width = 1.0, height = 1.0
-            for key in keys {
-                if let properties = key.object {
-                    guard Set(properties.keys).isSubset(of: decorative.union(["x", "y", "w", "h"])) else {
-                        return (nil, [.complexGeometry])
-                    }
-                    if let alignment = properties["a"] {
-                        guard let value = alignment.integer, value == 0 || value == 4 else { return (nil, [.complexGeometry]) }
-                    }
-                    if properties["g"] == .bool(true) { return (nil, [.complexGeometry]) }
-                    for field in ["x", "y", "w", "h"] where properties[field] != nil {
-                        guard let number = properties[field]?.number, number.isFinite else { throw VIAImportError.invalidGeometry }
-                        switch field {
-                        case "x": x += number
-                        case "y": y += number
-                        case "w": width = number
-                        case "h": height = number
-                        default: break
-                        }
-                    }
-                } else if let label = key.string {
-                    if label.contains("\n") { return (nil, [.layoutOptions]) }
-                    let parts = label.split(separator: ",", omittingEmptySubsequences: false)
-                    guard parts.count == 2, let r = Int(parts[0]), let c = Int(parts[1]),
-                          r >= 0, c >= 0, r < rows, c < cols, width > 0, height > 0,
-                          x.isFinite, y.isFinite else { throw VIAImportError.invalidGeometry }
-                    let centerX = x + width / 2, centerY = y + height / 2
-                    guard centerX.isFinite, centerY.isFinite else { throw VIAImportError.invalidGeometry }
-                    positions.append(try PhysicalPosition(id: "\(r),\(c)", centerX: centerX,
-                        centerY: centerY, coordinateFrame: "via-definition-reference"))
-                    x += width
-                    width = 1
-                    height = 1
-                } else { throw VIAImportError.invalidGeometry }
-            }
-            y += 1
-        }
-        guard !positions.isEmpty else { throw VIAImportError.invalidGeometry }
-        do { return (try CanonicalGeometry(positions: positions), []) }
-        catch { throw VIAImportError.invalidGeometry }
-    }
-
-    private static func geometryFromCompiled(_ layouts: [String: VIAJSONValue], rows: Int, cols: Int, hasOptions: Bool)
-        throws -> (geometry: CanonicalGeometry?, limitations: Set<VIAReferenceLimitation>) {
-        guard let keys = layouts["keys"]?.array, let options = layouts["optionKeys"]?.object,
-              let width = layouts["width"]?.number, let height = layouts["height"]?.number,
-              width.isFinite, height.isFinite, width > 0, height > 0 else { throw VIAImportError.invalidGeometry }
-        var limitations: Set<VIAReferenceLimitation> = []
-        if hasOptions || !options.isEmpty { limitations.insert(.layoutOptions) }
-        if !Set(layouts.keys).isSubset(of: ["keys", "optionKeys", "width", "height", "labels"]) {
-            limitations.insert(.complexGeometry)
-        }
-        var alternatives: [VIAJSONValue] = []
-        for group in options.values {
-            guard let choices = group.object else { throw VIAImportError.invalidGeometry }
-            for choice in choices.values {
-                guard let entries = choice.array else { throw VIAImportError.invalidGeometry }
-                alternatives += entries
-            }
-        }
-        guard !keys.isEmpty || !alternatives.isEmpty else { throw VIAImportError.invalidGeometry }
-        var positions: [PhysicalPosition] = []
-        for value in keys + alternatives {
-            guard let key = value.object,
-                  let row = key["row"]?.integer, let col = key["col"]?.integer,
-                  (0..<rows).contains(row), (0..<cols).contains(col),
-                  let x = key["x"]?.number, let y = key["y"]?.number,
-                  let w = key["w"]?.number, let h = key["h"]?.number,
-                  let r = key["r"]?.number, let rx = key["rx"]?.number, let ry = key["ry"]?.number,
-                  [x, y, w, h, r, rx, ry].allSatisfy(\.isFinite), w > 0, h > 0,
-                  let decal = key["d"], decal == .bool(false) || decal == .bool(true),
-                  key["color"]?.string != nil else { throw VIAImportError.invalidGeometry }
-            let understood: Set<String> = ["row", "col", "x", "y", "w", "h", "r", "rx", "ry", "d", "color"]
-            if !Set(key.keys).isSubset(of: understood) || r != 0 || decal == .bool(true) {
-                limitations.insert(.complexGeometry)
-            }
-            let centerX = x + w / 2, centerY = y + h / 2
-            guard centerX.isFinite, centerY.isFinite else { throw VIAImportError.invalidGeometry }
-            positions.append(try PhysicalPosition(id: "\(row),\(col)", centerX: centerX, centerY: centerY,
-                coordinateFrame: "via-definition-reference"))
-        }
-        guard limitations.isEmpty else { return (nil, limitations) }
-        do { return (try CanonicalGeometry(positions: positions), []) }
-        catch { throw VIAImportError.invalidGeometry }
-    }
 }
 
-private enum VIAJSONValue: Decodable, Equatable {
+enum VIAJSONValue: Decodable, Equatable {
     case object([String: VIAJSONValue]), array([VIAJSONValue]), string(String), number(Double), bool(Bool), null
     init(from decoder: any Decoder) throws {
         let value = try decoder.singleValueContainer()

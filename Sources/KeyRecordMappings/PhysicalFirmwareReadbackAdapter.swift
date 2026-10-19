@@ -21,13 +21,24 @@ public enum PhysicalFirmwareReadbackAdapter {
     private static func layout(_ observation: VialKeymapObservation) throws -> PhysicalLayoutReference? {
         guard let definition = observation.definition else { return nil }
         guard definition.device == observation.device else { throw FirmwareError.identityMismatch }
-        guard let parsed = try? VIAReferenceParser.definition(definition.bytes) else { return nil }
+        let packed: UInt32?
+        if let value = observation.configurationValues[.layoutOptions], value.count == 5, value.first == 1 {
+            packed = value.dropFirst().reduce(UInt32(0)) { ($0 << 8) | UInt32($1) }
+        } else { packed = nil }
+        guard let unselected = try? VIAReferenceParser.definition(definition.bytes) else { return nil }
+        let parsed: VIADefinitionReference
+        if unselected.layoutOptions.isEmpty { parsed = unselected }
+        else {
+            guard let selected = try? VIAReferenceParser.definition(definition.bytes, packedLayoutOptions: packed) else { return nil }
+            parsed = selected
+        }
         var positions: [PhysicalPosition] = []
         if let geometry = parsed.geometry, !observation.values.isEmpty {
             let layers = Set(observation.values.keys.map(\.layer))
             for layer in layers.sorted() {
                 let slots = observation.values.keys.filter { $0.layer == layer }
-                guard Set(slots.map { "\($0.row),\($0.column)" }) == Set(geometry.positions.keys) else {
+                guard slots.allSatisfy({ (0..<parsed.rows).contains($0.row) && (0..<parsed.columns).contains($0.column) }),
+                      Set(geometry.positions.keys).isSubset(of: Set(slots.map { "\($0.row),\($0.column)" })) else {
                     return .init(name: parsed.name, vendorProductID: parsed.vendorProductID, geometry: nil)
                 }
                 for slot in slots {

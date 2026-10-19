@@ -185,7 +185,7 @@ final class KarabinerMappingFlowTests: XCTestCase {
         await model.refresh(.global)
         XCTAssertEqual(model.report(.global)?.deviceLayout?.status, .matchedReference)
         let priorGeometry = model.report(.global)?.deviceLayout?.match?.geometry
-        let shifted = String(decoding: definitionBytes, as: UTF8.self).replacingOccurrences(of: #"["0,0","0,1"]"#, with: #"[{"x":2},"0,0","0,1"]"#)
+        let shifted = String(decoding: definitionBytes, as: UTF8.self).replacingOccurrences(of: #"["0,0","0,1"]"#, with: #"["0,0",{"x":2},"0,1"]"#)
         try Data(shifted.utf8).write(to: definition, options: .atomic)
         XCTAssertNil(model.report(.global)?.deviceLayout)
         await flow.viaImport.load(kind: .definition, url: definition)

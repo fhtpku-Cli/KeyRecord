@@ -15,6 +15,7 @@ final class VIAImportModel: ObservableObject {
     @Published private(set) var definitionFilename: String?
     @Published private(set) var loading: Set<VIAImportFileKind> = []
     @Published private(set) var issue: VIAImportIssue?
+    @Published private(set) var optionChoices: [Int?] = []
     var canRead: @MainActor () -> Bool = { false }
     var protectedGate: KeyAvailabilityGate?
     var onChange: @MainActor () -> Void = {}
@@ -23,7 +24,12 @@ final class VIAImportModel: ObservableObject {
     }
     private var layout: VIALayoutReference?
     private var definition: VIADefinitionReference?
+    private var unselectedDefinition: VIADefinitionReference?
     private var layoutBytes: Data?
+    private var definitionBytes: Data?
+    var layoutOptions: [VIALayoutOption] {
+        canRead() && monitors[.definition]?.hasChanged == false ? definition?.layoutOptions ?? [] : []
+    }
     var selectedOriginalBytes: Data? { canRead() && monitors[.layout]?.hasChanged == false ? layoutBytes : nil }
     var layoutReference: VIALayoutReference? { selectedOriginalBytes != nil ? layout : nil }
     private var requests: [VIAImportFileKind: UUID] = [:]
@@ -74,7 +80,9 @@ final class VIAImportModel: ObservableObject {
             guard !selected.monitor.hasChanged else { selected.monitor.cancel(); throw VIAFileReadError.changed }
             switch (kind, selected.reference) {
             case (.layout, .layout(let parsed)): layout = parsed; layoutBytes = selected.bytes
-            case (.definition, .definition(let parsed)): definition = parsed
+            case (.definition, .definition(let parsed)):
+                definition = parsed; unselectedDefinition = parsed; definitionBytes = selected.bytes
+                optionChoices = Array(repeating: nil, count: parsed.layoutOptions.count)
             default: selected.monitor.cancel(); throw VIAImportError.malformedDocument
             }
             monitors[kind] = selected.monitor
@@ -111,6 +119,9 @@ final class VIAImportModel: ObservableObject {
         layout = nil
         layoutBytes = nil
         definition = nil
+        unselectedDefinition = nil
+        definitionBytes = nil
+        optionChoices = []
         layoutFilename = nil
         definitionFilename = nil
         loading = []
@@ -132,7 +143,30 @@ final class VIAImportModel: ObservableObject {
     }
 
     private func withdraw(_ kind: VIAImportFileKind) {
-        if kind == .layout { layout = nil; layoutBytes = nil } else { definition = nil }
+        if kind == .layout {
+            layout = nil; layoutBytes = nil
+            definition = unselectedDefinition
+            optionChoices = Array(repeating: nil, count: definition?.layoutOptions.count ?? 0)
+        } else { definition = nil; unselectedDefinition = nil; definitionBytes = nil; optionChoices = [] }
+    }
+
+    func selectLayoutOption(_ group: Int, choice: Int?) {
+        guard canRead(), loading.isEmpty, !monitors.values.contains(where: { $0.hasChanged }),
+              let definitionBytes, let definition, definition.layoutOptions.indices.contains(group),
+              choice == nil || definition.layoutOptions[group].choices.indices.contains(choice!) else { return }
+        do {
+            let generation = try protectedGate?.begin()
+            var updated = optionChoices
+            updated[group] = choice
+            let selection = updated.compactMap { $0 }
+            let parsed = try VIAFileReadAccess(gate: protectedGate, generation: generation).use {
+                try VIAReferenceParser.definition(definitionBytes,
+                    layoutSelection: selection.count == updated.count ? selection : nil)
+            }
+            guard canRead(), !monitors.values.contains(where: { $0.hasChanged }) else { return }
+            self.definition = parsed; optionChoices = updated
+            recompute()
+        } catch { rawConfiguration = nil; issue = .parser(.invalidGeometry); onChange() }
     }
 
     private func recompute() {

@@ -210,5 +210,343 @@
         }
       }
     }
+  ],
+  "geometryFixtures": [
+    {
+      "version": "v2",
+      "raw": {
+        "name": "rotation-reference",
+        "vendorId": "0x0001",
+        "productId": "0x0002",
+        "matrix": {
+          "rows": 2,
+          "cols": 1
+        },
+        "layouts": {
+          "keymap": [
+            [
+              {
+                "r": 90,
+                "rx": 2,
+                "ry": 3
+              },
+              "0,0"
+            ],
+            [
+              "1,0"
+            ]
+          ]
+        },
+        "lighting": "none"
+      },
+      "compiled": {
+        "name": "rotation-reference",
+        "lighting": "none",
+        "layouts": {
+          "width": 2,
+          "height": 1,
+          "optionKeys": {},
+          "keys": [
+            {
+              "row": 0,
+              "col": 0,
+              "x": 2,
+              "y": 0,
+              "r": 90,
+              "rx": 2,
+              "ry": 0,
+              "d": false,
+              "h": 1,
+              "w": 1,
+              "color": "alpha"
+            },
+            {
+              "row": 1,
+              "col": 0,
+              "x": 2,
+              "y": 1,
+              "r": 90,
+              "rx": 2,
+              "ry": 0,
+              "d": false,
+              "h": 1,
+              "w": 1,
+              "color": "alpha"
+            }
+          ]
+        },
+        "matrix": {
+          "rows": 2,
+          "cols": 1
+        },
+        "vendorProductId": 65538
+      }
+    },
+    {
+      "version": "v2",
+      "raw": {
+        "name": "option-reference",
+        "vendorId": "0x0001",
+        "productId": "0x0002",
+        "matrix": {
+          "rows": 1,
+          "cols": 3
+        },
+        "layouts": {
+          "labels": [
+            "Split"
+          ],
+          "keymap": [
+            [
+              "0,0",
+              "0,1\n\n\n0,0"
+            ],
+            [
+              {
+                "x": 4,
+                "w": 2
+              },
+              "0,2\n\n\n0,1"
+            ]
+          ]
+        },
+        "lighting": "none"
+      },
+      "compiled": {
+        "name": "option-reference",
+        "lighting": "none",
+        "layouts": {
+          "labels": [
+            "Split"
+          ],
+          "width": 2,
+          "height": 1,
+          "optionKeys": {
+            "0": {
+              "0": [
+                {
+                  "row": 0,
+                  "col": 1,
+                  "x": 1,
+                  "y": 0,
+                  "r": 0,
+                  "rx": 0,
+                  "ry": 0,
+                  "d": false,
+                  "h": 1,
+                  "w": 1,
+                  "color": "alpha"
+                }
+              ],
+              "1": [
+                {
+                  "row": 0,
+                  "col": 2,
+                  "x": 1,
+                  "y": 0,
+                  "r": 0,
+                  "rx": 0,
+                  "ry": 0,
+                  "d": false,
+                  "h": 1,
+                  "w": 2,
+                  "color": "alpha"
+                }
+              ]
+            }
+          },
+          "keys": [
+            {
+              "row": 0,
+              "col": 0,
+              "x": 0,
+              "y": 0,
+              "r": 0,
+              "rx": 0,
+              "ry": 0,
+              "d": false,
+              "h": 1,
+              "w": 1,
+              "color": "alpha"
+            }
+          ]
+        },
+        "matrix": {
+          "rows": 1,
+          "cols": 3
+        },
+        "vendorProductId": 65538
+      }
+    },
+    {
+      "version": "v3",
+      "raw": {
+        "name": "rotation-reference",
+        "vendorId": "0x0001",
+        "productId": "0x0002",
+        "matrix": {
+          "rows": 2,
+          "cols": 1
+        },
+        "layouts": {
+          "keymap": [
+            [
+              {
+                "r": 90,
+                "rx": 2,
+                "ry": 3
+              },
+              "0,0"
+            ],
+            [
+              "1,0"
+            ]
+          ]
+        },
+        "menus": []
+      },
+      "compiled": {
+        "name": "rotation-reference",
+        "vendorProductId": 65538,
+        "firmwareVersion": 0,
+        "menus": [],
+        "keycodes": [],
+        "matrix": {
+          "rows": 2,
+          "cols": 1
+        },
+        "layouts": {
+          "width": 2,
+          "height": 1,
+          "optionKeys": {},
+          "keys": [
+            {
+              "row": 0,
+              "col": 0,
+              "x": 2,
+              "y": 0,
+              "r": 90,
+              "rx": 2,
+              "ry": 0,
+              "d": false,
+              "h": 1,
+              "w": 1,
+              "color": "alpha"
+            },
+            {
+              "row": 1,
+              "col": 0,
+              "x": 2,
+              "y": 1,
+              "r": 90,
+              "rx": 2,
+              "ry": 0,
+              "d": false,
+              "h": 1,
+              "w": 1,
+              "color": "alpha"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "version": "v3",
+      "raw": {
+        "name": "option-reference",
+        "vendorId": "0x0001",
+        "productId": "0x0002",
+        "matrix": {
+          "rows": 1,
+          "cols": 3
+        },
+        "layouts": {
+          "labels": [
+            "Split"
+          ],
+          "keymap": [
+            [
+              "0,0",
+              "0,1\n\n\n0,0"
+            ],
+            [
+              {
+                "x": 4,
+                "w": 2
+              },
+              "0,2\n\n\n0,1"
+            ]
+          ]
+        },
+        "menus": []
+      },
+      "compiled": {
+        "name": "option-reference",
+        "vendorProductId": 65538,
+        "firmwareVersion": 0,
+        "menus": [],
+        "keycodes": [],
+        "matrix": {
+          "rows": 1,
+          "cols": 3
+        },
+        "layouts": {
+          "labels": [
+            "Split"
+          ],
+          "width": 2,
+          "height": 1,
+          "optionKeys": {
+            "0": {
+              "0": [
+                {
+                  "row": 0,
+                  "col": 1,
+                  "x": 1,
+                  "y": 0,
+                  "r": 0,
+                  "rx": 0,
+                  "ry": 0,
+                  "d": false,
+                  "h": 1,
+                  "w": 1,
+                  "color": "alpha"
+                }
+              ],
+              "1": [
+                {
+                  "row": 0,
+                  "col": 2,
+                  "x": 1,
+                  "y": 0,
+                  "r": 0,
+                  "rx": 0,
+                  "ry": 0,
+                  "d": false,
+                  "h": 1,
+                  "w": 2,
+                  "color": "alpha"
+                }
+              ]
+            }
+          },
+          "keys": [
+            {
+              "row": 0,
+              "col": 0,
+              "x": 0,
+              "y": 0,
+              "r": 0,
+              "rx": 0,
+              "ry": 0,
+              "d": false,
+              "h": 1,
+              "w": 1,
+              "color": "alpha"
+            }
+          ]
+        }
+      }
+    }
   ]
 }

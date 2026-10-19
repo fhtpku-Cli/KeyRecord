@@ -128,6 +128,193 @@ private final class DeploymentVersionProbe: @unchecked Sendable {
 
 @MainActor
 final class KarabinerMappingFlowTests: XCTestCase {
+    private func physicalFixture(_ input: PhysicalSourceInput) throws -> PhysicalEvidence {
+        let geometry = try CanonicalGeometry(positions: [
+            PhysicalPosition(id: "cmd", centerX: 0, centerY: 0, coordinateFrame: "synthetic"),
+            PhysicalPosition(id: "c", centerX: 2, centerY: 0, coordinateFrame: "synthetic")])
+        let a: [PhysicalToken] = [.hidUsage(0xe3), .hidUsage(0x06)], b: [PhysicalToken] = [.hidUsage(0x06)]
+        let oa: [PhysicalToken] = try [.observedKey(KeyCode(55)), .observedKey(KeyCode(8))]
+        let ob: [PhysicalToken] = try [.observedKey(KeyCode(8))]
+        return PhysicalEvidence(geometry: geometry, chain: [
+            .init(link: .firmware, status: .verified, reference: "synthetic-firmware", mapping: .init(mappings: [
+                .init(input: [.position("cmd"), .position("c")], output: a), .init(input: [.position("c")], output: b)], completeInverseFor: [a,b])),
+            .init(link: .software, status: .verified, reference: "synthetic-software", mapping: .init(mappings: [
+                .init(input: a, output: a), .init(input: b, output: b)], completeInverseFor: [a,b])),
+            .init(link: .macOS, status: .verified, reference: "synthetic-system", mapping: .init(mappings: [
+                .init(input: a, output: oa), .init(input: b, output: ob)], completeInverseFor: [oa,ob]))
+        ], device: .singleVerified, scope: input.scope)
+    }
+    private func physicalResult(_ model: PhysicalSourcesModel, scope: RecommendationScope = .global) throws -> PhysicalCostComparison {
+        PhysicalAnalysis.compare(source: try recommendationChord(8, command: .left), trigger: try recommendationChord(8),
+            scope: scope, evidence: model.report(scope)?.evidence)
+    }
+    func testPhysicalSourcesConnectSelectedFilesAndWithdrawReplacedDefinition() async throws {
+        let (fixture, file) = try await ready()
+        let flow = fixture.flow, model = flow.physicalSources
+        let layout = file.deletingLastPathComponent().appendingPathComponent("physical-layout.json")
+        let definition = file.deletingLastPathComponent().appendingPathComponent("physical-definition.json")
+        let layoutBytes = Data(#"{"name":"Physical","vendorProductId":65538,"layers":[["KC_LGUI","KC_C"]]}"#.utf8)
+        let definitionBytes = Data(#"{"name":"Physical","vendorId":"0x0001","productId":"0x0002","matrix":{"rows":1,"cols":2},"layouts":{"keymap":[["0,0","0,1"]]}}"#.utf8)
+        try layoutBytes.write(to: layout); try definitionBytes.write(to: definition)
+        await flow.viaImport.load(kind: .layout, url: layout)
+        await flow.viaImport.load(kind: .definition, url: definition)
+        await model.refresh(.global)
+        XCTAssertEqual(model.report(.global)?.sources.map(\.status), [.reference, .missing, .reference, .reference, .missing])
+        if case .logical = try physicalResult(model) {} else { XCTFail("Files cannot qualify physical effects") }
+        model.dependencies.observe = { input in
+            XCTAssertNotNil(input.via); XCTAssertEqual(input.software?.profile, "Synthetic")
+            return PhysicalSourceObservation(input: input, evidence: try self.physicalFixture(input), isCurrent: { true })
+        }
+        await model.refresh(.global)
+        guard case .physical(let before, let after) = try physicalResult(model) else { return XCTFail("Synthetic observed chain should connect") }
+        XCTAssertEqual(before.pressCount, 2); XCTAssertEqual(after.pressCount, 1)
+        try (definitionBytes + Data(" ".utf8)).write(to: definition, options: .atomic)
+        if case .logical = try physicalResult(model) {} else { XCTFail("Read guard must withdraw before watcher delivery") }
+        try definitionBytes.write(to: definition, options: .atomic)
+        if case .logical = try physicalResult(model) {} else { XCTFail("Restoring bytes cannot revive withdrawn observations") }
+        model.dependencies = PhysicalSourceDependencies()
+        await flow.viaImport.load(kind: .definition, url: definition)
+        await model.refresh(.global)
+        XCTAssertEqual(model.report(.global)?.sources[0].status, .reference)
+    }
+    func testPhysicalSourcesRevokeOnSignalBackendProfileAndPrivacyChanges() async throws {
+        let (fixture, _) = try await ready()
+        let flow = fixture.flow, model = flow.physicalSources
+        var notify: (@MainActor () -> Void)?
+        var stops = 0, current = true
+        model.dependencies = PhysicalSourceDependencies(observe: { input in
+            .init(input: input, evidence: try self.physicalFixture(input), isCurrent: { current })
+        }, observeChanges: { callback in notify = callback; return { stops += 1 } })
+        await model.refresh(.global)
+        if case .physical = try physicalResult(model) {} else { XCTFail() }
+        current = false
+        if case .logical = try physicalResult(model) {} else { XCTFail("Expired observation") }
+        current = true
+        if case .logical = try physicalResult(model) {} else { XCTFail("No resurrection") }
+        await model.refresh(.global); notify?()
+        XCTAssertEqual(stops, 1)
+        if case .logical = try physicalResult(model) {} else { XCTFail("Change signal") }
+        await model.refresh(.global); flow.intendedBackend = .via
+        if case .logical = try physicalResult(model) {} else { XCTFail("Backend changed") }
+        await model.refresh(.global); flow.karabinerImport.profile = nil
+        if case .logical = try physicalResult(model) {} else { XCTFail("Profile changed") }
+        await model.refresh(.global)
+        fixture.observeLocked(); flow.sync(from: fixture.orchestrator.state)
+        XCTAssertNil(model.report(.global)); XCTAssertFalse(model.isLoading(.global))
+        fixture.observe(); flow.sync(from: fixture.orchestrator.state)
+        if case .logical = try physicalResult(model) {} else { XCTFail("Privacy reopen needs fresh observation") }
+    }
+    func testPhysicalSourcesRecheckConnectedKarabinerVersionBeforeWatcherDelivery() async throws {
+        let (fixture, file, store, gate) = try await deployment()
+        let flow = fixture.flow, probe = DeploymentVersionProbe()
+        flow.karabinerDeployment.configure(store: store, gate: gate,
+            dependencies: .init(version: { probe.value() }, authority: { _, _ in .temporaryConfiguration }))
+        await flow.karabinerDeployment.bind(url: file, profile: "Synthetic")
+        let model = flow.physicalSources
+        model.dependencies.observe = { input in
+            XCTAssertEqual(input.software?.version, "fixture-v1")
+            return .init(input: input, evidence: try self.physicalFixture(input), isCurrent: { true })
+        }
+        await model.refresh(.global)
+        if case .physical = try physicalResult(model) {} else { XCTFail() }
+        probe.set("fixture-v2")
+        if case .logical = try physicalResult(model) {} else { XCTFail("Application version changed") }
+        probe.set("fixture-v1")
+        if case .logical = try physicalResult(model) {} else { XCTFail("Restoring version cannot revive observation") }
+    }
+    func testPhysicalSourcesRejectLateResponsesWrongScopeAndReadFailure() async throws {
+        let (fixture, _) = try await ready()
+        let flow = fixture.flow, model = flow.physicalSources
+        let started = XCTestExpectation(description: "Physical source read paused")
+        var resume: CheckedContinuation<PhysicalSourceObservation?, Never>?
+        var held: PhysicalSourceObservation?
+        model.dependencies.observe = { input in
+            held = .init(input: input, evidence: try self.physicalFixture(input), isCurrent: { true })
+            return await withCheckedContinuation { resume = $0; started.fulfill() }
+        }
+        let task = Task { await model.refresh(.global) }
+        await fulfillment(of: [started], timeout: 5)
+        flow.intendedBackend = .via
+        resume?.resume(returning: held); await task.value
+        if case .logical = try physicalResult(model) {} else { XCTFail("Late response changed backend") }
+        model.dependencies.observe = { input in
+            let wrong = PhysicalSourceInput(backend: input.backend, scope: .application("com.example.Other"), via: input.via, software: input.software)
+            return .init(input: wrong, evidence: try self.physicalFixture(wrong), isCurrent: { true })
+        }
+        await model.refresh(.global)
+        if case .logical = try physicalResult(model) {} else { XCTFail("Wrong scope") }
+        model.dependencies.observe = { input in .init(input: input, evidence: try self.physicalFixture(input), isCurrent: { true }) }
+        await model.refresh(.application("com.example.Editor"))
+        if case .physical = try physicalResult(model, scope: .application("com.example.Editor")) {} else { XCTFail("Explicit matching scope") }
+        if case .logical = try physicalResult(model) {} else { XCTFail("Application evidence cannot be reused globally") }
+        model.dependencies.observe = { _ in throw FirmwareError.unavailable }
+        await model.refresh(.application("com.example.Editor"))
+        if case .logical = try physicalResult(model, scope: .application("com.example.Editor")) {} else { XCTFail("Failure cannot keep last successful result") }
+    }
+    func testPhysicalSourcesRejectInvalidationDuringFinalSourceCheck() async throws {
+        let model = PhysicalSourcesModel()
+        let input = PhysicalSourceInput(backend: .via, scope: .global, via: nil, software: nil)
+        var withdrawOnRead = false
+        model.input = { _ in
+            if withdrawOnRead { withdrawOnRead = false; model.invalidate() }
+            return input
+        }
+        model.dependencies.observe = { current in
+            withdrawOnRead = true
+            return .init(input: current, evidence: try self.physicalFixture(current), isCurrent: { true })
+        }
+        await model.refresh(.global)
+        XCTAssertFalse(model.isLoading(.global))
+        if case .logical = try physicalResult(model) {} else { XCTFail("Final read revoked the request even though its value matched") }
+        model.input = { _ in input }
+        model.dependencies.observe = { current in
+            .init(input: current, evidence: try self.physicalFixture(current), isCurrent: { model.invalidate(); return true })
+        }
+        await model.refresh(.global)
+        if case .logical = try physicalResult(model) {} else { XCTFail("Observation check revoked the request") }
+        model.input = { _ in nil }; model.dependencies = PhysicalSourceDependencies()
+    }
+    func testNativePhysicalSourcesShowFallbackAndWithdrawSyntheticResultInBothLanguages() throws {
+        ScreenEvidence.prepare()
+        for locale in ["en", "zh-Hans"] {
+            var fixture: FlowFixture?
+            ScreenEvidence.awaitMain { do { fixture = try await self.ready().0 } catch { XCTFail("\(error)") } }
+            let flow = try XCTUnwrap(fixture?.flow), model = flow.physicalSources, text = NativeText(locale: locale)
+            let source = try recommendationChord(8, command: .left), trigger = try recommendationChord(8)
+            let view = NSHostingView(rootView: AnalysisPhysicalComparisonView(source: source, trigger: trigger, scope: .global, evidence: nil, text: text)
+                .environment(\.physicalSources, model).padding().frame(width: 700, height: 430)
+                .background(Color(nsColor: .windowBackgroundColor)))
+            view.sizingOptions = []
+            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 700, height: 430), styleMask: [.titled], backing: .buffered, defer: false)
+            window.isReleasedWhenClosed = false; window.contentView = view; window.makeKeyAndOrderFront(nil)
+            defer { window.contentView = nil; window.close() }
+            NativeEvidence.primeAccessibility(); NativeEvidence.update(view); NativeEvidence.update(view)
+            _ = try NativeEvidence.node("physical.result.logical", in: view)
+            let disclosure = try NativeEvidence.node("physical.sources.disclosure", in: view)
+            XCTAssertTrue(KRAXPress(disclosure)); NativeEvidence.update(view); NativeEvidence.update(view)
+            XCTAssertEqual(KRAXLabel(try NativeEvidence.node("physical.source.macOS", in: view)), text("physical.sources.macOS") + ": " + text("physical.sources.missing"))
+            var changed: (@MainActor () -> Void)?
+            model.dependencies = PhysicalSourceDependencies(observe: { input in
+                .init(input: input, evidence: try self.physicalFixture(input), isCurrent: { true })
+            }, observeChanges: { callback in changed = callback; return {} })
+            let done = XCTestExpectation(description: "Native physical refresh")
+            var delivered = false
+            model.onChange = { if !model.isLoading(.global), !delivered { delivered = true; done.fulfill() } }
+            NativeEvidence.update(view)
+            XCTAssertTrue(KRAXPress(try NativeEvidence.node("physical.sources.refresh", in: view)))
+            ScreenEvidence.awaitMain { let result = await XCTWaiter.fulfillment(of: [done], timeout: 5); XCTAssertEqual(result, .completed) }
+            NativeEvidence.update(view)
+            XCTAssertEqual(KRAXLabel(try NativeEvidence.node("physical.result.presses", in: view)), String(format: text("phase2.physicalCounts"), 2, 1))
+            changed?(); NativeEvidence.update(view)
+            _ = try NativeEvidence.node("physical.result.logical", in: view)
+            XCTAssertFalse(NativeEvidence.elements(in: view).contains { KRAXIdentifier($0) == "physical.result.presses" })
+            XCTAssertEqual(KRAXLabel(try NativeEvidence.node("physical.source.macOS", in: view)), text("physical.sources.macOS") + ": " + text("physical.sources.changed"))
+            if let root = NativeEvidence.outputRoot() {
+                try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+                try ScreenEvidence.capturePNG(view).write(to: root.appendingPathComponent("physical-sources-withdrawn-" + locale + ".png"))
+            }
+        }
+    }
     private func recommendationChord(_ key: Int, command: ModifierSideState = .none) throws -> Chord {
         Chord(keyCode: try KeyCode(key), modifiers: .init(command: command, option: .none, control: .none, shift: .none, fn: .none))
     }

@@ -546,10 +546,17 @@ final class ProductRecoveryQuitTests: XCTestCase {
         let axes = FirmwareVersionAxes(definitionSchema: "synthetic-schema", deviceProtocol: "via-9/vial-6",
             layoutFormat: "vial-save-1", keycodeDialect: VialKeycodeDialect.name, importer: "synthetic-importer")
         var discoveries = 0
+        var physicalReads = 0
         product.configureBackends = { host in
             host.karabinerDeployment = KarabinerDeploymentDependencies(version: { "synthetic-version" }, authority: { _, _ in .temporaryConfiguration })
             host.firmwareVersionAxes = { _ in axes }
             host.firmwareImporterVersion = { _ in axes.importer }
+            host.physicalSources.observe = { input in
+                physicalReads += 1
+                XCTAssertEqual(input.software?.profile, "Synthetic")
+                XCTAssertEqual(input.software?.version, "synthetic-version")
+                return nil
+            }
             host.firmwareSupport = FirmwareSupportDirectory(entries: [FirmwareCompatibility(backend: .vial,
                 device: "42", axes: axes, supportedOutputs: ["KC_C"])])
             host.vialDevices = VialDeviceSelection(devices: { discoveries += 1; return [] },
@@ -567,6 +574,10 @@ final class ProductRecoveryQuitTests: XCTestCase {
         await deployment.requestApplication(profile: "Synthetic")
         XCTAssertTrue(deployment.connected, "issue=\(deployment.issueKey ?? "none"), working=\(deployment.working)")
         XCTAssertEqual(deployment.version, "synthetic-version")
+        await product.composition.flow.physicalSources.refresh(.global)
+        XCTAssertEqual(physicalReads, 1)
+        XCTAssertEqual(product.composition.flow.physicalSources.report(.global)?.sources.map(\.status),
+                       [.missing, .missing, .missing, .reference, .missing])
         let firmware = product.composition.flow.firmwareCopies
         let original = product.root.appendingPathComponent("original.vil")
         try Data(#"{"version":1,"uid":42,"via_protocol":9,"vial_protocol":6,"layout":[[["KC_NO"]]]}"#.utf8).write(to: original)

@@ -83,6 +83,11 @@ final class KarabinerDeploymentModel: ObservableObject {
         guard let bytes = try? port.read() else { return nil }
         return (bytes, profile)
     }
+    var physicalReference: PhysicalSoftwareReference? {
+        guard canRead(), let port, let profile, let runtime,
+              let context = try? runtime.context(), let bytes = try? port.read() else { return nil }
+        return PhysicalSoftwareReference(bytes: bytes, profile: profile, version: context.version)
+    }
     func visibilityChanged(_ value: Bool) {
         guard visible != value else { return }
         visible = value

@@ -80,6 +80,10 @@ public struct VIAImportedConfiguration: Equatable, Sendable {
 }
 
 public enum VIAReferenceParser {
+    public static func standardKeyCode(hidUsage: UInt16) -> KeyCode? {
+        guard let entry = VIAStandardKeyCodes.values.values.first(where: { $0.1 == hidUsage }) else { return nil }
+        return try? KeyCode(entry.0)
+    }
     public static func standardHIDUsage(_ key: KeyCode) -> UInt16? {
         VIAStandardKeyCodes.values.values.first(where: { $0.0 == key.value })?.1
     }

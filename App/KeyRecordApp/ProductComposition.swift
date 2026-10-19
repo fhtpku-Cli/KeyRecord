@@ -62,7 +62,8 @@ struct ProductHostBoundaries {
         }
     var lockNotifications: any LockNotificationCentering = DistributedLockNotifications()
     var karabinerDeployment = KarabinerDeploymentDependencies()
-    var physicalSources = PhysicalSourceDependencies()
+    var physicalSources: PhysicalSourceDependencies?
+    var physicalSourcePorts = PhysicalHostSourcePorts()
     var firmwareSupport = FirmwareSupportDirectory()
     var firmwareVersionAxes: @MainActor (FirmwareBackend) -> FirmwareVersionAxes? = { _ in nil }
     var firmwareImporterVersion: (@MainActor (FirmwareBackend) -> String?)? = { FirmwareImporterVersionSource().version(for: $0) }
@@ -281,7 +282,8 @@ final class ProductComposition: NSObject, NSMenuDelegate, NSWindowDelegate {
         let flow = AppFlowObservable(flow: Phase1FlowModel(lifecycle: lifecycle,
             cycleReset: destruction, localDataEraser: destruction), protectedGate: gate)
         flow.karabinerDeployment.configure(store: store, gate: gate, dependencies: host.karabinerDeployment)
-        flow.physicalSources.dependencies = host.physicalSources
+        flow.physicalSources.dependencies = host.physicalSources ?? PhysicalHostSourceAdapter(
+            ports: host.physicalSourcePorts, gate: gate, canRead: { [weak flow] in flow?.sensitiveContentVisible == true }).dependencies
         flow.firmwareCopies.configure(store: store, gate: gate, support: host.firmwareSupport,
             versionAxes: host.firmwareVersionAxes, vialConnection: { [weak flow] record, authorize in
                 return try host.vialDevices.openSelectedDevice(record: record, support: host.firmwareSupport,

@@ -128,6 +128,97 @@ private final class DeploymentVersionProbe: @unchecked Sendable {
 
 @MainActor
 final class KarabinerMappingFlowTests: XCTestCase {
+    private final class SystemSourceProbe: @unchecked Sendable {
+        private let lock = NSLock()
+        private var snapshot: PhysicalSystemSnapshot?
+        init(_ snapshot: PhysicalSystemSnapshot?) { self.snapshot = snapshot }
+        func read() throws -> PhysicalSystemSnapshot {
+            try lock.withLock { guard let snapshot else { throw PhysicalSourceReadError.unavailable }; return snapshot }
+        }
+        func set(_ snapshot: PhysicalSystemSnapshot?) { lock.withLock { self.snapshot = snapshot } }
+    }
+    func testHostSourcesCollectActualAdaptersWithSimulatedSystemAndTemporaryConfiguration() async throws {
+        let (fixture, file) = try await ready()
+        let model = fixture.flow.physicalSources
+        let snapshot = try PhysicalSystemSnapshot(services: [.init(registryID: 71,
+            mappings: [.init(source: 0x700000004, destination: 0x700000005)])])
+        let system = SystemSourceProbe(snapshot), version = DeploymentVersionProbe()
+        let adapter = PhysicalHostSourceAdapter(ports: .init(system: { try system.read() }, softwareURL: { file }, version: { version.value() }), canRead: { true })
+        model.dependencies = adapter.dependencies
+        let observed = try await adapter.read(try XCTUnwrap(model.input(.global)))
+        let collected = try XCTUnwrap(observed)
+        XCTAssertEqual(collected.system, snapshot)
+        XCTAssertEqual(collected.sources?.map(\.status), [.missing, .collected, .missing, .collected, .collected])
+        XCTAssertEqual(collected.evidence.device, .unknown)
+        XCTAssertTrue(collected.evidence.chain.allSatisfy { $0.status != .verified })
+        await model.refresh(.global)
+        if case .logical = try physicalResult(model) {} else { XCTFail("Partial host reads cannot qualify the complete chain") }
+        system.set(try .init(services: [.init(registryID: 71, mappings: [])]))
+        XCTAssertTrue(model.report(.global)?.sources.allSatisfy { $0.status == .changed } == true)
+        system.set(snapshot)
+        XCTAssertEqual(model.report(.global)?.sources.last?.status, .changed)
+        await model.refresh(.global)
+        version.set("fixture-v2")
+        XCTAssertEqual(model.report(.global)?.sources[3].status, .changed)
+        await model.refresh(.global)
+        try (bytes + Data(" ".utf8)).write(to: file, options: .atomic)
+        XCTAssertFalse(collected.isCurrent())
+        XCTAssertEqual(model.report(.global)?.sources[3].status, .changed)
+    }
+    func testHostSourcesRejectWrongActiveProfileAndPreserveMissingSystemProperties() async throws {
+        let (fixture, file) = try await ready()
+        let model = fixture.flow.physicalSources
+        let other = file.deletingLastPathComponent().appendingPathComponent("active-other.json")
+        try Data(#"{"profiles":[{"name":"Other","selected":true}]}"#.utf8).write(to: other)
+        let system = SystemSourceProbe(try .init(services: [.init(registryID: 1, mappings: nil)]))
+        let adapter = PhysicalHostSourceAdapter(ports: .init(system: { try system.read() }, softwareURL: { other }, version: { "fixture" }), canRead: { true })
+        model.dependencies = adapter.dependencies
+        await model.refresh(.global)
+        XCTAssertEqual(model.report(.global)?.sources[3].status, .unsupported)
+        XCTAssertEqual(model.report(.global)?.sources.last?.status, .missing)
+        system.set(try .init(services: [.init(registryID: 1, mappings: []), .init(registryID: 2, mappings: [])]))
+        await model.refresh(.global)
+        XCTAssertEqual(model.report(.global)?.evidence.device, .unknown)
+        if case .logical = try physicalResult(model) {} else { XCTFail("Even an empty mapping on every service does not prove identity") }
+        system.set(nil)
+        await model.refresh(.global)
+        XCTAssertEqual(model.report(.global)?.sources[1].status, .missing)
+    }
+    func testHostSourceReadCannotSurvivePrivacyWithdrawalWhilePortIsPending() async throws {
+        let (fixture, file) = try await ready()
+        let model = fixture.flow.physicalSources
+        let started = XCTestExpectation(description: "System source reading"), release = DispatchSemaphore(value: 0)
+        let snapshot = try PhysicalSystemSnapshot(services: [])
+        let adapter = PhysicalHostSourceAdapter(ports: .init(system: {
+            started.fulfill(); _ = release.wait(timeout: .now() + 5); return snapshot
+        }, softwareURL: { XCTFail("Cancelled read must not start configuration read"); return file }, version: { nil }),
+            canRead: { fixture.flow.sensitiveContentVisible })
+        model.dependencies = adapter.dependencies
+        let read = Task { await model.refresh(.global) }
+        await fulfillment(of: [started], timeout: 5)
+        fixture.observeLocked(); fixture.flow.sync(from: fixture.orchestrator.state)
+        release.signal(); await read.value
+        XCTAssertNil(model.report(.global)); XCTAssertFalse(model.isLoading(.global))
+    }
+    func testVialPhysicalReferenceComesFromProtocolReadAndNeverQualifiesInverseCoverage() async throws {
+        let endpoint = NativeVialHIDFixture()
+        let (fixture, _, _, record) = try await claimedHID(endpoint)
+        let flow = fixture.flow, copies = flow.firmwareCopies
+        flow.intendedBackend = .vial
+        await copies.verifyVial(record, ticket: try XCTUnwrap(copies.selectionTicket()))
+        let reference = try XCTUnwrap(copies.physicalReadback)
+        XCTAssertFalse(endpoint.requests.isEmpty)
+        XCTAssertEqual(reference.device, record.device)
+        XCTAssertEqual(reference.mapping.mappings.count, 2)
+        XCTAssertTrue(reference.mapping.completeInverseFor.isEmpty)
+        XCTAssertEqual(flow.physicalSources.report(.global)?.sources[2].status, .collected)
+        XCTAssertNil(flow.physicalSources.report(.global)?.evidence.geometry)
+        if case .logical = try physicalResult(flow.physicalSources) {} else { XCTFail("Readback does not prove active layer or complete transforms") }
+        let wrong = VialKeymapObservation(device: "other", axes: record.axes, values: [:], observedAt: Date())
+        XCTAssertThrowsError(try PhysicalFirmwareReadbackAdapter.reference(wrong, record: record))
+        fixture.observeLocked(); flow.sync(from: fixture.orchestrator.state)
+        XCTAssertNil(copies.physicalReadback)
+    }
     private func physicalFixture(_ input: PhysicalSourceInput) throws -> PhysicalEvidence {
         let geometry = try CanonicalGeometry(positions: [
             PhysicalPosition(id: "cmd", centerX: 0, centerY: 0, coordinateFrame: "synthetic"),
@@ -278,7 +369,8 @@ final class KarabinerMappingFlowTests: XCTestCase {
         ScreenEvidence.prepare()
         for locale in ["en", "zh-Hans"] {
             var fixture: FlowFixture?
-            ScreenEvidence.awaitMain { do { fixture = try await self.ready().0 } catch { XCTFail("\(error)") } }
+            var configuration: URL?
+            ScreenEvidence.awaitMain { do { let ready = try await self.ready(); fixture = ready.0; configuration = ready.1 } catch { XCTFail("\(error)") } }
             let flow = try XCTUnwrap(fixture?.flow), model = flow.physicalSources, text = NativeText(locale: locale)
             let source = try recommendationChord(8, command: .left), trigger = try recommendationChord(8)
             let view = NSHostingView(rootView: AnalysisPhysicalComparisonView(source: source, trigger: trigger, scope: .global, evidence: nil, text: text)
@@ -313,6 +405,18 @@ final class KarabinerMappingFlowTests: XCTestCase {
                 try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
                 try ScreenEvidence.capturePNG(view).write(to: root.appendingPathComponent("physical-sources-withdrawn-" + locale + ".png"))
             }
+            let file = try XCTUnwrap(configuration)
+            let snapshot = try PhysicalSystemSnapshot(services: [.init(registryID: 1, mappings: [])])
+            model.dependencies = PhysicalHostSourceAdapter(ports: .init(system: { snapshot }, softwareURL: { file }, version: { "fixture" }), canRead: { true }).dependencies
+            ScreenEvidence.awaitMain { await model.refresh(.global) }
+            NativeEvidence.update(view)
+            XCTAssertEqual(KRAXLabel(try NativeEvidence.node("physical.source.macOS", in: view)), text("physical.sources.macOS") + ": " + text("physical.sources.collected"))
+            _ = try NativeEvidence.node("physical.result.logical", in: view)
+            XCTAssertFalse(NativeEvidence.elements(in: view).contains { KRAXIdentifier($0) == "physical.result.presses" })
+            if let root = NativeEvidence.outputRoot() {
+                try ScreenEvidence.capturePNG(view).write(to: root.appendingPathComponent("physical-sources-collected-" + locale + ".png"))
+            }
+            model.invalidate()
         }
     }
     private func recommendationChord(_ key: Int, command: ModifierSideState = .none) throws -> Chord {

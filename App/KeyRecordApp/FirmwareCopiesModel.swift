@@ -1,15 +1,17 @@
 import SwiftUI
 import AppKit
 import KeyRecordCore
+import KeyRecordAnalysis
 import KeyRecordMappings
 import KeyRecordDeviceRead
 import KeyRecordStore
 
 @MainActor
 final class FirmwareCopiesModel: ObservableObject {
-    @Published private(set) var records: [FirmwareBatchRecord] = []
+    @Published private(set) var records: [FirmwareBatchRecord] = [] { didSet { physicalReadback = nil } }
+    private(set) var physicalReadback: PhysicalFirmwareReference?
     @Published private(set) var issueKey: String?
-    @Published private(set) var working = false
+    @Published private(set) var working = false { didSet { if working { physicalReadback = nil } } }
     @Published private(set) var uninstallReady = false
     @Published private(set) var uninstallStage: UninstallPreparationStage?
     @Published private(set) var patchDrafts: [UUID: [FirmwareSlotChange]] = [:]
@@ -386,7 +388,10 @@ final class FirmwareCopiesModel: ObservableObject {
             try gate.check(generation); try Task.checkCancellation()
             guard canRead(), ticket == session, request == readRequest, isCompatible(record) else { return }
             let ledger = try await coordinator().confirmVialReadback(record.id, observation: observation)
-            if canRead(), ticket == session, request == readRequest { records = ledger.records }
+            if canRead(), ticket == session, request == readRequest {
+                records = ledger.records
+                physicalReadback = try PhysicalFirmwareReadbackAdapter.reference(observation, record: record)
+            }
         } catch { if canRead(), ticket == session, request == readRequest { issueKey = "phase4.operationFailed" } }
     }
     func cancelVialReadback() {

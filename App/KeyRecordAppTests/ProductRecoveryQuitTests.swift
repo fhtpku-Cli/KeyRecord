@@ -1,5 +1,6 @@
 import Foundation
 import XCTest
+import KeyRecordAnalysis
 import AppKit
 import SwiftUI
 import Combine
@@ -546,17 +547,13 @@ final class ProductRecoveryQuitTests: XCTestCase {
         let axes = FirmwareVersionAxes(definitionSchema: "synthetic-schema", deviceProtocol: "via-9/vial-6",
             layoutFormat: "vial-save-1", keycodeDialect: VialKeycodeDialect.name, importer: "synthetic-importer")
         var discoveries = 0
-        var physicalReads = 0
+        let target = product.root.appendingPathComponent("karabiner-copy.json")
+        let systemSnapshot = try PhysicalSystemSnapshot(services: [.init(registryID: 91, mappings: [])])
         product.configureBackends = { host in
             host.karabinerDeployment = KarabinerDeploymentDependencies(version: { "synthetic-version" }, authority: { _, _ in .temporaryConfiguration })
             host.firmwareVersionAxes = { _ in axes }
             host.firmwareImporterVersion = { _ in axes.importer }
-            host.physicalSources.observe = { input in
-                physicalReads += 1
-                XCTAssertEqual(input.software?.profile, "Synthetic")
-                XCTAssertEqual(input.software?.version, "synthetic-version")
-                return nil
-            }
+            host.physicalSourcePorts = .init(system: { systemSnapshot }, softwareURL: { target }, version: { "synthetic-version" })
             host.firmwareSupport = FirmwareSupportDirectory(entries: [FirmwareCompatibility(backend: .vial,
                 device: "42", axes: axes, supportedOutputs: ["KC_C"])])
             host.vialDevices = VialDeviceSelection(devices: { discoveries += 1; return [] },
@@ -566,7 +563,6 @@ final class ProductRecoveryQuitTests: XCTestCase {
         try await product.boot(journal: false)
         await product.composition.startOrRetry(); await product.composition.flow.accept()
         XCTAssertEqual(product.phase, .collecting)
-        let target = product.root.appendingPathComponent("karabiner-copy.json")
         try Data(#"{"profiles":[{"name":"Synthetic","selected":true,"complex_modifications":{"rules":[]}}]}"#.utf8).write(to: target)
         let deployment = product.composition.flow.karabinerDeployment
         try await waitUntil("backend session ready") { !deployment.working }
@@ -575,9 +571,8 @@ final class ProductRecoveryQuitTests: XCTestCase {
         XCTAssertTrue(deployment.connected, "issue=\(deployment.issueKey ?? "none"), working=\(deployment.working)")
         XCTAssertEqual(deployment.version, "synthetic-version")
         await product.composition.flow.physicalSources.refresh(.global)
-        XCTAssertEqual(physicalReads, 1)
         XCTAssertEqual(product.composition.flow.physicalSources.report(.global)?.sources.map(\.status),
-                       [.missing, .missing, .missing, .reference, .missing])
+                       [.missing, .collected, .missing, .collected, .collected])
         let firmware = product.composition.flow.firmwareCopies
         let original = product.root.appendingPathComponent("original.vil")
         try Data(#"{"version":1,"uid":42,"via_protocol":9,"vial_protocol":6,"layout":[[["KC_NO"]]]}"#.utf8).write(to: original)

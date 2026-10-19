@@ -379,7 +379,8 @@ final class AppFlowObservable: ObservableObject {
         guard sensitiveContentVisible else { return nil }
         let software = karabinerDeployment.connected ? karabinerDeployment.physicalReference
             : karabinerImport.selectedConfiguration.map { PhysicalSoftwareReference(bytes: $0.bytes, profile: $0.profile) }
-        return PhysicalSourceInput(backend: intendedBackend, scope: scope, via: viaImport.configuration, software: software)
+        return PhysicalSourceInput(backend: intendedBackend, scope: scope, via: viaImport.configuration, software: software,
+            firmware: intendedBackend == .vial ? firmwareCopies.physicalReadback : nil)
     }
 
     var snapshot: AggregateSnapshot? {

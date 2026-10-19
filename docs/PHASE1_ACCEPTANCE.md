@@ -1,16 +1,18 @@
-# Phase 1 acceptance
+# Phase 1 验收记录
+
+> 2026-10-20 核对：限定 Apple Silicon MVP 的完成结论继续有效，但只覆盖这里列出的原候选与动作。后续 Phase 2/3/4、密码备份和物理来源变更未重新取得全套实机资格。当前功能开发暂停；代码现状和未验证范围见 [PROJECT_STATUS](PROJECT_STATUS.md)。
 
 Current status: [PROJECT_STATUS.md](PROJECT_STATUS.md). Requirements: [PHASE1_CONTRACT.md](PHASE1_CONTRACT.md) and architecture §12.4/15. This matrix separates executable regression coverage from host qualification; it is not a new gate or acceptance receipt.
 
 **Historical MVP scope checkpoint (2026-09-29):** The first usable capture MVP may target native Apple Silicon only. Intel compatibility and Intel performance are later complete G1/v1 work, not reasons to block this MVP. A provisioned Debug trial has initialized protected storage, recorded 3 physical shortcuts with 4 issued/4 durable writes and read back the same total after restart with no new input or read failure. The signed `a604ad535` Debug fixed-replay candidate now completes the agreed short native ARM typing/idle performance measurement within budget ([result](PERFORMANCE_SHORT_ROUND_20260929.md)); this does not qualify event-tap overhead or Release. At that checkpoint, complete Keychain lifecycle, full privacy recovery and a qualified collecting Release remained unverified; current results follow below. The historical full G1 requirements and prior candidate-specific results retain their stated scope; this decision does not turn a missing measurement into PASS.
 
-## Current acceptance — 2026-10-01
+## 限定 MVP 的验收结论 — 2026-10-01
 
 The Apple Silicon Phase 1 objective is complete within the approved MVP scope.
 The September 29 paragraph above is a historical checkpoint; its then-open
 Keychain/privacy/Release items are superseded by the observed results below.
 The signed product source is `ea90753feab2358166ee39384bb6a5501dc4ce64`;
-later commits change tests or documentation. PR #17 merged as `8bb99e81` on
+该段描述当时的代码与文档收尾，不表示 2026-10-01 之后的全部提交都只有测试或文档修改。 PR #17 merged as `8bb99e81` on
 2026-10-01 (Asia/Shanghai); merge-commit CI passed. No new live run is claimed.
 This is a usable isolated development candidate for the measured native arm64
 macOS 27.0 build 26A428 host, not public distribution or general-platform qualification.

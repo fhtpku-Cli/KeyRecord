@@ -1,5 +1,7 @@
 # 固件预览失败说明与原生纠正流程
 
+> 历史记录说明（2026-10-20 核对）：本页保留所述日期/提交的实现、命令和验证范围，其中“当前”“待实现”“下一步”仅指当时。功能开发已暂停，最新状态见 [PROJECT_STATUS](../PROJECT_STATUS.md)，后续安排见 [ROADMAP](../ROADMAP.md)；本页不授权新实机、设备或删除操作。
+
 状态日期：2026-10-13，Asia/Shanghai。源码：`292836016f83b5458a4bb3dfabfc03a1451e23d7`。
 
 [PR #28](https://github.com/fhtpku-Cli/KeyRecord/pull/28) 已按用户指令合并为 `f110aa9cbc45aac12ac7d81d8ad4ac382a6661dc`。本批复用任务的隔离工作树推进源码、自审、离线执行及后续 PR/CI；主目录保持原 HEAD 与 215 项历史改动，只读检查。

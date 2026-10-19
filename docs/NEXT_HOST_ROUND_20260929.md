@@ -1,5 +1,7 @@
 # Next owner-assisted round: collecting lock and explicit recovery
 
+> 历史记录说明（2026-10-20 核对）：本页保留所述日期/提交的实现、命令和验证范围，其中“当前”“待实现”“下一步”仅指当时。功能开发已暂停，最新状态见 [PROJECT_STATUS](PROJECT_STATUS.md)，后续安排见 [ROADMAP](ROADMAP.md)；本页不授权新实机、设备或删除操作。
+
 > Status reconciliation (2026-10-01): this is a dated record for the candidates and rounds named below. “Current”, “next”, “pending” and BLOCKED refer to that checkpoint, not today's work queue. The approved Apple Silicon Phase 1 MVP is complete and merged; see [current acceptance](PHASE1_ACCEPTANCE.md) and [roadmap](ROADMAP.md). Original observations and failures retain their scope; these instructions do not authorize another host round.
 
 This round completed on 2026-09-29 after explicit owner readiness. The original

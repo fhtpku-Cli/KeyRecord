@@ -1,4 +1,6 @@
-# VIA file editing with actual position and key choices
+# VIA 实际位置与按键选择流程
+
+> 历史记录说明（2026-10-20 核对）：本页保留所述日期/提交的实现、命令和验证范围，其中“当前”“待实现”“下一步”仅指当时。功能开发已暂停，最新状态见 [PROJECT_STATUS](../PROJECT_STATUS.md)，后续安排见 [ROADMAP](../ROADMAP.md)；本页不授权新实机、设备或删除操作。
 
 The previous production file editor accepted arbitrary 0–255 layer/position
 numbers and a free-text keycode. Users had to infer the original key and could

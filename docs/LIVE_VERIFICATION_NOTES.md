@@ -1,4 +1,4 @@
-# Live verification notes
+# 实机验证说明
 
 Constraints and environment facts for running KeyRecord on a real Mac. These are not status
 claims and grant no acceptance: they exist so a host run measures what it claims to measure.
@@ -6,11 +6,9 @@ Completed MVP evidence and limits are in [PHASE1_ACCEPTANCE.md](PHASE1_ACCEPTANC
 Current status is in [PROJECT_STATUS.md](PROJECT_STATUS.md); behavioral requirements are in
 [PHASE1_CONTRACT.md](PHASE1_CONTRACT.md).
 
-**Applicability — 2026-10-01:** PR #17 is merged and the scoped Apple Silicon
-Phase 1 objective is complete. Release uses the real exact-item Keychain backend
-on native arm64 macOS 27.0 build 26A428; other platforms fail closed.
-See [the signed candidate](RELEASE_CANDIDATE_20261001.md). Historical Debug home,
-store and namespace instructions must not be copied into the Release launch.
+**适用范围核对 — 2026-10-20：** 功能开发已暂停，本页是执行约束，不安排新的实机轮次。限定 Phase 1 实测仍属于原生 arm64 macOS 27.0 build 26A428 的[历史签名候选](RELEASE_CANDIDATE_20261001.md)。当前源码的锁屏来源采用原生 arm64 macOS 27 及以后版本，锁屏状态为锁定或未知时停止采集；运行策略不代表这些系统都已实测。历史 Debug home、资料库和命名空间参数不能直接复制到 Release 启动中。
+
+Phase 3/4 与密码备份的真实验证继续后置：Karabiner 重载/应用效果/停用 p95、VIA GUI 导入、Vial HID/断连、真实 Keychain 恢复和包含恢复副本的卸载。离线实现或先前 Phase 1 实测不替代这些观察。当前状态见 [PROJECT_STATUS](PROJECT_STATUS.md)，CI 模式见 [README](../README.md#build-and-test)。
 
 ## What a bounded run may do
 

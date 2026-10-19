@@ -1,4 +1,15 @@
-# KeyRecord native design contract
+# 原生界面设计规范与历史组件验证
+
+## 当前界面与证据范围（2026-10-20）
+
+功能开发已暂停。产品现有概览、全部候选、设置、推荐转后端草稿、VIA 文件编辑、恢复/卸载准备、密码备份和物理来源说明。界面需区分“配置参考”“设备读回快照”“配置比对”和“用户行为结果”；缺证据时明确逻辑回退，不以可点击按钮或导出成功暗示生效。
+
+系统字体、语义色、原生控件、中英文、键盘焦点、可访问性名称和删除确认原则继续适用。近期原生离线测试及截图只证明对应合成/临时配置场景，不构成这些新页面完整 VoiceOver、真实文件选择器或实机效果验收。
+
+下文是原组件规范及 T10/T22/T23 记录。其中“Later”“尚无映射/推荐”等范围只描述原阶段，不是当前产品信息架构；旧控件数量和截图不覆盖新增页面。现状见 [PROJECT_STATUS](PROJECT_STATUS.md)，CI 实际执行模式见 [README](../README.md#build-and-test)。
+
+## 历史规范与验收说明
+
 
 Status — 2026-10-01: the scoped Phase 1 native walkthrough completed on signed
 Release; see [observations and limits](RELEASE_NATIVE_UI_PREP_20261001.md). T22/T23

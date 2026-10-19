@@ -1,10 +1,11 @@
-# T23: Release boundary qualification
+# Release 边界与 T23 历史验证
+
+> 2026-10-20 核对：功能开发暂停。本文保留 Release 边界要求与原候选验证；旧命令和 BLOCKED 结果不是要求重跑的当前任务。现状见 [PROJECT_STATUS](PROJECT_STATUS.md)。
 
 **Current scope — 2026-10-01:** the development-signed Apple Silicon Release
 and bounded owner-assisted native walkthrough completed; PR #17 is merged.
 See [candidate](RELEASE_CANDIDATE_20261001.md) and [native result](RELEASE_NATIVE_UI_PREP_20261001.md).
-Release uses the real Keychain/capture composition on the measured platform only.
-Other platforms stay closed. Public distribution, notarization and full G1/v1 are separate.
+上述平台描述属于 2026-10-01 实测候选。当前源码采用原生 arm64 macOS 27 及以后版本的锁屏来源，锁屏状态为锁定或未知时停止采集；不能把运行策略等同于平台资格。公开发行、公证和完整 G1/v1 仍未完成。
 
 ## Outcome boundaries
 

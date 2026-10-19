@@ -1,5 +1,7 @@
 # Phase 1 milestone: implemented code, independent BLOCKED gates
 
+> 历史记录说明（2026-10-20 核对）：本页保留所述日期/提交的实现、命令和验证范围，其中“当前”“待实现”“下一步”仅指当时。功能开发已暂停，最新状态见 [PROJECT_STATUS](PROJECT_STATUS.md)，后续安排见 [ROADMAP](ROADMAP.md)；本页不授权新实机、设备或删除操作。
+
 > Status reconciliation (2026-10-01): this is a dated record for the candidates and rounds named below. “Current”, “next”, “pending” and BLOCKED refer to that checkpoint, not today's work queue. The approved Apple Silicon Phase 1 MVP is complete and merged; see [current acceptance](PHASE1_ACCEPTANCE.md) and [roadmap](ROADMAP.md). Original observations and failures retain their scope; these instructions do not authorize another host round.
 
 > Historical snapshot retained as measured baseline evidence. The observations below are pinned to baseline `064164e47fe2dfb1957ea8fc601269ecb2c8812e` and its T24 attempt; the wording that scoped code implementation is complete predates the corrective round and is not final approval. The later [execution checkpoint](EXECUTION_CHECKPOINT.md) at `22cb8e9` is also historical. Read [PROJECT_STATUS.md](PROJECT_STATUS.md) for current measured status and [PHASE1_ACCEPTANCE.md](PHASE1_ACCEPTANCE.md) for remaining acceptance work. Baseline claims below are not rewritten.
@@ -115,7 +117,7 @@ bundle containing files named by SHA-256; only byte-identical artifacts are acce
 Without them verification fails rather than fabricating success.
 
 For a later **clean committed tree**, use a new output path as described in
-[PROJECT_STATUS](PROJECT_STATUS.md#authority-and-reproduction), with
+[PROJECT_HISTORY](PROJECT_HISTORY.md#authority-and-reproduction), with
 `--lifecycle none`. Valid readiness BLOCKED is exit 2, not FAIL. Binding a candidate
 can pass integrity while G1 stays BLOCKED. Do not use this report or the baseline
 binding as T25 freeze authorization. Final regression, same-build receipt binding,

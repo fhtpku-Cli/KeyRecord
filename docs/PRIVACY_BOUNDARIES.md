@@ -1,4 +1,6 @@
-# Phase 1 local privacy checks (T20)
+# 隐私边界与 T20 历史检查
+
+> 2026-10-20 核对：功能开发暂停。本文的 T20 数量、DTO 清单和命令属于原阶段，当前序列化范围还包括映射、固件恢复记录及密码备份；以现行源码和隐私审计测试为准。密码备份工程已完成，真实 Keychain 恢复仍后置。既有安全约束不变，旧候选的二进制审计不自动覆盖最新产品，现状见 [PROJECT_STATUS](PROJECT_STATUS.md)。
 
 This milestone has no update endpoint or network client. The future update
 exception in the normative architecture does not authorize an endpoint here.
@@ -95,7 +97,7 @@ These commands explicitly supply `--lifecycle none`; BLOCKED/2 describes that
 receipt input set. Old producer receipts are not fabricated or replaced by prose.
 This is not a live recomputation of the later scoped MVP, whose signed source/binary
 audit and host results are in [acceptance](PHASE1_ACCEPTANCE.md). Short ARM performance
-retains its Debug fixed-replay scope. Intel and FR-P6 full backup remain later work.
+retains its Debug fixed-replay scope. Intel 与 FR-P6 的真实恢复/发布资格仍待验证；FR-P6 工程已由[密码备份实现](PASSWORD_BACKUP_20261015.md)补齐。
 No packet capture or historical receipt generation is required for this status update.
 
 File counts, lengths and filesystem modification times remain known side channels;

@@ -1,4 +1,6 @@
-# Karabiner configuration directory binding
+# Karabiner 配置目录绑定
+
+> 历史记录说明（2026-10-20 核对）：本页保留所述日期/提交的实现、命令和验证范围，其中“当前”“待实现”“下一步”仅指当时。功能开发已暂停，最新状态见 [PROJECT_STATUS](../PROJECT_STATUS.md)，后续安排见 [ROADMAP](../ROADMAP.md)；本页不授权新实机、设备或删除操作。
 
 This offline increment starts from main `95e67652a9a156ddd715368702691b025c964443`.
 Renaming and replacing a selected configuration directory could redirect an existing

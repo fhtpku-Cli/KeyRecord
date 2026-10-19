@@ -1,61 +1,52 @@
 # KeyRecord
 
-KeyRecord is an in-development native macOS menu-bar app for local, aggregate keyboard-use statistics. It aims to count shortcuts by application and bare keys without storing typed text or event sequences. The codebase uses Swift 6, macOS 14+, and Apple system frameworks.
+KeyRecord 是开发中的原生 macOS 菜单栏应用，用于本地键盘使用聚合统计、可解释的改键建议及受约束的配置工作流，不保存输入文本或逐事件序列。源码使用 Swift 6；最低编译目标 macOS 14+，不等于全部目标系统已获运行资格。
 
-**当前阶段（2026-10-13）：Phase 1 Apple Silicon MVP 和 Phase 2 A/B 工程已完成；PR #28 固件多槽草稿与差异预览已合并。** 本批补齐逐份预览失败说明与原生纠正后导出流程，89 项相关离线场景通过。生产支持目录仍为空，实际 Vial 读取端口未启用，真实 G3/G4 和完整后端资格未完成。见[本批范围与证据](docs/phase4/PREVIEW_CORRECTIONS_20261013.md)。真实验证继续集中后置。
+**截至 2026-10-20，功能开发暂停在第七批，当前只整理文档。** 已完成限定 Apple Silicon 采集 MVP、Phase 2 A/B 离线工程、Karabiner 事务与行为测试流程、VIA 基础键文件编辑、Vial 只读协议/定义快照，以及完整密码备份与空资料库恢复。完整 Phase 3/4、真实后端支持和公开发行仍未合格。
 
-增量 B 已实现特殊键池、手动候选/风险确认、后端能力过滤及有范围的冲突报告、物理成本/回退，以及只读 VIA/Karabiner 副本和会话内参考。保留逻辑排名，物理次数与跨度独立说明；配置副本不证明当前部署，实际后端仍未连接，完整物理链缺失时使用逻辑口径。见 [B 完成记录](docs/phase2/B_COMPLETION_20261013.md)、[实现](docs/phase2/IMPLEMENTATION.md)与[验证](docs/phase2/VALIDATION.md)。真实配置、设备、文件选择器和保存重开集中到后端稳定后的候选，不重复开展早期试用。
+先看[当前状态](docs/PROJECT_STATUS.md)、[路线图](docs/ROADMAP.md)和[全部文档索引](docs/STATUS_INDEX.md)。产品代码核对到 [PR #73](https://github.com/fhtpku-Cli/KeyRecord/pull/73) 合并提交 `4fba3370`，对应 [main CI](https://github.com/fhtpku-Cli/KeyRecord/actions/runs/39309800836) 已通过。
 
-当前代码在原生 arm64 macOS 27 及以后版本读取实时锁屏状态；锁定或未知时仍关闭保护，不因系统版本未列入历史实测记录就自动禁用。Phase 1 实测范围仍为 macOS 27.0 build `26A428`，A 的同意与空统计试验运行于 27.0.1 build `26A434`，两者不代表所有后续系统均已实测。A 的真实输入及重开检查留到下一次实际试用，本次不单独再开验收轮次，也不标为通过。正式 G2 实机证据与公开发行尚未完成，B 工程开发已完成。见[当前状态](docs/PROJECT_STATUS.md)、[路线图](docs/ROADMAP.md)、[验证记录](docs/phase2/VALIDATION.md)和[文档索引](docs/STATUS_INDEX.md)。
+## 用户工作流与限制
 
-## Build and test
+- 统计和建议使用已有聚合；推荐到 Karabiner 草稿保留组合快捷键与应用范围。
+- VIA：主动导出最新配置，在 KeyRecord 选实际层/位置与支持的基础键，预览导出，再手动导回 VIA。文件编辑不依赖浏览器实例绑定，也不证明实际键盘效果；当前不生成组合快捷键、应用专属规则或高级动作。
+- Vial：已接入显式设备选择及只读协议工厂，但生产设备支持目录为空，未知设备不会因此放行。定义/键码读取及离线回放不等于设备合格。
+- 物理来源可展示文件、系统属性、型号及布局快照参考；完整证据链不足时继续逻辑比较。一次型号匹配或读回不是实时物理映射。
+- 密码备份包含全部已提交保存对象；恢复只接受空资料库，不覆盖既有数据，恢复后不自动采集或应用映射。真实 Keychain 恢复与卸载后置，删除前复核保留。
 
-Use a Mac with full Xcode selected as the developer toolchain and Swift 6.2 or newer (the code uses `isolated deinit`). Run from a clone:
+## 构建与测试
+
+<a id="build-and-test"></a>
+
+需要 macOS、完整 Xcode 和 Swift 6.2 或更新版本（源码使用 `isolated deinit`）。从干净检出运行：
 
 ```sh
 Scripts/verify-local.sh
 ```
 
-The script runs, in order:
+脚本顺序执行全部 SwiftPM 测试、捕获工具离线回归、SwiftPM Release 构建、未签名 Universal Release App 构建、原生架构 Debug `build-for-testing`，默认最后执行 hostless App XCTest。失败即停止，不能据前一步成功推断后续完成。完整原生测试需要合适的图形会话，阻塞、跳过和失败不算通过。
 
-1. `swift test` for Core, Capture, Store and Integration, then the revised harness's offline CLI regressions (no tap or posted events).
-2. `swift build -c release` for SwiftPM targets.
-3. An unsigned universal (`arm64 x86_64`) Release App build in a fresh directory.
-4. A native-architecture Debug `build-for-testing`.
-5. Hostless `xcrun xctest`, supplying `T23_RELEASE_APP` as the absolute path to that exact newly built universal Release App.
+| 命令 | 与默认模式的区别 |
+|---|---|
+| `Scripts/verify-local.sh --build-only` | 仍执行包测试及构建，只跳过 App XCTest 执行 |
+| `Scripts/verify-local.sh --firmware-app-tests` | 执行固件/映射、导入与生产组合的原生离线测试子集，不执行整个 App 测试包 |
 
-Each invocation retains logs and Xcode products under `.build/verification/run.*`; App test screenshots/artifacts go into that invocation’s `qa/` directory via `KEYRECORD_QA_OUTPUT_DIR`. It stops on failure, so later steps may not have run. Do not run concurrent verification against the shared SwiftPM build directory. App XCTest is separate from `swift test`; AppKit/accessibility checks need a suitable logged-in graphical session. A host limitation, failed assertion or skip is not a pass.
+**当前 [macOS CI](.github/workflows/macos.yml) 使用 `--firmware-app-tests`，不是 `--build-only`。** CI 先取得工作流指定版本的官方 VIA/Vial 方法及依赖，执行 `Scripts/verify-firmware-oracles.py`，再运行包测试、构建和原生离线子集。工具链配置为 Xcode 26.3、`macos-15`，以实际工作流和对应提交日志为准。首次下载依赖需要网络，验证使用合成输入，不连接真实键盘。
 
-For a headless runner:
+日志与产物在 `.build/verification/run.*`，原生截图位于对应 `qa/`。不要并行使用同一个 SwiftPM 构建目录。测试数量属于特定提交，不能用旧数量或旧 CI 代表当前代码，也不能把构建成功当 XCTest 已执行。
 
-```sh
-Scripts/verify-local.sh --build-only
-```
+## 真实验证与发布边界
 
-This still runs SwiftPM tests and both App builds, but deliberately skips App XCTest. The ordinary [macOS CI workflow](.github/workflows/macos.yml) uses this mode. The workflow explicitly selects `/Applications/Xcode_26.3.app/Contents/Developer`, listed in the [official macOS 15 runner inventory](https://github.com/actions/runner-images/blob/main/images/macos/macos-15-Readme.md); [Swift 6.2.4 ships in Xcode 26.3](https://forums.swift.org/t/announcing-swift-6-2-4/85050). The local review/repair host uses Xcode 27.0 (27A266a), Apple Swift 6.4; CI passed at `b46316bbb` with Xcode 26.3. Later checks are revision-specific: consult the PR checks for the current commit; older CI or local results do not establish current remote compatibility. A green CI run proves only those tests and unsigned compilation. It does not launch capture, exercise WindowServer/VoiceOver, prove effective Keychain access, signing/notarization or native Apple Silicon product performance, or authorize host operations. The script's universal compilation is a development check, not an Intel requirement for the current MVP.
+已批准 Phase 1 MVP 的实测限定于原候选、原生 arm64 macOS 27.0 build `26A428`；开发签名的 Release 构建不是公证后的公开发行。当前锁屏来源可用于原生 arm64 macOS 27 及以后版本，锁屏状态为锁定或未知时停止采集，不据此声称后续系统均已实测。
 
-## Scope and host validation
+真实 Karabiner 效果/重载、VIA GUI 导入、Vial HID、密码备份的 Keychain 恢复、完整卸载及发布验证尚未完成。新实机轮次须明确构建、身份、隔离资料库/Keychain 范围、动作与时间，并取得适用授权。普通构建、CI 和旧试验说明不授权操作日常配置、TCC、真实设备或删除用户数据。
 
-For a provisioned Apple Silicon Debug trial, use
-`bash Scripts/build-isolated-debug-trial.sh --help`. This builds a separately
-identified, isolation-required App without installing or launching it. The
-[historical September 29 checkpoint](docs/MVP_CLOSEOUT_20260929.md) records the tested candidate,
-offline results, and the resolved local provisioning issue; a build or signature
-check alone does not establish effective Keychain access.
+锁屏或崩溃可能丢失上次成功持久化后的统计；一秒保存节奏不是数据丢失上限保证。详见 [Phase 1 验收](docs/PHASE1_ACCEPTANCE.md)和[实机验证说明](docs/LIVE_VERIFICATION_NOTES.md)。
 
-The [Phase 1 acceptance record](docs/PHASE1_ACCEPTANCE.md) separates completed MVP evidence
-from historical gaps and later requirements. No additional Phase 1 owner round is scheduled.
+## 仓库结构
 
-The portable implementation specification is [PHASE1_CONTRACT.md](docs/PHASE1_CONTRACT.md), with [PRD](docs/PRD.md) and [technical architecture](docs/TECHNICAL_ARCHITECTURE.md). No local `.omo` plan is needed to understand the behavioral contract or run ordinary verification. Historical evidence and its existing qualification procedures remain separate from these developer checks.
-
-Any newly justified host run must identify the exact build configuration, App, identity, permitted store/Keychain namespace, actions and approved duration. Coordinate readiness before launch; use normal termination with an exact-instance forced-stop fallback. Historical 30–60 second and multi-minute controllers are candidate-specific, not a universal timer or instructions to repeat completed checks. New privacy, signing, Keychain or capture effects need applicable authorization; a successful build supplies none. Do not reset TCC, operate daily data or infer permission for a live run from build approval.
-
-构建说明不代表实机行为已经验证，夹具结果也不替代真实产品链路。锁屏或崩溃可能丢失上次成功持久化之后的统计，一秒保存节奏不是数据丢失上限保证。A 已接入统计与逻辑预览；物理评分、后端约束、映射应用、FR-P6 完整密码备份和公开发行仍是后续工作。
-
-## Repository layout
-
-- `Sources/`, `Tests/`: SwiftPM libraries and tests.
-- `App/`, `KeyRecord.xcodeproj`: native product and App XCTest.
-- `docs/`: product specification, architecture and status.
-- `Scripts/`: development checks and existing qualification workflows.
-- `Spikes/`, `evidence/phase0/`: historical experiments and evidence; preserve their original meaning and contents.
+- `Sources/`、`Tests/`：采集、存储、分析、配置解析、映射和设备读取模块及测试。
+- `App/`、`KeyRecord.xcodeproj`：原生产品、App XCTest 与 XCUITest。
+- `Scripts/`：开发验证和既有专项验证工具。
+- `docs/`：现行需求、架构、状态，以及明确标注的历史记录。
+- `Spikes/`、`evidence/`、已跟踪的 `.omo/` 文档：历史实验、证据与计划；不重写原始结论，不把其中命令视为当前执行授权。

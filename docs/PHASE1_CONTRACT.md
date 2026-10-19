@@ -1,4 +1,6 @@
-# Phase 1 implementation contract
+# Phase 1 实现约定
+
+> 2026-10-20 核对：本页约束 Phase 1 范围，不是当前全产品能力清单。后来已实现推荐、后端草稿/文件导出和密码备份，不能据下文“本阶段无此功能”推断当前产品没有入口。原锁定、保留、删除和证据约束继续有效；开发已暂停，现状见 [PROJECT_STATUS](PROJECT_STATUS.md)。
 
 Status navigation — 2026-10-01: the approved Apple Silicon MVP is complete and
 merged; see [acceptance](PHASE1_ACCEPTANCE.md) and [roadmap](ROADMAP.md). Behavioral
@@ -59,7 +61,7 @@ Before metadata publication a new key remains an owned pending candidate, not a 
 
 ## 8. Durability and lock
 
-User-visible data-loss boundary: locking the screen or crashing can discard **all statistics collected since the last completed durable save**. Previously committed statistics remain. The one-second flush cadence is only a scheduling target, not a promise to save within one second or to lose at most one second of data. Unlocking does not restore discarded, unsaved statistics. [Milestone qualification](MILESTONE_STATUS.md) separates this implemented contract from the still-blocked live lifecycle receipt.
+User-visible data-loss boundary: locking the screen or crashing can discard **all statistics collected since the last completed durable save**. Previously committed statistics remain. The one-second flush cadence is only a scheduling target, not a promise to save within one second or to lose at most one second of data. Unlocking does not restore discarded, unsaved statistics. [历史里程碑](MILESTONE_STATUS.md)记录当时仍阻塞的生命周期凭据；后续限定实测见 [Phase 1 验收](PHASE1_ACCEPTANCE.md)，不重写早期记录。
 
 Fixed contract 8: callback performs no disk/Keychain/process/network work; one bounded 4096-event handoff feeds the serial reducer. Overflow closes gate/invalidates generation atomically; no event-derived dropped-count log. Unlocked encrypted flushes target a 1-second scheduling cadence, not a durable latency/count-loss bound. Scheduler delay, queued writes and slow fsync extend the uncommitted interval. Crash/lock can lose all deltas since the last completed durable commit, never previously committed counts.
 

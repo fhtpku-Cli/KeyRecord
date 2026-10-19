@@ -1,4 +1,6 @@
-# Bounded firmware input with repeated missing-layer references
+# 固件缺失层引用的重复扫描修复
+
+> 历史记录说明（2026-10-20 核对）：本页保留所述日期/提交的实现、命令和验证范围，其中“当前”“待实现”“下一步”仅指当时。功能开发已暂停，最新状态见 [PROJECT_STATUS](../PROJECT_STATUS.md)，后续安排见 [ROADMAP](../ROADMAP.md)；本页不授权新实机、设备或删除操作。
 
 A file can stay below the existing 8 MiB / 100,000 collection-element limits
 while containing thousands of `MO(31)` references and only two actual layers.

@@ -1,5 +1,7 @@
 # 固件多槽草稿与导出前差异预览
 
+> 历史记录说明（2026-10-20 核对）：本页保留所述日期/提交的实现、命令和验证范围，其中“当前”“待实现”“下一步”仅指当时。功能开发已暂停，最新状态见 [PROJECT_STATUS](../PROJECT_STATUS.md)，后续安排见 [ROADMAP](../ROADMAP.md)；本页不授权新实机、设备或删除操作。
+
 后续状态：本批 [PR #28](https://github.com/fhtpku-Cli/KeyRecord/pull/28) 已合并为 `f110aa9cbc45aac12ac7d81d8ad4ac382a6661dc`。最新预览失败说明、纠正流程和离线证据见[后续记录](PREVIEW_CORRECTIONS_20261013.md)，下面保留本批原源码及范围。
 
 状态日期：2026-10-13，Asia/Shanghai。源码：`c33bb4e047b37449e89069f23b64b8357d461c61`。

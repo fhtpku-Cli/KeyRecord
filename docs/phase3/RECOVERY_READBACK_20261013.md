@@ -1,5 +1,7 @@
 # 卸载停采集、进度与离线 Vial 证据比对
 
+> 历史记录说明（2026-10-20 核对）：本页保留所述日期/提交的实现、命令和验证范围，其中“当前”“待实现”“下一步”仅指当时。功能开发已暂停，最新状态见 [PROJECT_STATUS](../PROJECT_STATUS.md)，后续安排见 [ROADMAP](../ROADMAP.md)；本页不授权新实机、设备或删除操作。
+
 后续状态：本批 [PR #26](https://github.com/fhtpku-Cli/KeyRecord/pull/26) 已合并为 `f5c53e93e0ba7c0b31196a6becaf8f6b06c7df0d`。最新逐份恢复选择、历史阶段和维护对账互斥见[后续记录](RECOVERY_CHOICES_20261013.md)，下文保留本批范围。
 
 状态日期：2026-10-13，Asia/Shanghai。源码提交：`daf5e32bcb1af2ae7722c3fb56193ea8b64adabb`。

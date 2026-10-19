@@ -22,6 +22,9 @@ final class KarabinerMappingModel: ObservableObject {
     @Published private(set) var lastLedger: KarabinerLedger?
     @Published private(set) var issueKey: String?
     @Published private(set) var working = false
+    @Published private(set) var behaviorState: String?
+    private var behaviorPreparation = false
+    private var behaviorCancellationRequested = false
     @Published var riskConfirmed = false
     var canRead: @MainActor () -> Bool = { false }
     var configuration: @MainActor () -> (bytes: Data, profile: String)? = { nil }
@@ -45,21 +48,28 @@ final class KarabinerMappingModel: ObservableObject {
         }
     }
 
-    var canApply: Bool {
+    private var canCommit: Bool {
         synchronizeRuntime()
-        guard canRead(), !maintenance, !working, let coordinator, let prepared, !prepared.hasBlockingConflict,
+        guard canRead(), !maintenance, !working, !hasBehaviorCleanup, let coordinator, let prepared, !prepared.hasBlockingConflict,
               (try? coordinator.currentContext()) == prepared.context,
               !prepared.requiresRiskConfirmation || riskConfirmed else { return false }
         if let profile = lastLedger?.managedProfile, profile != prepared.plan.diff.profile { return false }
         switch prepared.context.authority { case .readOnly: return false; default: return true }
     }
+    var canApply: Bool { !behaviorPreparation && behaviorState != "running" && canCommit }
+    var canStartBehaviorTest: Bool { behaviorPreparation && behaviorState != "running" && canCommit }
+    var hasBehaviorCleanup: Bool { behaviorState == "running" || behaviorState == "cleanupPending" }
     var canManage: Bool {
         synchronizeRuntime()
-        guard canRead(), !maintenance, !working, let coordinator, let profile = lastLedger?.managedProfile else { return false }
+        guard canRead(), !maintenance, !working, !hasBehaviorCleanup, let coordinator, let profile = lastLedger?.managedProfile else { return false }
         do { try coordinator.currentContext().requireWrite(profile: profile); return true } catch { return false }
     }
-    var canInspect: Bool { canRead() && !working && coordinator != nil && lastLedger?.managedProfile != nil }
-    func detach() { coordinator = nil; lastLedger = nil; refreshPending = false; invalidate() }
+    var canInspect: Bool { canRead() && !working && !hasBehaviorCleanup && coordinator != nil && lastLedger?.managedProfile != nil }
+    func detach() {
+        session = UUID(); working = false
+        coordinator = nil; lastLedger = nil; refreshPending = false
+        behaviorState = nil; behaviorCancellationRequested = false; invalidate()
+    }
     func removeForUninstall() async throws {
         guard canRead(), !working, let coordinator else { throw KarabinerMappingError.unavailable }
         working = true; defer { working = false; onChange() }
@@ -93,29 +103,34 @@ final class KarabinerMappingModel: ObservableObject {
     func remove(_ id: UUID) { guard canRead(), !maintenance, !working else { return }; drafts.removeAll { $0.id == id }; invalidate(); onChange() }
     func invalidate() {
         exports.forEach { $0.invalidate() }; exports = []
-        revision = UUID(); prepared = nil; riskConfirmed = false; issueKey = nil; onChange()
+        revision = UUID(); prepared = nil; behaviorPreparation = false; riskConfirmed = false; issueKey = nil; onChange()
     }
     func clear() {
         session = UUID(); coordinator = nil; drafts = []; prepared = nil; lastLedger = nil
         exports.forEach { $0.invalidate() }; exports = []
         issueKey = nil; working = false; riskConfirmed = false; refreshPending = false; onChange()
+        behaviorState = nil; behaviorPreparation = false; behaviorCancellationRequested = false
     }
-    func check() async {
-        guard canRead(), !maintenance, !working, let selection = configuration() else { issueKey = "phase3.selectProfile"; return }
+    func check(behaviorTest: Bool = false) async {
+        guard canRead(), !maintenance, !working, !hasBehaviorCleanup, let selection = configuration() else { issueKey = "phase3.selectProfile"; return }
         let currentSession = session
         let currentRevision = revision
         working = true; riskConfirmed = false; issueKey = nil
         let selectedDrafts = drafts.filter { $0.profile == selection.profile }
         do {
             let result: KarabinerPreparedOperation
-            if let coordinator { result = try await coordinator.prepare(profile: selection.profile, drafts: selectedDrafts) }
+            if let coordinator {
+                result = try await behaviorTest
+                    ? coordinator.prepareBehaviorTest(profile: selection.profile, drafts: selectedDrafts)
+                    : coordinator.prepare(profile: selection.profile, drafts: selectedDrafts)
+            }
             else {
                 let port = KarabinerCopyPort(bytes: selection.bytes, observations: observations())
                 result = try await KarabinerTransactionCoordinator(configuration: port, store: ReadOnlyMappingStore())
                     .prepare(profile: selection.profile, drafts: selectedDrafts)
             }
             guard canRead(), currentSession == session else { return }
-            if currentRevision == revision { prepared = result }
+            if currentRevision == revision { prepared = result; behaviorPreparation = behaviorTest }
         } catch { if canRead(), currentSession == session { issueKey = "phase3.checkFailed" } }
         guard currentSession == session else { return }
         working = false; onChange()
@@ -123,6 +138,55 @@ final class KarabinerMappingModel: ObservableObject {
     func apply() async {
         guard canApply, let coordinator, let prepared else { return }
         await run { try await coordinator.apply(prepared, riskConfirmed: self.riskConfirmed) }
+    }
+    func startBehaviorTest() async {
+        guard canStartBehaviorTest, let coordinator, let prepared else { return }
+        behaviorCancellationRequested = false
+        let ticket = session
+        working = true
+        do {
+            let ledger = try await coordinator.startBehaviorTest(prepared, riskConfirmed: riskConfirmed)
+            guard ticket == session, canRead() else { return }
+            lastLedger = ledger; behaviorState = "running"; invalidate()
+        } catch {
+            // A failed write may already have reached the configuration. Always reconcile it before reporting failure.
+            let cleaned = try? await coordinator.endBehaviorTest()
+            guard ticket == session, canRead() else { return }
+            if let cleaned { lastLedger = cleaned }
+            else { lastLedger = try? await coordinator.ledger() }
+            behaviorState = cleaned == nil ? "cleanupPending" : "failed"
+            invalidate(); issueKey = "phase3.operationFailed"
+        }
+        guard ticket == session else { return }
+        working = false; onChange()
+        if behaviorCancellationRequested { await finishBehaviorTest() }
+        if refreshPending { refreshPending = false; await refresh() }
+    }
+    func requestBehaviorCancellation() {
+        behaviorCancellationRequested = true
+        let ticket = session
+        Task { if ticket == session { await finishBehaviorTest() } }
+    }
+    func finishBehaviorTest(_ outcome: String = "cancelled") async {
+        guard canRead(), !working, !maintenance, hasBehaviorCleanup, let coordinator else { return }
+        let reportedOutcome = behaviorState == "running" && ["passed", "failed"].contains(outcome) ? outcome : "cancelled"
+        let ticket = session
+        working = true
+        do {
+            let ledger = try await coordinator.endBehaviorTest()
+            guard ticket == session, canRead() else { return }
+            lastLedger = ledger; behaviorState = reportedOutcome; invalidate()
+        } catch {
+            guard ticket == session, canRead() else { return }
+            behaviorState = "cleanupPending"; issueKey = "phase3.behavior.cleanupPending"
+        }
+        guard ticket == session else { return }
+        working = false; onChange()
+    }
+    func prepareForQuit() async -> Bool {
+        guard hasBehaviorCleanup else { return !working }
+        await finishBehaviorTest()
+        return !hasBehaviorCleanup && !working
     }
     func refresh() async {
         guard let coordinator, canRead() else { return }
@@ -155,9 +219,11 @@ final class KarabinerMappingModel: ObservableObject {
             let result = try await operation()
             guard canRead(), currentSession == session else { return }
             lastLedger = result; prepared = nil; riskConfirmed = false; issueKey = nil
+            if hasBehaviorCleanup, !result.desired.contains(where: \.temporary) { behaviorState = "cancelled" }
         } catch {
             if canRead(), currentSession == session {
                 issueKey = error as? KarabinerMappingError == .externalChange ? "phase3.externalChange" : "phase3.operationFailed"
+                if hasBehaviorCleanup { behaviorState = "cleanupPending" }
                 if let coordinator {
                     let result = try? await coordinator.ledger()
                     if canRead(), currentSession == session { lastLedger = result }
@@ -172,6 +238,7 @@ final class KarabinerMappingModel: ObservableObject {
         }
         guard currentSession == session else { return }
         working = false; onChange()
+        if behaviorCancellationRequested, hasBehaviorCleanup { await finishBehaviorTest() }
         if refreshPending { refreshPending = false; await refresh() }
     }
     func exportRules() throws -> Data {
@@ -242,7 +309,8 @@ struct KarabinerMappingSection: View {
                 KarabinerDraftRow(draft: draft, text: text, update: model.update, remove: { model.remove(draft.id) })
             }
             Button(text("phase3.check")) { Task { await model.check() } }
-                .disabled(model.working || model.drafts.isEmpty).accessibilityIdentifier("phase3.check")
+                .disabled(model.working || model.drafts.isEmpty || model.hasBehaviorCleanup).accessibilityIdentifier("phase3.check")
+            behaviorTestControls
             if let prepared = model.prepared {
                 if prepared.hasChainedMapping { Text(text("phase3.chainBlocking")) }
                 Text(String(format: text("phase3.diff"), prepared.plan.diff.profile, prepared.plan.diff.previousRuleCount, prepared.plan.diff.ruleCount))
@@ -284,7 +352,31 @@ struct KarabinerMappingSection: View {
         } header: { Text(text("phase3.title")) }
         .fileExporter(isPresented: $exporting, document: document, contentType: .json, defaultFilename: "KeyRecord-rules") { _ in document = nil }
         .onChange(of: model.prepared) { _, _ in exporting = false; document = nil }
-        .onDisappear { exporting = false; document = nil }
+        .onDisappear {
+            exporting = false; document = nil
+            model.requestBehaviorCancellation()
+        }
+    }
+    private var behaviorTestControls: some View {
+        VStack(alignment: .leading) {
+            Text(text("phase3.behavior.help")).font(.caption)
+            Button(text("phase3.behavior.check")) { Task { await model.check(behaviorTest: true) } }
+                .disabled(model.working || model.hasBehaviorCleanup || model.drafts.isEmpty)
+                .accessibilityIdentifier("phase3.behavior.check")
+            Button(text("phase3.behavior.start")) { Task { await model.startBehaviorTest() } }
+                .disabled(!model.canStartBehaviorTest).accessibilityIdentifier("phase3.behavior.start")
+            if let state = model.behaviorState { Text(text("phase3.behavior.\(state)")).accessibilityIdentifier("phase3.behavior.state") }
+            if model.hasBehaviorCleanup {
+                HStack {
+                    Button(text("phase3.behavior.pass")) { Task { await model.finishBehaviorTest("passed") } }
+                        .disabled(model.behaviorState != "running").accessibilityIdentifier("phase3.behavior.pass")
+                    Button(text("phase3.behavior.fail")) { Task { await model.finishBehaviorTest("failed") } }
+                        .disabled(model.behaviorState != "running").accessibilityIdentifier("phase3.behavior.fail")
+                    Button(text("phase3.behavior.cancel")) { Task { await model.finishBehaviorTest() } }
+                        .accessibilityIdentifier("phase3.behavior.cancel")
+                }.disabled(model.working || model.maintenance)
+            }
+        }
     }
 }
 

@@ -1470,6 +1470,10 @@ final class ProductComposition: NSObject, NSMenuDelegate, NSWindowDelegate {
     /// A dead source may still leave retained aggregate or staged changes after recovery
     /// fails. Quit may bypass a failed flush only when both stores report no unsaved work.
     func prepareQuit(invocation: String = "menu") async -> Bool {
+        guard await flow.karabinerMappings.prepareForQuit() else {
+            flow.noticeKey = "phase3.behavior.cleanupPending"
+            return false
+        }
         #if DEBUG
         var detail = CapturePrivacyActionDetail()
         detail.invocation = invocation

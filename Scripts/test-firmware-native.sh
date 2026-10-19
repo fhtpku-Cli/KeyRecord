@@ -9,6 +9,7 @@ selectors=(
   'KeyRecordAppTests.KarabinerMappingFlowTests'
   'KeyRecordAppTests.VIAImportFlowTests'
   'KeyRecordAppTests.ProductRecoveryQuitTests/testProductionCompositionUsesHostBackendDependenciesAndKeepsUnknownDevicesReadOnly'
+  'KeyRecordAppTests.ProductRecoveryQuitTests/testQuitCleansTemporaryBehaviorRulesBeforeClosingProtectedStore'
 )
 mkdir -p "$2"
 for selector in "${selectors[@]}"; do

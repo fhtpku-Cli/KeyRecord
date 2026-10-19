@@ -67,6 +67,115 @@ actor MappingMemoryStore: KarabinerTransactionStore {
 }
 
 final class KarabinerMappingTests: XCTestCase, @unchecked Sendable {
+    func testBehaviorTestSurvivesRefreshAndRestoresDisabledPermanentConfiguration() async throws {
+        let port = MappingMemoryPort(), store = MappingMemoryStore()
+        let coordinator = KarabinerTransactionCoordinator(configuration: port, store: store)
+        let permanent = try mappingDraft()
+        _ = try await coordinator.apply(coordinator.prepare(profile: "Work", drafts: [permanent]))
+        _ = try await coordinator.setDisabled(true)
+        let before = port.read()
+        let prepared = try await coordinator.prepareBehaviorTest(profile: "Work", drafts: [mappingDraft(109, scope: .application("com.example.Editor"))])
+        let started = try await coordinator.startBehaviorTest(prepared)
+        XCTAssertTrue(started.desired.allSatisfy(\.temporary))
+        XCTAssertNotEqual(port.read(), before)
+        let refreshed = try await coordinator.reconcile()
+        XCTAssertEqual(refreshed.desired, started.desired)
+        do { _ = try await coordinator.setDisabled(true); XCTFail("Active test must not be changed by management operations") }
+        catch { XCTAssertEqual(error as? KarabinerMappingError, .busy) }
+        let ended = try await coordinator.endBehaviorTest()
+        XCTAssertEqual(port.read(), before)
+        XCTAssertEqual(ended.desired, [permanent]); XCTAssertTrue(ended.disabled)
+        XCTAssertNil(ended.batches.last?.verificationSource)
+        do { _ = try await coordinator.rollbackLatest(); XCTFail("Rollback must not resurrect temporary rules") }
+        catch { XCTAssertEqual(error as? KarabinerMappingError, .unavailable) }
+    }
+
+    func testBehaviorTestCrashReopenRestoresExactPretestBytes() async throws {
+        let port = MappingMemoryPort(), store = MappingMemoryStore()
+        let coordinator = KarabinerTransactionCoordinator(configuration: port, store: store)
+        _ = try await coordinator.startBehaviorTest(coordinator.prepareBehaviorTest(profile: "Work", drafts: [mappingDraft(scope: .application("com.example.Editor"))]))
+        let result = try await KarabinerTransactionCoordinator(configuration: port, store: store).reconcile()
+        XCTAssertEqual(port.read(), mappingBase)
+        XCTAssertNil(result.managedProfile); XCTAssertFalse(result.desired.contains(where: \.temporary))
+    }
+
+    func testAbandonedBehaviorTestBlocksOtherWritesAndRecognizesManualExactRestoration() async throws {
+        let port = MappingMemoryPort(), store = MappingMemoryStore()
+        let coordinator = KarabinerTransactionCoordinator(configuration: port, store: store)
+        _ = try await coordinator.startBehaviorTest(coordinator.prepareBehaviorTest(profile: "Work", drafts: [mappingDraft(scope: .application("com.example.Editor"))]))
+        let reopened = KarabinerTransactionCoordinator(configuration: port, store: store)
+        do { _ = try await reopened.apply(reopened.prepare(profile: "Work", drafts: [mappingDraft()])); XCTFail() }
+        catch { XCTAssertEqual(error as? KarabinerMappingError, .busy) }
+        do { _ = try await reopened.resolveExternal(.stopManaging); XCTFail() }
+        catch { XCTAssertEqual(error as? KarabinerMappingError, .busy) }
+        port.external(mappingBase)
+        let cleaned = try await reopened.endBehaviorTest()
+        XCTAssertTrue(cleaned.desired.isEmpty); XCTAssertNil(cleaned.managedProfile)
+        XCTAssertEqual(port.writes, 1)
+    }
+
+    func testBehaviorTestWriteAndJournalFailuresRecoverOnReopen() async throws {
+        for failure in [1, 2, 4, 5] {
+            let port = MappingMemoryPort(), store = MappingMemoryStore()
+            let coordinator = KarabinerTransactionCoordinator(configuration: port, store: store)
+            if failure == 5 { await store.failAtSave(2) } else { port.setMode(failure) }
+            do {
+                _ = try await coordinator.startBehaviorTest(coordinator.prepareBehaviorTest(profile: "Work", drafts: [mappingDraft(scope: .application("com.example.Editor"))]))
+                XCTFail("Injected fault should not start a successful test")
+            } catch {}
+            port.setMode(0); await store.failAtSave(nil)
+            if failure == 2 {
+                let external = port.read()
+                do { _ = try await coordinator.endBehaviorTest(); XCTFail() }
+                catch { XCTAssertEqual(error as? KarabinerMappingError, .externalChange) }
+                XCTAssertEqual(port.read(), external)
+            } else {
+                let result = try await KarabinerTransactionCoordinator(configuration: port, store: store).reconcile()
+                XCTAssertEqual(port.read(), mappingBase)
+                XCTAssertFalse(result.desired.contains(where: \.temporary))
+            }
+        }
+    }
+
+    func testBehaviorTestCleanupRetriesKeepOriginalBackupAndProtectExternalEdits() async throws {
+        let port = MappingMemoryPort(), store = MappingMemoryStore()
+        let coordinator = KarabinerTransactionCoordinator(configuration: port, store: store)
+        _ = try await coordinator.startBehaviorTest(coordinator.prepareBehaviorTest(profile: "Work", drafts: [mappingDraft(scope: .application("com.example.Editor"))]))
+        let during = port.read()
+        port.external(during + Data(" ".utf8))
+        do { _ = try await coordinator.endBehaviorTest(); XCTFail() }
+        catch { XCTAssertEqual(error as? KarabinerMappingError, .externalChange) }
+        XCTAssertEqual(port.read(), during + Data(" ".utf8))
+        port.external(during); port.setMode(1)
+        for _ in 0..<12 {
+            do { _ = try await coordinator.endBehaviorTest(); XCTFail() } catch {}
+        }
+        port.setMode(0)
+        _ = try await KarabinerTransactionCoordinator(configuration: port, store: store).reconcile()
+        XCTAssertEqual(port.read(), mappingBase)
+    }
+
+    func testBehaviorTestRejectsGlobalReadOnlyStaleAndUnconfirmedRisk() async throws {
+        let port = MappingMemoryPort(), store = MappingMemoryStore()
+        let coordinator = KarabinerTransactionCoordinator(configuration: port, store: store)
+        do { _ = try await coordinator.prepareBehaviorTest(profile: "Work", drafts: [mappingDraft()]); XCTFail() }
+        catch { XCTAssertEqual(error as? KarabinerMappingError, .invalidDraft) }
+        let risky = try await coordinator.prepareBehaviorTest(profile: "Work", drafts: [mappingDraft(8, output: 111, scope: .application("com.example.Editor"))])
+        do { _ = try await coordinator.startBehaviorTest(risky); XCTFail() }
+        catch { XCTAssertEqual(error as? KarabinerMappingError, .riskConfirmationRequired) }
+        port.setRuntime(KarabinerRuntimeContext(version: nil))
+        let readOnly = try await coordinator.prepareBehaviorTest(profile: "Work", drafts: [mappingDraft(scope: .application("com.example.Editor"))])
+        do { _ = try await coordinator.startBehaviorTest(readOnly); XCTFail() }
+        catch { XCTAssertEqual(error as? KarabinerMappingError, .readOnlyVersion) }
+        XCTAssertEqual(port.writes, 0)
+        port.setRuntime(KarabinerRuntimeContext(version: "fixture", authority: .temporaryConfiguration,
+            capabilities: BackendCapabilityCatalog.reference(.karabiner), observations: []))
+        let stale = try await coordinator.prepareBehaviorTest(profile: "Work", drafts: [mappingDraft(scope: .application("com.example.Editor"))])
+        port.external(mappingBase + Data(" ".utf8))
+        do { _ = try await coordinator.startBehaviorTest(stale); XCTFail() }
+        catch { XCTAssertEqual(error as? KarabinerMappingError, .externalChange) }
+        XCTAssertEqual(port.writes, 0)
+    }
     func testJournalFailureBeforeWriteAndAfterWriteRecovers() async throws {
         for number in [1, 2] {
             let port = MappingMemoryPort(), store = MappingMemoryStore()

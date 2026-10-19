@@ -499,3 +499,14 @@
 "phase4.key.KC_RALT" = "Right Option / Alt";
 "phase4.key.KC_LGUI" = "Left Command / GUI";
 "phase4.key.KC_RGUI" = "Right Command / GUI";
+"phase3.behavior.help" = "Test application-scoped drafts temporarily. During the test they replace KeyRecord's current rules; ending restores the previous configuration, including disabled rules. Try the shortcut in the target app, then report the result. Your report does not qualify backend support. If cleanup is blocked by external edits or locked data, it remains pending until the target can be safely reopened.";
+"phase3.behavior.check" = "Check application behavior test";
+"phase3.behavior.start" = "Start temporary test";
+"phase3.behavior.running" = "Test running — try the shortcut in its target application.";
+"phase3.behavior.pass" = "Works — end test";
+"phase3.behavior.fail" = "Does not work — end test";
+"phase3.behavior.cancel" = "Cancel / retry cleanup";
+"phase3.behavior.passed" = "You reported success. Temporary rules removed; previous configuration restored. This is not backend qualification.";
+"phase3.behavior.failed" = "Test failed. Temporary rules removed; previous configuration restored.";
+"phase3.behavior.cancelled" = "Test cancelled. Temporary rules removed; previous configuration restored.";
+"phase3.behavior.cleanupPending" = "Test cleanup is pending. Keep the target available and retry. External edits will not be overwritten; completion has not been recorded.";

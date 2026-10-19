@@ -72,6 +72,11 @@ public struct FirmwarePatchPreview: Equatable, Sendable {
     public let batch: UUID
     public let differences: [FirmwareSlotDifference]
 }
+public struct VialDefinitionObservation: Sendable {
+    public let device: String
+    public let bytes: Data
+    public init(device: String, bytes: Data) { self.device = device; self.bytes = bytes }
+}
 public struct VialKeymapObservation: Sendable {
     public let device: String
     public let axes: FirmwareVersionAxes
@@ -80,13 +85,16 @@ public struct VialKeymapObservation: Sendable {
     public let dynamicEntries: [VialDynamicSection: [[UInt8]]]
     public let configurationValues: [VialConfigurationSection: Data]
     public let observedAt: Date
+    public let definition: VialDefinitionObservation?
     public init(device: String, axes: FirmwareVersionAxes, values: [FirmwareSlot: String],
                 encoderValues: [FirmwareEncoderSlot: String] = [:],
                 dynamicEntries: [VialDynamicSection: [[UInt8]]] = [:],
-                configurationValues: [VialConfigurationSection: Data] = [:], observedAt: Date) {
+                configurationValues: [VialConfigurationSection: Data] = [:], observedAt: Date,
+                definition: VialDefinitionObservation? = nil) {
         self.device = device; self.axes = axes; self.values = values; self.encoderValues = encoderValues; self.observedAt = observedAt
         self.dynamicEntries = dynamicEntries
         self.configurationValues = configurationValues
+        self.definition = definition
     }
 }
 public struct FirmwareDocument: Sendable {

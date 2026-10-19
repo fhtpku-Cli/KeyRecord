@@ -72,11 +72,15 @@ public enum PhysicalSystemSource {
 }
 
 public struct PhysicalFirmwareReference: Equatable, Sendable {
+    public let id: UUID
     public let device: String
     public let mapping: CanonicalTransform
     public let observedAt: Date
-    public init(device: String, mapping: CanonicalTransform, observedAt: Date) {
+    public let layout: PhysicalLayoutReference?
+    public init(device: String, mapping: CanonicalTransform, observedAt: Date, layout: PhysicalLayoutReference? = nil) {
+        id = UUID()
         self.device = device; self.mapping = mapping; self.observedAt = observedAt
+        self.layout = layout
     }
 }
 

@@ -1,6 +1,6 @@
 # Documentation status index
 
-Reviewed 2026-10-19 (Asia/Shanghai), for the device/layout reference association increment.
+Reviewed 2026-10-19 (Asia/Shanghai), for the Vial definition geometry increment.
 This index includes the approved Phase 2 plan and subsequent engineering records. It distinguishes present
 guidance from dated evidence; it does not regenerate historical verdicts.
 
@@ -16,6 +16,7 @@ guidance from dated evidence; it does not regenerate historical verdicts.
 - [Physical sources](phase2/PHYSICAL_SOURCES_20261019.md) — Fourth-batch file/Profile references, observation lifecycle and logical fallback
 - [Physical source adapters](phase2/PHYSICAL_ADAPTERS_20261019.md) — System properties, current software configuration and Vial readback references; full chain qualification remains separate
 - [Device/layout association](phase2/DEVICE_LAYOUT_20261019.md) — Unique USB model matching, identity and file invalidation, ambiguous/missing source fallback
+- [Vial definition geometry](phase2/VIAL_LAYOUT_20261019.md) — Same-read definition snapshots, layer/matrix geometry, repeated definition reads and stale snapshot withdrawal
 
 The approved native Apple Silicon Phase 1 MVP is complete. Qualification is
 bounded to the cited candidates and arm64 macOS 27.0 build 26A428. Full G1/v1,

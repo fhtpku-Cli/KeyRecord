@@ -145,6 +145,8 @@ final class PhysicalSourcesModel: ObservableObject {
     private var pending: [String: UUID] = [:]
     private var jobs: [String: Task<PhysicalSourceObservation?, Never>] = [:]
     private var references: [String: (PhysicalSourceInput, PhysicalSourceReport)] = [:]
+    private var pendingInputs: [String: PhysicalSourceInput] = [:]
+    private var withdrawnFirmwareID: UUID?
     private var changed = false
     private var stopObserving: (@MainActor () -> Void)?
 
@@ -155,15 +157,19 @@ final class PhysicalSourcesModel: ObservableObject {
     }
 
     func invalidate() {
+        withdrawnFirmwareID = entries.values.compactMap(\.input.firmware?.id).first
+            ?? pendingInputs.values.compactMap(\.firmware?.id).first
+            ?? references.values.compactMap { $0.0.firmware?.id }.first ?? withdrawnFirmwareID
         changed = changed || !entries.isEmpty || !pending.isEmpty
         session = UUID(); entries.removeAll(); pending.removeAll(); references.removeAll()
+        pendingInputs.removeAll()
         jobs.values.forEach { $0.cancel() }; jobs.removeAll()
         let stop = stopObserving; stopObserving = nil; stop?()
         objectWillChange.send(); onChange()
     }
     func isLoading(_ scope: RecommendationScope) -> Bool { pending[key(scope)] != nil }
     func report(_ scope: RecommendationScope) -> PhysicalSourceReport? {
-        guard let current = input(scope) else { return nil }
+        guard var current = currentInput(scope) else { return nil }
         if let observation = entries[key(scope)] {
             let ticket = session
             if observation.input == current, observation.evidence.scope == scope, observation.isCurrent(), ticket == session {
@@ -171,7 +177,10 @@ final class PhysicalSourcesModel: ObservableObject {
                     sources: observation.sources ?? PhysicalSourceReport.observed(observation.evidence).sources,
                     deviceLayout: observation.deviceLayout)
             }
+            withdrawnFirmwareID = observation.input.firmware?.id ?? withdrawnFirmwareID
             entries[key(scope)] = nil; references.removeAll(); changed = true
+            guard let refreshed = currentInput(scope) else { return nil }
+            current = refreshed
         }
         if let cached = references[key(scope)], cached.0 == current { return cached.1 }
         let report = PhysicalSourceReport.references(current, changed: changed)
@@ -179,9 +188,12 @@ final class PhysicalSourcesModel: ObservableObject {
         return report
     }
     func refresh(_ scope: RecommendationScope) async {
-        guard let current = input(scope), !isLoading(scope) else { return }
+        guard !isLoading(scope) else { return }
+        _ = report(scope)
+        guard let current = currentInput(scope), !isLoading(scope) else { return }
         let ticket = session, request = UUID(), id = key(scope)
         entries[id] = nil; pending[id] = request; references.removeAll(); changed = false
+        pendingInputs[id] = current
         objectWillChange.send(); onChange()
         if stopObserving == nil {
             let stop = dependencies.observeChanges { [weak self] in self?.invalidate() }
@@ -193,15 +205,23 @@ final class PhysicalSourcesModel: ObservableObject {
         jobs[id] = job
         let observed = await job.value
         guard ticket == session, pending[id] == request else { return }
-        let latest = input(scope)
+        let latest = currentInput(scope)
         let valid = observed?.isCurrent() == true
         guard ticket == session, pending[id] == request else { return }
-        pending[id] = nil; jobs[id] = nil
+        pending[id] = nil; jobs[id] = nil; pendingInputs[id] = nil
         if latest == current, let observed, observed.input == current,
            observed.evidence.scope == scope, valid {
             entries[id] = observed
-        } else if observed != nil { references.removeAll(); changed = true }
+        } else if observed != nil || current.firmware != nil {
+            withdrawnFirmwareID = current.firmware?.id ?? withdrawnFirmwareID
+            references.removeAll(); changed = true
+        }
         objectWillChange.send(); onChange()
+    }
+    private func currentInput(_ scope: RecommendationScope) -> PhysicalSourceInput? {
+        guard let current = input(scope) else { return nil }
+        guard let firmware = current.firmware, firmware.id == withdrawnFirmwareID else { return current }
+        return .init(backend: current.backend, scope: current.scope, via: current.via, software: current.software)
     }
     private func key(_ scope: RecommendationScope) -> String {
         if case .application(let id) = scope { return "app:" + id }

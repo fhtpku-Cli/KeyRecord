@@ -32,6 +32,7 @@ private final class NativeVialHIDFixture: VialHIDEndpoint, @unchecked Sendable {
     private var closes = 0
     private let pause: VialReadRequest?
     private let pauseOnce: Bool
+    private let pauseOccurrence: Int?
     private let mismatch: Bool
     private let encoders: Bool
     private let encoderMismatch: Bool
@@ -45,9 +46,10 @@ private final class NativeVialHIDFixture: VialHIDEndpoint, @unchecked Sendable {
     private let definitionOverride: Data?
     let paused = XCTestExpectation(description: "Selected HID report paused")
     init(pause: VialReadRequest? = nil, mismatch: Bool = false, encoders: Bool = false, encoderMismatch: Bool = false,
-         basicNames: Bool = false, modifierNames: Bool = false, layerTapNames: Bool = false, modifierTapNames: Bool = false, oneShotNames: Bool = false, persistentLayerNames: Bool = false, staticLayerNames: Bool = false, definitionOverride: Data? = nil, pauseOnce: Bool = false) {
+         basicNames: Bool = false, modifierNames: Bool = false, layerTapNames: Bool = false, modifierTapNames: Bool = false, oneShotNames: Bool = false, persistentLayerNames: Bool = false, staticLayerNames: Bool = false, definitionOverride: Data? = nil, pauseOnce: Bool = false, pauseOccurrence: Int? = nil) {
         self.pause = pause; self.mismatch = mismatch; self.encoders = encoders; self.encoderMismatch = encoderMismatch
         self.pauseOnce = pauseOnce
+        self.pauseOccurrence = pauseOccurrence
         self.basicNames = basicNames
         self.modifierNames = modifierNames
         self.layerTapNames = layerTapNames
@@ -62,7 +64,7 @@ private final class NativeVialHIDFixture: VialHIDEndpoint, @unchecked Sendable {
     func start(receive: @escaping @Sendable (Result<VialHIDFrame, VialHIDError>) -> Void) { lock.withLock { self.receive = receive } }
     func send(_ request: VialReadRequest, timeoutMilliseconds: Int, completion: @escaping @Sendable (Result<Void, VialHIDError>) -> Void) {
         let occurrence = lock.withLock { reports.append(request); return reports.filter { $0 == request }.count }
-        if request == pause && (!pauseOnce || occurrence == 1) {
+        if request == pause && (pauseOccurrence.map { $0 == occurrence } ?? (!pauseOnce || occurrence == 1)) {
             lock.withLock { pausedCompletion = completion }; paused.fulfill(); return
         }
         emit(request); completion(.success(()))
@@ -293,12 +295,93 @@ final class KarabinerMappingFlowTests: XCTestCase {
         XCTAssertEqual(reference.mapping.mappings.count, 2)
         XCTAssertTrue(reference.mapping.completeInverseFor.isEmpty)
         XCTAssertEqual(flow.physicalSources.report(.global)?.sources[2].status, .collected)
-        XCTAssertNil(flow.physicalSources.report(.global)?.evidence.geometry)
+        XCTAssertEqual(flow.physicalSources.report(.global)?.evidence.geometry?.positions.count, 2)
+        XCTAssertEqual(flow.physicalSources.report(.global)?.sources[0].status, .readbackReference)
         if case .logical = try physicalResult(flow.physicalSources) {} else { XCTFail("Readback does not prove active layer or complete transforms") }
         let wrong = VialKeymapObservation(device: "other", axes: record.axes, values: [:], observedAt: Date())
         XCTAssertThrowsError(try PhysicalFirmwareReadbackAdapter.reference(wrong, record: record))
         fixture.observeLocked(); flow.sync(from: fixture.orchestrator.state)
         XCTAssertNil(copies.physicalReadback)
+    }
+    func testVialLayoutAssociationRequiresNewReadbackAfterDeviceReplacement() async throws {
+        let endpoint = NativeVialHIDFixture()
+        let (fixture, _, _, record) = try await claimedHID(endpoint)
+        let flow = fixture.flow, model = flow.physicalSources, copies = flow.firmwareCopies
+        flow.intendedBackend = .vial
+        func snapshot(_ id: UInt64) throws -> PhysicalSystemSnapshot {
+            try .init(services: [.init(registryID: id, mappings: [],
+                identity: .init(vendorID: 0x1234, productID: 0x5678, transport: "USB"))])
+        }
+        let system = SystemSourceProbe(try snapshot(7))
+        let absent = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".json")
+        model.dependencies = PhysicalHostSourceAdapter(ports: .init(system: { try system.read() }, softwareURL: { absent }, version: { nil }), canRead: { flow.sensitiveContentVisible }).dependencies
+        await copies.verifyVial(record, ticket: try XCTUnwrap(copies.selectionTicket()))
+        await model.refresh(.global)
+        XCTAssertEqual(model.report(.global)?.deviceLayout?.match?.registryID, 7)
+        XCTAssertEqual(model.report(.global)?.deviceLayout?.match?.geometry.positions["layer:0/0,2"]?.x, 1.5)
+        if case .logical = try physicalResult(model) {} else { XCTFail("Vial definition snapshot is not a complete physical chain") }
+        system.set(try snapshot(8))
+        await model.refresh(.global)
+        XCTAssertNil(model.report(.global)?.deviceLayout?.match)
+        XCTAssertNil(model.report(.global)?.evidence.geometry)
+        system.set(try snapshot(7)); await model.refresh(.global)
+        XCTAssertNil(model.report(.global)?.evidence.geometry)
+        await copies.verifyVial(try XCTUnwrap(copies.records.last), ticket: try XCTUnwrap(copies.selectionTicket()))
+        await model.refresh(.global)
+        XCTAssertEqual(model.report(.global)?.deviceLayout?.match?.registryID, 7)
+        system.set(nil); await model.refresh(.global)
+        XCTAssertNil(model.report(.global)?.evidence.geometry)
+        system.set(try snapshot(7)); await model.refresh(.global)
+        XCTAssertNil(model.report(.global)?.deviceLayout?.match)
+        fixture.observeLocked(); flow.sync(from: fixture.orchestrator.state)
+        XCTAssertNil(copies.physicalReadback); XCTAssertNil(model.report(.global))
+    }
+    func testVialFinalDefinitionReadRespectsPrivacyWithdrawal() async throws {
+        let endpoint = NativeVialHIDFixture(pause: .definitionSize, pauseOccurrence: 2)
+        let (fixture, _, _, record) = try await claimedHID(endpoint)
+        let flow = fixture.flow, copies = flow.firmwareCopies
+        flow.intendedBackend = .vial
+        let ticket = try XCTUnwrap(copies.selectionTicket())
+        let task = Task { await copies.verifyVial(record, ticket: ticket) }
+        await fulfillment(of: [endpoint.paused], timeout: 5)
+        XCTAssertEqual(endpoint.requests.filter { $0 == .definitionSize }.count, 2)
+        fixture.observeLocked(); flow.sync(from: fixture.orchestrator.state)
+        endpoint.resume(.definitionSize); await task.value
+        XCTAssertNil(copies.physicalReadback); XCTAssertNil(flow.physicalSources.report(.global))
+        XCTAssertEqual(endpoint.closeCount, 1)
+    }
+    func testNativeVialLayoutSourcesShowSnapshotAndLogicalFallbackInBothLanguages() throws {
+        ScreenEvidence.prepare()
+        for locale in ["en", "zh-Hans"] {
+            var fixture: FlowFixture?
+            ScreenEvidence.awaitMain {
+                do {
+                    let (ready, _, _, record) = try await self.claimedHID(NativeVialHIDFixture())
+                    fixture = ready
+                    ready.flow.intendedBackend = .vial
+                    await ready.flow.firmwareCopies.verifyVial(record, ticket: try XCTUnwrap(ready.flow.firmwareCopies.selectionTicket()))
+                } catch { XCTFail("\(error)") }
+            }
+            let flow = try XCTUnwrap(fixture?.flow), model = flow.physicalSources, text = NativeText(locale: locale)
+            let view = NSHostingView(rootView: AnalysisPhysicalComparisonView(source: try recommendationChord(8, command: .left),
+                trigger: try recommendationChord(8), scope: .global, evidence: nil, text: text)
+                .environment(\.physicalSources, model).padding().frame(width: 720, height: 430)
+                .background(Color(nsColor: .windowBackgroundColor)))
+            view.sizingOptions = []
+            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 720, height: 430), styleMask: [.titled], backing: .buffered, defer: false)
+            window.isReleasedWhenClosed = false; window.contentView = view; window.makeKeyAndOrderFront(nil)
+            defer { window.contentView = nil; window.close() }
+            NativeEvidence.primeAccessibility(); NativeEvidence.update(view); NativeEvidence.update(view)
+            XCTAssertTrue(KRAXPress(try NativeEvidence.node("physical.sources.disclosure", in: view))); NativeEvidence.update(view)
+            XCTAssertEqual(KRAXLabel(try NativeEvidence.node("physical.source.geometry", in: view)), text("physical.sources.geometry") + ": " + text("physical.sources.readbackReference"))
+            _ = try NativeEvidence.node("physical.result.logical", in: view)
+            if let root = NativeEvidence.outputRoot() {
+                try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+                try ScreenEvidence.capturePNG(view).write(to: root.appendingPathComponent("vial-layout-reference-" + locale + ".png"))
+            }
+            model.invalidate(); NativeEvidence.update(view)
+            XCTAssertNil(model.report(.global)?.evidence.geometry)
+        }
     }
     private func physicalFixture(_ input: PhysicalSourceInput) throws -> PhysicalEvidence {
         let geometry = try CanonicalGeometry(positions: [
@@ -1903,11 +1986,12 @@ final class KarabinerMappingFlowTests: XCTestCase {
         }
         var requests: [VialReadRequest] = []
         requests = transport.requests
-        XCTAssertEqual(requests.count, 23)
+        XCTAssertEqual(requests.count, 33)
         XCTAssertEqual(Array(requests.prefix(3)), [.viaProtocol, .identity, .definitionSize])
-        XCTAssertEqual(Array(requests.suffix(13)), [.viaProtocol, .identity, .layerCount, try .keymap(offset: 0, length: 6),
+        XCTAssertEqual(Array(requests.dropFirst(10).prefix(13)), [.viaProtocol, .identity, .layerCount, try .keymap(offset: 0, length: 6),
             .encoder(layer: 0, index: 2), .macroCount, .macroSize, .macroCount, .macroSize,
             .settingsQuery(after: 0), .settingsQuery(after: 0), .identity, .layerCount])
+        XCTAssertEqual(Array(requests.suffix(10)), Array(requests.prefix(10)))
         XCTAssertEqual(transport.closeCount, 1)
         XCTAssertEqual(try Data(contentsOf: patch), Data(String(decoding: bytes, as: UTF8.self).replacingOccurrences(of: "KC_NO", with: "KC_C").utf8))
     }
@@ -1979,7 +2063,7 @@ final class KarabinerMappingFlowTests: XCTestCase {
         let model = fixture.flow.firmwareCopies
         await model.verifyVial(record, ticket: try XCTUnwrap(model.selectionTicket()))
         XCTAssertEqual(model.records.last?.state, .externallyChanged); XCTAssertNotNil(model.records.last?.verifiedAt)
-        XCTAssertNil(model.issueKey); XCTAssertEqual(endpoint.requests.count, 16); XCTAssertEqual(endpoint.closeCount, 1)
+        XCTAssertNil(model.issueKey); XCTAssertEqual(endpoint.requests.count, 26); XCTAssertEqual(endpoint.closeCount, 1)
         let ledger = try await FirmwareOperationCoordinator(store: store,
             resolve: { try FirmwareFileDestination(reference: $0, gate: gate) }).ledger()
         XCTAssertEqual(ledger.records.last?.state, .externallyChanged)
@@ -2208,7 +2292,7 @@ final class KarabinerMappingFlowTests: XCTestCase {
         XCTAssertEqual(model.records.last?.unverifiedSections, [])
         XCTAssertFalse(model.working); XCTAssertEqual(opens, 2)
         XCTAssertEqual(pending.requests.count, 2); XCTAssertEqual(pending.closeCount, 1)
-        XCTAssertEqual(fresh.requests.count, 16); XCTAssertEqual(fresh.closeCount, 1)
+        XCTAssertEqual(fresh.requests.count, 26); XCTAssertEqual(fresh.closeCount, 1)
         let reopened = try await FirmwareOperationCoordinator(store: store,
             resolve: { try FirmwareFileDestination(reference: $0, gate: gate) }).ledger()
         XCTAssertEqual(reopened.records.last?.state, .verified)

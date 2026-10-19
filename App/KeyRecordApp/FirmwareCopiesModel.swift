@@ -9,7 +9,9 @@ import KeyRecordStore
 @MainActor
 final class FirmwareCopiesModel: ObservableObject {
     @Published private(set) var records: [FirmwareBatchRecord] = [] { didSet { physicalReadback = nil } }
-    private(set) var physicalReadback: PhysicalFirmwareReference?
+    private(set) var physicalReadback: PhysicalFirmwareReference? {
+        didSet { if oldValue != physicalReadback { onChange() } }
+    }
     @Published private(set) var issueKey: String?
     @Published private(set) var working = false { didSet { if working { physicalReadback = nil } } }
     @Published private(set) var uninstallReady = false
@@ -387,10 +389,11 @@ final class FirmwareCopiesModel: ObservableObject {
             } else { throw FirmwareError.unavailable }
             try gate.check(generation); try Task.checkCancellation()
             guard canRead(), ticket == session, request == readRequest, isCompatible(record) else { return }
+            let physicalReference = try PhysicalFirmwareReadbackAdapter.reference(observation, record: record)
             let ledger = try await coordinator().confirmVialReadback(record.id, observation: observation)
             if canRead(), ticket == session, request == readRequest {
                 records = ledger.records
-                physicalReadback = try PhysicalFirmwareReadbackAdapter.reference(observation, record: record)
+                physicalReadback = physicalReference
             }
         } catch { if canRead(), ticket == session, request == readRequest { issueKey = "phase4.operationFailed" } }
     }

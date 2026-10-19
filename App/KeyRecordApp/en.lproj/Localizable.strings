@@ -528,6 +528,7 @@
 "physical.sources.software" = "Software mapping";
 "physical.sources.macOS" = "macOS mapping";
 "physical.sources.reference" = "File reference only";
+"physical.sources.readbackReference" = "Vial device definition snapshot; not a live mapping";
 "physical.sources.collected" = "Partial source read; full mapping unverified";
 "physical.sources.observed" = "Current observation supplied";
 "physical.sources.missing" = "Not available";
@@ -538,7 +539,7 @@
 "physical.association.title" = "Device and layout";
 "physical.association.unchecked" = "Recheck required";
 "physical.association.matchedReference" = "One USB service matches the layout reference; physical mapping unverified";
-"physical.association.missingLayout" = "No applicable layout reference";
+"physical.association.missingLayout" = "No applicable layout reference; Vial requires a fresh device readback";
 "physical.association.missingGeometry" = "Layout positions are incomplete or ambiguous";
 "physical.association.missingDevice" = "No keyboard service available";
 "physical.association.incompleteIdentity" = "Keyboard identity is incomplete";

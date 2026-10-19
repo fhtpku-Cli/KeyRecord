@@ -19,6 +19,14 @@ public enum CandidateConflictDetector {
         var kinds: Set<String> = ["known-system-risk"]
         var limitations: Set<ConflictLimitation> = [.menuUnavailable]
         let evidence = input.conflictEvidence
+        if let menu = evidence?.menu,
+           input.scope == .global || input.scope == .application(menu.application) {
+            kinds.insert("application-menu-snapshot")
+            limitations.remove(.menuUnavailable); limitations.insert(.menuPartial)
+            if menu.shortcuts.contains(where: { ChordOverlap.matches($0, input.trigger) }) {
+                conflicts.insert(.applicationMenuShortcut)
+            }
+        }
         if let observations = evidence?.observations {
             kinds.insert("observed")
             for row in observations where ChordOverlap.matches(row.chord, input.trigger) {

@@ -15,11 +15,14 @@ public struct KarabinerRuntimeContext: Equatable, Sendable {
     public let authority: KarabinerWriteAuthority
     public let capabilities: BackendCapabilities?
     public let observations: [ChordBucket]?
+    public let menu: MenuShortcutEvidence?
     public let generation: UInt64
     public init(version: String?, authority: KarabinerWriteAuthority = .readOnly,
-                capabilities: BackendCapabilities? = nil, observations: [ChordBucket]? = nil, generation: UInt64 = 0) {
+                capabilities: BackendCapabilities? = nil, observations: [ChordBucket]? = nil, generation: UInt64 = 0,
+                menu: MenuShortcutEvidence? = nil) {
         self.version = version; self.authority = authority; self.capabilities = capabilities
         self.observations = observations; self.generation = generation
+        self.menu = menu
     }
     public func requireWrite(profile: String) throws {
         guard let capabilities, capabilities.backend == .karabiner else { throw KarabinerMappingError.readOnlyVersion }
@@ -189,7 +192,7 @@ public actor KarabinerTransactionCoordinator {
             return CandidateConflictDetector.evaluate(CandidateCheckInput(source: draft.output, trigger: draft.trigger,
                 scope: draft.scope.recommendation, backend: context.authority == .readOnly ? .disconnected(.karabiner) : capabilities.map(BackendConnection.connected) ?? .disconnected(.karabiner),
                 conflictEvidence: CandidateConflictEvidence(observations: context.observations, backendRules: evidence,
-                    profile: profile, devices: draft.devices.map { Set($0.map(\.identity)) })))
+                    profile: profile, devices: draft.devices.map { Set($0.map(\.identity)) }, menu: context.menu)))
         }
         return KarabinerPreparedOperation(plan: plan, context: context, reports: reports)
     }

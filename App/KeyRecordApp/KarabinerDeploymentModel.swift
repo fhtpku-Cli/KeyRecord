@@ -27,19 +27,23 @@ private final class DeploymentRuntime: @unchecked Sendable {
     private let lock = NSLock()
     private var active = true
     private var observations: [ChordBucket]?
+    private var menu: MenuShortcutEvidence?
     private let dependencies: KarabinerDeploymentDependencies
     private let profile: String
-    init(dependencies: KarabinerDeploymentDependencies, profile: String, observations: [ChordBucket]?) {
+    init(dependencies: KarabinerDeploymentDependencies, profile: String, observations: [ChordBucket]?, menu: MenuShortcutEvidence?) {
         self.dependencies = dependencies; self.profile = profile; self.observations = observations
+        self.menu = menu
     }
-    func revoke() { lock.withLock { active = false; observations = nil } }
-    func update(_ observations: [ChordBucket]?) { lock.withLock { self.observations = observations } }
+    func revoke() { lock.withLock { active = false; observations = nil; menu = nil } }
+    func update(_ observations: [ChordBucket]?, menu: MenuShortcutEvidence?) {
+        lock.withLock { self.observations = observations; self.menu = menu }
+    }
     func context() throws -> KarabinerRuntimeContext {
         try lock.withLock {
             guard active else { throw KarabinerMappingError.unavailable }
             let version = try dependencies.version()
             return KarabinerRuntimeContext(version: version, authority: dependencies.authority(version, profile),
-                capabilities: BackendCapabilityCatalog.reference(.karabiner), observations: observations)
+                capabilities: BackendCapabilityCatalog.reference(.karabiner), observations: observations, menu: menu)
         }
     }
 }
@@ -53,6 +57,7 @@ final class KarabinerDeploymentModel: ObservableObject {
     @Published private(set) var connected = false
     var canRead: @MainActor () -> Bool = { false }
     var observations: @MainActor () -> [ChordBucket]? = { nil }
+    var menu: @MainActor () -> MenuShortcutEvidence? = { nil }
     var onChange: @MainActor () -> Void = {}
     var selectTarget: @MainActor () -> URL? = {
         let panel = NSOpenPanel()
@@ -94,7 +99,7 @@ final class KarabinerDeploymentModel: ObservableObject {
         if !value { close() }
         else if store != nil { resumeTask = Task { await reopen() } }
     }
-    func updateObservations() { runtime?.update(observations()) }
+    func updateObservations() { runtime?.update(observations(), menu: menu()) }
     func close() {
         session = UUID(); resumeTask?.cancel(); resumeTask = nil
         runtime?.revoke(); runtime = nil; port = nil
@@ -179,7 +184,7 @@ final class KarabinerDeploymentModel: ObservableObject {
         guard let store, let gate else { throw KarabinerMappingError.unavailable }
         disconnect()
         target = url; scoped = url.startAccessingSecurityScopedResource()
-        let runtime = DeploymentRuntime(dependencies: dependencies, profile: reference.profile, observations: observations())
+        let runtime = DeploymentRuntime(dependencies: dependencies, profile: reference.profile, observations: observations(), menu: menu())
         self.runtime = runtime
         let port = try KarabinerFilePort(target: url, gate: gate, runtime: { try runtime.context() })
         let bytes = try port.read()

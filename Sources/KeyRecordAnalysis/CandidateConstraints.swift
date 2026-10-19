@@ -61,7 +61,7 @@ public struct CandidateCheckInput: Equatable, Sendable {
 }
 
 public enum CandidateConflict: String, CaseIterable, Hashable, Sendable {
-    case observedShortcut, knownSystemRisk, existingRuleOverlap, mappingCycle, protectedLayerEntry
+    case observedShortcut, knownSystemRisk, applicationMenuShortcut, existingRuleOverlap, mappingCycle, protectedLayerEntry
 }
 
 public enum CandidateUnsupportedReason: String, Equatable, Sendable {

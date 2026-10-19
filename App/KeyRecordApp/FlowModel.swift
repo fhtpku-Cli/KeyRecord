@@ -269,6 +269,7 @@ final class AppFlowObservable: ObservableObject {
     let firmwareCopies = FirmwareCopiesModel()
     let passwordBackup = PasswordBackupModel()
     let configurationExport = ConfigurationExportModel()
+    let menuShortcuts = MenuShortcutsModel()
 
     func beginRecommendation(output: Chord, trigger: Chord, scope: RecommendationScope, backend: RecommendationBackend) {
         guard sensitiveContentVisible, backend == intendedBackend else { return }
@@ -301,7 +302,7 @@ final class AppFlowObservable: ObservableObject {
         }
         return CandidateConflictEvidence(observations: observations,
             backendRules: intendedBackend == .karabiner ? karabinerImport.evidence : nil,
-            profile: intendedBackend == .karabiner ? karabinerImport.profile : nil)
+            profile: intendedBackend == .karabiner ? karabinerImport.profile : nil, menu: menuShortcuts.evidence)
     }
     /// First-run consent stays available when a closed key gate forces the status to blocked.
     @Published private(set) var awaitingConsent = false
@@ -360,6 +361,14 @@ final class AppFlowObservable: ObservableObject {
         self.flow = flow
         self.actions = actions
         self.protectedGate = protectedGate
+        menuShortcuts.gate = protectedGate
+        menuShortcuts.canRead = { [weak self] in
+            guard let self else { return false }
+            return self.sensitiveContentVisible && !self.choices.contains { $0.bundleID == self.menuShortcuts.application && $0.isExcluded }
+        }
+        menuShortcuts.onChange = { [weak self] in
+            self?.karabinerMappings.invalidate(); self?.karabinerDeployment.updateObservations(); self?.objectWillChange.send()
+        }
         configurationExport.gate = protectedGate
         configurationExport.canExport = { [weak self] in
             guard let self else { return false }
@@ -384,10 +393,12 @@ final class AppFlowObservable: ObservableObject {
         firmwareCopies.onImportClaimed = { [weak self] in self?.offerNewCycle() }
         karabinerMappings.configuration = { [weak self] in self?.karabinerDeployment.selectedConfiguration ?? self?.karabinerImport.selectedConfiguration }
         karabinerMappings.observations = { [weak self] in self?.candidateConflictEvidence.observations }
+        karabinerMappings.menu = { [weak self] in self?.menuShortcuts.evidence }
         karabinerMappings.synchronizeRuntime = { [weak self] in self?.karabinerDeployment.updateObservations() }
         karabinerMappings.onChange = { [weak self] in self?.physicalSources.invalidate(); self?.objectWillChange.send() }
         karabinerDeployment.canRead = { [weak self] in self?.sensitiveContentVisible == true }
         karabinerDeployment.observations = { [weak self] in self?.candidateConflictEvidence.observations }
+        karabinerDeployment.menu = { [weak self] in self?.menuShortcuts.evidence }
         karabinerDeployment.onChange = { [weak self] in self?.physicalSources.invalidate(); self?.objectWillChange.send() }
         firmwareCopies.canRead = { [weak self] in self?.sensitiveContentVisible == true }
         firmwareCopies.selectedOriginal = { [weak self] in self?.viaImport.selectedOriginalBytes }
@@ -729,6 +740,7 @@ final class AppFlowObservable: ObservableObject {
     }
 
     func setExclusion(bundleID: String, enabled: Bool) async {
+        if enabled, menuShortcuts.application == bundleID { menuShortcuts.clear() }
         var excluded = Set(choices.filter(\.isExcluded).map(\.bundleID))
         if enabled { excluded.insert(bundleID) } else { excluded.remove(bundleID) }
         await actions.setExclusions(excluded)
@@ -753,6 +765,7 @@ final class AppFlowObservable: ObservableObject {
     }
 
     private func mirror() {
+        if !sensitiveContentVisible { menuShortcuts.reset() }
         if !sensitiveContentVisible { offersNewCycle = false; configurationExport.clear() }
         karabinerDeployment.visibilityChanged(sensitiveContentVisible)
         if sensitiveContentVisible { karabinerDeployment.updateObservations() }

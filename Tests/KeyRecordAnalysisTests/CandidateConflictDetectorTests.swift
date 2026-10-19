@@ -3,6 +3,31 @@ import KeyRecordCore
 @testable import KeyRecordAnalysis
 
 final class CandidateConflictDetectorTests: XCTestCase {
+    func testMenuShortcutMasksScopesAndWarningsRemainPartial() throws {
+        let command = try XCTUnwrap(MenuShortcutEvidence.chord(virtualKey: 8, modifiers: 0))
+        XCTAssertEqual(command.modifiers.command, .activeSideUnknown)
+        XCTAssertEqual(command.modifiers.shift, .none)
+        let all = try XCTUnwrap(MenuShortcutEvidence.chord(virtualKey: 8, modifiers: 7))
+        XCTAssertEqual(all.modifiers.control, .activeSideUnknown)
+        XCTAssertEqual(all.modifiers.option, .activeSideUnknown)
+        XCTAssertEqual(all.modifiers.shift, .activeSideUnknown)
+        XCTAssertEqual(MenuShortcutEvidence.chord(virtualKey: 8, modifiers: 8)?.modifiers.command, .some(.none))
+        XCTAssertNil(MenuShortcutEvidence.chord(virtualKey: 52, modifiers: 0))
+        XCTAssertNil(MenuShortcutEvidence.chord(virtualKey: 8, modifiers: 16))
+        let evidence = MenuShortcutEvidence(application: "app.editor", shortcuts: [command])
+        for scope in [RecommendationScope.global, .application("app.editor")] {
+            let report = CandidateConflictDetector.evaluate(try input(trigger: chord(8, command: .right), scope: scope, menu: evidence))
+            XCTAssertEqual(report.findings.map(\.kind), [.applicationMenuShortcut])
+            XCTAssertEqual(report.findings.first?.severity, .warning)
+            XCTAssertTrue(report.limitations.contains(.menuPartial))
+            XCTAssertFalse(report.limitations.contains(.menuUnavailable))
+        }
+        let other = CandidateConflictDetector.evaluate(try input(trigger: chord(8, command: .right), scope: .application("app.other"), menu: evidence))
+        XCTAssertTrue(other.findings.isEmpty)
+        XCTAssertTrue(other.limitations.contains(.menuUnavailable))
+        let empty = CandidateConflictDetector.evaluate(try input(menu: .init(application: "app.editor", shortcuts: [])))
+        XCTAssertTrue(empty.limitations.contains(.menuPartial))
+    }
     func testLargeEvidenceProducesDeterministicScopedResults() throws {
         let observations = try (0..<10_000).map { index in
             ChordBucket(chord: try chord(index % 26), appBucket: .bundleID("synthetic.app.\(index)"))
@@ -26,14 +51,15 @@ final class CandidateConflictDetectorTests: XCTestCase {
 
     private func input(source: Chord? = nil, trigger: Chord? = nil, scope: RecommendationScope = .global,
         observations: [ChordBucket]? = [], rules: [BackendRule] = [], origin: BackendEvidenceOrigin = .currentAdapter,
-        unsupported: Int = 0, devices: Set<String>? = nil, profile: String = "p", protected: Set<Chord> = []) throws -> CandidateCheckInput {
+        unsupported: Int = 0, devices: Set<String>? = nil, profile: String = "p", protected: Set<Chord> = [],
+        menu: MenuShortcutEvidence? = nil) throws -> CandidateCheckInput {
         let capabilities = BackendCapabilities(backend: .karabiner, keyCodes: Set((0...126).compactMap { try? KeyCode($0) }), applicationScope: true, fnModifier: true)
         return CandidateCheckInput(source: try source ?? chord(8, command: .left, shift: .left),
             trigger: try trigger ?? chord(122), scope: scope, backend: .connected(capabilities),
             conflictEvidence: CandidateConflictEvidence(observations: observations,
                 backendRules: BackendRuleEvidence(backend: .karabiner, profile: "p", rules: rules,
                     unsupportedRuleCount: unsupported, origin: origin, protectedTriggers: protected, backendVersion: "synthetic-v1"),
-                profile: profile, devices: devices))
+                profile: profile, devices: devices, menu: menu))
     }
 
     func testObservedConflictsRespectScopeAndKeepUnknownAttributionIncomplete() throws {

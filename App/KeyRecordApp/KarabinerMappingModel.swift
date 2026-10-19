@@ -29,6 +29,7 @@ final class KarabinerMappingModel: ObservableObject {
     var canRead: @MainActor () -> Bool = { false }
     var configuration: @MainActor () -> (bytes: Data, profile: String)? = { nil }
     var observations: @MainActor () -> [ChordBucket]? = { nil }
+    var menu: @MainActor () -> MenuShortcutEvidence? = { nil }
     var synchronizeRuntime: @MainActor () -> Void = {}
     var onChange: @MainActor () -> Void = {}
     var onMappingApplied: @MainActor () -> Void = {}
@@ -129,7 +130,7 @@ final class KarabinerMappingModel: ObservableObject {
                     : coordinator.prepare(profile: selection.profile, drafts: selectedDrafts)
             }
             else {
-                let port = KarabinerCopyPort(bytes: selection.bytes, observations: observations())
+                let port = KarabinerCopyPort(bytes: selection.bytes, observations: observations(), menu: menu())
                 result = try await KarabinerTransactionCoordinator(configuration: port, store: ReadOnlyMappingStore())
                     .prepare(profile: selection.profile, drafts: selectedDrafts)
             }
@@ -279,7 +280,8 @@ final class MappingExportPermission: @unchecked Sendable {
 private struct KarabinerCopyPort: KarabinerConfigurationPort {
     let bytes: Data
     let observations: [ChordBucket]?
-    func context() -> KarabinerRuntimeContext { KarabinerRuntimeContext(version: nil, observations: observations) }
+    let menu: MenuShortcutEvidence?
+    func context() -> KarabinerRuntimeContext { KarabinerRuntimeContext(version: nil, observations: observations, menu: menu) }
     func read() -> Data { bytes }
     func replace(expected: Data, with bytes: Data, context: KarabinerRuntimeContext) throws { throw KarabinerMappingError.readOnlyVersion }
 }

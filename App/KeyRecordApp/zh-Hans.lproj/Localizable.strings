@@ -127,7 +127,7 @@
 "modifier.side.unknown" = "%@（侧别未知）";
 "modifier.fn.unknown" = "Fn（状态未知）";
 
-"phase2.title" = "统计与推荐预览";
+"phase2.title" = "统计概览";
 "phase2.newRecommendations" = "有可查看的推荐 — 打开统计";
 "phase2.logicalOnly" = "仅展示逻辑按键数。映射证据链不完整，这些预览不能实际应用。";
 "phase2.layout" = "主评分布局";
@@ -139,19 +139,19 @@
 "phase2.layout.alice" = "Alice";
 "phase2.layout.split" = "分体";
 "phase2.layout.none" = "无 / 跳过";
-"phase2.shortcuts" = "高频快捷键";
+"phase2.shortcuts" = "本周期最常用的快捷键";
 "phase2.applications" = "应用分布 · 仅快捷键";
 "phase2.bare" = "裸键使用强度";
 "phase2.bareNote" = "按键码展示相对次数，不代表键盘物理位置。裸键不关联应用、不保存序列或精确时间戳。";
 "phase2.shortcutsEmpty" = "本周期尚未记录快捷键。";
 "phase2.bareEmpty" = "本周期尚未记录裸键。";
 "phase2.sources" = "共 %lld 次 · 普通 %lld 次 · 疑似注入 %lld 次";
-"phase2.top5" = "前 5 项推荐";
+"phase2.top5" = "值得查看的建议";
 "phase2.all" = "全部候选";
 "phase2.showAll" = "显示全部候选，含观察项与排除项";
 "phase2.threshold" = "样本门槛为原始计数至少 20 次，且跨 2 个本机自然日。达标不代表一定有更简单的逻辑触发方案。14 个活跃日半衰期只影响排序。";
 "phase2.empty" = "本周期还没有快捷键候选。";
-"phase2.noEligible" = "暂无可显示的推荐。可打开全部候选查看各项状态。";
+"phase2.noEligible" = "本周期暂无值得查看的建议。";
 "phase2.status.observation" = "观察候选 · 样本不足";
 "phase2.status.eligible" = "样本已达标";
 "phase2.status.statefulExcluded" = "持续 / 有状态快捷键 · 不参与推荐";
@@ -222,7 +222,7 @@
 "phase2.whyUnverified" = "选择布局预设不代表已验证固件映射。这些预览没有经过兼容性或冲突检查。";
 "phase2.emptyCycle" = "本周期还没有已保存的次数。统计会在你开始采集后出现。打开这个窗口不会开始采集。";
 "phase2.fallbackTotals" = "目前只能显示可信的快捷键和裸键总次数，没有据此编造推荐。";
-"phase2.noPositive" = "概览里还没有可展示的正向简化方案。请打开全部候选，查看已达标但没有更短组合的项目。";
+"phase2.noPositive" = "本周期暂无可预览的简化方案。";
 "settings.consent" = "本地统计说明";
 "phase2.keyPool" = "可用于简化的特殊键（可选）";
 "phase2.functionKeys" = "选择功能键";
@@ -615,3 +615,12 @@
 "capture.stopped" = "已停止";
 "capture.reopening" = "正在重新打开…";
 "capture.failed" = "采集不可用";
+"overview.uses" = "%lld 次";
+"overview.usesThisCycle" = "本周期使用 %lld 次";
+"overview.suggestion" = "%@ · 查看每次可少按 %d 个键的方案";
+"overview.evidence" = "键位依据";
+"overview.ranking" = "排序说明";
+"overview.rankExplanation" = "快捷键按本周期使用次数由高到低排列。已知左右侧的组合合并计数，侧别未知的组合单列。推荐评分另用加权频次。";
+"overview.hidden" = "统计已隐藏";
+"overview.leaveSecureInput" = "退出安全输入后，可在菜单中重新查看记录状态。";
+"overview.moreSuggestions" = "查看其余 %d 项建议及全部候选";

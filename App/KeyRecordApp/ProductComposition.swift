@@ -124,6 +124,7 @@ final class ProductComposition: NSObject, NSMenuDelegate, NSWindowDelegate {
     private var quitApprovedForTermination = false
     private var window: NSWindow?
     private var statusItem: NSMenuItem?
+    private var menuActions: [String: NSMenuItem] = [:]
     private var mappingDisableItem: NSMenuItem?
     private weak var menuBarButton: NSStatusBarButton?
     private var pulse: Task<Void, Never>?
@@ -702,7 +703,7 @@ final class ProductComposition: NSObject, NSMenuDelegate, NSWindowDelegate {
         await syncRuntimeRefreshingLiveness()
     }
 
-    private func installStatusItem() -> NSStatusItem {
+    func installStatusItem() -> NSStatusItem {
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         item.button?.image = NSImage(systemSymbolName: "keyboard", accessibilityDescription: "KeyRecord")
         item.button?.setAccessibilityIdentifier("menu.open")
@@ -711,14 +712,16 @@ final class ProductComposition: NSObject, NSMenuDelegate, NSWindowDelegate {
         menu.autoenablesItems = false
         menu.delegate = self
         let statusItem = NSMenuItem(title: "", action: nil, keyEquivalent: "")
+        statusItem.isEnabled = false
         self.statusItem = statusItem
         menu.addItem(statusItem)
-        for (key, selector) in [("action.start", #selector(start)), ("action.pause", #selector(pauseCollection)),
-                                ("action.resume", #selector(resumeCollection)), ("action.statistics", #selector(openStatistics)),
+        for (key, selector) in [("action.statistics", #selector(openStatistics)), ("action.start", #selector(start)),
+                                ("action.pause", #selector(pauseCollection)), ("action.resume", #selector(resumeCollection)),
                                 ("action.settings", #selector(settings)),
                                 ("action.quit", #selector(quit))] {
             let entry = NSMenuItem(title: text(key), action: selector, keyEquivalent: "")
             entry.target = self
+            menuActions[key] = entry
             menu.addItem(entry)
         }
         let disable = NSMenuItem(title: text("phase3.disable"), action: #selector(disableManagedMapping), keyEquivalent: "")
@@ -1424,7 +1427,16 @@ final class ProductComposition: NSObject, NSMenuDelegate, NSWindowDelegate {
         let status = CaptureStatusPresentation.status(
             phase: lifecycle.phase, reason: lifecycle.state.blockedReason,
             gateOpen: gateOpen, captureSessionLive: sessionLive)
+        if flow.captureStatus != status { flow.captureStatus = status }
         statusItem?.title = text.captureStatus(status)
+        for (key, item) in menuActions {
+            item.title = key == "action.statistics" ? flow.statisticsMenuTitle(text) : text(key)
+        }
+        let retry = lifecycle.phase == .failed || (lifecycle.phase == .blocked && lifecycle.state.preferences?.expectedCollecting == true)
+        menuActions["action.start"]?.isHidden = !retry && lifecycle.phase != .unstarted && lifecycle.phase != .consent
+        if retry { menuActions["action.start"]?.title = text("action.retry") }
+        menuActions["action.pause"]?.isHidden = lifecycle.phase != .collecting
+        menuActions["action.resume"]?.isHidden = lifecycle.phase != .paused
     }
 
     private func updateMenuBarAccessibility() {
@@ -1592,10 +1604,6 @@ final class ProductComposition: NSObject, NSMenuDelegate, NSWindowDelegate {
         // after; the synchronous pass below keeps titles correct in the meantime.
         Task { @MainActor in await self.syncRuntimeRefreshingLiveness() }
         syncRuntime()
-        let keys = ["action.start", "action.pause", "action.resume", "action.statistics", "action.settings", "action.quit"]
-        for (item, key) in zip(menu.items.dropFirst(), keys) {
-            item.title = key == "action.statistics" ? flow.statisticsMenuTitle(text) : text(key)
-        }
         #if DEBUG
         developerMenu?.refresh()
         #endif
@@ -1677,6 +1685,7 @@ struct ProductScreens: View {
             } else {
                 TabView(selection: $flow.statisticsSection) {
                     analysis(.overview)
+                        .id(flow.statisticsOpening)
                         .tabItem { Text(text("phase2.tab.overview")) }
                         .tag(StatisticsSection.overview)
                     analysis(.candidates)
@@ -1716,6 +1725,7 @@ struct ProductScreens: View {
             conflictEvidence: flow.candidateConflictEvidence,
             text: text,
             statusKey: flow.state.statusKey,
+            captureStatus: flow.captureStatus,
             analysisUnavailable: flow.noticeKey == "phase2.analysisUnavailable",
             preferenceNoticeKey: flow.noticeKey == "phase2.preferenceSaveFailed" ? flow.noticeKey : nil,
             canUndoIgnore: flow.canUndoIgnoreChange && visible,

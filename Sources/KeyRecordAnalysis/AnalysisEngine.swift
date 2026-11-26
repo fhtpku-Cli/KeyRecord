@@ -60,7 +60,14 @@ public enum AnalysisEngine {
                 factors: factors, triggers: triggers, isIgnored: input.ignoredRecommendationKeys.contains(id)))
         }
         candidates.sort { $0.factors.score == $1.factors.score ? $0.id < $1.id : $0.factors.score > $1.factors.score }
-        let statistics = candidates.map { ShortcutStatistic(chord: $0.chord, sourceCounts: $0.sourceCounts, distinctDays: $0.distinctDays) }
+        let statistics = candidates.map { candidate in
+            var uses: [AppBucket: Int64] = [:]
+            for row in groups[candidate.chord] ?? [] {
+                uses[row.identity.appBucket, default: 0] += row.sourceCounts.total.value
+            }
+            return ShortcutStatistic(usesByApplication: uses, chord: candidate.chord,
+                                     sourceCounts: candidate.sourceCounts, distinctDays: candidate.distinctDays)
+        }
             .sorted { $0.sourceCounts.total == $1.sourceCounts.total
                 ? LogicalPreviews.canonicalID($0.chord) < LogicalPreviews.canonicalID($1.chord)
                 : $0.sourceCounts.total.value > $1.sourceCounts.total.value }

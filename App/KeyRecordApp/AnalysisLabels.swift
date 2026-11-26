@@ -4,7 +4,7 @@ import KeyRecordAnalysis
 
 /// Display names never alter the stored key code, sided chord, or application identity.
 enum AnalysisLabels {
-    static func key(_ code: KeyCode, text: NativeText) -> String {
+    static func key(_ code: KeyCode, text: NativeText, compact: Bool = false) -> String {
         let names: [Int: String] = [36: "Return", 48: "Tab", 49: "Space", 51: "Delete", 53: "Escape",
             71: "Clear", 76: "Enter", 115: "Home", 116: "Page Up", 117: "Forward Delete",
             119: "End", 121: "Page Down", 123: "←", 124: "→", 125: "↓", 126: "↑"]
@@ -15,7 +15,7 @@ enum AnalysisLabels {
         if let name = names[code.value] { return text("phase2.key.\(name)") }
         let ansi: [Int: String] = [0: "A", 1: "S", 2: "D", 3: "F", 4: "H", 5: "G", 6: "Z", 7: "X", 8: "C", 9: "V", 11: "B",
             12: "Q", 13: "W", 14: "E", 15: "R", 16: "Y", 17: "T", 18: "1", 19: "2", 20: "3", 21: "4", 22: "6", 23: "5", 24: "=", 25: "9", 26: "7", 27: "-", 28: "8", 29: "0", 30: "]", 31: "O", 32: "U", 33: "[", 34: "I", 35: "P", 37: "L", 38: "J", 40: "K", 41: ";", 43: ",", 44: "/", 45: "N", 46: "M", 47: ".", 50: "`"]
-        if let position = ansi[code.value] { return String(format: text("phase2.ansiPosition"), position, code.value) }
+        if let position = ansi[code.value] { return compact ? position : String(format: text("phase2.ansiPosition"), position, code.value) }
         return String(format: text("aggregate.keyToken"), code.value)
     }
 
@@ -30,6 +30,19 @@ enum AnalysisLabels {
         if modifiers.fn != .none { parts.append(text(modifiers.fn == .unknown ? "modifier.fn.unknown" : "modifier.fn")) }
         parts.append(key(chord.keyCode, text: text))
         return parts.joined(separator: " + ")
+    }
+
+    static func compactChord(_ chord: Chord, text: NativeText) -> String {
+        let modifiers = chord.modifiers
+        let symbols = [("⌃", modifiers.control), ("⌥", modifiers.option),
+                       ("⇧", modifiers.shift), ("⌘", modifiers.command)]
+        var parts = symbols.compactMap { symbol, side -> String? in
+            guard side != .none else { return nil }
+            return side == .activeSideUnknown ? symbol + "?" : symbol
+        }
+        if modifiers.fn != .none { parts.append(modifiers.fn == .unknown ? "fn?" : "fn") }
+        parts.append(key(chord.keyCode, text: text, compact: true))
+        return parts.joined(separator: " ")
     }
 
     static func app(_ bucket: AppBucket, text: NativeText) -> String {
@@ -81,9 +94,7 @@ extension AnalysisLabels {
 }
 
 enum AnalysisOverviewLimits {
-    static let shortcuts = 10
-    static let applications = 10
-    static let bareKeys = 12
+    static let shortcuts = 3
 }
 
 /// Family grouping is presentation only; all sided variants remain inspectable.
@@ -95,6 +106,12 @@ struct AnalysisStatisticGroup: Identifiable {
     var ordinary: Int64
     var suspected: Int64
     var weightedFrequency: Double
+
+    var usesByApplication: [AppBucket: Int64] {
+        variants.reduce(into: [:]) { uses, variant in
+            for (app, count) in variant.usesByApplication { uses[app, default: 0] += count }
+        }
+    }
 
     static func make(_ snapshot: AnalysisSnapshot) -> [AnalysisStatisticGroup] {
         let frequencies = Dictionary(uniqueKeysWithValues: snapshot.candidates.map { ($0.chord, $0.factors.weightedFrequency) })

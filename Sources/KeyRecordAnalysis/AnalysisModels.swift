@@ -45,6 +45,7 @@ public struct BareKeyStatistic: Equatable, Sendable {
     public let sourceCounts: SourceCounts
 }
 public struct ShortcutStatistic: Equatable, Sendable {
+    public let usesByApplication: [AppBucket: Int64]
     public let chord: Chord
     public let sourceCounts: SourceCounts
     public let distinctDays: Int

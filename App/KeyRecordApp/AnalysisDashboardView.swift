@@ -6,6 +6,7 @@ private enum AnalysisRoute: Hashable {
     case overview
     case shortcuts
     case applications
+    case allCandidates
     case bareKeys
     case shortcut(String)
     case candidate(String)
@@ -57,6 +58,7 @@ struct AnalysisDashboardView: View {
     var conflictEvidence: CandidateConflictEvidence?
     let text: NativeText
     var statusKey: String? = nil
+    var captureStatus: CaptureStatusPresentation.Status?
     var analysisUnavailable = false
     var preferenceNoticeKey: String?
     var canUndoIgnore = false
@@ -69,55 +71,78 @@ struct AnalysisDashboardView: View {
     var surface: AnalysisSurface = .both
 
     @State private var route: AnalysisRoute = .overview
+    @State private var history: [(AnalysisRoute, String)] = []
     @State private var returnFocus: String?
     @FocusState private var focusedControl: String?
+    @AccessibilityFocusState private var accessibilityFocus: String?
 
     var body: some View {
         Group {
             if snapshot == nil && fallbackAggregate == nil {
                 locked
+            } else if route == .overview || snapshot == nil {
+                overview
             } else {
-                ZStack(alignment: .topLeading) {
-                    overview.opacity(route == .overview ? 1 : 0)
-                        .accessibilityHidden(route != .overview)
-                        .allowsHitTesting(route == .overview)
-                    if route != .overview { detail }
-                }
+                detail
             }
         }
+        .onChange(of: snapshot?.cycleID) { _, _ in
+            history.removeAll()
+            route = .overview
+            returnFocus = nil
+        }
         .onExitCommand { if route != .overview { closeDetail() } }
-        .onChange(of: route) { _, new in
-            if new == .overview, let returnFocus { focusedControl = returnFocus }
-            else if new != .overview { focusedControl = "phase2.back" }
+        .onChange(of: route) { _, _ in
+            focusedControl = returnFocus ?? "phase2.back"
+            accessibilityFocus = focusedControl
+        }
+    }
+
+    @ViewBuilder private var statusLine: some View {
+        if let captureStatus {
+            Text(text.captureStatus(captureStatus)).foregroundStyle(.secondary)
+        } else if let statusKey {
+            Text(text(statusKey)).foregroundStyle(.secondary)
         }
     }
 
     private var locked: some View {
-        Label(text("aggregate.locked"), systemImage: "lock.circle")
-            .fixedSize(horizontal: false, vertical: true)
-            .accessibilityIdentifier("phase2.locked")
+        VStack(alignment: .leading, spacing: NativeLayout.group) {
+            Label(text("overview.hidden"), systemImage: "lock.circle").font(.title2)
+            statusLine
+            if captureStatus == .blocked(.secureInputActive) {
+                Text(text("overview.leaveSecureInput"))
+            } else {
+                Text(text("aggregate.locked")).foregroundStyle(.secondary)
+            }
+        }
+        .padding(NativeLayout.page)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .accessibilityIdentifier("phase2.locked")
     }
 
     private var overview: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: NativeLayout.group) {
                 if surface != .candidates {
-                    Text(text("phase2.title")).font(.title2)
-                    if let statusKey { Text(text(statusKey)) }
-                    Text(text("phase2.logicalOnly")).fixedSize(horizontal: false, vertical: true)
+                    Text(text("phase2.title")).font(.largeTitle.bold()).accessibilityAddTraits(.isHeader)
+                    statusLine
                     if let snapshot {
-                        totals(shortcutTotal: snapshot.shortcutStatistics.reduce(0) { $0 + $1.sourceCounts.total.value },
-                               bareTotal: snapshot.bareKeys.reduce(0) { $0 + $1.sourceCounts.total.value },
-                               activeDays: snapshot.activeDayCount)
-                        if showsLayoutControls || (snapshot.shouldAskLayout && !layout.hasAsked) {
+                        let groups = AnalysisStatisticGroup.make(snapshot)
+                        if groups.isEmpty && snapshot.bareKeys.isEmpty {
+                            Text(text("phase2.emptyCycle"))
+                        } else {
+                            shortcutColumn(groups, limit: AnalysisOverviewLimits.shortcuts)
+                            recommendations(snapshot)
+                            HStack {
+                                routeButton("phase2.applications", .applications, "phase2.open.applications")
+                                routeButton("phase2.bare", .bareKeys, "phase2.open.bare")
+                            }
+                        }
+                        if showsLayoutControls {
                             AnalysisLayoutControls(layout: layout, ask: snapshot.shouldAskLayout && !layout.hasAsked,
-                                                   text: text, noticeKey: preferenceNoticeKey, saveLayout: saveLayout)
+                                text: text, noticeKey: preferenceNoticeKey, saveLayout: saveLayout)
                         }
-                        if snapshot.shortcutStatistics.isEmpty && snapshot.bareKeys.isEmpty {
-                            Text(text("phase2.emptyCycle")).fixedSize(horizontal: false, vertical: true)
-                        }
-                        statistics(snapshot)
-                        recommendations(snapshot)
                     } else if let fallbackAggregate {
                         if analysisUnavailable {
                             Text(text("phase2.analysisUnavailable")).accessibilityIdentifier("phase2.analysisUnavailable")
@@ -130,10 +155,17 @@ struct AnalysisDashboardView: View {
                     candidatesPage(snapshot)
                 }
             }
-            .padding(NativeLayout.compact)
+            .padding(NativeLayout.page)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .accessibilityIdentifier("phase2.dashboard")
+    }
+
+    private func routeButton(_ key: String, _ destination: AnalysisRoute, _ identifier: String) -> some View {
+        Button(text(key)) { open(destination, focus: identifier) }
+            .focused($focusedControl, equals: identifier)
+            .accessibilityFocused($accessibilityFocus, equals: identifier)
+            .accessibilityIdentifier(identifier)
     }
 
     private func totals(shortcutTotal: Int64, bareTotal: Int64, activeDays: Int?) -> some View {
@@ -146,55 +178,41 @@ struct AnalysisDashboardView: View {
         }
     }
 
-    private func statistics(_ snapshot: AnalysisSnapshot) -> some View {
-        let groups = AnalysisStatisticGroup.make(snapshot)
-        let shortcutTotal = groups.reduce(Int64(0)) { $0 + $1.total }
-        return VStack(alignment: .leading, spacing: NativeLayout.group) {
-            ViewThatFits(in: .horizontal) {
-                HStack(alignment: .top, spacing: NativeLayout.group) {
-                    shortcutColumn(groups, limit: AnalysisOverviewLimits.shortcuts)
-                    applicationColumn(snapshot, total: shortcutTotal, limit: AnalysisOverviewLimits.applications)
-                }.frame(minWidth: 720)
-                VStack(alignment: .leading, spacing: NativeLayout.group) {
-                    shortcutColumn(groups, limit: AnalysisOverviewLimits.shortcuts)
-                    applicationColumn(snapshot, total: shortcutTotal, limit: AnalysisOverviewLimits.applications)
-                }
-            }
-            bareColumn(snapshot, limit: AnalysisOverviewLimits.bareKeys)
-        }
-    }
-
     private func shortcutColumn(_ groups: [AnalysisStatisticGroup], limit: Int?) -> some View {
         GroupBox {
             VStack(alignment: .leading, spacing: NativeLayout.compact) {
                 if groups.isEmpty { Text(text("phase2.shortcutsEmpty")) }
-                ForEach(Array((limit.map { Array(groups.prefix($0)) } ?? groups).enumerated()), id: \.element.id) { _, group in
-                    VStack(alignment: .leading, spacing: NativeLayout.compact) {
-                        Text(AnalysisLabels.chord(group.representative, text: text)).font(.headline)
-                        Text(String(format: text("phase2.rawUses"), group.total))
-                        Text(String(format: text("phase2.weightedSeparate"), group.weightedFrequency)).font(.caption)
-                        if ChordRuleTable.v1.classify(group.representative).kind == .stateful {
-                            Text(text("phase2.status.statefulExcluded")).font(.caption)
+                ForEach(Array(groups.prefix(limit ?? groups.count))) { group in
+                    let identifier = "phase2.detail.\(group.id)"
+                    Button {
+                        open(.shortcut(group.id), focus: identifier)
+                    } label: {
+                        HStack(spacing: NativeLayout.group) {
+                            Text(AnalysisLabels.compactChord(group.representative, text: text)).font(.headline)
+                            Spacer()
+                            ProgressView(value: Double(group.total), total: Double(max(1, groups.first?.total ?? 1)))
+                                .frame(maxWidth: 160).accessibilityHidden(true)
+                            Text(String(format: text("overview.uses"), group.total)).monospacedDigit()
+                            Image(systemName: "chevron.right").foregroundStyle(.tertiary)
                         }
-                        if ChordRuleTable.v1.classify(group.representative).scope == .system {
-                            Text(text("classification.system")).font(.caption)
-                        }
-                        Button(text("phase2.viewDetails")) { open(.shortcut(group.id), focus: "phase2.detail.\(group.id)") }
-                            .focused($focusedControl, equals: "phase2.detail.\(group.id)")
-                            .accessibilityIdentifier("phase2.detail.\(group.id)")
-                    }.accessibilityIdentifier("phase2.stat.shortcut")
+                        .padding(.vertical, 5).contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .focused($focusedControl, equals: identifier)
+                    .accessibilityFocused($accessibilityFocus, equals: identifier)
+                    .accessibilityLabel(AnalysisLabels.chord(group.representative, text: text))
+                    .accessibilityValue(String(format: text("overview.uses"), group.total))
+                    .accessibilityIdentifier(identifier)
                 }
                 if let limit, groups.count > limit {
-                    Button(text("phase2.viewAll")) { open(.shortcuts, focus: "phase2.open.shortcuts") }
-                        .focused($focusedControl, equals: "phase2.open.shortcuts")
-                        .accessibilityIdentifier("phase2.open.shortcuts")
+                    routeButton("phase2.viewAll", .shortcuts, "phase2.open.shortcuts")
                 }
-            }.frame(maxWidth: .infinity, alignment: .leading)
-        } label: { Text(text("phase2.shortcuts")) }
+            }.padding(NativeLayout.compact).frame(maxWidth: .infinity, alignment: .leading)
+        } label: { Text(text("phase2.shortcuts")).font(.headline) }
     }
 
-    private func applicationColumn(_ snapshot: AnalysisSnapshot, total: Int64, limit: Int?) -> some View {
-        let rows = limit.map { Array(snapshot.applications.prefix($0)) } ?? snapshot.applications
+    private func applicationColumn(_ snapshot: AnalysisSnapshot, total: Int64) -> some View {
+        let rows = snapshot.applications
         return GroupBox {
             VStack(alignment: .leading, spacing: NativeLayout.compact) {
                 Text(text("phase2.appShare")).font(.caption)
@@ -205,17 +223,12 @@ struct AnalysisDashboardView: View {
                         Text(shareLine(row.sourceCounts.total.value, total: total))
                     }.accessibilityIdentifier("phase2.stat.application")
                 }
-                if let limit, snapshot.applications.count > limit {
-                    Button(text("phase2.viewAll")) { open(.applications, focus: "phase2.open.applications") }
-                        .focused($focusedControl, equals: "phase2.open.applications")
-                        .accessibilityIdentifier("phase2.open.applications")
-                }
             }.frame(maxWidth: .infinity, alignment: .leading)
         } label: { Text(text("phase2.applications")) }
     }
 
-    private func bareColumn(_ snapshot: AnalysisSnapshot, limit: Int?) -> some View {
-        let rows = limit.map { Array(snapshot.bareKeys.prefix($0)) } ?? snapshot.bareKeys
+    private func bareColumn(_ snapshot: AnalysisSnapshot) -> some View {
+        let rows = snapshot.bareKeys
         let peak = snapshot.bareKeys.map(\.sourceCounts.total.value).max() ?? 1
         return GroupBox {
             VStack(alignment: .leading, spacing: NativeLayout.compact) {
@@ -233,50 +246,53 @@ struct AnalysisDashboardView: View {
                         }.accessibilityIdentifier("phase2.stat.bare")
                     }
                 }
-                if let limit, snapshot.bareKeys.count > limit {
-                    Button(text("phase2.viewAll")) { open(.bareKeys, focus: "phase2.open.bare") }
-                        .focused($focusedControl, equals: "phase2.open.bare")
-                        .accessibilityIdentifier("phase2.open.bare")
-                }
             }.frame(maxWidth: .infinity, alignment: .leading)
         } label: { Text(text("phase2.bare")) }
     }
 
     private func recommendations(_ snapshot: AnalysisSnapshot) -> some View {
-        VStack(alignment: .leading, spacing: NativeLayout.compact) {
-            Text(text("phase2.top5")).font(.headline)
-            Text(text("phase2.threshold")).font(.caption)
-            if canUndoIgnore {
-                Button(text("phase2.undoIgnore")) { Task { @MainActor in await undoIgnore() } }
-                    .accessibilityIdentifier("phase2.undoIgnore")
-            }
-            if let preferenceNoticeKey { Text(text(preferenceNoticeKey)).font(.caption) }
-            if snapshot.topRecommendations.isEmpty {
-                Text(text(snapshot.candidates.contains { $0.status == .eligible } ? "phase2.noPositive" : "phase2.noEligible"))
-            }
-            ForEach(snapshot.topRecommendations) { candidate in
-                VStack(alignment: .leading, spacing: NativeLayout.compact) {
-                    AnalysisCandidateView(candidate: candidate, text: text, backend: backend, layout: layout, keyboardPool: keyboardPool,
-                                          physicalEvidence: physicalEvidence,
-                                          viaReference: viaReference,
-                                          conflictEvidence: conflictEvidence,
-                                          createMapping: createMapping,
-                                           ignore: { Task { @MainActor in await ignore(candidate.id) } })
-                    Button(text("phase2.viewDetails")) { open(.candidate(candidate.id), focus: "phase2.candidateOpen.\(candidate.id)") }
-                        .focused($focusedControl, equals: "phase2.candidateOpen.\(candidate.id)")
-                        .accessibilityIdentifier("phase2.candidateOpen.\(candidate.id)")
+        GroupBox {
+            VStack(alignment: .leading, spacing: NativeLayout.compact) {
+                if let candidate = snapshot.topRecommendations.first {
+                    let identifier = "phase2.candidateOpen.\(candidate.id)"
+                    Button {
+                        open(.candidate(candidate.id), focus: identifier)
+                    } label: {
+                        Text(String(format: text("overview.suggestion"),
+                                    AnalysisLabels.compactChord(candidate.chord, text: text),
+                                    candidate.factors.savedPerUse))
+                    }
+                    .focused($focusedControl, equals: identifier)
+                    .accessibilityFocused($accessibilityFocus, equals: identifier)
+                    .accessibilityIdentifier(identifier)
                 }
-            }
-            Button(text("phase2.showAll")) {
-                if let openCandidates { openCandidates() } else { surfaceSwitch() }
-            }
-            .accessibilityIdentifier("phase2.showAll")
-        }
+                if snapshot.topRecommendations.isEmpty {
+                    Text(text(snapshot.candidates.contains { $0.status == .eligible } ? "phase2.noPositive" : "phase2.noEligible"))
+                        .foregroundStyle(.secondary)
+                }
+                let remaining = max(0, snapshot.topRecommendations.count - 1)
+                let moreTitle = remaining > 0
+                    ? String(format: text("overview.moreSuggestions"), remaining) : text("phase2.showAll")
+                Button(moreTitle) {
+                    if let openCandidates { openCandidates() }
+                    else { open(.allCandidates, focus: "phase2.showAll") }
+                }
+                .focused($focusedControl, equals: "phase2.showAll")
+                .accessibilityFocused($accessibilityFocus, equals: "phase2.showAll")
+                .accessibilityIdentifier("phase2.showAll")
+                if let preferenceNoticeKey { Text(text(preferenceNoticeKey)).font(.caption) }
+                if canUndoIgnore {
+                    Button(text("phase2.undoIgnore")) { Task { @MainActor in await undoIgnore() } }
+                        .accessibilityIdentifier("phase2.undoIgnore")
+                }
+            }.padding(NativeLayout.compact).frame(maxWidth: .infinity, alignment: .leading)
+        } label: { Text(text("phase2.top5")).font(.headline) }
     }
 
     private func candidatesPage(_ snapshot: AnalysisSnapshot) -> some View {
         VStack(alignment: .leading, spacing: NativeLayout.compact) {
             Text(text("phase2.all")).font(.headline)
+            Text(text("phase2.threshold")).font(.caption)
             if let preferenceNoticeKey {
                 Text(text(preferenceNoticeKey)).font(.caption)
                     .accessibilityIdentifier("phase2.preferenceNotice.candidates")
@@ -296,6 +312,8 @@ struct AnalysisDashboardView: View {
                                            ignore: candidate.isIgnored ? nil : ignoreAction(for: candidate.id),
                                            restore: candidate.isIgnored ? restoreAction(for: candidate.id) : nil)
                     Button(text("phase2.viewDetails")) { open(.candidate(candidate.id), focus: "phase2.candidateOpen.\(candidate.id)") }
+                        .focused($focusedControl, equals: "phase2.candidateOpen.\(candidate.id)")
+                        .accessibilityFocused($accessibilityFocus, equals: "phase2.candidateOpen.\(candidate.id)")
                         .accessibilityIdentifier("phase2.candidateOpen.\(candidate.id)")
                 }
             }
@@ -333,15 +351,17 @@ struct AnalysisDashboardView: View {
                 VStack(alignment: .leading, spacing: NativeLayout.group) {
                     Button(text("phase2.back")) { closeDetail() }
                         .focused($focusedControl, equals: "phase2.back")
+                        .accessibilityFocused($accessibilityFocus, equals: "phase2.back")
                         .accessibilityIdentifier("phase2.back")
                     switch route {
                     case .overview: EmptyView()
                     case .shortcuts:
                         shortcutColumn(AnalysisStatisticGroup.make(snapshot), limit: nil)
+                    case .allCandidates: candidatesPage(snapshot)
                     case .applications:
-                        applicationColumn(snapshot, total: snapshot.shortcutStatistics.reduce(0) { $0 + $1.sourceCounts.total.value }, limit: nil)
+                        applicationColumn(snapshot, total: snapshot.shortcutStatistics.reduce(0) { $0 + $1.sourceCounts.total.value })
                     case .bareKeys:
-                        bareColumn(snapshot, limit: nil)
+                        bareColumn(snapshot)
                     case .shortcut(let id):
                         shortcutDetail(snapshot, id: id)
                     case .candidate(let id):
@@ -365,10 +385,21 @@ struct AnalysisDashboardView: View {
 
     @ViewBuilder private func shortcutDetail(_ snapshot: AnalysisSnapshot, id: String) -> some View {
         if let group = AnalysisStatisticGroup.make(snapshot).first(where: { $0.id == id }) {
-            Text(AnalysisLabels.chord(group.representative, text: text)).font(.title3)
-            Text(String(format: text("phase2.rawUses"), group.total))
-            Text(String(format: text("phase2.weightedSeparate"), group.weightedFrequency))
-            Text(text("phase2.eligibilityExact")).font(.caption).fixedSize(horizontal: false, vertical: true)
+            Text(AnalysisLabels.compactChord(group.representative, text: text)).font(.largeTitle.bold())
+                .accessibilityLabel(AnalysisLabels.chord(group.representative, text: text))
+                .accessibilityAddTraits(.isHeader)
+            Text(String(format: text("overview.usesThisCycle"), group.total))
+            Text(text("phase2.applications")).font(.headline)
+            let uses = group.usesByApplication
+            let apps = snapshot.applications.filter { uses[$0.app] != nil }
+                .sorted { uses[$0.app, default: 0] > uses[$1.app, default: 0] }
+            ForEach(apps, id: \.app) { app in
+                LabeledContent(AnalysisLabels.app(app.app, text: text),
+                               value: shareLine(uses[app.app, default: 0], total: group.total))
+            }
+            Divider()
+            Text(text("overview.evidence")).font(.headline)
+            Text(AnalysisLabels.key(group.representative.keyCode, text: text))
             ForEach(Array(group.variants.enumerated()), id: \.offset) { _, variant in
                 VStack(alignment: .leading, spacing: NativeLayout.compact) {
                     Text(AnalysisLabels.exactChord(variant.chord, text: text)).font(.headline)
@@ -381,6 +412,11 @@ struct AnalysisDashboardView: View {
                 }
                 .accessibilityIdentifier("phase2.variant")
             }
+            Divider()
+            Text(text("overview.ranking")).font(.headline)
+            Text(text("overview.rankExplanation"))
+            Text(String(format: text("phase2.weightedSeparate"), group.weightedFrequency))
+            Text(text("phase2.eligibilityExact")).font(.caption)
         }
     }
 
@@ -407,16 +443,15 @@ struct AnalysisDashboardView: View {
     }
 
     private func open(_ next: AnalysisRoute, focus: String) {
-        returnFocus = focus
+        history.append((route, focus))
+        returnFocus = nil
         route = next
     }
 
     private func closeDetail() {
-        route = .overview
-    }
-
-    private func surfaceSwitch() {
-        route = .overview
+        guard let (previous, focus) = history.popLast() else { return }
+        returnFocus = focus
+        route = previous
     }
 }
 

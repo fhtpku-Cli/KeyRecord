@@ -2957,6 +2957,38 @@ final class KarabinerMappingFlowTests: XCTestCase {
         XCTAssertFalse(model.lastLedger?.desired.contains(where: \.temporary) ?? true)
     }
 
+    func testReopeningExternallyEditedBehaviorTestExplainsConflictAndPreservesFile() async throws {
+        let (fixture, file, _, _) = try await deployment()
+        let target = fixture.flow.karabinerDeployment
+        let model = fixture.flow.karabinerMappings
+        await target.bind(url: file, profile: "Synthetic")
+        try stage(model)
+        var draft = try XCTUnwrap(model.drafts.first)
+        draft.scope = .application("com.example.Editor")
+        model.update(draft)
+        await model.check(behaviorTest: true)
+        await model.startBehaviorTest()
+        XCTAssertEqual(model.behaviorState, "running")
+        let running = try Data(contentsOf: file)
+        target.close()
+        let changed = running + Data("\n".utf8)
+        try changed.write(to: file, options: .atomic)
+
+        await target.reopen()
+        XCTAssertEqual(target.issueKey, "phase3.bindingConflict")
+        XCTAssertFalse(target.connected)
+        await target.bind(url: file, profile: "Synthetic")
+        XCTAssertEqual(target.issueKey, "phase3.bindingConflict")
+        XCTAssertFalse(target.connected)
+        XCTAssertEqual(try Data(contentsOf: file), changed)
+
+        try running.write(to: file, options: .atomic)
+        await target.reopen()
+        XCTAssertTrue(target.connected)
+        XCTAssertNil(target.issueKey)
+        XCTAssertEqual(try Data(contentsOf: file), bytes)
+    }
+
     func testBehaviorCleanupFailureBlocksQuitAndRetryRestoresConfiguration() async throws {
         let (fixture, file, _, _) = try await deployment()
         let model = fixture.flow.karabinerMappings

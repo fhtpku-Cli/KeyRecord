@@ -349,6 +349,7 @@
 "phase3.readOnlyVersion" = "支持目录没有此版本与 Profile 的资格记录。当前会话只读，仍可预览和导出。";
 "phase3.versionUnknown" = "无法读取 Karabiner 版本";
 "phase3.bindingFailed" = "目标绑定失败，请重新选择配置；尚未授权写入。";
+"phase3.bindingConflict" = "Karabiner 配置已更改。请在 Karabiner-Elements 中确认当前启用的方案，并核对你要编辑的方案里有哪些 KeyRecord 规则，再重试。";
 "phase3.rebindBlocked" = "请先移除原目标受管规则，或明确停止管理，再绑定另一个目标。";
 "phase4.copiesTitle" = "固件恢复副本";
 "phase4.compatibilityUnknown" = "实际设备与版本轴尚未合格，生成路径保持阻断。保存和导出原始恢复副本不证明设备兼容性。";

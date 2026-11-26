@@ -141,7 +141,7 @@ final class KarabinerDeploymentModel: ObservableObject {
         } catch {
             guard ticket == session, canRead() else { return }
             if replacingConnection { disconnect() }
-            issueKey = error as? KarabinerMappingError == .busy ? "phase3.rebindBlocked" : "phase3.bindingFailed"
+            issueKey = error as? KarabinerMappingError == .busy ? "phase3.rebindBlocked" : bindingFailureKey(error)
         }
         if ticket == session { working = false; onChange() }
     }
@@ -157,9 +157,12 @@ final class KarabinerDeploymentModel: ObservableObject {
                 connected = true
             }
         } catch {
-            if ticket == session, canRead() { disconnect(); issueKey = "phase3.bindingFailed" }
+            if ticket == session, canRead() { disconnect(); issueKey = bindingFailureKey(error) }
         }
         if ticket == session { working = false; onChange() }
+    }
+    private func bindingFailureKey(_ error: Error) -> String {
+        error as? KarabinerMappingError == .externalChange ? "phase3.bindingConflict" : "phase3.bindingFailed"
     }
     private func resolve(_ reference: KarabinerTargetReference) throws -> URL {
         var stale = false

@@ -76,6 +76,7 @@ struct AnalysisCandidateView: View {
                         Text(AnalysisLabels.sources(candidate.sourceCounts, text: text))
                         Text(text("phase2.sourceNote"))
                         Text(text("phase2.factorRules"))
+                        Text(text("phase2.logicalOnly"))
                         Text(text("phase2.whyUnverified"))
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)

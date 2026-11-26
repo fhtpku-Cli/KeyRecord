@@ -312,6 +312,8 @@ final class AppFlowObservable: ObservableObject {
     @Published private(set) var awaitingConsent = false
     @Published private(set) var hasSavedPreferences = false
     var showsConsent: Bool { !hasSavedPreferences }
+    @Published private(set) var statisticsOpening = 0
+    @Published var captureStatus: CaptureStatusPresentation.Status?
     @Published var statisticsWindowOpen = false
     @Published private(set) var canUndoIgnoreChange = false
     private var recommendationAttention = RecommendationAttention()
@@ -490,6 +492,7 @@ final class AppFlowObservable: ObservableObject {
     }
 
     func presentStatistics() {
+        statisticsOpening += 1
         statisticsSection = .overview
         statisticsWindowOpen = true
         markRecommendationsReviewed()

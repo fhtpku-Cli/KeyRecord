@@ -127,7 +127,7 @@
 "modifier.side.unknown" = "%@ (side unknown)";
 "modifier.fn.unknown" = "Fn (state unknown)";
 
-"phase2.title" = "Statistics & recommendation previews";
+"phase2.title" = "Statistics overview";
 "phase2.newRecommendations" = "Recommendations available — Open statistics";
 "phase2.logicalOnly" = "Logical key counts only. Mapping evidence is incomplete; these previews cannot be applied.";
 "phase2.layout" = "Primary layout";
@@ -139,19 +139,19 @@
 "phase2.layout.alice" = "Alice";
 "phase2.layout.split" = "Split";
 "phase2.layout.none" = "None / skip";
-"phase2.shortcuts" = "Frequent shortcuts";
+"phase2.shortcuts" = "Most-used shortcuts this cycle";
 "phase2.applications" = "Application distribution · shortcuts only";
 "phase2.bare" = "Bare-key intensity";
 "phase2.bareNote" = "Relative counts by key code, not physical keyboard positions. Bare keys have no application attribution, sequence, or exact timestamp.";
 "phase2.shortcutsEmpty" = "No shortcuts recorded in this cycle yet.";
 "phase2.bareEmpty" = "No bare keys recorded in this cycle yet.";
 "phase2.sources" = "%lld total · %lld ordinary · %lld suspected injection";
-"phase2.top5" = "Top 5 recommendations";
+"phase2.top5" = "Suggestions to review";
 "phase2.all" = "All candidates";
 "phase2.showAll" = "Show all candidates, including observations and exclusions";
 "phase2.threshold" = "The sample threshold is at least 20 raw uses across 2 local days. Meeting it does not guarantee a simpler logical trigger. A 14-active-day half-life changes ranking only.";
 "phase2.empty" = "No shortcut candidates in this cycle.";
-"phase2.noEligible" = "No recommendations to show. Show all candidates to inspect their status.";
+"phase2.noEligible" = "No suggestions to review this cycle.";
 "phase2.status.observation" = "Observation · more samples needed";
 "phase2.status.eligible" = "Sample threshold met";
 "phase2.status.statefulExcluded" = "Stateful shortcut · excluded from recommendations";
@@ -222,7 +222,7 @@
 "phase2.whyUnverified" = "A layout preset does not verify firmware mapping. These previews have not passed a compatibility or conflict check.";
 "phase2.emptyCycle" = "This cycle has no saved counts yet. Statistics appear after you start collection. Opening this window does not start it.";
 "phase2.fallbackTotals" = "Only the trusted shortcut and bare-key totals are available. No recommendation was invented from them.";
-"phase2.noPositive" = "No positive simplification is ready for the overview. Open all candidates to see items that met the sample threshold without a shorter combination.";
+"phase2.noPositive" = "No simplification to preview this cycle.";
 "settings.consent" = "Local statistics notice";
 "phase2.keyPool" = "Optional keys for simplification";
 "phase2.functionKeys" = "Choose function keys";
@@ -615,3 +615,12 @@
 "capture.stopped" = "Stopped";
 "capture.reopening" = "Reopening…";
 "capture.failed" = "Capture unavailable";
+"overview.uses" = "%lld uses";
+"overview.usesThisCycle" = "%lld uses this cycle";
+"overview.suggestion" = "%@ · Preview saving %d keys per use";
+"overview.evidence" = "Key evidence";
+"overview.ranking" = "How ranking works";
+"overview.rankExplanation" = "Shortcuts are ranked by use count this cycle. Known left and right variants are combined. Unknown modifier sides are listed separately. Recommendation scores use weighted frequency.";
+"overview.hidden" = "Statistics hidden";
+"overview.leaveSecureInput" = "Leave Secure Input, then recheck your recording status in the menu.";
+"overview.moreSuggestions" = "View %d more suggestions and all candidates";

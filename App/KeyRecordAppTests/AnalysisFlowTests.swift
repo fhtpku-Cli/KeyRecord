@@ -562,19 +562,84 @@ extension AnalysisFlowTests {
         }
     }
 
+    func testOverviewOpensShortcutReturnsAndWithdrawsVisibleDetail() throws {
+        ScreenEvidence.prepare()
+        let snapshot = try AnalysisEngine.analyze(AnalysisPreview.input())
+        let group = try XCTUnwrap(AnalysisStatisticGroup.make(snapshot).first)
+        let rowID = "phase2.detail.\(group.id)"
+        for locale in ["zh-Hans", "en"] {
+            let text = NativeText(locale: locale)
+            func dashboard(_ snapshot: AnalysisSnapshot?) -> some View {
+                AnalysisDashboardView(snapshot: snapshot, layout: LayoutPreference(), text: text,
+                    captureStatus: snapshot == nil ? .blocked(.secureInputActive) : .phase(.paused),
+                    saveLayout: { _ in }, showsLayoutControls: false, surface: .overview)
+                    .background(Color(nsColor: .windowBackgroundColor))
+            }
+            let view = NSHostingView(rootView: dashboard(snapshot))
+            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 740, height: 560),
+                styleMask: [.titled, .resizable], backing: .buffered, defer: false)
+            window.isReleasedWhenClosed = false
+            window.appearance = NSAppearance(named: locale == "en" ? .darkAqua : .aqua)
+            window.contentView = view
+            window.makeKeyAndOrderFront(nil)
+            defer { window.contentView = nil; window.close() }
+            NativeEvidence.primeAccessibility()
+            func find(_ id: String) -> NSObject? {
+                NativeEvidence.elements(in: view).first { KRAXIdentifier($0) == id }
+            }
+            func press(_ id: String) throws {
+                let node = try XCTUnwrap(find(id), id)
+                XCTAssertTrue(KRAXPress(node))
+                NativeEvidence.update(view)
+            }
+            func screenshot(_ name: String) throws {
+                guard let root = NativeEvidence.outputRoot() else { return }
+                try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+                try ScreenEvidence.capturePNG(view).write(to: root.appendingPathComponent("native-\(locale)-\(name).png"))
+            }
+            NativeEvidence.update(view)
+            try screenshot("overview")
+            try press(rowID)
+            XCTAssertNotNil(find("phase2.back"))
+            XCTAssertNil(find(rowID))
+            try screenshot("detail")
+            try press("phase2.back")
+            try press(rowID)
+            view.rootView = dashboard(nil)
+            NativeEvidence.update(view)
+            XCTAssertNil(find("phase2.back"))
+            XCTAssertNil(find(rowID))
+            XCTAssertFalse(NativeEvidence.elements(in: view).contains { KRAXLabel($0)?.contains("com.example.editor") == true })
+            try screenshot("blocked")
+            view.rootView = dashboard(snapshot)
+            NativeEvidence.update(view)
+            XCTAssertNotNil(find(rowID))
+            window.setContentSize(NSSize(width: 460, height: 440))
+            let empty = try AnalysisEngine.analyze(AnalysisInput(cycleID: snapshot.cycleID,
+                shortcuts: [], bareKeys: [], activeDays: []))
+            view.rootView = dashboard(empty)
+            NativeEvidence.update(view)
+            XCTAssertNil(find(rowID))
+            XCTAssertTrue(NativeEvidence.elements(in: view).contains { KRAXLabel($0) == text("phase2.emptyCycle") })
+            try screenshot("empty")
+        }
+    }
+
     func testMergedDisplayRetainsExactSidesAndDoesNotDuplicateCounts() throws {
         let input = try AnalysisPreview.input()
         let first = try XCTUnwrap(input.shortcuts.first)
         let chord = Chord(keyCode: first.identity.chord.keyCode, modifiers: ModifierSet(command: .right,
             option: .none, control: .none, shift: .right, fn: .none))
         let row = DailyShortcutAggregate(cycleID: input.cycleID, day: first.day,
-            identity: ChordBucket(chord: chord, appBucket: first.identity.appBucket),
+            identity: ChordBucket(chord: chord, appBucket: .unknown),
             classification: first.classification, sourceCounts: first.sourceCounts)
         let snapshot = try AnalysisEngine.analyze(AnalysisInput(cycleID: input.cycleID,
             shortcuts: input.shortcuts + [row], bareKeys: input.bareKeys, activeDays: input.activeDays))
         let group = try XCTUnwrap(AnalysisStatisticGroup.make(snapshot).first {
             $0.representative.keyCode == chord.keyCode
         })
+        XCTAssertEqual(group.usesByApplication, [first.identity.appBucket: first.sourceCounts.total.value * 2,
+                                                 .unknown: first.sourceCounts.total.value])
         XCTAssertEqual(group.variants.count, 2)
         XCTAssertEqual(group.total, first.sourceCounts.total.value * 3)
         XCTAssertEqual(Set(group.variants.map(\.chord)), [first.identity.chord, chord])

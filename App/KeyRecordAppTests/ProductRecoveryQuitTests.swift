@@ -1336,6 +1336,39 @@ final class ProductRecoveryQuitTests: XCTestCase {
         XCTAssertEqual(product.phase, .collecting)
     }
 
+    func testStatusMenuOpensOverviewAndPreservesPausedIntentAcrossLanguages() async throws {
+        ScreenEvidence.prepare()
+        let product = try await collecting(journal: false)
+        let composition = try XCTUnwrap(product.composition)
+        let item = composition.installStatusItem()
+        defer { NSStatusBar.system.removeStatusItem(item) }
+        let menu = try XCTUnwrap(item.menu)
+        for language in ["zh-Hans", "en"] {
+            await composition.flow.setLanguage(language)
+            composition.menuWillOpen(menu)
+            let text = NativeText(locale: language)
+            let visible = menu.items.filter { !$0.isHidden }.map(\.title)
+            XCTAssertTrue(visible.contains(text("action.pause")))
+            XCTAssertFalse(visible.contains(text("action.resume")))
+            let pause = try XCTUnwrap(menu.item(withTitle: text("action.pause")))
+            menu.performActionForItem(at: menu.index(of: pause))
+            try await waitUntil("menu pause") { product.phase == .paused }
+            composition.menuWillOpen(menu)
+            let stats = try XCTUnwrap(menu.item(withTitle: composition.flow.statisticsMenuTitle(text)))
+            XCTAssertEqual(menu.items.firstIndex(of: stats), 1)
+            menu.performActionForItem(at: menu.index(of: stats))
+            XCTAssertEqual(composition.flow.statisticsSection, .overview)
+            XCTAssertTrue(composition.flow.statisticsWindowOpen)
+            XCTAssertEqual(product.phase, .paused)
+            let resume = try XCTUnwrap(menu.item(withTitle: text("action.resume")))
+            XCTAssertFalse(resume.isHidden)
+            XCTAssertTrue(pause.isHidden)
+            menu.performActionForItem(at: menu.index(of: resume))
+            try await waitUntil("menu resume") { product.phase == .collecting }
+        }
+        NSApp.windows.first { $0.delegate === composition }?.close()
+    }
+
     func testPausedIntentSurvivesLockAndOnlyResumeReopens() async throws {
         let product = try await collecting()
         await product.composition.flow.pause()

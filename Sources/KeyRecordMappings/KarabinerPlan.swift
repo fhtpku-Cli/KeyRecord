@@ -103,6 +103,21 @@ public enum KarabinerProfilePlanner {
     public static let start = "KeyRecord managed block start"
     public static let end = "KeyRecord managed block end"
 
+    // Karabiner requires a nonempty manipulator list. vk_none is a virtual
+    // key and the application condition cannot match any bundle identifier.
+    private static func marker(_ name: String) -> [String: Any] {
+        ["description": name, "manipulators": [[
+            "type": "basic", "from": ["key_code": "vk_none"],
+            "conditions": [["type": "frontmost_application_if", "bundle_identifiers": ["a^"]]]
+        ]]]
+    }
+
+    private static func recognizesMarker(_ rule: [String: Any], name: String) -> Bool {
+        let object = rule as NSDictionary
+        return object.isEqual(to: marker(name)) ||
+            object.isEqual(to: ["description": name, "manipulators": []])
+    }
+
     public static func plan(_ base: Data, profile name: String, drafts: [KarabinerMappingDraft], remove: Bool = false) throws -> KarabinerPlan {
         guard drafts.count <= 256, Set(drafts.map(\.id)).count == drafts.count,
               drafts.allSatisfy({ $0.profile == name }) else { throw KarabinerMappingError.invalidDraft }
@@ -132,8 +147,8 @@ public enum KarabinerProfilePlanner {
         guard starts.count == ends.count, starts.count <= 1 else { throw KarabinerMappingError.malformedManagedBlock }
         let owned: Range<Int>?
         if let a = starts.first, let b = ends.first {
-            guard a < b, (objects[a]["manipulators"] as? [Any])?.isEmpty == true,
-                  (objects[b]["manipulators"] as? [Any])?.isEmpty == true,
+            guard a < b, recognizesMarker(objects[a], name: start),
+                  recognizesMarker(objects[b], name: end),
                   ((a + 1)..<b).allSatisfy({ (objects[$0]["description"] as? String)?.hasPrefix("KeyRecord:") == true })
             else { throw KarabinerMappingError.malformedManagedBlock }
             owned = a..<(b + 1)
@@ -143,8 +158,8 @@ public enum KarabinerProfilePlanner {
                 throw KarabinerMappingError.malformedManagedBlock
             }
         }
-        let marker: (String) throws -> Data = { try JSONSerialization.data(withJSONObject: ["description": $0, "manipulators": []], options: [.sortedKeys]) }
-        let block = try ([marker(start)] + drafts.map { try $0.rule() } + [marker(end)])
+        let markerBytes: (String) throws -> Data = { try JSONSerialization.data(withJSONObject: marker($0), options: [.sortedKeys]) }
+        let block = try ([markerBytes(start)] + drafts.map { try $0.rule() } + [markerBytes(end)])
             .reduce(into: Data()) { value, rule in if !value.isEmpty { value.append(Data(",\n".utf8)) }; value.append(rule) }
         let range: Range<Int>
         let inserted: Data

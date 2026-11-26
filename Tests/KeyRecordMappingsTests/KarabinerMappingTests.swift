@@ -250,6 +250,18 @@ final class KarabinerMappingTests: XCTestCase, @unchecked Sendable {
             XCTAssertThrowsError(try KarabinerProfilePlanner.plan(Data(input.utf8), profile: "Work", drafts: []))
         }
     }
+    func testLegacyEmptyMarkersUpgradeAndAlteredNewMarkerRefusesReplacement() throws {
+        let old = Data(#"{"profiles":[{"name":"Work","complex_modifications":{"rules":[{"description":"KeyRecord managed block start","manipulators":[]},{"description":"KeyRecord managed block end","manipulators":[]}]}}]}"#.utf8)
+        let plan = try KarabinerProfilePlanner.plan(old, profile: "Work", drafts: [mappingDraft()])
+        XCTAssertEqual(try KarabinerProfilePlanner.adoptedDrafts(plan.bytes, profile: "Work").count, 1)
+        let disabled = try KarabinerProfilePlanner.plan(plan.bytes, profile: "Work", drafts: [])
+        let text = String(decoding: disabled.bytes, as: UTF8.self)
+        XCTAssertTrue(text.contains("vk_none"))
+        let modified = text.replacingOccurrences(of: "vk_none", with: "space")
+        XCTAssertThrowsError(try KarabinerProfilePlanner.plan(Data(modified.utf8), profile: "Work", drafts: [])) {
+            XCTAssertEqual($0 as? KarabinerMappingError, .malformedManagedBlock)
+        }
+    }
     func testBatchConflictDomainsAndCycle() async throws {
         let port = MappingMemoryPort(), store = MappingMemoryStore()
         let coordinator = KarabinerTransactionCoordinator(configuration: port, store: store)

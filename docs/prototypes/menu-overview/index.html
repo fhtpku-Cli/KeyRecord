@@ -1,0 +1,584 @@
+<!doctype html>
+<html lang="zh-Hans">
+  <meta charset="utf-8" /><meta
+    name="viewport"
+    content="width=device-width,initial-scale=1"
+  />
+  <title>KeyRecord</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --ink: #222936;
+      --sub: #525f71;
+      --line: #d9dfe5;
+      --paper: #fbfcfd;
+      --panel: white;
+      --accent: #235f83;
+      --wash: #e4f1f6;
+      --key: #f1f4f6;
+      --shadow: 0 18px 60px #193c4926;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --ink: #edf3f7;
+        --sub: #b5c3ce;
+        --line: #40505d;
+        --paper: #202a33;
+        --panel: #27333d;
+        --accent: #a2dcf2;
+        --wash: #293f4d;
+        --key: #35454f;
+      }
+    }
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      margin: 0;
+      color: var(--ink);
+      font:
+        15px/1.5 -apple-system,
+        BlinkMacSystemFont,
+        "Helvetica Neue",
+        sans-serif;
+      background: var(--paper);
+    }
+    button,
+    select {
+      font: inherit;
+      color: inherit;
+    }
+    button {
+      cursor: pointer;
+    }
+    button:focus-visible,
+    select:focus-visible,
+    [tabindex]:focus-visible {
+      outline: 3px solid #3086be;
+      outline-offset: 3px;
+    }
+    header,
+    .bar,
+    .titlebar,
+    .row,
+    .pair,
+    .controls {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    header {
+      padding: 16px clamp(12px, 4vw, 56px);
+      justify-content: space-between;
+      flex-wrap: wrap;
+      background: var(--paper);
+    }
+    .controls {
+      flex-wrap: wrap;
+      font-size: 13px;
+    }
+    select {
+      margin-left: 6px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 4px;
+      background: var(--panel);
+    }
+    .stage {
+      min-height: calc(100vh - 70px);
+      padding-bottom: 34px;
+      background:
+        radial-gradient(ellipse at 16% 110%, #72a7a4 0, transparent 56%),
+        radial-gradient(ellipse at 89% 22%, #d3e6dc 0, transparent 55%),
+        linear-gradient(148deg, #abc6d0, #7eabb4 60%, #a4c4b1);
+    }
+    .bar {
+      background: #eaf4f1c9;
+      color: #192f38;
+      padding: 3px max(calc((100vw - 820px) / 2), 24px);
+      white-space: nowrap;
+      justify-content: space-between;
+    }
+    .bar button,
+    .plain {
+      background: transparent;
+      border: 0;
+      border-radius: 5px;
+      padding: 3px 9px;
+    }
+    .bar button[aria-expanded="true"] {
+      background: #426576;
+      color: white;
+    }
+    .menu {
+      max-width: 350px;
+      margin: 6px max(calc((100vw - 820px) / 2), 16px) 0 auto;
+      padding: 17px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 13px;
+      box-shadow: var(--shadow);
+    }
+    .menu button,
+    .suggest,
+    .row {
+      width: 100%;
+      text-align: start;
+      border: 0;
+      background: transparent;
+      border-radius: 8px;
+      padding: 12px;
+    }
+    .menu button:hover,
+    .row:hover,
+    .suggest:hover,
+    .plain:hover {
+      background: var(--wash);
+    }
+    .status {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      color: var(--accent);
+      font-weight: 650;
+    }
+    .dot {
+      width: 9px;
+      height: 9px;
+      border: 2px solid currentColor;
+      border-radius: 50%;
+      background: currentColor;
+    }
+    .paused .dot {
+      background: transparent;
+    }
+    .blocked .dot {
+      border-radius: 2px;
+    }
+    .menu p,
+    p {
+      color: var(--sub);
+      margin: 5px 0 14px;
+    }
+    .window {
+      max-width: 820px;
+      margin: clamp(16px, 5vh, 54px) auto 0;
+      border: 1px solid var(--line);
+      border-radius: 15px;
+      overflow: hidden;
+      box-shadow: var(--shadow);
+      background: var(--paper);
+    }
+    .titlebar {
+      padding: 11px 18px;
+      border-bottom: 1px solid var(--line);
+      font-size: 13px;
+      background: var(--panel);
+    }
+    .lights {
+      color: #bf625a;
+      letter-spacing: 4px;
+    }
+    .lights i {
+      color: #c9a246;
+      font-style: normal;
+    }
+    .lights b {
+      color: #76a984;
+    }
+    .titlebar strong {
+      margin: auto;
+    }
+    .body {
+      padding: clamp(18px, 4vw, 42px);
+    }
+    h1 {
+      font-size: clamp(26px, 4vw, 36px);
+      letter-spacing: -0.04em;
+      margin: 8px 0;
+    }
+    h2 {
+      font-size: 18px;
+      margin: 0 0 12px;
+    }
+    .summary {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 22px;
+    }
+    .summary p {
+      margin: 0;
+    }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 18px;
+      margin-top: 14px;
+    }
+    .row {
+      border-top: 1px solid var(--line);
+      border-radius: 0;
+      display: grid;
+      grid-template-columns: minmax(88px, 1fr) minmax(70px, 2fr) auto 14px;
+      gap: 12px;
+    }
+    .barline {
+      height: 5px;
+      border-radius: 3px;
+      background: var(--key);
+      overflow: hidden;
+    }
+    .barline i {
+      display: block;
+      height: 100%;
+      background: var(--accent);
+    }
+    kbd {
+      font:
+        600 17px/1.4 -apple-system,
+        sans-serif;
+      display: inline-block;
+      padding: 2px 7px;
+      margin-right: 4px;
+      background: var(--key);
+      border: 1px solid var(--line);
+      border-bottom-width: 2px;
+      border-radius: 5px;
+    }
+    .suggest {
+      background: var(--wash);
+      color: var(--ink);
+      display: flex;
+      gap: 14px;
+      align-items: center;
+    }
+    .suggest small {
+      display: block;
+      color: var(--sub);
+    }
+    .arrow {
+      margin-left: auto;
+    }
+    .pair {
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--line);
+    }
+    .pair:last-child {
+      border: 0;
+    }
+    .period {
+      font-size: 13px;
+      color: var(--sub);
+    }
+    hr {
+      border: 0;
+      border-top: 1px solid var(--line);
+    }
+    @media (max-width: 850px) {
+      .window {
+        margin-left: 12px;
+        margin-right: 12px;
+      }
+    }
+    @media (max-width: 480px) {
+      .row {
+        gap: 5px;
+        padding: 10px 0;
+      }
+      .body,
+      .card {
+        padding: 15px;
+      }
+      .controls {
+        gap: 6px;
+      }
+      .bar {
+        padding: 4px 14px;
+      }
+    }
+  </style>
+  <header>
+    <strong id="brand"></strong>
+    <div class="controls">
+      <label
+        ><span id="scenarioLabel"></span
+        ><select id="scenario"></select></label
+      ><label
+        ><span id="languageLabel"></span
+        ><select id="language">
+          <option value="zh-Hans">中文</option>
+          <option value="en">English</option>
+        </select></label
+      >
+    </div>
+  </header>
+  <div class="stage">
+    <div class="bar">
+      <strong>KeyRecord</strong
+      ><button id="tray" aria-controls="surface"></button>
+    </div>
+    <main id="surface"></main>
+  </div>
+  <script>
+    const $ = (id) => document.getElementById(id);
+    let language = "zh-Hans";
+    try {
+      if (localStorage.getItem("kr-design-language") === "en") language = "en";
+    } catch {}
+    let scenario = "data",
+      paused = false,
+      page = "menu",
+      index = 0,
+      origin = "row0";
+    const t = (zh, en) => (language === "en" ? en : zh);
+    const samples = [
+      { key: "K", code: "0x28", count: 128, editor: 96, left: 100 },
+      { key: "P", code: "0x23", count: 84, editor: 60, left: 51 },
+      { key: "B", code: "0x0B", count: 46, editor: 32, left: 30 },
+    ];
+    const states = () => ({
+      data: t("有数据", "With data"),
+      empty: t("空数据", "Empty cycle"),
+      paused: t("已暂停", "Paused"),
+      blocked: t("隐私受阻", "Privacy blocked"),
+    });
+    const blocked = () => scenario === "blocked";
+    const empty = () => scenario === "empty";
+    const status = () =>
+      blocked()
+        ? t("隐私保护中", "Privacy protection active")
+        : paused
+          ? t("已暂停记录", "Recording paused")
+          : t("正在记录", "Recording");
+    const reason = () =>
+      blocked()
+        ? t(
+            "安全输入已启用。退出安全输入后可重新检查。",
+            "Secure Input is active. Leave secure input to allow a fresh check.",
+          )
+        : paused
+          ? t(
+              "你暂停了记录。仍可查看本周期已有统计。",
+              "You paused recording. This cycle’s saved statistics are available.",
+            )
+          : t(
+              "仅在隐私检查通过时记录。",
+              "Recording while privacy checks pass.",
+            );
+    const chip = () =>
+      '<span class="status"><span class="dot" aria-hidden="true"></span>' +
+      status() +
+      "</span>";
+    const keys = (s) => "<kbd>⌘</kbd><kbd>" + s.key + "</kbd>";
+    const count = (n) => t(n + " 次", n + " uses");
+    const keyboardName = (s) =>
+      t("Command 加 " + s.key, "Command plus " + s.key);
+    function menu() {
+      return (
+        '<section class="menu">' +
+        chip() +
+        "<p>" +
+        reason() +
+        '</p><hr><button id="open">' +
+        t("打开统计概览", "Open statistics overview") +
+        "　›</button>" +
+        (blocked()
+          ? ""
+          : '<button id="toggle">' +
+            (paused
+              ? t("继续记录", "Resume recording")
+              : t("暂停记录", "Pause recording")) +
+            "</button>") +
+        "</section>"
+      );
+    }
+    function overview() {
+      const heading = t("统计概览", "Statistics overview");
+      let content =
+        '<div class="summary"><div><div class="period">' +
+        (blocked()
+          ? "KeyRecord"
+          : t("本周期 · 11月21日–27日", "Current cycle · Nov 21–27")) +
+        '</div><h1 tabindex="-1" id="heading">' +
+        heading +
+        "</h1></div>" +
+        chip() +
+        "</div>";
+      if (blocked() || empty())
+        return (
+          content +
+          '<section class="card"><h2>' +
+          (blocked()
+            ? t("统计已隐藏", "Statistics hidden")
+            : t("本周期还没有快捷键", "No shortcuts this cycle")) +
+          "</h2><p>" +
+          (blocked()
+            ? reason()
+            : t(
+                "使用快捷键后，常用组合和建议会出现在这里。",
+                "As you use shortcuts, frequent combinations and suggestions will appear here.",
+              )) +
+          "</p></section>"
+        );
+      if (paused) content += "<p>" + reason() + "</p>";
+      return (
+        content +
+        '<section class="card"><h2>' +
+        t("最常用的快捷键", "Most-used shortcuts") +
+        "</h2>" +
+        samples
+          .map(
+            (s, i) =>
+              '<button class="row" id="row' +
+              i +
+              '" aria-label="' +
+              keyboardName(s) +
+              ", " +
+              count(s.count) +
+              '"><span>' +
+              keys(s) +
+              '</span><span aria-hidden="true" class="barline"><i style="width:' +
+              (100 * s.count) / 128 +
+              '%"></i></span><span>' +
+              count(s.count) +
+              '</span><span aria-hidden="true">›</span></button>',
+          )
+          .join("") +
+        '</section><section class="card"><h2>' +
+        t("值得查看的建议", "Suggestion to review") +
+        '</h2><button class="suggest" id="suggest"><div><strong>' +
+        t("看看 ⌘ K 的使用分布", "Review where you use ⌘ K") +
+        "</strong><small>" +
+        t(
+          "四分之三的使用集中在编辑器。",
+          "Three quarters of its uses are in Editor.",
+        ) +
+        '</small></div><span class="arrow">›</span></button></section>'
+      );
+    }
+    const pair = (label, value) =>
+      '<div class="pair"><span>' +
+      label +
+      "</span><strong>" +
+      value +
+      "</strong></div>";
+    function detail() {
+      const s = samples[index];
+      return (
+        '<button class="plain" id="back">‹ ' +
+        t("返回概览", "Back to overview") +
+        '</button><h1 tabindex="-1" id="heading" aria-label="' +
+        keyboardName(s) +
+        '">' +
+        keys(s) +
+        "</h1><p>" +
+        t(
+          "本周期使用 " + s.count + " 次 · 第 " + (index + 1) + " 名",
+          count(s.count) + " this cycle · Ranked " + (index + 1),
+        ) +
+        '</p><section class="card"><h2>' +
+        t("应用分布", "By application") +
+        "</h2>" +
+        pair(t("编辑器", "Editor"), count(s.editor)) +
+        pair(t("笔记", "Notes"), count(s.count - s.editor)) +
+        '</section><section class="card"><h2>' +
+        t("键位依据", "Key evidence") +
+        "</h2>" +
+        pair(t("逻辑键码", "Logical key code"), s.code) +
+        pair(t("左 Command", "Left Command"), count(s.left)) +
+        pair(t("侧别未知", "Side unknown"), count(s.count - s.left)) +
+        '</section><section class="card"><h2>' +
+        t("排序说明", "How ranking works") +
+        "</h2>" +
+        t(
+          "概览按本周期使用次数降序排列。同一逻辑组合的左右修饰键合并计数；侧别未知的记录保留在总数内。",
+          "The overview sorts by use count this cycle. Left and right variants of each logical shortcut are combined, including uses with unknown side.",
+        ) +
+        "</section>"
+      );
+    }
+    function render(focusId) {
+      document.documentElement.lang = language;
+      $("brand").textContent = t(
+        "KeyRecord · 交互原型",
+        "KeyRecord · Interactive prototype",
+      );
+      $("scenarioLabel").textContent = t("虚构场景", "Sample scenario");
+      $("languageLabel").textContent = t("语言", "Language");
+      $("scenario").innerHTML = Object.entries(states())
+        .map(
+          ([id, label]) => '<option value="' + id + '">' + label + "</option>",
+        )
+        .join("");
+      $("scenario").value = scenario;
+      $("language").value = language;
+      $("tray").textContent = "⌨　" + t("菜单", "Menu");
+      $("tray").setAttribute("aria-expanded", page === "menu");
+      $("surface").className = blocked() ? "blocked" : paused ? "paused" : "";
+      $("surface").innerHTML =
+        page === "menu"
+          ? menu()
+          : page === "desktop"
+            ? ""
+            : '<section class="window"><div class="titlebar"><span aria-hidden="true" class="lights">●<i>●</i><b>●</b></span><strong>KeyRecord</strong></div><div class="body">' +
+              (page === "detail" ? detail() : overview()) +
+              "</div></section>";
+      if (focusId) $(focusId)?.focus();
+    }
+    $("scenario").onchange = (e) => {
+      scenario = e.target.value;
+      paused = scenario === "paused";
+      if (page === "detail") page = "overview";
+      render("scenario");
+    };
+    $("language").onchange = (e) => {
+      language = e.target.value;
+      try {
+        localStorage.setItem("kr-design-language", language);
+      } catch {}
+      render("language");
+    };
+    $("tray").onclick = () => {
+      page = page === "menu" ? "desktop" : "menu";
+      render(page === "menu" ? "open" : "tray");
+    };
+    $("surface").onclick = (e) => {
+      const id = e.target.closest("button")?.id;
+      if (id === "open") {
+        page = "overview";
+        render("heading");
+      }
+      if (id === "toggle") {
+        paused = !paused;
+        if (!empty()) scenario = paused ? "paused" : "data";
+        render("toggle");
+      }
+      if (id === "suggest" || id?.startsWith("row")) {
+        origin = id;
+        index = id === "suggest" ? 0 : Number(id.slice(3));
+        page = "detail";
+        render("heading");
+      }
+      if (id === "back") {
+        page = "overview";
+        render(origin);
+      }
+    };
+    document.onkeydown = (e) => {
+      if (e.key === "Escape" && e.target.tagName !== "SELECT") {
+        if (page === "detail") {
+          $("back").click();
+        } else {
+          page = "desktop";
+          render("tray");
+        }
+      }
+    };
+    render();
+  </script>
+</html>

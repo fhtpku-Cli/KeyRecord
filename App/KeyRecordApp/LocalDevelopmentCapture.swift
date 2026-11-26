@@ -58,6 +58,9 @@ final class LocalDevelopmentCaptureMenu: NSObject {
     static let sectionIdentifier = "menu.developer.section"
 
     private let qualification: LocalDevelopmentCapture?
+    private let language: () -> String
+    private var text: NativeText { NativeText(locale: language()) }
+    private var sectionItem: NSMenuItem?
     private var item: NSMenuItem?
     /// Performs the real stop/start transaction. KR-05: the menu may not simply flip a
     /// flag; turning capture Off has to revoke delivery and stop the event source, and the
@@ -66,7 +69,9 @@ final class LocalDevelopmentCaptureMenu: NSObject {
     private(set) var isApplying = false
 
     init(qualification: LocalDevelopmentCapture?,
-         transaction: (any LocalCaptureTransacting)? = nil) {
+         transaction: (any LocalCaptureTransacting)? = nil,
+         language: @escaping () -> String = { "en" }) {
+        self.language = language
         self.qualification = qualification
         self.transaction = transaction
     }
@@ -74,18 +79,19 @@ final class LocalDevelopmentCaptureMenu: NSObject {
     static let diagnosisIdentifier = "menu.developer.diagnosis"
 
     /// Supplies the current layered diagnosis line (batch 6). DEBUG-only.
-    var diagnosisProvider: (@MainActor () -> String)?
+    var diagnosisProvider: (@MainActor () -> String?)?
     private var diagnosisItem: NSMenuItem?
 
     func addItems(to menu: NSMenu) {
         menu.addItem(.separator())
-        let section = NSMenuItem(title: "Developer", action: nil, keyEquivalent: "")
+        let section = NSMenuItem(title: text("capture.developer"), action: nil, keyEquivalent: "")
         section.setAccessibilityIdentifier(Self.sectionIdentifier)
         menu.addItem(section)
+        sectionItem = section
         // Names the layer that stopped, so the menu never leaves the user with an
         // unexplained BLOCKED. Counts only — no captured text ever reaches this line.
-        let diagnosis = NSMenuItem(title: "", action: nil, keyEquivalent: "")
-        diagnosis.isEnabled = false
+        let diagnosis = NSMenuItem(title: "", action: #selector(showDiagnosis), keyEquivalent: "")
+        diagnosis.target = self
         diagnosis.setAccessibilityIdentifier(Self.diagnosisIdentifier)
         menu.addItem(diagnosis)
         diagnosisItem = diagnosis
@@ -95,6 +101,15 @@ final class LocalDevelopmentCaptureMenu: NSObject {
         menu.addItem(item)
         self.item = item
         refresh()
+    }
+
+    @objc private func showDiagnosis() {
+        guard let details = diagnosisProvider?() else { return }
+        let alert = NSAlert()
+        alert.messageText = text("capture.diagnostics")
+        alert.informativeText = details
+        alert.addButton(withTitle: text("capture.close"))
+        alert.runModal()
     }
 
     @objc func toggle() {
@@ -139,9 +154,11 @@ final class LocalDevelopmentCaptureMenu: NSObject {
         // the real runtime state, never an optimistic one.
         item.isEnabled = qualification != nil && !isApplying
         item.title = isApplying
-            ? "Developer: Local Capture…"
-            : (armed ? "Developer: Local Capture On" : "Developer: Local Capture Off")
-        diagnosisItem?.title = diagnosisProvider?() ?? "Diagnosis: unavailable"
+            ? text("capture.changing")
+            : text(armed ? "capture.on" : "capture.off")
+        sectionItem?.title = text("capture.developer")
+        diagnosisItem?.title = text("capture.diagnostics")
+        diagnosisItem?.isEnabled = diagnosisProvider != nil
         return item
     }
 }

@@ -1,3 +1,4 @@
+import KeyRecordCore
 import SwiftUI
 
 enum PrimitiveState: String, CaseIterable {
@@ -57,5 +58,29 @@ struct NativeText {
     }
     func aggregateName(_ value: String) -> String {
         value.isEmpty ? self("aggregate.empty") : value
+    }
+}
+
+extension NativeText {
+    func captureStatus(_ status: CaptureStatusPresentation.Status) -> String {
+        switch status {
+        case .blocked(.keyUnavailable): return self("capture.keyUnavailable")
+        case .blocked(.sessionLocked): return self("capture.sessionLocked")
+        case .blocked(.secureInputActive): return self("capture.secureInputActive")
+        case .blocked(.foregroundUnreliable): return self("capture.foregroundUnreliable")
+        case .blocked(.privacyCheckRequired), .phase(.blocked): return self("status.blocked")
+        case .missingSession: return self("capture.missingSession")
+        case .locked: return self("capture.locked")
+        case .phase(.unstarted), .phase(.consent): return self("status.unstarted")
+        case .phase(.starting): return self("capture.starting")
+        case .phase(.collecting): return self("status.collecting")
+        case .phase(.pausing): return self("capture.pausing")
+        case .phase(.paused): return self("status.paused")
+        case .phase(.resuming): return self("capture.resuming")
+        case .phase(.stopping): return self("capture.stopping")
+        case .phase(.stopped): return self("capture.stopped")
+        case .phase(.reopening): return self("capture.reopening")
+        case .phase(.failed): return self("capture.failed")
+        }
     }
 }

@@ -725,14 +725,16 @@ final class ProductComposition: NSObject, NSMenuDelegate, NSWindowDelegate {
         disable.target = self; disable.isEnabled = flow.karabinerMappings.canDisable
         menu.addItem(disable); mappingDisableItem = disable
         #if DEBUG
-        let developerMenu = LocalDevelopmentCaptureMenu(qualification: localCapture, transaction: self)
+        let developerMenu = LocalDevelopmentCaptureMenu(qualification: localCapture, transaction: self,
+            language: { [weak flow] in flow?.language ?? ProductLanguage.fallback(Locale.preferredLanguages) })
         developerMenu.diagnosisProvider = { [weak self] in
-            self?.diagnostics.snapshot.diagnosis ?? "Diagnosis: unavailable"
+            self?.diagnostics.snapshot.diagnosis
         }
         developerMenu.addItems(to: menu)
         self.developerMenu = developerMenu
         #endif
         item.menu = menu
+        refreshCaptureStatus(gateOpen: (try? gate.begin()) != nil, sessionLive: captureSessionLive)
         updateMenuBarAccessibility()
         return item
     }
@@ -1316,9 +1318,7 @@ final class ProductComposition: NSObject, NSMenuDelegate, NSWindowDelegate {
                 flow.noticeKey = "flow.actionUnavailable"
             }
         }
-        statusItem?.title = Self.statusTitle(phase: lifecycle.phase,
-                                            reason: lifecycle.state.blockedReason,
-                                            gateOpen: gateOpen, captureSessionLive: sessionLive)
+        refreshCaptureStatus(gateOpen: gateOpen, sessionLive: sessionLive)
         updateMenuBarAccessibility()
         #if DEBUG
         if !sessionLive && !visible {
@@ -1413,20 +1413,18 @@ final class ProductComposition: NSObject, NSMenuDelegate, NSWindowDelegate {
     }
     #endif
 
-    /// Delegates to `CaptureStatusPresentation` in Core (KR-08), so the rule that a
-    /// "Collecting" claim requires a live capture session has a single definition and is
-    /// testable without the App composition graph.
-    static func statusTitle(phase: LifecyclePhase, reason: BlockedReason?, gateOpen: Bool,
-                            captureSessionLive: Bool) -> String {
-        CaptureStatusPresentation.title(phase: phase, reason: reason, gateOpen: gateOpen,
-                                        captureSessionLive: captureSessionLive)
-    }
-
     private func handlePrivacyInvalidation(reason: BlockedReason = .privacyCheckRequired) async {
         flow.passwordBackup.clear()
         flow.configurationExport.clear()
         lifecycle.requireRecovery(reason: reason)
         await closeProtectedState()
+    }
+
+    private func refreshCaptureStatus(gateOpen: Bool, sessionLive: Bool) {
+        let status = CaptureStatusPresentation.status(
+            phase: lifecycle.phase, reason: lifecycle.state.blockedReason,
+            gateOpen: gateOpen, captureSessionLive: sessionLive)
+        statusItem?.title = text.captureStatus(status)
     }
 
     private func updateMenuBarAccessibility() {

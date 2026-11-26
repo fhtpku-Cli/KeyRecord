@@ -57,10 +57,13 @@ struct ProductPausedRestoration {
 
 @MainActor
 enum ProductLanguage {
+    static func fallback(_ preferredLanguages: [String]) -> String {
+        preferredLanguages.first?.hasPrefix("zh") == true ? "zh-Hans" : "en"
+    }
+
     static func bind(flow: AppFlowObservable, lifecycle: LifecycleOrchestrator,
                      preferredLanguages: [String]) {
-        let fallback = lifecycle.state.failure == nil
-            ? (preferredLanguages.first?.hasPrefix("zh") == true ? "zh-Hans" : "en") : flow.language
+        let fallback = fallback(preferredLanguages)
         flow.language = lifecycle.state.preferences?.locale.rawValue ?? fallback
         flow.actions.setLanguage = { [weak flow] code in
             guard let flow else { return }

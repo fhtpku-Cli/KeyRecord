@@ -149,14 +149,14 @@ public actor FirmwareOperationCoordinator {
         let document = try FirmwareDocument(bytes: await original(batch), backend: record.backend)
         return (record, document)
     }
-    public func prepare(_ batch: UUID, changes: [FirmwareSlotChange]) async throws -> Data {
+    public func prepare(_ batch: UUID, changes: [FirmwareSlotChange], confirmedFirmwareLayer: Int? = nil) async throws -> Data {
         let (record, document) = try await draftDocument(batch)
-        return try patch(document, record: record, changes: changes)
+        return try patch(document, record: record, changes: changes, confirmedFirmwareLayer: confirmedFirmwareLayer)
     }
-    public func viaFileSlots(_ batch: UUID) async throws -> [VIAFileSlot] {
+    public func viaFileSlots(_ batch: UUID, confirmedFirmwareLayer: Int? = nil) async throws -> [VIAFileSlot] {
         let (record, document) = try await draftDocument(batch)
         guard record.compatibilityBasis == .viaFile else { throw FirmwareError.unknownCompatibility }
-        return try document.viaFileSlots()
+        return try document.viaFileSlots(confirmedFirmwareLayer: confirmedFirmwareLayer)
     }
     public func recommendationSlots(_ batch: UUID, request: RecommendationDraft) async throws -> [FirmwareSlotDifference] {
         let (record, document) = try await draftDocument(batch)
@@ -181,25 +181,26 @@ public actor FirmwareOperationCoordinator {
         }
         return try await preview(batch, changes: existing + [selection.change])
     }
-    private func patch(_ document: FirmwareDocument, record: FirmwareBatchRecord, changes: [FirmwareSlotChange]) throws -> Data {
+    private func patch(_ document: FirmwareDocument, record: FirmwareBatchRecord, changes: [FirmwareSlotChange], confirmedFirmwareLayer: Int?) throws -> Data {
         if record.compatibilityBasis == .viaFile {
-            return try document.patchVIAFile(changes, expectedDevice: record.device)
+            return try document.patchVIAFile(changes, expectedDevice: record.device, confirmedFirmwareLayer: confirmedFirmwareLayer)
         }
+        guard confirmedFirmwareLayer == nil else { throw FirmwareError.unknownCompatibility }
         return try document.patch(changes, expectedDevice: record.device, axes: record.axes, support: support)
     }
-    public func preview(_ batch: UUID, changes: [FirmwareSlotChange]) async throws -> FirmwarePatchPreview {
+    public func preview(_ batch: UUID, changes: [FirmwareSlotChange], confirmedFirmwareLayer: Int? = nil) async throws -> FirmwarePatchPreview {
         let (record, document) = try await draftDocument(batch)
-        _ = try patch(document, record: record, changes: changes)
+        _ = try patch(document, record: record, changes: changes, confirmedFirmwareLayer: confirmedFirmwareLayer)
         return try FirmwarePatchPreview(batch: batch, differences: changes.map {
             FirmwareSlotDifference(change: $0, before: try document.value(at: $0.slot))
         })
     }
-    public func export(_ batch: UUID, changes: [FirmwareSlotChange], destination: any FirmwareExportDestination) async throws -> FirmwareLedger {
+    public func export(_ batch: UUID, changes: [FirmwareSlotChange], destination: any FirmwareExportDestination, confirmedFirmwareLayer: Int? = nil) async throws -> FirmwareLedger {
         try begin(); defer { busy = false }
         var ledger = try await ledger()
         guard ledger.pending == nil, let index = ledger.records.firstIndex(where: { $0.id == batch }) else { throw FirmwareError.busy }
         let bytes: Data
-        if ledger.records[index].state == .draft { bytes = try await prepare(batch, changes: changes) }
+        if ledger.records[index].state == .draft { bytes = try await prepare(batch, changes: changes, confirmedFirmwareLayer: confirmedFirmwareLayer) }
         else if ledger.records[index].state == .awaitingUserImport, ledger.records[index].changes == changes {
             bytes = try await store.read(identity(batch, original: false))
             guard KarabinerTransactionCoordinator.fileDigest(bytes) == ledger.records[index].artifactSHA256 else { throw FirmwareError.unavailable }

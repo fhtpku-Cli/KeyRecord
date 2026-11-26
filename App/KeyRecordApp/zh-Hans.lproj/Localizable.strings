@@ -592,3 +592,6 @@
 "licenses.show" = "查看许可证…";
 "licenses.close" = "关闭";
 "licenses.unavailable" = "无法读取随应用提供的许可声明。";
+"phase4.confirmFirmwareLayer" = "我确认键盘固件在当前模式下会选用第 %d 层";
+"phase4.confirmedFirmwareLayer" = "当前模式的固件选层（用户确认）：第 %d 层";
+"phase4.clearFirmwareLayer" = "清除选层确认";

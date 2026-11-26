@@ -19,6 +19,7 @@ final class FirmwareCopiesModel: ObservableObject {
     @Published private(set) var patchDrafts: [UUID: [FirmwareSlotChange]] = [:]
     @Published private(set) var patchPreviews: [UUID: FirmwarePatchPreview] = [:]
     @Published private(set) var patchIssueKeys: [UUID: String] = [:]
+    @Published private(set) var confirmedFirmwareLayers: [UUID: Int] = [:]
     @Published private(set) var viaFileSlots: [UUID: [VIAFileSlot]] = [:]
     @Published private(set) var previousPreparation: UninstallPreparationRecord?
     @Published var recoverySelections: [UUID: RecoverySelection] = [:]
@@ -115,7 +116,7 @@ final class FirmwareCopiesModel: ObservableObject {
         recoverySelections = [:]; deleteLocalData = false
         uninstallStage = nil; previousPreparation = nil; uninstallReady = false
         patchDrafts = [:]; patchPreviews = [:]; patchIssueKeys = [:]
-        viaFileSlots = [:]
+        viaFileSlots = [:]; confirmedFirmwareLayers = [:]
     }
     func refresh() async {
         guard canRead(), !working, store != nil else { return }
@@ -132,6 +133,7 @@ final class FirmwareCopiesModel: ObservableObject {
                 patchPreviews = patchPreviews.filter { id, _ in records.contains(where: { $0.id == id && canGenerate($0) }) }
                 patchIssueKeys = patchIssueKeys.filter { id, _ in records.contains(where: { $0.id == id && canGenerate($0) }) }
                 viaFileSlots = viaFileSlots.filter { id, _ in records.contains(where: { $0.id == id && canInspectPatchDraft($0) }) }
+                confirmedFirmwareLayers = confirmedFirmwareLayers.filter { viaFileSlots[$0.key] != nil }
                 onChange()
             }
         } catch { if canRead(), ticket == session { issueKey = "phase4.operationFailed"; onChange() } }
@@ -297,13 +299,16 @@ final class FirmwareCopiesModel: ObservableObject {
             return false
         }
     }
-    func loadVIAFileSlots(_ record: FirmwareBatchRecord, ticket: UUID) async {
+    func loadVIAFileSlots(_ record: FirmwareBatchRecord, ticket: UUID, confirmedFirmwareLayer: Int? = nil) async {
         guard ticket == session, records.contains(record), canGenerate(record), record.compatibilityBasis == .viaFile else { return }
+        if confirmedFirmwareLayer != confirmedFirmwareLayers[record.id], !(patchDrafts[record.id] ?? []).isEmpty { return }
         working = true; readRequest = UUID()
         defer { if ticket == session { working = false; onChange() } }
         do {
-            let slots = try await coordinator().viaFileSlots(record.id)
+            let slots = try await coordinator().viaFileSlots(record.id, confirmedFirmwareLayer: confirmedFirmwareLayer)
             guard ticket == session, records.contains(record), canInspectPatchDraft(record) else { return }
+            confirmedFirmwareLayers[record.id] = confirmedFirmwareLayer
+            patchPreviews[record.id] = nil
             viaFileSlots[record.id] = slots
             patchIssueKeys[record.id] = nil
         } catch {
@@ -321,7 +326,7 @@ final class FirmwareCopiesModel: ObservableObject {
         patchPreviews[record.id] = nil; patchIssueKeys[record.id] = nil; working = true; readRequest = UUID(); issueKey = nil
         defer { if ticket == session { working = false; onChange() } }
         do {
-            let preview = try await coordinator().preview(record.id, changes: changes)
+            let preview = try await coordinator().preview(record.id, changes: changes, confirmedFirmwareLayer: confirmedFirmwareLayers[record.id])
             if canRead(), ticket == session, records.contains(record) { patchPreviews[record.id] = preview }
         } catch {
             if canRead(), ticket == session, records.contains(record) { patchIssueKeys[record.id] = Self.patchIssueKey(error) }
@@ -417,11 +422,13 @@ final class FirmwareCopiesModel: ObservableObject {
         defer { if ticket == session { working = false; onChange() } }
         do {
             let operations = try coordinator()
-            _ = try await operations.prepare(record.id, changes: changes)
+            _ = try await operations.prepare(record.id, changes: changes, confirmedFirmwareLayer: confirmedFirmwareLayers[record.id])
             guard canRead(), ticket == session, let url = selectExport(record), canRead(), ticket == session,
                   isCompatible(record) else { return }
-            let ledger = try await operations.export(record.id, changes: changes, destination: FirmwareFileDestination(target: url, gate: gate))
+            let ledger = try await operations.export(record.id, changes: changes, destination: FirmwareFileDestination(target: url, gate: gate), confirmedFirmwareLayer: confirmedFirmwareLayers[record.id])
             if canRead(), ticket == session {
+                confirmedFirmwareLayers[record.id] = nil
+                viaFileSlots[record.id] = nil
                 records = ledger.records; patchPreviews[record.id] = nil; patchDrafts[record.id] = nil
             }
         } catch { if canRead(), ticket == session { issueKey = "phase4.operationFailed" } }

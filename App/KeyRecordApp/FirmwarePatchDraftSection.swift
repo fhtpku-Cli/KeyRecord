@@ -201,6 +201,15 @@ private struct VIAFilePatchControls: View {
             }
         }.accessibilityIdentifier("via-layer-" + record.id.uuidString)
             .onChange(of: layer) { _, _ in selected = nil }
+        if let confirmed = model.confirmedFirmwareLayers[record.id] {
+            Text(String(format: text("phase4.confirmedFirmwareLayer"), confirmed))
+            Button(text("phase4.clearFirmwareLayer")) { setFirmwareLayer(nil) }
+                .disabled(!(model.patchDrafts[record.id] ?? []).isEmpty)
+        } else if slots.contains(where: { $0.slot.layer == layer && $0.restriction == .unreachableLayer }) {
+            Button(String(format: text("phase4.confirmFirmwareLayer"), layer)) { setFirmwareLayer(layer) }
+                .disabled(!(model.patchDrafts[record.id] ?? []).isEmpty)
+                .accessibilityIdentifier("via-confirm-firmware-layer-" + record.id.uuidString)
+        }
         Text(text("phase4.selectPosition"))
         ScrollView {
             LazyVStack(alignment: .leading) {
@@ -208,6 +217,10 @@ private struct VIAFilePatchControls: View {
             }.padding(4)
         }.frame(height: 150)
         Text(text("phase4.filePositionNotice")).font(.caption).fixedSize(horizontal: false, vertical: true)
+    }
+    private func setFirmwareLayer(_ layer: Int?) {
+        guard let ticket = model.selectionTicket() else { return }
+        Task { await model.loadVIAFileSlots(record, ticket: ticket, confirmedFirmwareLayer: layer) }
     }
     private func positionButton(_ entry: VIAFileSlot) -> some View {
         let title = String(format: text("phase4.filePosition"), entry.slot.column) + ": " + VIAFileKeyLabels.name(entry.original, text: text)

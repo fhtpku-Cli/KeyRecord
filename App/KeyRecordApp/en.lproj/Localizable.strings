@@ -592,3 +592,6 @@
 "licenses.show" = "View licenses…";
 "licenses.close" = "Close";
 "licenses.unavailable" = "The bundled license notice is unavailable.";
+"phase4.confirmFirmwareLayer" = "I confirm my keyboard firmware selects layer %d in the current mode";
+"phase4.confirmedFirmwareLayer" = "User-confirmed firmware layer for this mode: %d";
+"phase4.clearFirmwareLayer" = "Clear layer confirmation";

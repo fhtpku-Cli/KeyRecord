@@ -195,16 +195,16 @@ public struct FirmwareDocument: Sendable {
         let vial6 = backend == .vial && axes.keycodeDialect == VialKeycodeDialect.name
         return try patch(changes, outputs: outputs, vial6: vial6, viaFile: false)
     }
-    public func patchVIAFile(_ changes: [FirmwareSlotChange], expectedDevice: String) throws -> Data {
+    public func patchVIAFile(_ changes: [FirmwareSlotChange], expectedDevice: String, confirmedFirmwareLayer: Int? = nil) throws -> Data {
         guard backend == .via else { throw FirmwareError.unknownCompatibility }
         guard device == expectedDevice else { throw FirmwareError.identityMismatch }
         try VIAFileCompatibility.validate(bytes)
-        return try patch(changes, outputs: VIAFileCompatibility.outputs, vial6: false, viaFile: true)
+        return try patch(changes, outputs: VIAFileCompatibility.outputs, vial6: false, viaFile: true, confirmedFirmwareLayer: confirmedFirmwareLayer)
     }
-    public func viaFileSlots() throws -> [VIAFileSlot] {
+    public func viaFileSlots(confirmedFirmwareLayer: Int? = nil) throws -> [VIAFileSlot] {
         guard backend == .via else { throw FirmwareError.unknownCompatibility }
         try VIAFileCompatibility.validate(bytes)
-        let layers = try reachable(automatic: false, vial6: false, viaFile: true)
+        let layers = try reachable(automatic: false, vial6: false, viaFile: true, confirmedFirmwareLayer: confirmedFirmwareLayer)
         return try slots.keys.sorted { ($0.layer, $0.column) < ($1.layer, $1.column) }.map { slot in
             let old = try value(at: slot)
             var restriction: FirmwareError?
@@ -215,7 +215,7 @@ public struct FirmwareDocument: Sendable {
             return VIAFileSlot(slot: slot, original: old, restriction: restriction)
         }
     }
-    private func patch(_ changes: [FirmwareSlotChange], outputs: Set<String>, vial6: Bool, viaFile: Bool) throws -> Data {
+    private func patch(_ changes: [FirmwareSlotChange], outputs: Set<String>, vial6: Bool, viaFile: Bool, confirmedFirmwareLayer: Int? = nil) throws -> Data {
         guard !changes.isEmpty, Set(changes.map(\.slot)).count == changes.count else { throw FirmwareError.invalidSlot }
         var edits: [(Range<Int>, Data)] = []
         for change in changes {
@@ -223,7 +223,7 @@ public struct FirmwareDocument: Sendable {
             guard let node = slots[change.slot] else { throw FirmwareError.invalidSlot }
             let old = try value(at: change.slot)
             try Self.validateReplacementSource(old, automatic: change.automatic, vial6: vial6, viaFile: viaFile)
-            guard try reachable(automatic: change.automatic, vial6: vial6, viaFile: viaFile).contains(change.slot.layer) else { throw FirmwareError.unreachableLayer }
+            guard try reachable(automatic: change.automatic, vial6: vial6, viaFile: viaFile, confirmedFirmwareLayer: confirmedFirmwareLayer).contains(change.slot.layer) else { throw FirmwareError.unreachableLayer }
             edits.append((node.range, try JSONEncoder().encode(change.output)))
         }
         var result = bytes
@@ -247,7 +247,7 @@ public struct FirmwareDocument: Sendable {
         ["MO(", "LT(", "LM(", "TG(", "TO(", "TT(", "DF(", "OSL("].contains { token.hasPrefix($0) }
             || ["QK_BOOT", "QK_REBOOT", "QK_CLEAR_EEPROM", "RESET", "EE_CLR", "FN_MO13", "FN_MO23"].contains(token)
     }
-    private func reachable(automatic: Bool, vial6: Bool, viaFile: Bool) throws -> Set<Int> {
+    private func reachable(automatic: Bool, vial6: Bool, viaFile: Bool, confirmedFirmwareLayer: Int? = nil) throws -> Set<Int> {
         let availableLayers = Set(slots.keys.map(\.layer))
         var reachable: Set<Int> = [0]
         var frontier: Set<Int> = [0]
@@ -265,6 +265,11 @@ public struct FirmwareDocument: Sendable {
             reachable.formUnion(next)
             if automatic { break }
             frontier = next
+        }
+        if viaFile, !automatic, let confirmedFirmwareLayer {
+            guard availableLayers.contains(confirmedFirmwareLayer) else { throw FirmwareError.invalidSlot }
+            // The user identified this layer only. Its links do not establish other active layers.
+            reachable.insert(confirmedFirmwareLayer)
         }
         return reachable
     }

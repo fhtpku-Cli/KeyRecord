@@ -1493,6 +1493,34 @@ final class KarabinerMappingFlowTests: XCTestCase {
         let preserved = try await operations.original(readonly.id)
         XCTAssertEqual(preserved, unsupported)
     }
+    func testVIAFirmwareLayerConfirmationIsScopedToTheDraftAndPrivacySession() async throws {
+        let (fixture, _, store, gate) = try await deployment()
+        let model = fixture.flow.firmwareCopies
+        model.configure(store: store, gate: gate)
+        let bytes = Data(#"{"name":"Modes","vendorProductId":42,"layers":[["KC_Q"],["KC_Q"]],"macros":[]}"#.utf8)
+        model.selectedOriginal = { bytes }
+        let ticket = try XCTUnwrap(model.selectionTicket())
+        await model.retainVIAFile(bytes, ticket: ticket)
+        let record = try XCTUnwrap(model.records.last)
+        await model.loadVIAFileSlots(record, ticket: ticket)
+        XCTAssertEqual(model.viaFileSlots[record.id]?.last?.restriction, .unreachableLayer)
+        await model.loadVIAFileSlots(record, ticket: ticket, confirmedFirmwareLayer: 1)
+        let position = try XCTUnwrap(model.viaFileSlots[record.id]?.last)
+        XCTAssertNil(position.restriction)
+        model.stagePatchChange(.init(slot: position.slot, output: "KC_P", automatic: false), record: record, ticket: ticket)
+        await model.previewPatch(record, ticket: ticket)
+        XCTAssertTrue(model.canExportPreview(record))
+        await model.retainVIAFile(bytes, ticket: ticket)
+        XCTAssertNil(model.confirmedFirmwareLayers[record.id])
+        let fresh = try XCTUnwrap(model.records.last)
+        await model.loadVIAFileSlots(fresh, ticket: ticket)
+        XCTAssertEqual(model.viaFileSlots[fresh.id]?.last?.restriction, .unreachableLayer)
+        await model.loadVIAFileSlots(fresh, ticket: ticket, confirmedFirmwareLayer: 1)
+        model.clear()
+        XCTAssertTrue(model.confirmedFirmwareLayers.isEmpty)
+        await model.loadVIAFileSlots(fresh, ticket: ticket, confirmedFirmwareLayer: 1)
+        XCTAssertTrue(model.confirmedFirmwareLayers.isEmpty)
+    }
     func testVIAFilePositionChoicesReopenAndWithdrawWithPrivacyAndNewOriginal() async throws {
         let (fixture, _, store, gate) = try await deployment()
         let model = fixture.flow.firmwareCopies

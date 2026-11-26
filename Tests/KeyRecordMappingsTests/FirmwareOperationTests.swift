@@ -141,6 +141,29 @@ final class FirmwareOperationTests: XCTestCase {
         catch FirmwareError.unsupportedOutput {}
     }
 
+    func testFirmwareSelectedLayerOnlyAllowsManualEditsOnTheConfirmedVIAFileLayer() throws {
+        let json = #"{"name":"Modes","vendorProductId":42,"layers":[["KC_Q","KC_NO","KC_NO","KC_NO"],["KC_Q","KC_NO","KC_NO","KC_NO"],["KC_Q","MO(1)","CUSTOM(3)","KC_NO"]],"macros":["keep"]}"#
+        let doc = try FirmwareDocument(bytes: Data(json.utf8), backend: .via)
+        func edit(_ layer: Int, _ column: Int, automatic: Bool = false) -> FirmwareSlotChange {
+            .init(slot: .init(layer: layer, column: column), output: "KC_P", automatic: automatic)
+        }
+        let change = edit(2, 0)
+        XCTAssertThrowsError(try doc.patchVIAFile([change], expectedDevice: "42")) {
+            XCTAssertEqual($0 as? FirmwareError, .unreachableLayer)
+        }
+        let patched = try doc.patchVIAFile([change], expectedDevice: "42", confirmedFirmwareLayer: 2)
+        XCTAssertEqual(patched, Data(json.replacingOccurrences(of: #""KC_Q","MO(1)""#, with: #""KC_P","MO(1)""#).utf8))
+        let slots = try doc.viaFileSlots(confirmedFirmwareLayer: 2)
+        XCTAssertNil(try XCTUnwrap(slots.first { $0.slot == change.slot }).restriction)
+        for (change, error) in [(edit(1, 0), FirmwareError.unreachableLayer), (edit(2, 1), .protectedEntry),
+                                (edit(2, 2), .unsupportedOutput), (edit(2, 3, automatic: true), .unreachableLayer)] {
+            XCTAssertThrowsError(try doc.patchVIAFile([change], expectedDevice: "42", confirmedFirmwareLayer: 2)) {
+                XCTAssertEqual($0 as? FirmwareError, error)
+            }
+        }
+        XCTAssertThrowsError(try doc.viaFileSlots(confirmedFirmwareLayer: 3))
+        XCTAssertThrowsError(try doc.patchVIAFile([change], expectedDevice: "43", confirmedFirmwareLayer: 2))
+    }
     func testVIAFilePositionCatalogMatchesRealPatchRestrictions() throws {
         let bytes = Data(#"{"name":"Positions","vendorProductId":42,"layers":[["KC_A","MO(1)","CUSTOM","FN_MO13","LM(1,MOD_LCTL)","QK_BOOT"],["KC_NO","KC_TRNS","KC_B","KC_C","KC_D","KC_E"],["KC_A","KC_A","KC_A","KC_A","KC_A","KC_A"]],"macros":["preserved"]}"#.utf8)
         let document = try FirmwareDocument(bytes: bytes, backend: .via)

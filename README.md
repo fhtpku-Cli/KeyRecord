@@ -2,9 +2,9 @@
 
 KeyRecord 是开发中的原生 macOS 菜单栏应用，用于本地键盘使用聚合统计、可解释的改键建议及受约束的配置工作流，不保存输入文本或逐事件序列。源码使用 Swift 6；最低编译目标 macOS 14+，不等于全部目标系统已获运行资格。
 
-**截至 2026-10-20，已按用户指示恢复完整 v1 工程，见[执行计划](docs/V1_DEVELOPMENT_PLAN_20261020.md)。** 已完成限定 Apple Silicon 采集 MVP、Phase 2 A/B 离线工程、Karabiner 事务与行为测试流程、VIA 基础键文件编辑、Vial 只读协议/定义快照，以及完整密码备份与空资料库恢复。完整 Phase 3/4、真实后端支持和公开发行仍未合格。
+**开发阶段（2026-11-27）：v1 功能工程已进入分项实机验收，下一批优先做 macOS 界面与交互设计。** Karabiner 在一台 Mac 上通过了改键、清理及停用计时；VIA 在一把固件自动选层的键盘上通过了基础键改动与恢复。Vial 真机、真实钥匙串恢复、旧系统与 Intel 支持、公开发行仍有待完成。
 
-先看[当前状态](docs/PROJECT_STATUS.md)、[路线图](docs/ROADMAP.md)、[逐项需求核对](docs/V1_REQUIREMENT_AUDIT_20261020.md)和[全部文档索引](docs/STATUS_INDEX.md)。本轮增加来源一致性、旋转/布局选项、普通配置导出、命名、菜单快捷键参考、更新检查与发布工具；对应 PR 和最终提交 CI 见执行计划。
+[当前状态](docs/PROJECT_STATUS.md)记录实测环境、结果和限制；[路线图](docs/ROADMAP.md)列出开发顺序；[界面设计](docs/DESIGN.md)说明首批原型与验收任务。各阶段的原始记录可从[文档索引](docs/STATUS_INDEX.md)查找。
 
 ## 用户工作流与限制
 
@@ -41,7 +41,7 @@ Scripts/verify-local.sh
 
 已批准 Phase 1 MVP 的实测限定于原候选、原生 arm64 macOS 27.0 build `26A428`；开发签名的 Release 构建不是公证后的公开发行。当前锁屏来源可用于原生 arm64 macOS 27 及以后版本，锁屏状态为锁定或未知时停止采集，不据此声称后续系统均已实测。
 
-真实 Karabiner 效果/重载、VIA GUI 导入、Vial HID、密码备份的 Keychain 恢复、完整卸载及发布验证尚未完成。新实机轮次须明确构建、身份、隔离资料库/Keychain 范围、动作与时间，并取得适用授权。普通构建、CI 和旧试验说明不授权操作日常配置、TCC、真实设备或删除用户数据。
+剩余实测包括其他目标设备与版本、Vial 只读 HID 与断连、真实 Keychain 恢复、完整卸载及发布验证。新实机轮次须明确构建、身份、隔离资料库/Keychain 范围、动作与时间，并取得适用授权。普通构建、CI 和旧试验说明不授权操作日常配置、TCC、真实设备或删除用户数据。
 
 锁屏或崩溃可能丢失上次成功持久化后的统计；一秒保存节奏不是数据丢失上限保证。详见 [Phase 1 验收](docs/PHASE1_ACCEPTANCE.md)和[实机验证说明](docs/LIVE_VERIFICATION_NOTES.md)。
 

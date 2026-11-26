@@ -1,6 +1,6 @@
 # 技术架构规格说明书
 
-> 状态核对：2026-10-20。已恢复完整 v1 工程，见 [执行计划](V1_DEVELOPMENT_PLAN_20261020.md)。本页保留完整目标架构及既有安全约束，原实验结论和早期增量不代表当前运行状态；现状见 [PROJECT_STATUS](PROJECT_STATUS.md)。
+> 2026-11-27 核对。本页保留完整 v1 目标架构与安全约束。当前后端实测范围见 [PROJECT_STATUS](PROJECT_STATUS.md)，菜单语言与主窗口交互的后续工作见 [DESIGN](DESIGN.md)。
 
 ## 当前源码结构与能力对照
 
@@ -8,7 +8,7 @@
 |---|---|
 | `Sources/KeyRecordCore`、`KeyRecordCapture`、`KeyRecordStore` | 生命周期、采集聚合、加密对象与事务；Store 已实现密码备份/空库恢复，使用 Package.swift 指定的 PHC Argon2 C 依赖，不再是仅系统框架零外部源码依赖 |
 | `KeyRecordConfigurationRead`、`KeyRecordAnalysis` | 有界配置解析、统计推荐、物理证据消费及逻辑回退 |
-| `KeyRecordMappings` | Karabiner 事务与草稿、固件文件修补、文件/设备兼容依据、读回比对和恢复记录 |
+| `KeyRecordMappings` | Karabiner 事务与草稿、固件文件修补、仅对当前 VIA 草稿手动编辑有效的选层确认、文件/设备兼容依据、读回比对和恢复记录 |
 | `KeyRecordDeviceRead`、`KeyRecordLimitedXZ` | 显式选定设备的白名单非变更协议与有界系统 liblzma 定义解码；实际 HID 资格仍后置 |
 | `App/KeyRecordApp/ProductComposition.swift` | 接通部署、设备选择、来源适配器、密码备份及卸载准备；生产支持目录仍空 |
 | `PhysicalSourcesModel` 及分析层来源模型 | 系统属性、Profile、文件、厂商号来源明确的设备型号与 Vial 定义快照；变化/隐私撤销旧观察，不建立历史设备归属或完整真实链 |

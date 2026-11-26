@@ -2,7 +2,7 @@
 
 离线开发盘点于 2026-10-20，Karabiner 与 VIA 单机验收更新于 2026-11-27（Asia/Shanghai）。正式名称 **KeyRecord**，自有代码 **Apache-2.0**。本轮已完成来源一致性、布局表达、用户流程、菜单冲突参考、更新检查和发布工具的离线实现；PR、对应提交 CI 与 main CI 记录见 [v1 执行计划](V1_DEVELOPMENT_PLAN_20261020.md)。[逐项需求核对](V1_REQUIREMENT_AUDIT_20261020.md)区分已实现工程、真实验证以及仍缺平台来源的目标。
 
-**不能宣称完整 v1 已完成或已可公开发行。** 限定 Apple Silicon MVP 有历史实测，新增流程有离线证据；macOS 14+ / Intel 的生产采集来源、真实后端资格和正式发布仍未闭环。
+**下一批优先推进 macOS 菜单和主窗口的界面与交互设计。** 菜单语言一致性和统计信息层级已有具体问题，首个交付物为可点击的中英文菜单与统计首页原型。体验验收、较旧 macOS 与 Intel 的生产采集来源、更多设备的兼容验证和公开发行仍待完成。
 
 ## 最近完成的开发
 
@@ -45,12 +45,17 @@ Gnirps-2nd 在 Mac 模式下由固件选择 Layer 5。以用户从 VIA 导出的
 
 ## 下一步的具体边界
 
-1. **先解决平台来源阻塞。** 当前生产锁屏读取仅启用原生 arm64 macOS 27+。较旧 macOS/Intel 的可靠来源尚需确认，再决定适配器接入；最低编译目标和 Universal 构建不能代替这项能力。不直接放宽平台检查。
-2. **安排有范围的真实验证。** Karabiner 重载与行为、VIA GUI 导入、Vial 只读 HID、Keychain 恢复、完整卸载、可访问性、性能和发布链分别记录具体版本/设备/动作。
-3. **保持既有分析范围。** 历史聚合没有逐事件设备/时序，不可能补回历史活动层或物理动作。当前证据不足时逻辑回退；扩大未来采集属于单独产品与隐私决定。
-4. **依据真实发现定向修复。** 不恢复浏览器实例绑定、定时续轮或凭合成夹具填充生产支持目录。删除前复核及恢复副本保留。
+1. **先做菜单与统计首页。** 依据[界面设计任务](DESIGN.md)处理语言、状态、首屏与详情层级，先评审原型，再实施原生界面。
+2. **并行处理平台来源阻塞。** 当前生产锁屏读取仅启用原生 arm64 macOS 27+。较旧 macOS/Intel 的可靠来源尚需确认，再决定适配器接入；最低编译目标和 Universal 构建不能代替这项能力。不直接放宽平台检查。
+3. **继续剩余实测。** Vial 只读 HID 与断连、Keychain 恢复、完整卸载、可访问性、性能和发布链分别记录版本、设备及动作。Karabiner 和 VIA 已通过的范围见上文。
+4. **保持既有分析范围。** 历史聚合没有逐事件设备/时序，不可能补回历史活动层或物理动作。当前证据不足时逻辑回退；扩大未来采集属于单独产品与隐私决定。
+5. **依据真实发现定向修复。** 不恢复浏览器实例绑定、定时续轮或凭合成夹具填充生产支持目录。删除前复核及恢复副本保留。
 
-## 最近七批实际交付
+## 11 月验收与修复依据
+
+[Karabiner 规则标记修复 #80](https://github.com/fhtpku-Cli/KeyRecord/pull/80) · [恢复冲突提示 #81](https://github.com/fhtpku-Cli/KeyRecord/pull/81) · [清理和重启恢复 #82](https://github.com/fhtpku-Cli/KeyRecord/pull/82) · [停用实按计时 #83](https://github.com/fhtpku-Cli/KeyRecord/pull/83) · [VIA 固件选层与恢复 #84](https://github.com/fhtpku-Cli/KeyRecord/pull/84)
+
+## 早期七批工程交付
 
 在本轮 v1 收尾之前，七批分别交付：
 [#67 VIA 文件流程](https://github.com/fhtpku-Cli/KeyRecord/pull/67)、
@@ -60,6 +65,6 @@ Gnirps-2nd 在 Mac 模式下由固件选择 Layer 5。以用户从 VIA 导出的
 [#71 来源适配器](https://github.com/fhtpku-Cli/KeyRecord/pull/71)、
 [#72 设备布局](https://github.com/fhtpku-Cli/KeyRecord/pull/72)、
 [#73 Vial 自身定义](https://github.com/fhtpku-Cli/KeyRecord/pull/73)。
-这些 PR 的离线结果不构成真实后端资格。之后的批次和提交 CI 统一记录在 v1 执行计划，避免把第七批当成当前代码截止点。
+这些 PR 的离线结果不构成真实后端资格。10 月离线工程见 v1 执行计划，11 月单机验收见上文。
 
 [路线图](ROADMAP.md) · [需求核对](V1_REQUIREMENT_AUDIT_20261020.md) · [发布准备](RELEASE_PREPARATION_20261020.md) · [全部文档索引](STATUS_INDEX.md) · [历史状态](PROJECT_HISTORY.md)

@@ -5,6 +5,19 @@ import KeyRecordCapture
 
 @MainActor
 final class ProductLocaleStartupTests: XCTestCase {
+    func testMenuRendersMissingCaptureAndPrivacyReasonInSelectedLanguage() {
+        let missing = CaptureStatusPresentation.status(phase: .collecting, reason: nil,
+            gateOpen: true, captureSessionLive: false)
+        let privacy = CaptureStatusPresentation.status(phase: .blocked, reason: .secureInputActive,
+            gateOpen: false, captureSessionLive: false)
+        let chinese = NativeText(locale: "zh-Hans")
+        let english = NativeText(locale: "en")
+        XCTAssertEqual(chinese.captureStatus(missing), "已受阻 · 采集会话未运行")
+        XCTAssertEqual(english.captureStatus(missing), "Blocked — capture is not running")
+        XCTAssertEqual(chinese.captureStatus(privacy), "已受阻 · 安全输入已启用")
+        XCTAssertEqual(english.captureStatus(privacy), "Blocked — Secure Input is active")
+    }
+
     func testStartupRestoresPersistedChineseBeforeRenderingWithEnglishFallback() async throws {
         // Given: a paused persisted session, not a manually reloaded lifecycle.
         let directory = URL(fileURLWithPath: NSTemporaryDirectory())
@@ -54,7 +67,7 @@ final class ProductLocaleStartupTests: XCTestCase {
         XCTAssertEqual(harness.orchestrator.state.failure, .preferencesLoadFailed(.protectedDataUnavailable))
         XCTAssertFalse(harness.orchestrator.state.gate.isOpen)
         XCTAssertEqual(flow.state, .error)
-        XCTAssertEqual(flow.language, "en")
+        XCTAssertEqual(flow.language, "zh-Hans")
         XCTAssertEqual(flow.noticeKey, "flow.actionUnavailable")
         let keys = await harness.keys.provisionCount
         let starts = await harness.capture.startCount

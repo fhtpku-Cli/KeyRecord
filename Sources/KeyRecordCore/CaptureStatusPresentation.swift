@@ -16,24 +16,37 @@ import Foundation
 /// Rule: a "Collecting" claim requires a live capture session. Otherwise fail closed and
 /// name a reason.
 public enum CaptureStatusPresentation {
+    public enum Status: Equatable, Sendable {
+        case blocked(BlockedReason)
+        case missingSession
+        case locked
+        case phase(LifecyclePhase)
+    }
+
+    public static func status(phase: LifecyclePhase, reason: BlockedReason?,
+                              gateOpen: Bool, captureSessionLive: Bool) -> Status {
+        let sessionMissing = phase == .collecting && !captureSessionLive
+        if !gateOpen || phase == .blocked || sessionMissing {
+            if let reason { return .blocked(reason) }
+            return sessionMissing ? .missingSession : .locked
+        }
+        return .phase(phase)
+    }
+
     public static func title(phase: LifecyclePhase, reason: BlockedReason?,
                              gateOpen: Bool, captureSessionLive: Bool) -> String {
-        // Only phases that assert active collection need a live-session witness;
-        // paused/stopped/unstarted legitimately have none.
-        let claimsCollecting = phase == .collecting
-        let sessionMissing = claimsCollecting && !captureSessionLive
-        if !gateOpen || phase == .blocked || sessionMissing {
-            if let reason { return "BLOCKED — \(reason)" }
-            // Distinguish the two no-reason causes. Saying "locked" when the real problem
-            // is a dead capture session points the user at the wrong remedy.
-            return sessionMissing ? "BLOCKED — capture not running" : "BLOCKED — locked"
-        }
-        switch phase {
-        case .collecting: return "● Collecting"
-        case .paused: return "❚❚ Paused"
-        case .stopped: return "■ Stopped"
-        case .unstarted, .consent: return "Not started"
-        default: return String(describing: phase).capitalized
+        switch status(phase: phase, reason: reason, gateOpen: gateOpen, captureSessionLive: captureSessionLive) {
+        case .blocked(let reason): return "BLOCKED — \(reason)"
+        case .missingSession: return "BLOCKED — capture not running"
+        case .locked: return "BLOCKED — locked"
+        case .phase(let phase):
+            switch phase {
+            case .collecting: return "● Collecting"
+            case .paused: return "❚❚ Paused"
+            case .stopped: return "■ Stopped"
+            case .unstarted, .consent: return "Not started"
+            default: return String(describing: phase).capitalized
+            }
         }
     }
 }

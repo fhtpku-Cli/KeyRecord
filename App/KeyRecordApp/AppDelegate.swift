@@ -119,12 +119,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 // The reason is now shown in the menu. It is a startup/plumbing error
                 // (path, permissions, keyring availability), never captured input, so it
                 // carries no user keystroke data.
-                let text = NativeText(locale: Locale.preferredLanguages.first?.hasPrefix("zh") == true ? "zh-Hans" : "en")
+                let text = NativeText(locale: ProductLanguage.fallback(Locale.preferredLanguages))
                 let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-                item.button?.title = "\(text("app.name")) \(text("status.blocked"))"
+                item.button?.title = "\(text("app.name")) \(text("capture.startupFailed"))"
                 let menu = NSMenu()
-                let cause = NSMenuItem(title: "Startup failed: \(error)", action: nil, keyEquivalent: "")
-                cause.isEnabled = false
+                let cause = NSMenuItem(title: text("capture.diagnostics"), action: #selector(showStartupError(_:)), keyEquivalent: "")
+                cause.target = self
+                cause.representedObject = String(describing: error)
                 cause.setAccessibilityIdentifier("menu.startupFailure")
                 menu.addItem(cause)
                 menu.addItem(.separator())
@@ -133,6 +134,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 statusItem = item
             }
         }
+    }
+
+    @objc private func showStartupError(_ sender: NSMenuItem) {
+        let text = NativeText(locale: ProductLanguage.fallback(Locale.preferredLanguages))
+        let alert = NSAlert()
+        alert.messageText = text("capture.startupFailed")
+        alert.informativeText = sender.representedObject as? String ?? ""
+        alert.addButton(withTitle: text("capture.close"))
+        alert.runModal()
     }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {

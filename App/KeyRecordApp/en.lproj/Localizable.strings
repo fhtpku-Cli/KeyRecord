@@ -349,6 +349,7 @@
 "phase3.readOnlyVersion" = "No supported version/Profile entry is available. This session is read-only; preview and export remain available.";
 "phase3.versionUnknown" = "Karabiner version unavailable";
 "phase3.bindingFailed" = "Target binding failed. Select the configuration again; no write has been authorized.";
+"phase3.bindingConflict" = "The Karabiner configuration has changed. Before retrying, check which profile is active in Karabiner-Elements and review the KeyRecord rules in the profile you chose to edit.";
 "phase3.rebindBlocked" = "Remove the previous managed rules or explicitly stop managing them before binding another target.";
 "phase4.copiesTitle" = "Firmware recovery copies";
 "phase4.compatibilityUnknown" = "Firmware device and version axes remain unqualified. Generation is blocked; retaining and exporting an original recovery copy does not prove device compatibility.";
